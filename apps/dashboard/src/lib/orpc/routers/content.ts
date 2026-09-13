@@ -35,6 +35,7 @@ import {
 } from "@notra/db/schema";
 import type { BlogPostSubtype } from "@notra/db/types/content";
 import { buildPostCollectionName } from "@notra/db/utils/post-collections";
+import { extractImageArtifactHtml } from "@notra/db/utils/post-image-artifacts";
 import {
   isProjectInOrganization,
   projectScopeFilter,
@@ -163,6 +164,34 @@ const postReadColumns = {
   updatedAt: true,
 } as const;
 
+// List consumers (sidebar "Recent", dashboard home cards) render a title, a
+// status and a two-line preview, so text bodies stay in the database.
+const POST_LIST_MARKDOWN_PREVIEW_CHARS = 2000;
+
+const postListColumns = {
+  id: true,
+  title: true,
+  slug: true,
+  htmlUrl: true,
+  contentType: true,
+  contentSubtype: true,
+  createdAt: true,
+  status: true,
+  updatedAt: true,
+} as const;
+
+const postListExtras = {
+  content:
+    sql<string>`case when ${posts.contentType} = 'image' then ${posts.content} else '' end`.as(
+      "content"
+    ),
+  markdown: sql<
+    string | null
+  >`case when ${posts.contentType} = 'image' then ${posts.markdown} else left(${posts.markdown}, ${POST_LIST_MARKDOWN_PREVIEW_CHARS}) end`.as(
+    "markdown"
+  ),
+};
+
 function serializePost(post: {
   content: string;
   contentType: string;
@@ -171,8 +200,6 @@ function serializePost(post: {
   htmlUrl: string | null;
   id: string;
   markdown: string | null;
-  sourceMetadata: unknown;
-  recommendations: string | null;
   slug: string | null;
   status: "draft" | "published";
   title: string;
@@ -185,8 +212,6 @@ function serializePost(post: {
     content: post.content,
     htmlUrl: post.contentType === "image" ? post.htmlUrl : null,
     markdown: post.markdown,
-    rawHtml: extractImageArtifactHtml(post.sourceMetadata),
-    recommendations: post.recommendations,
     contentType:
       post.contentType as PostsResponse["posts"][number]["contentType"],
     contentSubtype: post.contentSubtype,
@@ -223,24 +248,6 @@ function serializeContent(post: {
     date: post.createdAt.toISOString(),
     sourceMetadata: post.sourceMetadata as ContentResponse["sourceMetadata"],
   };
-}
-
-function extractImageArtifactHtml(sourceMetadata: unknown): string | null {
-  if (
-    !sourceMetadata ||
-    typeof sourceMetadata !== "object" ||
-    Array.isArray(sourceMetadata)
-  ) {
-    return null;
-  }
-
-  const artifacts = (sourceMetadata as { artifacts?: unknown }).artifacts;
-  if (!artifacts || typeof artifacts !== "object" || Array.isArray(artifacts)) {
-    return null;
-  }
-
-  const html = (artifacts as { html?: unknown }).html;
-  return typeof html === "string" && html.trim() ? html : null;
 }
 
 function normalizeContentTypes(contentTypes: string[]): ContentType[] {
@@ -561,7 +568,8 @@ export const contentRouter = {
           orderBy: [desc(posts.createdAt), desc(posts.id)],
           limit: input.pageSize,
           offset,
-          columns: postReadColumns,
+          columns: postListColumns,
+          extras: postListExtras,
         }),
         db.select({ value: count() }).from(posts).where(whereClause),
       ]);
