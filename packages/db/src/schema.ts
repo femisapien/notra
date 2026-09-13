@@ -1684,6 +1684,7 @@ export const geoMentionChecks = pgTable(
     prompt: text("prompt").notNull(),
     answer: text("answer").notNull(),
     mentioned: boolean("mentioned").notNull(),
+    ownedSourceCited: boolean("owned_source_cited").notNull().default(false),
     position: integer("position"),
     sentiment: text("sentiment"),
     competitors: text("competitors")
@@ -1738,6 +1739,7 @@ export const geoMentionChecks = pgTable(
       table.engine,
       table.promptId,
       table.mentioned,
+      table.ownedSourceCited,
       table.position,
       table.sentiment,
       table.sequenceId

@@ -662,6 +662,7 @@ export interface EngineFamilyPromptHit {
   promptId: string;
   prompt: string;
   mentioned: boolean;
+  ownedSourceCited?: boolean;
   position: number | null;
 }
 

@@ -164,6 +164,7 @@ export async function insertGeoMentionChecks(
       prompt: row.prompt,
       answer: row.answer,
       mentioned: row.mentioned,
+      ownedSourceCited: row.ownedSourceCited,
       position: row.position,
       sentiment: row.sentiment,
       competitors: row.competitors,
@@ -206,6 +207,9 @@ export async function queryGeoCheckOverview(
       checks: sql<number>`count(*)::int`,
       mentions: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned})::int`,
       mentionRate: sql<number>`round(count(*) filter (where ${geoMentionChecks.mentioned})::numeric / nullif(count(*), 0), 3)::float8`,
+      citations: sql<number>`count(*) filter (where ${geoMentionChecks.ownedSourceCited})::int`,
+      visibility: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::int`,
+      visibilityRate: sql<number>`round(count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::numeric / nullif(count(*), 0), 3)::float8`,
       avgPosition: sql<
         number | null
       >`round(avg(${geoMentionChecks.position}) filter (where ${geoMentionChecks.mentioned} and ${geoMentionChecks.position} is not null), 1)::float8`,
@@ -218,7 +222,7 @@ export async function queryGeoCheckOverview(
     )
     .groupBy(geoMentionChecks.engine)
     .orderBy(
-      sql`count(*) filter (where ${geoMentionChecks.mentioned})::numeric / nullif(count(*), 0) desc`
+      sql`count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::numeric / nullif(count(*), 0) desc`
     );
 
   return rows.map((row) => ({
@@ -226,6 +230,9 @@ export async function queryGeoCheckOverview(
     checks: toNumber(row.checks),
     mentions: toNumber(row.mentions),
     mentionRate: toNumber(row.mentionRate),
+    citations: toNumber(row.citations),
+    visibility: toNumber(row.visibility),
+    visibilityRate: toNumber(row.visibilityRate),
     avgPosition: toNullableNumber(row.avgPosition),
     lastCheckedAt: toDate(row.lastCheckedAt),
   }));
@@ -242,6 +249,8 @@ export async function queryGeoCheckTimeseries(
       engine: geoMentionChecks.engine,
       checks: sql<number>`count(*)::int`,
       mentions: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned})::int`,
+      citations: sql<number>`count(*) filter (where ${geoMentionChecks.ownedSourceCited})::int`,
+      visibility: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::int`,
       avgPosition: sql<
         number | null
       >`round(avg(${geoMentionChecks.position}) filter (where ${geoMentionChecks.mentioned} and ${geoMentionChecks.position} is not null), 1)::float8`,
@@ -265,6 +274,8 @@ export async function queryGeoCheckTimeseries(
     engine: row.engine,
     checks: toNumber(row.checks),
     mentions: toNumber(row.mentions),
+    citations: toNumber(row.citations),
+    visibility: toNumber(row.visibility),
     avgPosition: toNullableNumber(row.avgPosition),
   }));
 }
@@ -275,6 +286,7 @@ const promptResultColumns = {
   prompt: geoMentionChecks.prompt,
   answer: geoMentionChecks.answer,
   mentioned: geoMentionChecks.mentioned,
+  ownedSourceCited: geoMentionChecks.ownedSourceCited,
   position: geoMentionChecks.position,
   sentiment: geoMentionChecks.sentiment,
   competitors: geoMentionChecks.competitors,
@@ -379,6 +391,7 @@ export async function queryGeoCheckPromptSummaries(
       engine: geoMentionChecks.engine,
       prompt: geoMentionChecks.prompt,
       mentioned: geoMentionChecks.mentioned,
+      ownedSourceCited: geoMentionChecks.ownedSourceCited,
       position: geoMentionChecks.position,
       sentiment: geoMentionChecks.sentiment,
       competitors: geoMentionChecks.competitors,
@@ -418,6 +431,7 @@ export async function queryGeoCheckPromptHistory(
       scanId: geoMentionChecks.scanId,
       engine: geoMentionChecks.engine,
       mentioned: geoMentionChecks.mentioned,
+      ownedSourceCited: geoMentionChecks.ownedSourceCited,
       position: geoMentionChecks.position,
       sentiment: geoMentionChecks.sentiment,
       competitors: geoMentionChecks.competitors,
@@ -658,6 +672,9 @@ export async function queryGeoCheckLanguageShare(
       checks: sql<number>`count(*)::int`,
       mentions: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned})::int`,
       mentionRate: sql<number>`round(count(*) filter (where ${geoMentionChecks.mentioned})::numeric / nullif(count(*), 0), 3)::float8`,
+      citations: sql<number>`count(*) filter (where ${geoMentionChecks.ownedSourceCited})::int`,
+      visibility: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::int`,
+      visibilityRate: sql<number>`round(count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::numeric / nullif(count(*), 0), 3)::float8`,
       avgPosition: sql<
         number | null
       >`round(avg(${geoMentionChecks.position}) filter (where ${geoMentionChecks.mentioned} and ${geoMentionChecks.position} is not null), 1)::float8`,
@@ -670,7 +687,7 @@ export async function queryGeoCheckLanguageShare(
       sql`case when ${geoMentionChecks.language} = '' then 'English' else ${geoMentionChecks.language} end`
     )
     .orderBy(
-      sql`count(*) filter (where ${geoMentionChecks.mentioned})::numeric / nullif(count(*), 0) desc`
+      sql`count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::numeric / nullif(count(*), 0) desc`
     );
 
   return rows.map((row) => ({
@@ -678,6 +695,9 @@ export async function queryGeoCheckLanguageShare(
     checks: toNumber(row.checks),
     mentions: toNumber(row.mentions),
     mentionRate: toNumber(row.mentionRate),
+    citations: toNumber(row.citations),
+    visibility: toNumber(row.visibility),
+    visibilityRate: toNumber(row.visibilityRate),
     avgPosition: toNullableNumber(row.avgPosition),
     lastCheckedAt: toDate(row.lastCheckedAt),
   }));
@@ -696,6 +716,7 @@ export async function queryGeoCheckLanguageShareTrends(
       day,
       language,
       mentionRate: sql<number>`round(count(*) filter (where ${geoMentionChecks.mentioned})::numeric / nullif(count(*), 0), 3)::float8`,
+      visibilityRate: sql<number>`round(count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::numeric / nullif(count(*), 0), 3)::float8`,
     })
     .from(geoMentionChecks)
     .$withCache(GEO_CHECK_AGGREGATE_CACHE)
@@ -707,6 +728,7 @@ export async function queryGeoCheckLanguageShareTrends(
     day: toDay(row.day),
     language: row.language,
     mentionRate: toNumber(row.mentionRate),
+    visibilityRate: toNumber(row.visibilityRate),
   }));
 }
 
@@ -736,6 +758,7 @@ export async function queryGeoCheckSequenceResults(
         prompt: geoMentionChecks.prompt,
         answer: geoMentionChecks.answer,
         mentioned: geoMentionChecks.mentioned,
+        ownedSourceCited: geoMentionChecks.ownedSourceCited,
         position: geoMentionChecks.position,
         sentiment: geoMentionChecks.sentiment,
         excerpt: geoMentionChecks.excerpt,
@@ -769,6 +792,7 @@ export async function queryGeoCheckSequenceResults(
         prompt: row.prompt,
         answer: row.answer,
         mentioned: row.mentioned,
+        ownedSourceCited: row.ownedSourceCited,
         position: row.position,
         sentiment: row.sentiment,
         excerpt: row.excerpt,

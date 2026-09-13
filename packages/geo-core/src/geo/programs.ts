@@ -806,7 +806,7 @@ export const loadGeoLanguageShare = Effect.fn("geo.languageShare")(function* (
   const trendsByLanguage = groupGeoSparklinePoints(
     trendRows,
     (point) => point.language,
-    (point) => ({ day: point.day, value: point.mentionRate })
+    (point) => ({ day: point.day, value: point.visibilityRate })
   );
 
   const response: GeoLanguageShareResponse = {
@@ -816,6 +816,9 @@ export const loadGeoLanguageShare = Effect.fn("geo.languageShare")(function* (
       checks: row.checks,
       mentions: row.mentions,
       mentionRate: row.mentionRate,
+      citations: row.citations,
+      visibility: row.visibility,
+      visibilityRate: row.visibilityRate,
       avgPosition: row.avgPosition,
       trend: trendsByLanguage.get(row.language) ?? [],
     })),
@@ -837,6 +840,9 @@ export const loadGeoOverview = Effect.fn("geo.overview")(function* (
     checks: row.checks,
     mentions: row.mentions,
     mentionRate: row.mentionRate,
+    citations: row.citations,
+    visibility: row.visibility,
+    visibilityRate: row.visibilityRate,
     avgPosition: row.avgPosition,
     lastCheckedAt: row.lastCheckedAt.toISOString(),
   }));
@@ -864,6 +870,8 @@ export const loadGeoTimeseries = Effect.fn("geo.timeseries")(function* (
       engine: row.engine,
       checks: row.checks,
       mentions: row.mentions,
+      citations: row.citations,
+      visibility: row.visibility,
       avgPosition: row.avgPosition,
     })),
   };
@@ -910,6 +918,7 @@ export const loadGeoPromptHistory = Effect.fn("geo.promptHistory")(function* (
       scanId: row.scanId,
       engine: row.engine,
       mentioned: row.mentioned,
+      ownedSourceCited: row.ownedSourceCited,
       position: row.position,
       sentiment: row.sentiment,
       competitors: row.competitors,
