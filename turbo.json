@@ -4,7 +4,6 @@
   "globalDependencies": [".npmrc", "bunfig.toml", "scripts/prepare-effect.sh"],
   "globalEnv": [
     "WEBHOOK_ENCRYPTION_KEY",
-    "WEBHOOKS_ENABLED",
     "AI_GATEWAY_API_KEY",
     "APP_URL",
     "AUTUMN_PROD_SECRET_KEY",
