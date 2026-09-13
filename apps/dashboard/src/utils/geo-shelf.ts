@@ -8,7 +8,6 @@ import {
 import {
   GEO_SHELF_BOARD_COLUMN_IDS_BY_TICKET_FILTER,
   GEO_SHELF_BOARD_COLUMNS,
-  GEO_SHELF_OPEN_STATUSES,
 } from "@/constants/geo-shelf";
 import { emptyShelfCitations } from "@/lib/geo-shelf/citations";
 
@@ -31,21 +30,7 @@ import {
   getPresentCompetitorPlacements,
   isShelfOpportunitySource,
 } from "./geo-shelf-live-query";
-
-export function isOpenShelfStatus(
-  status: GeoShelfOpportunity["status"] | null | undefined
-): boolean {
-  return status ? GEO_SHELF_OPEN_STATUSES.includes(status) : false;
-}
-
-export function resolveShelfPoc(
-  opportunity: GeoShelfOpportunity | null
-): string | null {
-  if (!opportunity) {
-    return null;
-  }
-  return opportunity.pocMemberId ?? opportunity.assigneeMemberId;
-}
+import { isOpenShelfStatus, resolveShelfPoc } from "./geo-shelf-opportunity";
 
 export function boardColumnForRow(row: GeoShelfRow): GeoShelfBoardColumnId {
   return row.opportunity?.status ?? "untracked";

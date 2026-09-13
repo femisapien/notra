@@ -5,7 +5,10 @@ import type {
   GeoShelfMember,
   GeoShelfSource,
 } from "@/types/geo-shelf";
-import { isOpenShelfStatus, resolveShelfPoc } from "@/utils/geo-shelf";
+import {
+  isOpenShelfStatus,
+  resolveShelfPoc,
+} from "@/utils/geo-shelf-opportunity";
 
 export function getOwnPlacement(source: GeoShelfSource) {
   return (
