@@ -1,5 +1,5 @@
 {
-  "id": "42e7b533-244c-4849-8e8d-c96d49c5a8e1",
+  "id": "e448420e-fa41-489c-90b6-4bd02c0da8c5",
   "prevId": "e2bea0f8-7565-4fd7-a87d-c7fdf584d405",
   "version": "7",
   "dialect": "postgresql",
@@ -11317,29 +11317,7 @@
           "notNull": false
         }
       },
-      "indexes": {
-        "webhook_endpoints_org_id": {
-          "name": "webhook_endpoints_org_id",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "webhook_endpoints_organization_id_organizations_id_fk": {
           "name": "webhook_endpoints_organization_id_organizations_id_fk",
@@ -11356,7 +11334,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "webhook_endpoints_org_id": {
+          "name": "webhook_endpoints_org_id",
+          "nullsNotDistinct": false,
+          "columns": [
+            "organization_id",
+            "id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -11432,27 +11419,6 @@
           "method": "btree",
           "with": {}
         },
-        "webhook_events_org_id": {
-          "name": "webhook_events_org_id",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "webhook_events_dispatch": {
           "name": "webhook_events_dispatch",
           "columns": [
@@ -11485,7 +11451,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "webhook_events_org_id": {
+          "name": "webhook_events_org_id",
+          "nullsNotDistinct": false,
+          "columns": [
+            "organization_id",
+            "id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

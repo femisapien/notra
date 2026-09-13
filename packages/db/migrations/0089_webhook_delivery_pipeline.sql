@@ -36,7 +36,8 @@ CREATE TABLE "webhook_endpoints" (
 	"secret" text NOT NULL,
 	"enabled" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"deleted_at" timestamp with time zone
+	"deleted_at" timestamp with time zone,
+	CONSTRAINT "webhook_endpoints_org_id" UNIQUE("organization_id","id")
 );
 --> statement-breakpoint
 CREATE TABLE "webhook_events" (
@@ -46,7 +47,8 @@ CREATE TABLE "webhook_events" (
 	"event_type" text NOT NULL,
 	"payload" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"dispatch_at" timestamp with time zone DEFAULT now()
+	"dispatch_at" timestamp with time zone DEFAULT now(),
+	CONSTRAINT "webhook_events_org_id" UNIQUE("organization_id","id")
 );
 --> statement-breakpoint
 ALTER TABLE "webhook_attempts" ADD CONSTRAINT "webhook_attempts_delivery_id_webhook_deliveries_id_fk" FOREIGN KEY ("delivery_id") REFERENCES "public"."webhook_deliveries"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -58,7 +60,5 @@ CREATE UNIQUE INDEX "webhook_attempts_delivery_number" ON "webhook_attempts" USI
 CREATE UNIQUE INDEX "webhook_deliveries_event_endpoint" ON "webhook_deliveries" USING btree ("event_id","endpoint_id");--> statement-breakpoint
 CREATE INDEX "webhook_deliveries_due" ON "webhook_deliveries" USING btree ("status","next_attempt_at");--> statement-breakpoint
 CREATE INDEX "webhook_deliveries_org_created" ON "webhook_deliveries" USING btree ("organization_id","created_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "webhook_endpoints_org_id" ON "webhook_endpoints" USING btree ("organization_id","id");--> statement-breakpoint
 CREATE UNIQUE INDEX "webhook_events_org_source" ON "webhook_events" USING btree ("organization_id","source_key");--> statement-breakpoint
-CREATE UNIQUE INDEX "webhook_events_org_id" ON "webhook_events" USING btree ("organization_id","id");--> statement-breakpoint
 CREATE INDEX "webhook_events_dispatch" ON "webhook_events" USING btree ("dispatch_at");

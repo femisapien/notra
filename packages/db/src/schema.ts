@@ -11,6 +11,7 @@ import {
   real,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -3486,7 +3487,7 @@ export const webhookEndpoints = pgTable(
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [
-    uniqueIndex("webhook_endpoints_org_id").on(table.organizationId, table.id),
+    unique("webhook_endpoints_org_id").on(table.organizationId, table.id),
   ]
 );
 
@@ -3510,7 +3511,7 @@ export const webhookEvents = pgTable(
       table.organizationId,
       table.sourceKey
     ),
-    uniqueIndex("webhook_events_org_id").on(table.organizationId, table.id),
+    unique("webhook_events_org_id").on(table.organizationId, table.id),
     index("webhook_events_dispatch").on(table.dispatchAt),
   ]
 );
