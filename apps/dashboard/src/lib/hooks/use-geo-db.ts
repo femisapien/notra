@@ -473,7 +473,7 @@ export function useGeoShelfFilteredSourcesDb(
             case "closed":
               return and(
                 not(isNull(shelf.opportunity)),
-                inArray(shelf.opportunity!.status, ["won", "lost", "dismissed"])
+                inArray(shelf.opportunity?.status, ["won", "lost", "dismissed"])
               );
             case "unassigned":
               return and(
