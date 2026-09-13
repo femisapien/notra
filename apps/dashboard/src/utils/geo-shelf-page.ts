@@ -20,7 +20,13 @@ import { toShelfRows } from "@/utils/geo-shelf";
 export function resolveGeoShelfPageStatus(
   input: GeoShelfPageStatusInput
 ): GeoShelfPageModel["status"] {
-  if (input.isSettingsPending || (input.hasSettings && input.isShelfLoading)) {
+  if (
+    input.isSettingsPending ||
+    (input.hasSettings &&
+      (input.isShelfLoading ||
+        input.isFilteredShelfLoading ||
+        input.isMembersLoading))
+  ) {
     return "loading";
   }
   if (!input.hasSettings) {

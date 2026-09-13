@@ -12,7 +12,6 @@ import type { Transaction } from "@tanstack/react-db";
 import {
   and,
   eq,
-  ilike,
   inArray,
   isNull,
   not,
@@ -443,10 +442,6 @@ export function useGeoShelfFilteredSourcesDb(
   const isEnabled = input.enabled ?? true;
   const { projectId } = useGeoProjectScope();
   const shelfDefinition = geoShelfCollection({ organizationId, projectId });
-  const competitorsDefinition = geoCompetitorsCollection({
-    organizationId,
-    projectId,
-  });
 
   const { data, isLoading } = useLiveQuery(
     (q) => {
@@ -454,16 +449,8 @@ export function useGeoShelfFilteredSourcesDb(
         return undefined;
       }
 
-      const searchPattern =
-        input.filters.search.trim().length > 0
-          ? `%${input.filters.search.trim()}%`
-          : null;
-
       return q
         .from({ shelf: shelfDefinition })
-        .join({ competitor: competitorsDefinition }, ({ competitor }) =>
-          eq(competitor.id, competitor.id)
-        )
         .where(({ shelf }) => {
           switch (input.filters.ticket) {
             case "open":
@@ -501,17 +488,6 @@ export function useGeoShelfFilteredSourcesDb(
               return eq(1, 1);
           }
         })
-        .where(({ shelf }) => {
-          if (!searchPattern) {
-            return eq(1, 1);
-          }
-          return or(
-            ilike(shelf.title, searchPattern),
-            ilike(shelf.domain, searchPattern),
-            ilike(shelf.url, searchPattern),
-            ilike(shelf.opportunity?.notes, searchPattern)
-          );
-        })
         .fn.where((row) =>
           matchesGeoShelfSourceFilters(
             row.shelf,
@@ -520,12 +496,10 @@ export function useGeoShelfFilteredSourcesDb(
             input.competitors
           )
         )
-        .select(({ shelf }) => shelf)
-        .distinct();
+        .select(({ shelf }) => shelf);
     },
     [
       shelfDefinition,
-      competitorsDefinition,
       isEnabled,
       input.filters.search,
       input.filters.shelf,

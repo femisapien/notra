@@ -140,6 +140,8 @@ export function useGeoShelfPage(organizationSlug: string): GeoShelfPageModel {
       isSettingsPending,
       hasSettings,
       isShelfLoading: shelf.isLoading,
+      isFilteredShelfLoading: filteredShelf.isLoading,
+      isMembersLoading: membersQuery.isPending,
     }),
     empty: { organizationSlug, projectId },
     ready: toGeoShelfReadyFields({
