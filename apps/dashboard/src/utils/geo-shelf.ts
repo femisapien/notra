@@ -26,7 +26,11 @@ import type {
   GeoShelfRow,
   GeoShelfSource,
 } from "../types/geo-shelf";
-import { matchesGeoShelfSourceFilters } from "./geo-shelf-live-query";
+import {
+  getOwnPlacement,
+  getPresentCompetitorPlacements,
+  isShelfOpportunitySource,
+} from "./geo-shelf-live-query";
 
 export function isOpenShelfStatus(
   status: GeoShelfOpportunity["status"] | null | undefined
@@ -210,19 +214,11 @@ export function toShelfRows(
 ): GeoShelfRow[] {
   const memberById = new Map(members.map((member) => [member.id, member]));
   return sources.map((source) => {
-    const ownPlacement =
-      source.placements.find((placement) => placement.competitorId === null) ??
-      null;
+    const ownPlacement = getOwnPlacement(source);
     const competitorPlacements = source.placements.filter(
       (placement) => placement.competitorId !== null
     );
-    const presentCompetitors = competitorPlacements.filter(
-      (placement) => placement.status === "present"
-    );
-    const isOpportunity =
-      source.ownership === "third_party" &&
-      ownPlacement?.status !== "present" &&
-      presentCompetitors.length > 0;
+    const presentCompetitors = getPresentCompetitorPlacements(source);
     const assigneeId = source.opportunity?.assigneeMemberId ?? null;
     const pocId = resolveShelfPoc(source.opportunity);
     return {
@@ -230,22 +226,11 @@ export function toShelfRows(
       ownPlacement,
       competitorPlacements,
       presentCompetitors,
-      isOpportunity,
+      isOpportunity: isShelfOpportunitySource(source),
       assignee: assigneeId ? (memberById.get(assigneeId) ?? null) : null,
       poc: pocId ? (memberById.get(pocId) ?? null) : null,
     };
   });
-}
-
-export function filterShelfRows(
-  rows: GeoShelfRow[],
-  filters: GeoShelfFilterState,
-  members: readonly GeoShelfMember[],
-  competitors: readonly GeoCompetitor[]
-): GeoShelfRow[] {
-  return rows.filter((row) =>
-    matchesGeoShelfSourceFilters(row, filters, members, competitors)
-  );
 }
 
 export function mergeShelfOpportunity(
