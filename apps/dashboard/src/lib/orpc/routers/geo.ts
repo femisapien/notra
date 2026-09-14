@@ -37,7 +37,10 @@ import {
   generateGeoFromWebsite,
 } from "@notra/geo-core/geo/discover";
 import type { GeoRouterError } from "@notra/geo-core/geo/errors";
-import { loadGeoContentGaps } from "@notra/geo-core/geo/gaps";
+import {
+  loadGeoContentGaps,
+  setGeoPromptGapIgnored,
+} from "@notra/geo-core/geo/gaps";
 import {
   issueGeoIngestSetupResponse,
   rotateGeoIngestSetupResponse,
@@ -104,6 +107,11 @@ import {
   syncGscSuggestions,
 } from "@notra/geo-core/geo/search-console";
 import {
+  loadGeoSentiment,
+  loadGeoSentimentEvidence,
+} from "@notra/geo-core/geo/sentiment";
+import { loadGeoSentimentAnalysis } from "@notra/geo-core/geo/sentiment-analysis";
+import {
   createGeoSequence,
   deleteGeoSequence,
   listGeoSequences,
@@ -148,6 +156,7 @@ import {
   geoPromptHistoryInputSchema,
   geoPromptResultDetailInputSchema,
   geoPromptRescanInputSchema,
+  geoPromptGapIgnoreInputSchema,
   geoScanStatusInputSchema,
   geoPromptsImportInputSchema,
   geoPromptDeleteInputSchema,
@@ -175,8 +184,10 @@ import {
   geoScanRunInputSchema,
   geoScanRunsInputSchema,
 } from "@notra/geo-core/schemas/geo-scan-history";
+import { geoSentimentEvidenceInputSchema } from "@notra/geo-core/schemas/geo-sentiment";
 import { gscSelectSiteInputSchema } from "@notra/geo-core/schemas/google-search-console";
 import { GeoSearchConsoleError } from "@notra/geo-core/schemas/search-console-errors";
+import { sentimentPeriodInputSchema } from "@notra/geo-core/schemas/sentiment-analysis";
 import type {
   AgentReadinessResponse,
   AgentReadinessScanResponse,
@@ -197,11 +208,13 @@ import {
   geoShelfCreateInputSchema,
   geoShelfListInputSchema,
   geoShelfListResponseSchema,
+  geoShelfMembersInputSchema,
   geoShelfMembersResponseSchema,
   geoShelfMutationResponseSchema,
   geoShelfPreviewInputSchema,
   geoShelfPreviewResponseSchema,
   geoShelfUpdateInputSchema,
+  geoShelfUrlCheckResponseSchema,
 } from "@notra/schemas/dashboard/geo-shelf";
 import { QstashError } from "@upstash/qstash";
 import { and, eq } from "drizzle-orm";
@@ -214,6 +227,7 @@ import {
   GEO_SEQUENCE_RUN_OUTCOMES,
 } from "@/constants/geo-analytics";
 import {
+  GEO_SHELF_EMPTY_BOARD_COUNTS,
   GEO_SHELF_PREVIEW_CACHE_MS,
   GEO_SHELF_PREVIEW_OUTCOMES,
   GEO_SHELF_PREVIEW_RATE_LIMIT_MESSAGE,
@@ -241,11 +255,14 @@ import {
 import { previewGeoShelfUrl } from "@/lib/geo-shelf/preview";
 import {
   createGeoShelfSource,
-  hasGeoShelfScanData,
-  listGeoShelfSources,
+  isGeoShelfUrlOnShelf,
+  listGeoShelfSourcePage,
   loadGeoShelfContext,
+  resolveGeoShelfSearch,
+  scheduleGeoShelfCitationSync,
   updateGeoShelfSource,
 } from "@/lib/geo-shelf/service";
+import { assertGeoAccess } from "@/lib/geo/access";
 import { geoCoreDashboardLayer } from "@/lib/geo/configure";
 import { authorizedProcedure } from "@/lib/orpc/base";
 import { runOrpcEffect } from "@/lib/orpc/effect";
@@ -270,13 +287,6 @@ import { ratelimit } from "@/utils/ratelimit";
 interface GeoHandlerOptions<TInput> {
   context: { headers: Headers; user?: AuthenticatedUser };
   input: TInput;
-}
-
-async function assertGeoAccess(
-  params: Parameters<typeof assertOrganizationAccess>[0]
-): Promise<void> {
-  await assertOrganizationAccess(params);
-  await assertGeoEntitlement(params.organizationId);
 }
 
 function geoOpenHandler<
@@ -654,34 +664,56 @@ export const geoRouter = {
     .input(geoShelfListInputSchema)
     .handler(async ({ context, input }) => {
       const seed = await loadGeoShelfSeed(context, input, {
-        withMembers: GEO_SAMPLE_DATA_ENABLED,
+        // Member names only matter to resolve "mine" and name searches.
+        withMembers:
+          GEO_SAMPLE_DATA_ENABLED ||
+          input.ticket === "mine" ||
+          input.search.trim().length > 0,
       });
       if (!seed.settings) {
         return geoShelfListResponseSchema.parse({
           sources: [],
+          nextOffset: null,
+          totalCount: 0,
+          filteredCount: 0,
+          boardCounts: GEO_SHELF_EMPTY_BOARD_COUNTS,
           hasScanData: false,
           ownBrandName: "",
           isSampleData: false,
         });
       }
-      const { sources, isSampleData } = await listGeoShelfSources({
-        ...seed,
-        settings: seed.settings,
-      });
+      const page = await listGeoShelfSourcePage(
+        { ...seed, settings: seed.settings },
+        {
+          offset: input.offset,
+          limit: input.limit,
+          shelf: input.shelf,
+          ticket: input.ticket,
+          currentMemberId: findCurrentGeoShelfMemberId(
+            seed.members,
+            context.user.id
+          ),
+          search: resolveGeoShelfSearch(
+            input.search,
+            seed.members,
+            seed.competitors
+          ),
+          sort: { key: input.sortKey, direction: input.sortDirection },
+        }
+      );
       const shelfMembers = await resolveGeoShelfReadMembers(
         input.organizationId,
         seed.members,
-        sources
+        page.sources
       );
       return geoShelfListResponseSchema.parse({
-        sources: sanitizeGeoShelfSourceMembers(sources, shelfMembers),
-        hasScanData: hasGeoShelfScanData(sources),
+        ...page,
+        sources: sanitizeGeoShelfSourceMembers(page.sources, shelfMembers),
         ownBrandName: seed.settings.companyName,
-        isSampleData,
       });
     }),
   shelfMembers: authorizedProcedure
-    .input(geoShelfListInputSchema)
+    .input(geoShelfMembersInputSchema)
     .handler(async ({ context, input }) => {
       await assertGeoAccess({
         headers: context.headers,
@@ -762,6 +794,20 @@ export const geoRouter = {
         });
       }
       return geoShelfMutationResponseSchema.parse({ source: result.source });
+    }),
+  shelfUrlCheck: authorizedProcedure
+    .input(geoShelfPreviewInputSchema)
+    .handler(async ({ context, input }) => {
+      const seed = await loadGeoShelfSeed(context, input, {
+        withMembers: false,
+      });
+      const onShelf = seed.settings
+        ? await isGeoShelfUrlOnShelf(
+            { ...seed, settings: seed.settings },
+            input.url
+          )
+        : false;
+      return geoShelfUrlCheckResponseSchema.parse({ onShelf });
     }),
   shelfPreview: authorizedProcedure
     .input(geoShelfPreviewInputSchema)
@@ -847,6 +893,27 @@ export const geoRouter = {
   overview: authorizedProcedure
     .input(geoTimeseriesInputSchema)
     .handler(geoHandler((input) => loadGeoOverview(input, geoWindow(input)))),
+  sentiment: authorizedProcedure
+    .input(sentimentPeriodInputSchema)
+    .handler(geoHandler((input) => loadGeoSentiment(input, geoWindow(input)))),
+  sentimentAnalysis: authorizedProcedure
+    .input(sentimentPeriodInputSchema)
+    .handler(
+      geoHandler((input) => loadGeoSentimentAnalysis(input, geoWindow(input)))
+    ),
+  analyzeSentiment: authorizedProcedure
+    .route({ method: "POST" })
+    .input(sentimentPeriodInputSchema)
+    .handler(
+      geoHandler((input) =>
+        loadGeoSentimentAnalysis(input, geoWindow(input), true)
+      )
+    ),
+  sentimentEvidence: authorizedProcedure
+    .input(geoSentimentEvidenceInputSchema)
+    .handler(
+      geoHandler((input) => loadGeoSentimentEvidence(input, geoWindow(input)))
+    ),
   timeseries: authorizedProcedure
     .input(geoTimeseriesInputSchema)
     .handler(geoHandler((input) => loadGeoTimeseries(input, geoWindow(input)))),
@@ -1014,7 +1081,8 @@ export const geoRouter = {
           input,
           input.limit,
           input.visitorTypes,
-          input.categories
+          input.categories,
+          input.host
         )
       )
     ),
@@ -1040,7 +1108,8 @@ export const geoRouter = {
           input,
           geoWindow(input),
           input.limit,
-          input.visitorType
+          input.visitorType,
+          input.host
         )
       )
     ),
@@ -1227,12 +1296,13 @@ export const geoRouter = {
   sequenceRun: authorizedProcedure
     .input(geoSequenceRunInputSchema)
     .handler(async ({ context, input }) => {
+      await assertOrganizationAccess({
+        headers: context.headers,
+        organizationId: input.organizationId,
+        user: context.user,
+      });
       const [, , rate] = await Promise.all([
-        assertGeoAccess({
-          headers: context.headers,
-          organizationId: input.organizationId,
-          user: context.user,
-        }),
+        assertGeoEntitlement(input.organizationId, context.headers),
         assertActiveSubscription(input.organizationId),
         ratelimit.geoSequenceRun.limit(input.organizationId),
       ]);
@@ -1278,6 +1348,9 @@ export const geoRouter = {
           engine_count: result.engines.length,
         },
       });
+      if (result.checks > 0) {
+        scheduleGeoShelfCitationSync(input);
+      }
       return result;
     }),
   projectsList: authorizedProcedure
@@ -1365,6 +1438,11 @@ export const geoRouter = {
   competitorSuggestions: authorizedProcedure
     .input(geoCompetitorSuggestionsInputSchema)
     .handler(async (options) => {
+      await assertOrganizationAccess({
+        headers: options.context.headers,
+        organizationId: options.input.organizationId,
+        user: options.context.user,
+      });
       const rate = await ratelimit.geoCompetitorSuggestions.limit(
         options.input.organizationId
       );
@@ -1378,6 +1456,11 @@ export const geoRouter = {
   brandSearch: authorizedProcedure
     .input(geoBrandSearchInputSchema)
     .handler(async (options) => {
+      await assertOrganizationAccess({
+        headers: options.context.headers,
+        organizationId: options.input.organizationId,
+        user: options.context.user,
+      });
       const rate = await ratelimit.geoBrandSearch.limit(
         options.input.organizationId
       );
@@ -1426,6 +1509,21 @@ export const geoRouter = {
   writerGaps: authorizedProcedure
     .input(geoOrganizationInputSchema)
     .handler(geoHandler((input) => loadGeoContentGaps(input))),
+  writerGapIgnore: authorizedProcedure
+    .input(geoPromptGapIgnoreInputSchema)
+    .handler(
+      geoHandler(
+        (input) => setGeoPromptGapIgnored(input),
+        ({ context, input }) => {
+          trackGeoRouterEvent({
+            context,
+            input,
+            event: POSTHOG_EVENTS.GEO_GAP_IGNORED,
+            properties: { ignored: input.ignored },
+          });
+        }
+      )
+    ),
   writerBriefsList: authorizedProcedure
     .input(geoOrganizationInputSchema)
     .handler(geoHandler((input) => listGeoContentBriefs(input))),
@@ -1435,12 +1533,13 @@ export const geoRouter = {
   writerPlan: authorizedProcedure
     .input(geoWriterPlanInputSchema)
     .handler(async ({ context, input }) => {
+      await assertOrganizationAccess({
+        headers: context.headers,
+        organizationId: input.organizationId,
+        user: context.user,
+      });
       const [, , rate] = await Promise.all([
-        assertGeoAccess({
-          headers: context.headers,
-          organizationId: input.organizationId,
-          user: context.user,
-        }),
+        assertGeoEntitlement(input.organizationId, context.headers),
         assertActiveSubscription(input.organizationId),
         ratelimit.geoWriterPlan.limit(input.organizationId),
       ]);
@@ -1485,12 +1584,13 @@ export const geoRouter = {
   writerStart: authorizedProcedure
     .input(geoWriterBriefIdInputSchema)
     .handler(async ({ context, input }) => {
+      await assertOrganizationAccess({
+        headers: context.headers,
+        organizationId: input.organizationId,
+        user: context.user,
+      });
       await Promise.all([
-        assertGeoAccess({
-          headers: context.headers,
-          organizationId: input.organizationId,
-          user: context.user,
-        }),
+        assertGeoEntitlement(input.organizationId, context.headers),
         assertActiveSubscription(input.organizationId),
       ]);
 
@@ -1511,12 +1611,13 @@ export const geoRouter = {
   writerUpdate: authorizedProcedure
     .input(geoWriterUpdateInputSchema)
     .handler(async ({ context, input }) => {
+      await assertOrganizationAccess({
+        headers: context.headers,
+        organizationId: input.organizationId,
+        user: context.user,
+      });
       await Promise.all([
-        assertGeoAccess({
-          headers: context.headers,
-          organizationId: input.organizationId,
-          user: context.user,
-        }),
+        assertGeoEntitlement(input.organizationId, context.headers),
         assertActiveSubscription(input.organizationId),
       ]);
 

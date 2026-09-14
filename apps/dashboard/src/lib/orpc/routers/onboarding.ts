@@ -8,6 +8,7 @@ import {
   onboardingSuggestions,
   organizations,
 } from "@notra/db/schema";
+import { createGeoProject } from "@notra/geo-core/geo/projects";
 import { organizationIdInputSchema } from "@notra/schemas/dashboard/auth/organization";
 import {
   dismissSuggestionInputSchema,
@@ -15,12 +16,9 @@ import {
 } from "@notra/schemas/dashboard/onboarding-agent";
 import { companyLogoInputSchema } from "@notra/schemas/dashboard/onboarding/company-logo";
 import { ORPCError } from "@orpc/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
-import {
-  AGENT_RUN_HARD_LIMIT_MS,
-  SELF_SERVE_AGENT_ERROR_MESSAGES,
-} from "@/constants/onboarding-agent";
+import { SELF_SERVE_AGENT_ERROR_MESSAGES } from "@/constants/onboarding-agent";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
 import {
   getOnboardingAgentState,
@@ -30,13 +28,33 @@ import {
   pickBrandSearchResult,
   pickCompanyLogoUrl,
 } from "@/lib/onboarding/company-logo";
+import {
+  readCachedCompanyLogo,
+  writeCachedCompanyLogo,
+} from "@/lib/onboarding/company-logo-cache";
 import { authorizedProcedure } from "@/lib/orpc/base";
+import { runOrpcEffect } from "@/lib/orpc/effect";
+import { toGeoOrpcError } from "@/lib/orpc/utils/geo-errors";
+import type { CompanyLogoResult } from "@/types/onboarding";
+import { resolveOnboardingAgentRunState } from "@/utils/onboarding-agent-run";
 import { ratelimit } from "@/utils/ratelimit";
 
 export const onboardingRouter = {
   companyLogo: authorizedProcedure
     .input(companyLogoInputSchema)
-    .handler(async ({ context, input }) => {
+    .handler(async ({ context, input }): Promise<CompanyLogoResult> => {
+      const cacheKeyInput = {
+        query: input.query,
+        searchByName: input.searchByName,
+      };
+
+      // Ahead of the rate limiter: a cached logo costs nothing upstream, and
+      // repeat navigation used to burn the per-query budget on every page view.
+      const cached = await readCachedCompanyLogo(cacheKeyInput);
+      if (cached) {
+        return cached;
+      }
+
       const { success: withinLimit } = await ratelimit.companyLogo.limit(
         `${context.user.id}:${input.query.toLowerCase()}`
       );
@@ -47,26 +65,50 @@ export const onboardingRouter = {
       }
 
       try {
-        if (!input.searchByName) {
+        let result: CompanyLogoResult;
+        if (input.searchByName) {
+          const response = await searchBrands(input.query);
+          const brand = pickBrandSearchResult(response.results, input.query);
+          result = {
+            domain: brand?.domain ?? null,
+            url: brand?.logo || null,
+          };
+        } else {
           const response = await retrieveBrand(input.query);
-          return {
+          result = {
             domain: response.brand?.domain ?? input.query,
             url: pickCompanyLogoUrl(response.brand?.logos),
           };
         }
 
-        const response = await searchBrands(input.query);
-        const brand = pickBrandSearchResult(response.results, input.query);
-        return {
-          domain: brand?.domain ?? null,
-          url: brand?.logo || null,
-        };
+        await writeCachedCompanyLogo(cacheKeyInput, result);
+        return result;
       } catch {
+        // A failed lookup is not cached; only its empty answer is returned.
         return {
           domain: input.searchByName ? null : input.query,
           url: null,
         };
       }
+    }),
+  createDevReplayProject: authorizedProcedure
+    .input(organizationIdInputSchema)
+    .handler(async ({ context, input }) => {
+      if (process.env.NODE_ENV !== "development") {
+        throw new ORPCError("NOT_FOUND");
+      }
+
+      await assertOrganizationAccess({
+        headers: context.headers,
+        organizationId: input.organizationId,
+        user: context.user,
+      });
+
+      const project = await runOrpcEffect(
+        createGeoProject(input.organizationId, "Onboarding replay"),
+        toGeoOrpcError
+      );
+      return { projectId: project.id };
     }),
   get: authorizedProcedure
     .input(organizationIdInputSchema)
@@ -77,36 +119,27 @@ export const onboardingRouter = {
         user: context.user,
       });
 
-      const [org, brand, integration, schedule, geo] = await Promise.all([
-        db.query.organizations.findFirst({
-          columns: { onboardingCompleted: true, onboardingDismissed: true },
-          where: eq(organizations.id, input.organizationId),
-        }),
-        db.query.brandSettings.findFirst({
-          columns: { id: true },
-          where: eq(brandSettings.organizationId, input.organizationId),
-        }),
-        db.query.githubIntegrations.findFirst({
-          columns: { id: true },
-          where: eq(githubIntegrations.organizationId, input.organizationId),
-        }),
-        db.query.contentTriggers.findFirst({
-          columns: { id: true },
-          where: and(
-            eq(contentTriggers.organizationId, input.organizationId),
-            eq(contentTriggers.sourceType, "cron")
-          ),
-        }),
-        db.query.geoSettings.findFirst({
-          columns: { id: true },
-          where: eq(geoSettings.organizationId, input.organizationId),
-        }),
-      ]);
+      // Mounted by the sidebar on every page: one round trip instead of five.
+      // Columns in a single-table select render unqualified, so the subqueries
+      // bind the organization id as a parameter instead of correlating.
+      const organizationId = input.organizationId;
+      const [org] = await db
+        .select({
+          onboardingCompleted: organizations.onboardingCompleted,
+          onboardingDismissed: organizations.onboardingDismissed,
+          hasBrandIdentity: sql<boolean>`exists (select 1 from ${brandSettings} where ${brandSettings.organizationId} = ${organizationId})`,
+          hasIntegration: sql<boolean>`exists (select 1 from ${githubIntegrations} where ${githubIntegrations.organizationId} = ${organizationId})`,
+          hasSchedule: sql<boolean>`exists (select 1 from ${contentTriggers} where ${contentTriggers.organizationId} = ${organizationId} and ${contentTriggers.sourceType} = 'cron')`,
+          hasGeoTracking: sql<boolean>`exists (select 1 from ${geoSettings} where ${geoSettings.organizationId} = ${organizationId})`,
+        })
+        .from(organizations)
+        .where(eq(organizations.id, input.organizationId))
+        .limit(1);
 
-      const hasBrandIdentity = !!brand;
-      const hasIntegration = !!integration;
-      const hasSchedule = !!schedule;
-      const hasGeoTracking = !!geo;
+      const hasBrandIdentity = org?.hasBrandIdentity ?? false;
+      const hasIntegration = org?.hasIntegration ?? false;
+      const hasSchedule = org?.hasSchedule ?? false;
+      const hasGeoTracking = org?.hasGeoTracking ?? false;
       const onboardingCompleted = org?.onboardingCompleted ?? false;
       const onboardingDismissed = org?.onboardingDismissed ?? false;
 
@@ -143,15 +176,9 @@ export const onboardingRouter = {
         user: context.user,
       });
 
-      const { ran, startedAt } = await getOnboardingAgentState(
-        input.organizationId
+      return resolveOnboardingAgentRunState(
+        await getOnboardingAgentState(input.organizationId)
       );
-      const running =
-        !ran &&
-        startedAt !== null &&
-        Date.now() - startedAt.getTime() < AGENT_RUN_HARD_LIMIT_MS;
-
-      return { ran, running, startedAt };
     }),
   runAgent: authorizedProcedure
     .input(organizationIdInputSchema)

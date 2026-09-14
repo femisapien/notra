@@ -8,14 +8,11 @@ import { GeoRangePicker } from "@/components/geo/geo-range-picker";
 import { GeoSetupEmpty } from "@/components/geo/geo-setup-empty";
 import { ScanPreflightDialog } from "@/components/geo/scan-preflight-dialog";
 import { PageContainer } from "@/components/layout/container";
-import { GeoProjectProvider } from "@/components/providers/geo-project-provider";
 import { useGeoOverviewPage } from "@/lib/hooks/use-geo-overview-page";
-import { useGeoProjectQueryState } from "@/lib/hooks/use-geo-project-query";
 import { cn } from "@/lib/utils";
 import type {
   GeoOverviewLoadedProps,
   GeoPageClientProps,
-  GeoPageContentProps,
   GeoScanSpinnerProps,
 } from "@/types/geo";
 
@@ -23,16 +20,6 @@ import { GeoTabs } from "./components/geo-tabs";
 import { GeoPageSkeleton } from "./skeleton";
 
 export default function PageClient({ organizationSlug }: GeoPageClientProps) {
-  const [projectParam] = useGeoProjectQueryState();
-
-  return (
-    <GeoProjectProvider projectId={projectParam ?? undefined}>
-      <GeoPageContent organizationSlug={organizationSlug} />
-    </GeoProjectProvider>
-  );
-}
-
-function GeoPageContent({ organizationSlug }: GeoPageContentProps) {
   const page = useGeoOverviewPage(organizationSlug);
 
   if (page.status === "loading") {
@@ -53,29 +40,10 @@ function GeoPageContent({ organizationSlug }: GeoPageContentProps) {
 }
 
 function GeoOverviewLoaded({ page }: GeoOverviewLoadedProps) {
-  const fillViewport = page.tabs.activeTab === "prompts";
-
   return (
-    <PageContainer
-      className={cn(
-        "flex flex-1 flex-col py-4 md:py-6",
-        fillViewport
-          ? "h-full min-h-full gap-4 overflow-hidden md:gap-6"
-          : "gap-4 md:gap-6"
-      )}
-    >
-      <div
-        className={cn(
-          "w-full px-4 lg:px-6",
-          fillViewport ? "flex min-h-0 flex-1 flex-col gap-6" : "space-y-6"
-        )}
-      >
-        <header
-          className={cn(
-            "flex flex-wrap items-start justify-between gap-3",
-            fillViewport && "shrink-0"
-          )}
-        >
+    <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <div className="w-full space-y-6 px-4 lg:px-6">
+        <header className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight">GEO</h1>
             <p className="text-muted-foreground">

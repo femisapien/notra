@@ -3,16 +3,23 @@ import {
   describeContentBillingDenial,
 } from "@notra/ai/billing/content-billing";
 import {
+  getGitHubAppBotLogin,
+  getGitHubAppInstallationPublishAccess,
   getTokenForIntegrationId,
   isGitHubAppConfigured,
+  listGitHubAppInstallationsByOrganization,
 } from "@notra/ai/integrations/github";
-import { getGitHubPublishTokenEffect } from "@notra/ai/integrations/github-publish-auth";
+import {
+  getGitHubPublishTokenEffect,
+  selectGitHubAppInstallationForOwner,
+} from "@notra/ai/integrations/github-publish-auth";
 import {
   getDecryptedLinearToken,
   getLinearIntegrationsByOrganization,
 } from "@notra/ai/integrations/linear";
 import { type ContentType, contentTypeSchema } from "@notra/ai/schemas/content";
 import { supportsPostSlug } from "@notra/ai/schemas/post";
+import { githubAppInstallationCanPublishContent } from "@notra/ai/utils/github-app-publish-access";
 import { getGitHubConnectionMethod } from "@notra/ai/utils/github-connection-method";
 import { createLinearClient } from "@notra/ai/utils/linear";
 import { createOctokit } from "@notra/ai/utils/octokit";
@@ -28,13 +35,17 @@ import {
 } from "@notra/db/schema";
 import type { BlogPostSubtype } from "@notra/db/types/content";
 import { buildPostCollectionName } from "@notra/db/utils/post-collections";
+import { extractImageArtifactHtml } from "@notra/db/utils/post-image-artifacts";
 import {
   isProjectInOrganization,
   projectScopeFilter,
 } from "@notra/db/utils/projects";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
 import { GITHUB_CONTENT_PATH_MAX_LENGTH } from "@notra/schemas/constants/dashboard/github";
-import { contentListQuerySchema } from "@notra/schemas/dashboard/api-params";
+import {
+  contentListQuerySchema,
+  dashboardHomeContentQuerySchema,
+} from "@notra/schemas/dashboard/api-params";
 import type {
   ContentResponse,
   PostsResponse,
@@ -54,13 +65,25 @@ import {
 } from "@notra/schemas/dashboard/content";
 import { clearCompletedGenerationSchema } from "@notra/schemas/dashboard/generations";
 import { repositoryContentDirectoryConfigSchema } from "@notra/schemas/dashboard/integrations";
-import { eachDayOfInterval, endOfYear, format, startOfYear } from "date-fns";
-import { and, asc, count, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
+import { slugify } from "@notra/utils/slugify";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lt,
+  ne,
+  sql,
+} from "drizzle-orm";
 import { marked } from "marked";
 import { nanoid } from "nanoid";
 import { after } from "next/server";
 
 import {
+  DASHBOARD_HOME_POST_LIMIT,
   GITHUB_API_MAX_PAGES,
   GITHUB_API_MAX_RESULTS,
   GITHUB_API_PAGE_SIZE,
@@ -73,6 +96,8 @@ import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { getEnabledDataPoints } from "@/lib/analytics/studio-events";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
 import { assertActiveSubscription } from "@/lib/billing/subscription";
+import { getUtcDayRange } from "@/lib/content/content-calendar";
+import { getContentPublishingMetrics } from "@/lib/content/content-publishing-metrics.server";
 import { projectScopedCollectionIds } from "@/lib/content/project-scope";
 import {
   addActiveGeneration,
@@ -82,6 +107,7 @@ import {
   getCompletedGenerations,
 } from "@/lib/generations/tracking";
 import { requestGeoRescanForPublishedPost } from "@/lib/geo/rescan";
+import { prepareR2GitHubContentAssets } from "@/lib/integrations/github/content-assets";
 import { clearGitHubPublishFailures } from "@/lib/integrations/github/github-publish-failure-state";
 import {
   publishContentDraftPullRequest,
@@ -104,6 +130,7 @@ import type {
   RepositoryPreviewFailure,
 } from "@/types/content/preview";
 import { toGitHubOperationOrpcError } from "@/utils/github-operation-error";
+import { getGitHubAppPermissionsRecovery } from "@/utils/github-publish-policy";
 import { resolveLookbackRange } from "@/utils/lookback";
 import { ratelimit } from "@/utils/ratelimit";
 
@@ -118,6 +145,10 @@ import {
 } from "../utils/errors";
 
 const TITLE_REGEX = /^#\s+(.+)$/m;
+
+// Upper bound for the sibling rail on the content detail response; matches the
+// maximum page size of the content list.
+const CONTENT_SIBLING_LIMIT = 100;
 
 const postReadColumns = {
   id: true,
@@ -137,6 +168,34 @@ const postReadColumns = {
   updatedAt: true,
 } as const;
 
+// List consumers (sidebar "Recent", dashboard home cards) render a title, a
+// status and a two-line preview, so text bodies stay in the database.
+const POST_LIST_MARKDOWN_PREVIEW_CHARS = 2000;
+
+const postListColumns = {
+  id: true,
+  title: true,
+  slug: true,
+  htmlUrl: true,
+  contentType: true,
+  contentSubtype: true,
+  createdAt: true,
+  status: true,
+  updatedAt: true,
+} as const;
+
+const postListExtras = {
+  content:
+    sql<string>`case when ${posts.contentType} = 'image' then ${posts.content} else '' end`.as(
+      "content"
+    ),
+  markdown: sql<
+    string | null
+  >`case when ${posts.contentType} = 'image' then ${posts.markdown} else left(${posts.markdown}, ${POST_LIST_MARKDOWN_PREVIEW_CHARS}) end`.as(
+    "markdown"
+  ),
+};
+
 function serializePost(post: {
   content: string;
   contentType: string;
@@ -145,8 +204,6 @@ function serializePost(post: {
   htmlUrl: string | null;
   id: string;
   markdown: string | null;
-  sourceMetadata: unknown;
-  recommendations: string | null;
   slug: string | null;
   status: "draft" | "published";
   title: string;
@@ -159,8 +216,6 @@ function serializePost(post: {
     content: post.content,
     htmlUrl: post.contentType === "image" ? post.htmlUrl : null,
     markdown: post.markdown,
-    rawHtml: extractImageArtifactHtml(post.sourceMetadata),
-    recommendations: post.recommendations,
     contentType:
       post.contentType as PostsResponse["posts"][number]["contentType"],
     contentSubtype: post.contentSubtype,
@@ -199,24 +254,6 @@ function serializeContent(post: {
   };
 }
 
-function extractImageArtifactHtml(sourceMetadata: unknown): string | null {
-  if (
-    !sourceMetadata ||
-    typeof sourceMetadata !== "object" ||
-    Array.isArray(sourceMetadata)
-  ) {
-    return null;
-  }
-
-  const artifacts = (sourceMetadata as { artifacts?: unknown }).artifacts;
-  if (!artifacts || typeof artifacts !== "object" || Array.isArray(artifacts)) {
-    return null;
-  }
-
-  const html = (artifacts as { html?: unknown }).html;
-  return typeof html === "string" && html.trim() ? html : null;
-}
-
 function normalizeContentTypes(contentTypes: string[]): ContentType[] {
   const normalized: ContentType[] = [];
 
@@ -232,31 +269,6 @@ function normalizeContentTypes(contentTypes: string[]): ContentType[] {
 
 function normalizeContentType(contentType: string): ContentType {
   return contentTypeSchema.parse(contentType);
-}
-
-function getDateRange(dateParam: string | null) {
-  if (!dateParam) {
-    return null;
-  }
-
-  const baseDate = dateParam === "today" ? new Date() : new Date(dateParam);
-
-  if (Number.isNaN(baseDate.getTime())) {
-    return null;
-  }
-
-  const startDate = new Date(
-    baseDate.getFullYear(),
-    baseDate.getMonth(),
-    baseDate.getDate()
-  );
-  const endDate = new Date(
-    baseDate.getFullYear(),
-    baseDate.getMonth(),
-    baseDate.getDate() + 1
-  );
-
-  return { startDate, endDate };
 }
 
 function formatFailureMessage(error: unknown): string {
@@ -496,6 +508,47 @@ async function fetchCommitsPreview(params: {
 }
 
 export const contentRouter = {
+  home: {
+    get: baseProcedure
+      .input(
+        contentOrganizationIdInputSchema.and(dashboardHomeContentQuerySchema)
+      )
+      .handler(async ({ context, input }) => {
+        await assertOrganizationAccess({
+          headers: context.headers,
+          organizationId: input.organizationId,
+        });
+
+        const dateRange = getUtcDayRange("today");
+        const filters = [eq(posts.organizationId, input.organizationId)];
+        const collectionIds = projectScopedCollectionIds(
+          input.organizationId,
+          input.projectId
+        );
+
+        if (collectionIds) {
+          filters.push(inArray(posts.collectionId, collectionIds));
+        }
+        if (dateRange) {
+          filters.push(
+            gte(posts.createdAt, dateRange.startDate),
+            lt(posts.createdAt, dateRange.endDate)
+          );
+        }
+
+        const items = await db.query.posts.findMany({
+          where: and(...filters),
+          orderBy: [desc(posts.createdAt), desc(posts.id)],
+          limit: DASHBOARD_HOME_POST_LIMIT,
+          columns: postListColumns,
+          extras: postListExtras,
+        });
+
+        return {
+          posts: items.map(serializePost),
+        };
+      }),
+  },
   list: baseProcedure
     .input(contentOrganizationIdInputSchema.and(contentListQuerySchema))
     .handler(async ({ context, input }) => {
@@ -504,7 +557,7 @@ export const contentRouter = {
         organizationId: input.organizationId,
       });
 
-      const dateRange = getDateRange(input.date ?? null);
+      const dateRange = getUtcDayRange(input.date ?? null);
 
       if (input.date && !dateRange) {
         throw badRequest("Invalid date");
@@ -535,7 +588,8 @@ export const contentRouter = {
           orderBy: [desc(posts.createdAt), desc(posts.id)],
           limit: input.pageSize,
           offset,
-          columns: postReadColumns,
+          columns: postListColumns,
+          extras: postListExtras,
         }),
         db.select({ value: count() }).from(posts).where(whereClause),
       ]);
@@ -586,7 +640,11 @@ export const contentRouter = {
               contentType: true,
               status: true,
             },
+            // The current post is excluded in SQL, and the rail is bounded: a
+            // collection can hold hundreds of posts.
+            where: ne(posts.id, post.id),
             orderBy: [asc(posts.createdAt), asc(posts.id)],
+            limit: CONTENT_SIBLING_LIMIT,
           },
         },
       });
@@ -598,14 +656,12 @@ export const contentRouter = {
               id: collection.id,
               name: collection.name,
               source: collection.source,
-              siblings: collection.posts
-                .filter((sibling) => sibling.id !== post.id)
-                .map((sibling) => ({
-                  id: sibling.id,
-                  title: sibling.title,
-                  contentType: normalizeContentType(sibling.contentType),
-                  status: sibling.status,
-                })),
+              siblings: collection.posts.map((sibling) => ({
+                id: sibling.id,
+                title: sibling.title,
+                contentType: normalizeContentType(sibling.contentType),
+                status: sibling.status,
+              })),
             }
           : null,
       };
@@ -834,6 +890,7 @@ export const contentRouter = {
       if (!post.markdown) {
         throw badRequest("Save the content before publishing it to GitHub");
       }
+      const savedMarkdown = post.markdown;
       if (!(integration?.owner && integration.repo)) {
         throw notFound("Selected GitHub repository not found");
       }
@@ -901,12 +958,16 @@ export const contentRouter = {
         contentOutput.config
       );
       const directory = outputConfig.success
-        ? outputConfig.data.directory
+        ? (outputConfig.data.directory ??
+          DEFAULT_GITHUB_CONTENT_DIRECTORIES[input.contentType])
         : DEFAULT_GITHUB_CONTENT_DIRECTORIES[input.contentType];
       const path = resolveGitHubContentPath({
         contentId: input.contentId,
         customPath: input.path,
         directory,
+        pathTemplate: outputConfig.success
+          ? outputConfig.data.contentPath
+          : null,
         slug: post.slug,
         title: post.title,
       });
@@ -916,7 +977,39 @@ export const contentRouter = {
         );
       }
 
+      const contentSlug =
+        slugify(post.slug ?? "") || slugify(post.title) || input.contentId;
+
       const notraBaseUrl = resolveNotraBaseUrl();
+      let publishInstallationId = integration.installationId ?? null;
+      let publishInstallationAccountType = integration.installationAccountType;
+      let publishInstallationAccountLogin =
+        integration.installationAccountLogin;
+      if (connectionMethod === "github-app" && !publishInstallationId) {
+        const fallback = selectGitHubAppInstallationForOwner(
+          await listGitHubAppInstallationsByOrganization(input.organizationId),
+          integration.owner
+        );
+        if (fallback) {
+          publishInstallationId = fallback.installationId;
+          publishInstallationAccountType = fallback.accountType;
+          publishInstallationAccountLogin = fallback.accountLogin;
+        }
+      }
+      if (connectionMethod === "github-app" && publishInstallationId) {
+        const publishAccess = await getGitHubAppInstallationPublishAccess(
+          publishInstallationId
+        );
+        if (githubAppInstallationCanPublishContent(publishAccess) === false) {
+          const recovery = getGitHubAppPermissionsRecovery({
+            installationId: publishInstallationId,
+            installationAccountType: publishInstallationAccountType,
+            installationAccountLogin: publishInstallationAccountLogin,
+          });
+          throw forbidden(recovery.message, recovery.data);
+        }
+      }
+
       const token = await runOrpcEffect(
         getGitHubPublishTokenEffect(integration.id, {
           organizationId: input.organizationId,
@@ -924,26 +1017,56 @@ export const contentRouter = {
         toGitHubOperationOrpcError
       );
 
+      const octokit = createOctokit(token);
+      const publisherLogin =
+        getGitHubAppBotLogin() ??
+        (await octokit
+          .request("GET /user")
+          .then(({ data }) => data.login)
+          .catch(() => undefined));
+
       try {
-        const result = await publishContentDraftPullRequest(
-          createOctokit(token),
-          {
-            contentId: input.contentId,
-            contentType: input.contentType,
-            owner: integration.owner,
-            repo: integration.repo,
-            defaultBranch: integration.defaultBranch,
-            path,
-            title: post.title,
-            markdown: post.markdown,
-            ...(notraBaseUrl && organization
-              ? {
-                  badgeUrls: buildOpenInNotraBadgeUrls(notraBaseUrl),
-                  contentUrl: `${notraBaseUrl}/${organization.slug}/content/${input.contentId}`,
-                }
-              : {}),
-          }
-        );
+        const result = await publishContentDraftPullRequest(octokit, {
+          contentId: input.contentId,
+          contentType: input.contentType,
+          owner: integration.owner,
+          repo: integration.repo,
+          defaultBranch: integration.defaultBranch,
+          path,
+          title: post.title,
+          markdown: savedMarkdown,
+          pullRequestMarkdown: savedMarkdown,
+          ...(publisherLogin ? { publisherLogin } : {}),
+          ...(outputConfig.success && outputConfig.data.imagePath
+            ? {
+                prepareContent: async (contentPath: string) => {
+                  const preparedContent = await prepareR2GitHubContentAssets({
+                    contentPath,
+                    imagePathTemplate: outputConfig.data.imagePath ?? "",
+                    markdown: savedMarkdown,
+                    slug: contentSlug,
+                  });
+                  if (
+                    preparedContent.assets.some(
+                      (asset) =>
+                        asset.path.length > GITHUB_CONTENT_PATH_MAX_LENGTH
+                    )
+                  ) {
+                    throw badRequest(
+                      "The configured image path exceeds GitHub's path limit"
+                    );
+                  }
+                  return preparedContent;
+                },
+              }
+            : {}),
+          ...(notraBaseUrl && organization
+            ? {
+                badgeUrls: buildOpenInNotraBadgeUrls(notraBaseUrl),
+                contentUrl: `${notraBaseUrl}/${organization.slug}/content/${input.contentId}`,
+              }
+            : {}),
+        });
         await clearGitHubPublishFailures({
           organizationId: input.organizationId,
           outputType: input.contentType,
@@ -957,9 +1080,9 @@ export const contentRouter = {
           outputId: contentOutput.id,
           outputType: input.contentType,
           connectionMethod,
-          installationId: integration.installationId,
-          installationAccountType: integration.installationAccountType,
-          installationAccountLogin: integration.installationAccountLogin,
+          installationId: publishInstallationId,
+          installationAccountType: publishInstallationAccountType,
+          installationAccountLogin: publishInstallationAccountLogin,
         });
       }
     }),
@@ -1040,40 +1163,36 @@ export const contentRouter = {
         ]);
 
         const collectionIds = collectionRows.map((collection) => collection.id);
-        const postRows =
+        // One row per collection: counting and de-duplicating the content types
+        // in Postgres avoids shipping every post of every listed collection.
+        const aggregateRows =
           collectionIds.length > 0
             ? await db
                 .select({
                   collectionId: posts.collectionId,
-                  contentType: posts.contentType,
-                  status: posts.status,
+                  total: sql<number>`count(*)::int`,
+                  draft: sql<number>`count(*) filter (where ${posts.status} <> 'published')::int`,
+                  published: sql<number>`count(*) filter (where ${posts.status} = 'published')::int`,
+                  types: sql<
+                    string[] | null
+                  >`array_agg(distinct ${posts.contentType})`,
                 })
                 .from(posts)
                 .where(inArray(posts.collectionId, collectionIds))
+                .groupBy(posts.collectionId)
             : [];
 
-        const aggregates = new Map<
-          string,
-          { total: number; draft: number; published: number; types: string[] }
-        >();
-        for (const post of postRows) {
-          const aggregate = aggregates.get(post.collectionId) ?? {
-            total: 0,
-            draft: 0,
-            published: 0,
-            types: [],
-          };
-          aggregate.total += 1;
-          if (post.status === "published") {
-            aggregate.published += 1;
-          } else {
-            aggregate.draft += 1;
-          }
-          if (!aggregate.types.includes(post.contentType)) {
-            aggregate.types.push(post.contentType);
-          }
-          aggregates.set(post.collectionId, aggregate);
-        }
+        const aggregates = new Map(
+          aggregateRows.map((row) => [
+            row.collectionId,
+            {
+              total: Number(row.total),
+              draft: Number(row.draft),
+              published: Number(row.published),
+              types: row.types ?? [],
+            },
+          ])
+        );
 
         const collections = collectionRows.map((collection) => {
           const aggregate = aggregates.get(collection.id);
@@ -1315,97 +1434,7 @@ export const contentRouter = {
           organizationId: input.organizationId,
         });
 
-        const now = new Date();
-        const yearStart = startOfYear(now);
-        const yearEnd = endOfYear(now);
-
-        const allPosts = await db
-          .select({
-            status: posts.status,
-            createdAt: posts.createdAt,
-          })
-          .from(posts)
-          .where(
-            and(
-              eq(posts.organizationId, input.organizationId),
-              gte(posts.createdAt, yearStart),
-              lte(posts.createdAt, yearEnd)
-            )
-          )
-          .orderBy(posts.createdAt);
-
-        const totalDrafts = allPosts.filter(
-          (post) => post.status === "draft"
-        ).length;
-        const totalPublished = allPosts.filter(
-          (post) => post.status === "published"
-        ).length;
-        const dateMap = new Map<
-          string,
-          { drafts: number; published: number }
-        >();
-
-        for (const post of allPosts) {
-          const dateKey = format(post.createdAt, "yyyy-MM-dd");
-          const entry = dateMap.get(dateKey) ?? { drafts: 0, published: 0 };
-
-          if (post.status === "published") {
-            entry.published += 1;
-          } else {
-            entry.drafts += 1;
-          }
-
-          dateMap.set(dateKey, entry);
-        }
-
-        const allDaysInYear = eachDayOfInterval({
-          start: yearStart,
-          end: yearEnd,
-        });
-
-        const maxCount = Math.max(
-          ...Array.from(dateMap.values()).map(
-            (value) => value.drafts + value.published
-          ),
-          1
-        );
-
-        const activityData = allDaysInYear.map((date) => {
-          const dateKey = format(date, "yyyy-MM-dd");
-          const entry = dateMap.get(dateKey) ?? { drafts: 0, published: 0 };
-          const count = entry.drafts + entry.published;
-          const percentage = count === 0 ? 0 : (count / maxCount) * 100;
-
-          let level: number;
-
-          if (count === 0) {
-            level = 0;
-          } else if (percentage <= 25) {
-            level = 1;
-          } else if (percentage <= 50) {
-            level = 2;
-          } else if (percentage <= 75) {
-            level = 3;
-          } else {
-            level = 4;
-          }
-
-          return {
-            date: dateKey,
-            count,
-            drafts: entry.drafts,
-            published: entry.published,
-            level,
-          };
-        });
-
-        return {
-          drafts: totalDrafts,
-          published: totalPublished,
-          graph: {
-            activity: activityData,
-          },
-        };
+        return getContentPublishingMetrics(input.organizationId);
       }),
   },
   preview: baseProcedure

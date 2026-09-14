@@ -9,6 +9,8 @@ import type {
 } from "@notra/geo-core/types/geo";
 import type { ReactNode } from "react";
 
+import type { WriteDialogInitialState } from "@/types/components/geo-writer";
+
 export interface GeoGapsWriteCellProps {
   action: GeoGapWriteAction;
   postId: string | null | undefined;
@@ -18,6 +20,8 @@ export interface GeoGapsWriteCellProps {
   onWrite: () => void;
   onRescan?: () => void;
   rescanDisabled?: boolean;
+  onIgnore?: () => void;
+  isIgnoring?: boolean;
 }
 
 export type GeoGapsTab = "prompt" | "search";
@@ -26,11 +30,39 @@ export type GeoGapDetailSelection =
   | { kind: "prompt"; id: string }
   | { kind: "search"; id: string };
 
-export interface GeoGapDetailDialogProps {
+export type GeoGapDetailRow =
+  | { kind: "prompt"; row: GeoPromptGapRow }
+  | { kind: "search"; row: GeoSearchGapRow };
+
+export interface GeoGapDetailSheetProps {
   prompt: GeoPromptGapRow | null;
   search: GeoSearchGapRow | null;
-  searchActions?: ReactNode;
+  competitors: GeoCompetitor[];
+  maxOpportunity: number;
+  actions?: ReactNode;
   onOpenChange: (open: boolean) => void;
+}
+
+export interface GeoGapDetailSectionProps {
+  title: string;
+  readout?: string;
+  children: ReactNode;
+}
+
+export interface GeoGapDetailStatProps {
+  label: string;
+  value: string;
+}
+
+export interface GeoGapEngineListProps {
+  families: readonly string[];
+  emptyLabel: string;
+}
+
+export interface GeoGapBrandListProps {
+  competitors: GeoCompetitor[];
+  tracked: readonly string[];
+  discovered: readonly string[];
 }
 
 export type GeoGapsMeterTone = "empty" | "low" | "mid" | "high";
@@ -69,6 +101,8 @@ export interface GeoGapsTableProps {
   onDismissSearch: (row: GeoSearchGapRow) => void;
   dismissingSearchId: string | null;
   onRescanPrompt: (row: GeoPromptGapRow) => void;
+  onIgnorePrompt: (row: GeoPromptGapRow) => void;
+  ignoringPromptId: string | null;
   onOpenPost: (postId: string) => void;
 }
 
@@ -104,10 +138,6 @@ export interface GeoGapsFiltersProps {
   engine: string;
   onEngineChange: (value: string) => void;
   engineFamilies: readonly string[];
-}
-
-export interface GeoGapsPageContentProps {
-  organizationSlug: string;
 }
 
 export interface GeoGapOpportunityCellProps {
@@ -150,6 +180,54 @@ export interface GeoGapNumberCellProps {
   value: number | null;
   emptyLabel: string;
   format?: (value: number) => string;
+}
+
+export interface GeoGapsPageError {
+  status: "error";
+  isRetrying: boolean;
+  onRetry: () => void;
+}
+
+export interface GeoGapsPageEmpty {
+  status: "empty";
+  organizationId: string;
+}
+
+export interface GeoGapsPageReady {
+  status: "ready";
+  organizationId: string;
+  organizationSlug: string;
+  isGapsPending: boolean;
+  table: GeoGapsTableProps;
+  dialog: {
+    open: boolean;
+    initial: WriteDialogInitialState | null;
+    onOpenChange: (open: boolean) => void;
+  };
+}
+
+export type GeoGapsPageModel =
+  | { status: "loading" }
+  | GeoGapsPageError
+  | GeoGapsPageEmpty
+  | GeoGapsPageReady;
+
+export interface GeoGapsLoadedProps {
+  page: GeoGapsPageReady;
+}
+
+export interface GeoGapsLoadErrorProps {
+  isRetrying: boolean;
+  onRetry: () => void;
+}
+
+export interface GeoGapsPageStatusInput {
+  settingsError: boolean;
+  hasSettingsData: boolean;
+  hasSettings: boolean;
+  settingsPending: boolean;
+  gapsError: boolean;
+  hasGapsData: boolean;
 }
 
 export interface GeoGapMeterProps {

@@ -40,6 +40,7 @@ import {
   runGeoScanTaskBatchStep,
   trackGeoScanRetryScheduledStep,
 } from "./steps/geo-scan-steps";
+import { syncGeoShelfCitationsStep } from "./steps/sync-geo-shelf-citations";
 
 interface GeoScanProjectOutcome {
   totals: GeoScanProjectTotals;
@@ -164,6 +165,54 @@ async function finalizeProjectRun(
     ...(options.failureReason ? { failureReason: options.failureReason } : {}),
   });
   const { context } = plan;
+  if (status === "completed" && totals.checks > 0) {
+    // Shelf space reads the synced citations instead of folding the whole
+    // mention-check history on every page view.
+    try {
+      await syncGeoShelfCitationsStep({
+        organizationId: context.organizationId,
+        projectId: context.projectId,
+      });
+    } catch (error) {
+      await appendAutomationLogBestEffort({
+        organizationId: context.organizationId,
+        integrationId: context.projectId,
+        integrationType: "geo",
+        title: `GEO shelf space could not refresh for ${context.companyName}`,
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : String(error),
+        referenceId: context.runId,
+        payload: {
+          scanId: context.scanId,
+        },
+        ...(options.retentionDays
+          ? { retentionDays: options.retentionDays }
+          : {}),
+      });
+    }
+    try {
+      await startGeoSentimentStep({
+        organizationId: context.organizationId,
+        projectId: context.projectId,
+      });
+    } catch (error) {
+      await appendAutomationLogBestEffort({
+        organizationId: context.organizationId,
+        integrationId: context.projectId,
+        integrationType: "geo",
+        title: `GEO sentiment analysis could not start for ${context.companyName}`,
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : String(error),
+        referenceId: context.runId,
+        payload: {
+          scanId: context.scanId,
+        },
+        ...(options.retentionDays
+          ? { retentionDays: options.retentionDays }
+          : {}),
+      });
+    }
+  }
   const errorMessage =
     status === "failed"
       ? (options.failureReason ?? "No successful checks")
@@ -373,3 +422,4 @@ export async function geoScanWorkflow(
   }
   return { status: "completed", checks, mentions };
 }
+import { startGeoSentimentStep } from "./steps/start-geo-sentiment";

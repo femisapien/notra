@@ -26,6 +26,11 @@ import type {
   GeoShelfRow,
   GeoShelfSource,
 } from "../types/geo-shelf";
+import {
+  getOwnPlacement,
+  getPresentCompetitorPlacements,
+  isShelfOpportunitySource,
+} from "./geo-shelf-live-query";
 
 export function isOpenShelfStatus(
   status: GeoShelfOpportunity["status"] | null | undefined
@@ -209,19 +214,11 @@ export function toShelfRows(
 ): GeoShelfRow[] {
   const memberById = new Map(members.map((member) => [member.id, member]));
   return sources.map((source) => {
-    const ownPlacement =
-      source.placements.find((placement) => placement.competitorId === null) ??
-      null;
+    const ownPlacement = getOwnPlacement(source);
     const competitorPlacements = source.placements.filter(
       (placement) => placement.competitorId !== null
     );
-    const presentCompetitors = competitorPlacements.filter(
-      (placement) => placement.status === "present"
-    );
-    const isOpportunity =
-      source.ownership === "third_party" &&
-      ownPlacement?.status !== "present" &&
-      presentCompetitors.length > 0;
+    const presentCompetitors = getPresentCompetitorPlacements(source);
     const assigneeId = source.opportunity?.assigneeMemberId ?? null;
     const pocId = resolveShelfPoc(source.opportunity);
     return {
@@ -229,95 +226,11 @@ export function toShelfRows(
       ownPlacement,
       competitorPlacements,
       presentCompetitors,
-      isOpportunity,
+      isOpportunity: isShelfOpportunitySource(source),
       assignee: assigneeId ? (memberById.get(assigneeId) ?? null) : null,
       poc: pocId ? (memberById.get(pocId) ?? null) : null,
     };
   });
-}
-
-function matchesShelfFilter(
-  row: GeoShelfRow,
-  shelf: GeoShelfFilterState["shelf"]
-): boolean {
-  switch (shelf) {
-    case "opportunities":
-      return row.isOpportunity;
-    case "on_shelf":
-      return row.ownPlacement?.status === "present";
-    case "unknown":
-      return (
-        row.ownPlacement === null ||
-        row.ownPlacement.status === "unknown" ||
-        row.fetchStatus === "blocked" ||
-        row.fetchStatus === "pending"
-      );
-    default:
-      return true;
-  }
-}
-
-function matchesTicketFilter(
-  row: GeoShelfRow,
-  ticket: GeoShelfFilterState["ticket"],
-  currentMemberId: string | null
-): boolean {
-  const opportunity = row.opportunity;
-  switch (ticket) {
-    case "open":
-      return opportunity?.status === "open";
-    case "in_progress":
-      return opportunity?.status === "in_progress";
-    case "mine":
-      return (
-        currentMemberId !== null &&
-        isOpenShelfStatus(opportunity?.status) &&
-        (opportunity?.assigneeMemberId === currentMemberId ||
-          resolveShelfPoc(opportunity) === currentMemberId)
-      );
-    case "unassigned":
-      return (
-        isOpenShelfStatus(opportunity?.status) &&
-        opportunity?.assigneeMemberId === null
-      );
-    case "closed":
-      return opportunity !== null && !isOpenShelfStatus(opportunity.status);
-    default:
-      return true;
-  }
-}
-
-function matchesSearch(row: GeoShelfRow, search: string): boolean {
-  const query = search.trim().toLowerCase();
-  if (query.length === 0) {
-    return true;
-  }
-  const haystack = [
-    row.title ?? "",
-    row.domain,
-    row.url,
-    ...(row.ownPlacement?.status === "present"
-      ? [row.ownPlacement.brandName]
-      : []),
-    ...row.presentCompetitors.map((placement) => placement.brandName),
-    row.assignee?.name ?? "",
-    row.opportunity?.notes ?? "",
-  ]
-    .join(" ")
-    .toLowerCase();
-  return haystack.includes(query);
-}
-
-export function filterShelfRows(
-  rows: GeoShelfRow[],
-  filters: GeoShelfFilterState
-): GeoShelfRow[] {
-  return rows.filter(
-    (row) =>
-      matchesShelfFilter(row, filters.shelf) &&
-      matchesTicketFilter(row, filters.ticket, filters.currentMemberId) &&
-      matchesSearch(row, filters.search)
-  );
 }
 
 export function mergeShelfOpportunity(
@@ -339,10 +252,8 @@ export function mergeShelfOpportunity(
     updatedAt: nowIso,
   };
   const next: GeoShelfOpportunity = { ...base, ...changes, updatedAt: nowIso };
-  if (
-    changes.assigneeMemberId !== undefined &&
-    next.pocMemberId === changes.assigneeMemberId
-  ) {
+  // Like the server, a point of contact equal to the assignee is not stored.
+  if (next.pocMemberId !== null && next.pocMemberId === next.assigneeMemberId) {
     next.pocMemberId = null;
   }
   next.resolvedAt = isOpenShelfStatus(next.status)
@@ -360,31 +271,42 @@ export function toShelfPlacementWrites(
   }));
 }
 
-/**
- * Placements carry fetch evidence the client cannot reproduce, so only the
- * entries whose status actually changed are sent back to the server.
- */
-export function changedShelfPlacementWrites(
-  modified: GeoShelfSource,
-  original: GeoShelfSource
-): GeoShelfPlacementWrite[] | undefined {
-  const previousStatusById = new Map(
-    original.placements.map((placement) => [
-      placement.competitorId,
-      placement.status,
-    ])
-  );
-  const changed = modified.placements.flatMap<GeoShelfPlacementWrite>(
-    (placement) => {
-      if (previousStatusById.get(placement.competitorId) === placement.status) {
-        return [];
+export function applyShelfOpportunityChanges(
+  source: GeoShelfSource,
+  changes: GeoShelfOpportunityPatch,
+  nowIso: string
+): GeoShelfSource {
+  return {
+    ...source,
+    opportunity: mergeShelfOpportunity(source.opportunity, changes, nowIso),
+    updatedAt: nowIso,
+  };
+}
+
+export function applyShelfPlacementStatus(
+  source: GeoShelfSource,
+  competitorId: string | null,
+  status: GeoShelfPlacement["status"],
+  nowIso: string
+): GeoShelfSource {
+  return {
+    ...source,
+    placements: source.placements.map((placement) => {
+      if (placement.competitorId !== competitorId) {
+        return placement;
       }
-      return [
-        { competitorId: placement.competitorId, status: placement.status },
-      ];
-    }
-  );
-  return changed.length > 0 ? changed : undefined;
+      const isPresent = status === "present";
+      return {
+        ...placement,
+        status,
+        evidence: "manual",
+        checkedAt: nowIso,
+        position: isPresent ? placement.position : null,
+        hasLink: isPresent ? placement.hasLink : false,
+      };
+    }),
+    updatedAt: nowIso,
+  };
 }
 
 export function toShelfOpportunityWrite(
@@ -402,45 +324,6 @@ export function toShelfOpportunityWrite(
     notes: opportunity.notes,
     dueAt: opportunity.dueAt,
   };
-}
-
-function isSameOpportunityWrite(
-  next: GeoShelfOpportunityWrite | null,
-  previous: GeoShelfOpportunityWrite | null
-): boolean {
-  if (next === null || previous === null) {
-    return next === previous;
-  }
-  return (
-    next.status === previous.status &&
-    next.priority === previous.priority &&
-    next.assigneeMemberId === previous.assigneeMemberId &&
-    next.pocMemberId === previous.pocMemberId &&
-    next.notes === previous.notes &&
-    next.dueAt === previous.dueAt
-  );
-}
-
-/** `undefined` means "leave the stored ticket alone". */
-export function changedShelfOpportunityWrite(
-  modified: GeoShelfSource,
-  original: GeoShelfSource
-): GeoShelfOpportunityPatch | null | undefined {
-  const next = toShelfOpportunityWrite(modified);
-  const previous = toShelfOpportunityWrite(original);
-  if (isSameOpportunityWrite(next, previous)) {
-    return undefined;
-  }
-  if (next === null || previous === null) {
-    return next;
-  }
-  const changes: GeoShelfOpportunityPatch = {};
-  for (const key of Object.keys(next) as (keyof GeoShelfOpportunityWrite)[]) {
-    if (next[key] !== previous[key]) {
-      Object.assign(changes, { [key]: next[key] });
-    }
-  }
-  return changes;
 }
 
 /** Canonicalize like the server so the optimistic row matches the created one. */

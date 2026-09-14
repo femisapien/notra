@@ -5,6 +5,12 @@ import react from "ultracite/oxlint/react";
 
 export default defineConfig({
   extends: [core, react, next],
+  jsPlugins: ["@shadcn/lint"],
+  settings: {
+    shadcn: {
+      ui: "@notra/ui/components/ui",
+    },
+  },
   ignorePatterns: [
     ...core.ignorePatterns,
     "packages/ui/src/**",
@@ -20,6 +26,12 @@ export default defineConfig({
   // Keep the full presets as the source of truth while baselining rules that
   // conflict with existing code. Newly added Ultracite rules stay enabled.
   rules: {
+    "shadcn/no-restyle": ["warn", { allow: ["layout"] }],
+    "shadcn/no-raw-colors": "warn",
+    "shadcn/no-arbitrary-values": ["warn", { allow: ["layout"] }],
+    "shadcn/no-inline-styles": "warn",
+    "shadcn/no-unknown-classes": "warn",
+    "shadcn/require-static-classes": "warn",
     "arrow-body-style": "off",
     "class-methods-use-this": "off",
     complexity: "off",
@@ -169,6 +181,7 @@ export default defineConfig({
     {
       // Effect's TaggedError is a curried schema class factory, not an Error constructor.
       files: [
+        "apps/api/src/errors/**/*.ts",
         "apps/agent/agent/lib/schemas/chat-mirror.ts",
         "apps/agent/agent/lib/schemas/slack.ts",
         "packages/schemas/src/schemas/dashboard/onboarding-agent.ts",

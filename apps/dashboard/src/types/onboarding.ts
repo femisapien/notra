@@ -11,6 +11,12 @@ export type OnboardingWorkspaceInput = z.infer<
   typeof onboardingWorkspaceSchema
 >;
 
+/** Response of `onboarding.companyLogo`, also the cached representation. */
+export interface CompanyLogoResult {
+  domain: string | null;
+  url: string | null;
+}
+
 export interface PricingClientProps {
   slug: string;
 }
@@ -92,7 +98,47 @@ export interface CompetitorSearchProps {
   ownDomain: string | null;
   selected: readonly GeoCompetitor[];
   disabled: boolean;
-  onAdd: (result: GeoBrandSearchResult) => void;
+  onAdd: (result: CompetitorSearchResult) => void;
+}
+
+export interface CompetitorSearchResult extends Omit<
+  GeoBrandSearchResult,
+  "domain"
+> {
+  domain: string | null;
+  source: "manual" | "search";
+}
+
+export interface CompetitorSearchItemsInput {
+  ownDomain: string | null;
+  query: string;
+  searchResults: readonly GeoBrandSearchResult[];
+  searching: boolean;
+  selected: readonly GeoCompetitor[];
+}
+
+export interface UseCompetitorSearchStateInput {
+  organizationId: string;
+  ownDomain: string | null;
+  selected: readonly GeoCompetitor[];
+}
+
+export interface CompetitorSearchContentProps {
+  items: readonly CompetitorSearchResult[];
+  onRetry: () => void;
+  searchError: boolean;
+  searchFetching: boolean;
+  searching: boolean;
+}
+
+export interface SearchRetryNoticeProps {
+  onRetry: () => void;
+  searchFetching: boolean;
+}
+
+export interface CompetitorSearchResultRowProps {
+  entry: CompetitorSearchResult;
+  searchUnavailable: boolean;
 }
 
 export interface VisibilityBrandDraft {
@@ -102,7 +148,10 @@ export interface VisibilityBrandDraft {
 }
 
 export interface OnboardingGeoPageProps {
-  searchParams: Promise<{ project?: string | string[] }>;
+  searchParams: Promise<{
+    project?: string | string[];
+    replay?: string | string[];
+  }>;
 }
 
 export interface OrgLogoFieldProps {

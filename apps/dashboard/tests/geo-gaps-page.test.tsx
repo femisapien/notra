@@ -19,9 +19,6 @@ mock.module("@/components/providers/organization-provider", () => ({
     getOrganization: () => undefined,
   }),
 }));
-mock.module("@/lib/hooks/use-geo-project-query", () => ({
-  useGeoProjectQueryState: () => ["project-fixture"],
-}));
 mock.module("@/lib/hooks/use-geo", () => ({
   useGeoSettings: () => ({
     data: settingsFails
@@ -32,13 +29,20 @@ mock.module("@/lib/hooks/use-geo", () => ({
     isFetching: false,
     refetch: retrySettings,
   }),
-  useGeoCompetitors: () => ({ data: { competitors: [] } }),
   useGeoStartScan: () => ({ mutate: mock() }),
   useGeoRescanPrompt: () => ({ mutate: mock() }),
   useIsGeoScanning: () => false,
   useGeoSuggestionDismiss: () => ({ isPending: false, mutate: mock() }),
 }));
+mock.module("@/lib/hooks/use-geo-db", () => ({
+  useGeoCompetitorsDb: () => ({ competitors: [] }),
+}));
 mock.module("@/lib/hooks/use-geo-writer", () => ({
+  useGeoPromptGapIgnore: () => ({
+    isPending: false,
+    mutate: mock(),
+    mutateAsync: mock(async () => undefined),
+  }),
   useGeoWriterGaps: () => ({
     data:
       !gapsFails || cachedGaps

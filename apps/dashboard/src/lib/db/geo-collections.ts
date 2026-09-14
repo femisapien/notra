@@ -1,6 +1,7 @@
 import { isGeoAutoPromptId } from "@notra/geo-core/geo/prompts";
 import type {
   GeoCompetitor,
+  GeoProject,
   GeoPromptSequence,
   GeoScopeInput,
   GeoTrackedPrompt,
@@ -11,15 +12,15 @@ import { collectionOptions } from "@tanstack/react-db";
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import {
+  rejectProjectCreateHandoff,
+  resolveProjectCreateHandoff,
+} from "@/lib/db/geo-project-create-handoff";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { GeoCollectionSpec } from "@/types/geo-db";
-import type { GeoShelfSource } from "@/types/geo-shelf";
-import {
-  changedShelfOpportunityWrite,
-  changedShelfPlacementWrites,
-  toShelfOpportunityWrite,
-  toShelfPlacementWrites,
-} from "@/utils/geo-shelf";
+
+// Bounded retries instead of an unbounded error poll on every dashboard page.
+const GEO_PROJECTS_RETRY_COUNT = 3;
 
 function scopeKey(scope: GeoScopeInput): string {
   return `${scope.organizationId}:${scope.projectId ?? "all"}`;
@@ -53,13 +54,25 @@ function buildScopedCollection<T extends object>(
       id,
       queryKey: geoDbQueryKey(spec.name, scope),
       queryClient,
+      ...(spec.retry !== undefined ? { retry: spec.retry } : {}),
+      ...(spec.showRetryAction
+        ? {
+            meta: {
+              errorMessage: spec.errorMessage,
+              showRetryAction: true,
+            },
+          }
+        : {}),
       queryFn: async () => {
         try {
           return await spec.fetch(scope);
         } catch (error) {
           // The upgrade gate handles entitlement denials, not load-error toasts.
           if (
-            !(error instanceof ORPCError && error.code === "PAYMENT_REQUIRED")
+            !(
+              error instanceof ORPCError && error.code === "PAYMENT_REQUIRED"
+            ) &&
+            !spec.showRetryAction
           ) {
             toast.error(spec.errorMessage, { id });
           }
@@ -68,10 +81,19 @@ function buildScopedCollection<T extends object>(
       },
       getKey: spec.getKey,
       onInsert: async ({ transaction }) => {
-        for (const mutation of transaction.mutations) {
-          await spec.insert?.(scope, mutation.modified);
+        try {
+          for (const mutation of transaction.mutations) {
+            const result = await spec.insert?.(scope, mutation.modified);
+            if (spec.name === "projects" && result) {
+              resolveProjectCreateHandoff(transaction.id, result as GeoProject);
+            }
+          }
+        } catch (error) {
+          if (spec.name === "projects") {
+            rejectProjectCreateHandoff(transaction.id, error);
+          }
+          throw error;
         }
-        await spec.invalidateLegacy(queryClient, scope);
       },
       onUpdate: async ({ transaction }) => {
         for (const mutation of transaction.mutations) {
@@ -82,13 +104,11 @@ function buildScopedCollection<T extends object>(
             mutation.original
           );
         }
-        await spec.invalidateLegacy(queryClient, scope);
       },
       onDelete: async ({ transaction }) => {
         for (const mutation of transaction.mutations) {
           await spec.remove?.(scope, mutation.original);
         }
-        await spec.invalidateLegacy(queryClient, scope);
       },
     });
   });
@@ -142,15 +162,31 @@ export const geoPromptsCollection = createCollectionFactory<GeoTrackedPrompt>({
         }),
   remove: (scope, original) =>
     dashboardOrpc.geo.promptsDelete.call({ ...scope, promptId: original.id }),
-  invalidateLegacy: (queryClient, scope) =>
-    Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: dashboardOrpc.geo.promptsList.queryKey({ input: scope }),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: dashboardOrpc.geo.settings.queryKey({ input: scope }),
-      }),
-    ]),
+});
+
+export const geoProjectsCollection = createCollectionFactory<GeoProject>({
+  name: "projects",
+  errorMessage: "Failed to load projects",
+  showRetryAction: true,
+  retry: GEO_PROJECTS_RETRY_COUNT,
+  fetch: async (scope) => {
+    const response = await dashboardOrpc.geo.projectsList.call({
+      organizationId: scope.organizationId,
+    });
+    return response.projects;
+  },
+  getKey: (item) => item.id,
+  insert: (scope, item) =>
+    dashboardOrpc.geo.projectsCreate.call({
+      organizationId: scope.organizationId,
+      name: item.name,
+      brandSettingsId: item.brandSettingsId,
+    }),
+  remove: (scope, original) =>
+    dashboardOrpc.geo.projectsDelete.call({
+      organizationId: scope.organizationId,
+      projectId: original.id,
+    }),
 });
 
 export const geoCompetitorsCollection = createCollectionFactory<GeoCompetitor>({
@@ -185,20 +221,6 @@ export const geoCompetitorsCollection = createCollectionFactory<GeoCompetitor>({
       ...scope,
       name: original.name,
     }),
-  invalidateLegacy: (queryClient, scope) =>
-    Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: dashboardOrpc.geo.competitors.queryKey({ input: scope }),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: dashboardOrpc.geo.competitorShare.queryKey({
-          input: scope,
-        }),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: dashboardOrpc.geo.settings.queryKey({ input: scope }),
-      }),
-    ]),
 });
 
 export const geoSequencesCollection =
@@ -230,68 +252,4 @@ export const geoSequencesCollection =
         ...scope,
         sequenceId: original.id,
       }),
-    invalidateLegacy: (queryClient, scope) =>
-      queryClient.invalidateQueries({
-        queryKey: dashboardOrpc.geo.sequencesList.queryKey({ input: scope }),
-      }),
   });
-
-const shelfSampleDataByScope = new Map<string, boolean>();
-const shelfSampleDataListeners = new Set<() => void>();
-
-function setShelfSampleData(scope: GeoScopeInput, isSampleData: boolean) {
-  const key = scopeKey(scope);
-  if (shelfSampleDataByScope.get(key) === isSampleData) {
-    return;
-  }
-  shelfSampleDataByScope.set(key, isSampleData);
-  for (const listener of shelfSampleDataListeners) {
-    listener();
-  }
-}
-
-export function subscribeToGeoShelfSampleData(callback: () => void) {
-  shelfSampleDataListeners.add(callback);
-  return () => {
-    shelfSampleDataListeners.delete(callback);
-  };
-}
-
-export function getGeoShelfSampleData(scope: GeoScopeInput): boolean {
-  return shelfSampleDataByScope.get(scopeKey(scope)) ?? false;
-}
-
-export const geoShelfCollection = createCollectionFactory<GeoShelfSource>({
-  name: "shelf",
-  errorMessage: "Failed to load shelf space",
-  fetch: async (scope) => {
-    const response = await dashboardOrpc.geo.shelfList.call(scope);
-    setShelfSampleData(scope, response.isSampleData);
-    return response.sources;
-  },
-  getKey: (item) => item.id,
-  // The id is generated by the server; the optimistic row keeps its temporary
-  // id only until the collection refetches, same as the competitors collection.
-  insert: (scope, item) =>
-    dashboardOrpc.geo.shelfCreate.call({
-      ...scope,
-      url: item.url,
-      title: item.title,
-      kind: item.kind,
-      placements: toShelfPlacementWrites(item),
-      opportunity: toShelfOpportunityWrite(item),
-    }),
-  update: (scope, key, modified, original) =>
-    dashboardOrpc.geo.shelfUpdate.call({
-      ...scope,
-      sourceId: key,
-      title: modified.title === original.title ? undefined : modified.title,
-      kind: modified.kind === original.kind ? undefined : modified.kind,
-      placements: changedShelfPlacementWrites(modified, original),
-      opportunity: changedShelfOpportunityWrite(modified, original),
-    }),
-  invalidateLegacy: (queryClient, scope) =>
-    queryClient.invalidateQueries({
-      queryKey: dashboardOrpc.geo.shelfList.queryKey({ input: scope }),
-    }),
-});

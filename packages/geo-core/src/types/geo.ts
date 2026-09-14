@@ -65,6 +65,7 @@ export interface GeoSettings {
   aliases: string[];
   competitors: string[];
   conversionPaths: string[];
+  domains: string[];
   languages: string[];
   engines: string[];
   /** ZDR add-on: request zero data retention from every model host. */
@@ -95,6 +96,7 @@ export interface GeoSettingsRow {
   aliases: string[];
   competitors: string[];
   conversionPaths: string[];
+  domains: string[];
   languages: string[] | null;
   engines: string[] | null;
   enforceZdr: boolean;
@@ -115,6 +117,9 @@ export interface GeoOverviewEngine {
   checks: number;
   mentions: number;
   mentionRate: number;
+  citations?: number;
+  visibility?: number;
+  visibilityRate?: number;
   avgPosition: number | null;
   lastCheckedAt: string;
 }
@@ -129,6 +134,8 @@ export interface GeoTimeseriesPoint {
   engine: string;
   checks: number;
   mentions: number;
+  citations?: number;
+  visibility?: number;
   avgPosition?: number | null;
 }
 
@@ -139,6 +146,7 @@ export type GeoStatDeltaTone = "up" | "down" | "flat";
 export interface EngineFamilyStatTrends {
   ratePts: number | null;
   mentionDelta: number | null;
+  visibilityDelta: number | null;
   positionDelta: number | null;
 }
 
@@ -251,12 +259,37 @@ export interface GeoAnswerSource {
   domain: string;
 }
 
+export type GeoAnswerMentionKind = "own" | "competitor";
+
+export interface GeoAnswerMentionTerm {
+  phrase: string;
+  kind: GeoAnswerMentionKind;
+}
+
+export interface GeoAnswerMentionSpan {
+  start: number;
+  end: number;
+  kind: GeoAnswerMentionKind;
+  phrase: string;
+}
+
+export interface GeoAnswerMentionInput {
+  companyName?: string | null;
+  aliases?: readonly string[];
+  mentionedCompetitors?: readonly string[];
+  trackedCompetitors?: readonly {
+    name: string;
+    synonyms?: readonly string[];
+  }[];
+}
+
 export interface GeoPromptResult {
   promptId: string;
   engine: string;
   prompt: string;
   answer: string;
   mentioned: boolean;
+  ownedSourceCited?: boolean;
   position: number | null;
   sentiment: string | null;
   competitors: string[];
@@ -291,6 +324,7 @@ export type GeoPromptResultSummary = Pick<
   | "engine"
   | "prompt"
   | "mentioned"
+  | "ownedSourceCited"
   | "position"
   | "sentiment"
   | "competitors"
@@ -316,6 +350,11 @@ export interface GeoPromptRescanInput extends GeoScopeInput {
   engines?: readonly string[];
 }
 
+export interface GeoPromptGapIgnoreInput extends GeoScopeInput {
+  promptId: string;
+  ignored: boolean;
+}
+
 export interface GeoRescanForPostInput {
   organizationId: string;
   postId: string;
@@ -333,13 +372,10 @@ export interface GeoPromptHistoryCheck {
   scanId: string;
   engine: string;
   mentioned: boolean;
+  ownedSourceCited?: boolean;
   position: number | null;
   sentiment: string | null;
   competitors: string[];
-  answer: string;
-  excerpt: string;
-  searchQueries: string[];
-  sources: GeoAnswerSource[];
   language: string;
   capturedAt: string;
 }
@@ -377,6 +413,7 @@ export interface GeoSettingsUpsertInput {
   aliases: string[];
   competitors: string[];
   conversionPaths?: string[];
+  domains?: string[];
   languages: string[];
   engines: string[];
   enforceZdr: boolean;
@@ -395,10 +432,28 @@ export interface GeoSettingsLanguageAddInput extends GeoScopeInput {
   language: string;
 }
 
+export interface DueGeoScanRow {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  scanIntervalHours: number;
+  nextScanAt: Date | null;
+  lastScanAt: Date | null;
+}
+
 export interface GeoScanCronSweepResult {
   due: number;
   started: number;
-  skipped: number;
+  /** Due slots an attempt that finished after they came due already answered. */
+  covered: number;
+  /** Rows another sweep already holds the lease on. */
+  leaseLost: number;
+  /** Rows whose project scan slot is still claimed by a running scan. */
+  alreadyRunning: number;
+  /** Hand-offs that failed; their row keeps its lease and is retried. */
+  failed: number;
+  /** Slots another sweep advanced while this one held a stale lease. */
+  advanceLost: number;
   staleScansFailed: number;
 }
 
@@ -510,6 +565,7 @@ export interface GeoSequenceTurnResult {
   prompt: string;
   answer: string;
   mentioned: boolean;
+  ownedSourceCited?: boolean;
   position: number | null;
   sentiment: string | null;
   excerpt: string;
@@ -563,8 +619,14 @@ export interface GeoScanProjectContext {
   runId: string;
   companyName: string;
   aliases: string[];
+  /** Canonical brand website used to recognize citations from owned subdomains. */
+  websiteUrl?: string | null;
+  /** Additional project domains whose citations count as owned sources. */
+  domains?: string[];
   gate: ContentBillingReservation;
   startedAtMs: number;
+  /** Partial prompt scans do not cover a scheduled project scan. Optional for persisted older plans. */
+  scoped?: boolean;
 }
 
 export interface GeoScanProjectPlan {
@@ -655,6 +717,8 @@ export interface GeoCheckContext {
   capturedAt: Date;
   companyName: string;
   aliases: string[];
+  websiteUrl?: string | null;
+  domains?: string[];
 }
 
 export interface GeoSequenceDefinition {
@@ -680,6 +744,7 @@ export interface MentionTrend {
 
 export interface FamilyDayBucket {
   mentions: number;
+  visibility: number;
   checks: number;
   positionWeighted: number;
   positionWeight: number;
@@ -956,6 +1021,7 @@ export interface AiTrafficResponse {
 }
 
 export interface GeoTrafficPage {
+  host: string;
   path: string;
   source: string;
   visitorType: GeoVisitorType;
@@ -1011,6 +1077,12 @@ export interface GeoEngineFamily {
 }
 
 export interface GeoEngineFamilyTotals {
+  visible: number;
+  checks: number;
+  rate: number;
+}
+
+export interface GeoEngineFamilyMentionTotals {
   mentions: number;
   checks: number;
   rate: number;
@@ -1019,7 +1091,7 @@ export interface GeoEngineFamilyTotals {
 export interface MentionProviderRow {
   family: GeoEngineFamily;
   totals: GeoEngineFamilyTotals;
-  mentionDelta: number | null;
+  visibilityDelta: number | null;
   tracked: boolean;
 }
 
@@ -1028,6 +1100,9 @@ export interface GeoLanguageSharePoint {
   checks: number;
   mentions: number;
   mentionRate: number;
+  citations?: number;
+  visibility?: number;
+  visibilityRate?: number;
   avgPosition: number | null;
   trend?: GeoSparklinePoint[];
 }
@@ -1060,7 +1135,7 @@ export interface GeoPromptSummary {
   results: GeoPromptResultSummary[];
 }
 
-export type GeoTab = "visibility" | "prompts" | "journeys";
+export type GeoTab = "visibility" | "brand-sentiment" | "journeys";
 
 export type GeoRangePreset =
   | "today"
@@ -1093,6 +1168,7 @@ export type EngineIconKey =
   | "mistral"
   | "deepseek"
   | "meta"
+  | "instagram"
   | "grok"
   | "qwen"
   | "copilot"

@@ -16,7 +16,7 @@ import {
   getTokenForIntegrationId,
   getWebhookConfigForRepository,
   listAvailableRepositories,
-  setRepositoryOutputDirectory,
+  setRepositoryOutputConfig,
   toggleOutput,
   updateGitHubIntegration,
   updateGitHubIntegrationToken,
@@ -67,7 +67,10 @@ import {
 } from "@notra/ai/integrations/slack-workspace";
 import { deleteQstashSchedule } from "@notra/ai/qstash/triggers";
 import type { GitHubConnectionMethod } from "@notra/ai/types/github-connection";
-import { createOctokit } from "@notra/ai/utils/octokit";
+import {
+  createOctokit,
+  GITHUB_INTERACTIVE_READ_TIMEOUT_MS,
+} from "@notra/ai/utils/octokit";
 import { db } from "@notra/db/drizzle";
 import { contentTriggers, repositoryOutputs } from "@notra/db/schema";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
@@ -80,6 +83,7 @@ import {
   addRepositoryRequestSchema,
   beginMcpOAuthRequestSchema,
   configureOutputBodySchema,
+  createRepositoryBranchBodySchema,
   createGitHubIntegrationRequestSchema,
   createMcpServerRequestSchema,
   type IntegrationType,
@@ -546,7 +550,6 @@ export const integrationsRouter = {
         if (input.enabled !== undefined || input.displayName !== undefined) {
           await updateGitHubIntegration(input.integrationId, {
             enabled: input.enabled,
-            repositoryEnabled: input.enabled,
             displayName: input.displayName,
           });
         }
@@ -789,6 +792,186 @@ export const integrationsRouter = {
           mapKnownIntegrationError(error);
         }
       }),
+    branches: {
+      list: baseProcedure
+        .input(repositoryInputSchema)
+        .handler(async ({ context, input }) => {
+          await assertOrganizationAccess({
+            headers: context.headers,
+            organizationId: input.organizationId,
+          });
+
+          const repository = await requireRepositoryInOrganization(
+            input.organizationId,
+            input.repositoryId
+          );
+          let token: string | null;
+          try {
+            token = await getTokenForIntegrationId(input.repositoryId, {
+              organizationId: input.organizationId,
+              requestTimeoutMs: GITHUB_INTERACTIVE_READ_TIMEOUT_MS,
+            });
+          } catch (error) {
+            if (
+              hasGitHubStatus(error, 401) ||
+              hasGitHubStatus(error, 404) ||
+              (error instanceof Error &&
+                error.message === "GitHub App installation not found")
+            ) {
+              throw forbidden(
+                "GitHub authentication failed. Reconnect GitHub and try again."
+              );
+            }
+            throw internalServerError(
+              "Failed to authenticate with GitHub",
+              error
+            );
+          }
+
+          try {
+            const octokit = createOctokit(token ?? undefined, {
+              requestTimeoutMs: GITHUB_INTERACTIVE_READ_TIMEOUT_MS,
+            });
+            const branches: string[] = [];
+            let page = 1;
+            let hasNextPage = true;
+
+            while (hasNextPage) {
+              const { data } = await octokit.request(
+                "GET /repos/{owner}/{repo}/branches",
+                {
+                  owner: repository.owner,
+                  repo: repository.repo,
+                  page,
+                  per_page: 100,
+                  headers: GITHUB_API_VERSION_HEADERS,
+                }
+              );
+
+              branches.push(...data.map((branch) => branch.name));
+              hasNextPage = data.length === 100;
+              page += 1;
+            }
+
+            return { branches };
+          } catch (error) {
+            if (hasGitHubStatus(error, 404)) {
+              throw notFound("GitHub repository not found");
+            }
+            if (hasGitHubStatus(error, 401) || hasGitHubStatus(error, 403)) {
+              throw forbidden("GitHub repository access denied");
+            }
+            throw internalServerError("Failed to load GitHub branches", error);
+          }
+        }),
+      create: baseProcedure
+        .input(repositoryInputSchema.and(createRepositoryBranchBodySchema))
+        .handler(async ({ context, input }) => {
+          await assertOrganizationAccess({
+            headers: context.headers,
+            organizationId: input.organizationId,
+          });
+          await assertActiveSubscription(input.organizationId);
+
+          const repository = await requireRepositoryInOrganization(
+            input.organizationId,
+            input.repositoryId
+          );
+          const baseBranch = repository.defaultBranch;
+          if (!baseBranch) {
+            throw badRequest(
+              "Choose a publishing branch before creating a new branch"
+            );
+          }
+
+          let token: string | null;
+          try {
+            token = await getTokenForIntegrationId(input.repositoryId, {
+              organizationId: input.organizationId,
+              requestTimeoutMs: GITHUB_INTERACTIVE_READ_TIMEOUT_MS,
+            });
+          } catch (error) {
+            if (
+              hasGitHubStatus(error, 401) ||
+              hasGitHubStatus(error, 404) ||
+              (error instanceof Error &&
+                error.message === "GitHub App installation not found")
+            ) {
+              throw forbidden(
+                "GitHub authentication failed. Reconnect GitHub and try again."
+              );
+            }
+            throw internalServerError(
+              "Failed to authenticate with GitHub",
+              error
+            );
+          }
+
+          try {
+            const octokit = createOctokit(token ?? undefined);
+            const { data: baseRef } = await octokit.request(
+              "GET /repos/{owner}/{repo}/git/ref/{ref}",
+              {
+                owner: repository.owner,
+                repo: repository.repo,
+                ref: `heads/${baseBranch}`,
+                headers: GITHUB_API_VERSION_HEADERS,
+              }
+            );
+
+            await octokit.request("POST /repos/{owner}/{repo}/git/refs", {
+              owner: repository.owner,
+              repo: repository.repo,
+              ref: `refs/heads/${input.branchName}`,
+              sha: baseRef.object.sha,
+              headers: GITHUB_API_VERSION_HEADERS,
+            });
+          } catch (error) {
+            if (hasGitHubStatus(error, 409)) {
+              throw badRequest(
+                "The publishing branch does not have an initial commit"
+              );
+            }
+            if (hasGitHubStatus(error, 422)) {
+              throw conflict(
+                "This branch already exists or its name is not valid"
+              );
+            }
+            if (hasGitHubStatus(error, 404)) {
+              throw notFound(
+                "GitHub repository or publishing branch not found"
+              );
+            }
+            if (hasGitHubStatus(error, 401) || hasGitHubStatus(error, 403)) {
+              throw forbidden(
+                "GitHub needs write access to create this branch"
+              );
+            }
+            throw internalServerError("Failed to create GitHub branch", error);
+          }
+
+          const updated = await updateRepository(input.repositoryId, {
+            defaultBranch: input.branchName,
+          }).catch((error: unknown) => {
+            throw internalServerError(
+              "The branch was created, but it could not be selected for publishing",
+              error
+            );
+          });
+          if (!updated) {
+            throw internalServerError(
+              "The branch was created, but it could not be selected for publishing"
+            );
+          }
+
+          await invalidateStandaloneChatIntegrations(input.organizationId);
+          const refreshed = await requireRepositoryInOrganization(
+            input.organizationId,
+            input.repositoryId
+          );
+          return serializeRepository(refreshed);
+        }),
+    },
     contentDirectory: {
       get: baseProcedure
         .input(repositoryInputSchema.and(repositoryContentDirectoryInputSchema))
@@ -815,7 +998,11 @@ export const integrationsRouter = {
           );
 
           return {
-            directory: config.success ? config.data.directory : null,
+            directory: config.success ? (config.data.directory ?? null) : null,
+            contentPath: config.success
+              ? (config.data.contentPath ?? null)
+              : null,
+            imagePath: config.success ? (config.data.imagePath ?? null) : null,
           };
         }),
       update: baseProcedure
@@ -834,13 +1021,38 @@ export const integrationsRouter = {
             input.repositoryId
           );
 
-          await setRepositoryOutputDirectory({
+          await setRepositoryOutputConfig({
             repositoryId: input.repositoryId,
             outputType: input.contentType,
-            directory: input.directory,
+            ...(input.directory !== undefined
+              ? { directory: input.directory }
+              : {}),
+            ...(input.contentPath !== undefined
+              ? { contentPath: input.contentPath }
+              : {}),
+            ...(input.imagePath !== undefined
+              ? { imagePath: input.imagePath }
+              : {}),
           });
 
-          return { directory: input.directory };
+          const output = await db.query.repositoryOutputs.findFirst({
+            where: and(
+              eq(repositoryOutputs.repositoryId, input.repositoryId),
+              eq(repositoryOutputs.outputType, input.contentType)
+            ),
+            columns: { config: true },
+          });
+          const config = repositoryContentDirectoryConfigSchema.safeParse(
+            output?.config
+          );
+
+          return {
+            directory: config.success ? (config.data.directory ?? null) : null,
+            contentPath: config.success
+              ? (config.data.contentPath ?? null)
+              : null,
+            imagePath: config.success ? (config.data.imagePath ?? null) : null,
+          };
         }),
     },
     directories: {
@@ -863,6 +1075,7 @@ export const integrationsRouter = {
           try {
             token = await getTokenForIntegrationId(input.repositoryId, {
               organizationId: input.organizationId,
+              requestTimeoutMs: GITHUB_INTERACTIVE_READ_TIMEOUT_MS,
             });
           } catch (error) {
             if (
@@ -888,7 +1101,9 @@ export const integrationsRouter = {
           }
 
           try {
-            const octokit = createOctokit(token);
+            const octokit = createOctokit(token, {
+              requestTimeoutMs: GITHUB_INTERACTIVE_READ_TIMEOUT_MS,
+            });
             const requestOptions = {
               owner: repository.owner,
               repo: repository.repo,

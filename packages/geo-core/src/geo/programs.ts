@@ -96,7 +96,6 @@ import type {
   GeoPromptImportRow,
 } from "../types/geo-import";
 import { toGeoTrafficTotals, toGeoVisitorType } from "../utils/ai-traffic";
-import { geoAnswerSourcesFor } from "../utils/geo-answer-sources";
 import {
   diffScanChecks,
   summarizeGeoChanges,
@@ -113,6 +112,10 @@ import {
   getGeoModelCatalogEntry,
   isGeoEngineZdrCapable,
 } from "../utils/geo-model-catalog";
+import {
+  normalizeProjectDomains,
+  trafficLogHostFilter,
+} from "../utils/geo-project-domains";
 import { toGeoPromptResult } from "../utils/geo-prompt-results";
 import { normalizePromptTags } from "../utils/geo-prompt-tags";
 import { groupGeoSparklinePoints } from "../utils/geo-sparkline";
@@ -129,6 +132,7 @@ import {
   GeoSettingsTrackingError,
 } from "./errors";
 import { geoHiddenSourceParams } from "./hidden-sources";
+import { invalidateGeoIngestHostsCache } from "./ingest";
 import { lockGeoProject } from "./lock";
 import {
   toGeoCompetitor,
@@ -155,7 +159,7 @@ import {
   toAutoTrackedPrompts,
 } from "./prompts";
 import { startClaimedGeoScanRun } from "./scan-handoff";
-import { nextGeoScanAt } from "./scan-schedule";
+import { rearmedGeoScanAt } from "./scan-schedule";
 import { claimGeoScanRun, sweepStaleGeoScanRows } from "./scan-status";
 import { geoTrafficWindowParams } from "./window";
 
@@ -656,10 +660,12 @@ export const upsertGeoSettings = Effect.fn("geo.settingsUpsert")(function* (
         engines: true,
         nonZdrApprovedEngines: true,
         conversionPaths: true,
+        domains: true,
         pausedAutoPromptIds: true,
         removedAutoPromptIds: true,
         enabled: true,
         nextScanAt: true,
+        lastScanAt: true,
         scanIntervalHours: true,
       },
       where: eq(geoSettings.projectId, projectId),
@@ -671,6 +677,9 @@ export const upsertGeoSettings = Effect.fn("geo.settingsUpsert")(function* (
     input.removedAutoPromptIds ?? existingSettings?.removedAutoPromptIds ?? [];
   const conversionPaths = normalizeConversionPaths(
     input.conversionPaths ?? existingSettings?.conversionPaths ?? []
+  );
+  const domains = normalizeProjectDomains(
+    input.domains ?? existingSettings?.domains ?? []
   );
   const preservedEngines = (existingSettings?.engines ?? []).filter(
     (engine) =>
@@ -688,20 +697,29 @@ export const upsertGeoSettings = Effect.fn("geo.settingsUpsert")(function* (
     ]),
   ].filter((engine) => engineSet.has(engine));
 
-  // The schedule is a plain due stamp the cron sweep polls. A fresh enable or
-  // an interval change re-arms it a full interval out (matching the old
-  // delayed-message behaviour); an unchanged enabled row keeps its pending
-  // due time, and disabling clears it.
+  // The schedule is a plain due stamp the cron sweep polls. An unchanged
+  // enabled row keeps its pending due time (a still-null stamp stays null and
+  // is picked up by the next sweep), disabling clears it, and a fresh enable
+  // or an interval change re-arms it from the last finished scan — not a full
+  // interval out from now, which used to push the next scan a whole day away
+  // every time settings were saved.
   const keepNextScanAt =
     input.enabled &&
     existingSettings?.enabled === true &&
     existingSettings.scanIntervalHours === input.scanIntervalHours;
   let nextScanAt: Date | null = null;
-  if (input.enabled) {
-    nextScanAt = keepNextScanAt
-      ? (existingSettings?.nextScanAt ?? nextGeoScanAt(input.scanIntervalHours))
-      : nextGeoScanAt(input.scanIntervalHours);
+  if (keepNextScanAt) {
+    nextScanAt = existingSettings?.nextScanAt ?? null;
+  } else if (input.enabled) {
+    nextScanAt = rearmedGeoScanAt(
+      input.scanIntervalHours,
+      existingSettings?.lastScanAt ?? null
+    );
   }
+  // A re-armed or cleared schedule must not stay leased by the sweep that was
+  // mid-tick, or the new stamp would be ignored until the lease expires. An
+  // untouched schedule keeps whatever lease that sweep holds.
+  const clearedLease = keepNextScanAt ? {} : { scanLeaseUntil: null };
 
   yield* geoDb("settings upsert failed", () =>
     db
@@ -714,6 +732,7 @@ export const upsertGeoSettings = Effect.fn("geo.settingsUpsert")(function* (
         aliases: input.aliases,
         competitors: [],
         conversionPaths,
+        domains,
         languages: input.languages,
         engines,
         enforceZdr,
@@ -730,6 +749,7 @@ export const upsertGeoSettings = Effect.fn("geo.settingsUpsert")(function* (
           companyName: input.companyName,
           aliases: input.aliases,
           conversionPaths,
+          domains,
           languages: input.languages,
           engines,
           enforceZdr,
@@ -739,8 +759,13 @@ export const upsertGeoSettings = Effect.fn("geo.settingsUpsert")(function* (
           enabled: input.enabled,
           scanIntervalHours: input.scanIntervalHours,
           nextScanAt,
+          ...clearedLease,
         },
       })
+  );
+
+  yield* Effect.promise(() =>
+    invalidateGeoIngestHostsCache(input.organizationId, projectId)
   );
 
   yield* reconcileGeoCompetitors(
@@ -781,7 +806,7 @@ export const loadGeoLanguageShare = Effect.fn("geo.languageShare")(function* (
   const trendsByLanguage = groupGeoSparklinePoints(
     trendRows,
     (point) => point.language,
-    (point) => ({ day: point.day, value: point.mentionRate })
+    (point) => ({ day: point.day, value: point.visibilityRate })
   );
 
   const response: GeoLanguageShareResponse = {
@@ -791,6 +816,9 @@ export const loadGeoLanguageShare = Effect.fn("geo.languageShare")(function* (
       checks: row.checks,
       mentions: row.mentions,
       mentionRate: row.mentionRate,
+      citations: row.citations,
+      visibility: row.visibility,
+      visibilityRate: row.visibilityRate,
       avgPosition: row.avgPosition,
       trend: trendsByLanguage.get(row.language) ?? [],
     })),
@@ -812,6 +840,9 @@ export const loadGeoOverview = Effect.fn("geo.overview")(function* (
     checks: row.checks,
     mentions: row.mentions,
     mentionRate: row.mentionRate,
+    citations: row.citations,
+    visibility: row.visibility,
+    visibilityRate: row.visibilityRate,
     avgPosition: row.avgPosition,
     lastCheckedAt: row.lastCheckedAt.toISOString(),
   }));
@@ -839,6 +870,8 @@ export const loadGeoTimeseries = Effect.fn("geo.timeseries")(function* (
       engine: row.engine,
       checks: row.checks,
       mentions: row.mentions,
+      citations: row.citations,
+      visibility: row.visibility,
       avgPosition: row.avgPosition,
     })),
   };
@@ -885,13 +918,10 @@ export const loadGeoPromptHistory = Effect.fn("geo.promptHistory")(function* (
       scanId: row.scanId,
       engine: row.engine,
       mentioned: row.mentioned,
+      ownedSourceCited: row.ownedSourceCited,
       position: row.position,
       sentiment: row.sentiment,
       competitors: row.competitors,
-      answer: row.answer,
-      excerpt: row.excerpt,
-      searchQueries: row.grounding.queries,
-      sources: geoAnswerSourcesFor(row.grounding, row.sources),
       language: row.language,
       capturedAt: row.capturedAt.toISOString(),
     })),
@@ -1142,7 +1172,8 @@ export const loadGeoTrafficLog = Effect.fn("geo.trafficLog")(function* (
   input: GeoScopeInput,
   limit: number | undefined,
   visitorTypes: readonly string[] | undefined,
-  categories: readonly string[] | undefined
+  categories: readonly string[] | undefined,
+  host: string | undefined
 ) {
   const scope = yield* resolveGeoScope(input);
   const rows = yield* geoQuery("traffic log query failed", () =>
@@ -1152,6 +1183,7 @@ export const loadGeoTrafficLog = Effect.fn("geo.trafficLog")(function* (
       limit: limit ?? AI_TRAFFIC_DEFAULT_LOG_LIMIT,
       visitor_type: visitorTypes?.join(",") ?? "",
       category: categories?.join(",") ?? "",
+      host: trafficLogHostFilter(host),
     })
   );
   const data = rows?.data ?? [];
@@ -1234,7 +1266,8 @@ export const loadGeoTrafficPages = Effect.fn("geo.trafficPages")(function* (
   input: GeoScopeInput,
   window: GeoWindowInput,
   limit: number | undefined,
-  visitorType: string | undefined
+  visitorType: string | undefined,
+  host: string | undefined
 ) {
   const scope = yield* resolveGeoScope(input);
   const pages = yield* geoQuery("traffic pages query failed", () =>
@@ -1244,12 +1277,14 @@ export const loadGeoTrafficPages = Effect.fn("geo.trafficPages")(function* (
       ...geoTrafficWindowParams(window, AI_TRAFFIC_DEFAULT_DAYS),
       limit: limit ?? AI_TRAFFIC_DEFAULT_PAGES_LIMIT,
       visitor: visitorType ?? "",
+      host: trafficLogHostFilter(host),
     })
   );
 
   const response: GeoTrafficPagesResponse = {
     configured: isTinybirdConfigured(),
     pages: (pages?.data ?? []).map((row) => ({
+      host: row.host ?? "",
       path: row.path,
       source: row.source,
       visitorType: toGeoVisitorType(row.visitor_type),

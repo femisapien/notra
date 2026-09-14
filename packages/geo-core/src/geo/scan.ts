@@ -70,6 +70,7 @@ import type {
   GeoSkipFields,
   GeoZdrMode,
 } from "../types/geo";
+import { findBrandMention } from "../utils/geo-brand-mention";
 import {
   geoBoxAgentForEngine,
   isGeoBoxCodingAgent,
@@ -93,6 +94,7 @@ import {
   geoLogWarn,
   logGeoSkip,
 } from "../utils/geo-log";
+import { hasOwnedSourceCitation } from "../utils/geo-owned-source";
 import {
   interleaveGeoScanItemsByKey,
   isGeoScanRunning,
@@ -231,7 +233,7 @@ ${answer}
 """
 
 Analyze the answer and report:
-- mentioned: true if the company or any alias appears in the answer.
+- mentioned: true only if the company name or an alias appears in the answer as the name of that specific company or product. Generic phrases that share words with the name (for example "an email SDK" when the company is "Email SDK") are not mentions.
 - position: the 1-based rank of the company among the recommended brands if the answer contains an ordered or bulleted list of brands, otherwise null.
 - sentiment: the sentiment expressed toward the company ("positive", "neutral" or "negative"), or null if it is not mentioned.
 - competitors: up to ${MAX_JUDGE_COMPETITORS} other brand or product names mentioned in the answer, excluding the company and its aliases.
@@ -416,10 +418,29 @@ const judgeAnswer = Effect.fn("geo.judgeAnswer")(function* (
   answer: string
 ) {
   const models = yield* GeoModelService;
-  return yield* models.judge({
+  const judged = yield* models.judge({
     organizationId: context.organizationId,
     prompt: buildJudgePrompt(context, promptText, answer),
   });
+  const mentioned =
+    findBrandMention(answer, context.companyName, context.aliases) !== null;
+  if (judged.mentioned !== mentioned) {
+    yield* geoLogWarn({
+      event: "geo.check.judge_mention_mismatch",
+      organizationId: context.organizationId,
+      projectId: context.projectId,
+      scanId: context.scanId,
+      companyName: context.companyName,
+      judgeMentioned: judged.mentioned,
+      excerpt: judged.excerpt,
+    });
+  }
+  return {
+    ...judged,
+    mentioned,
+    position: mentioned ? judged.position : null,
+    sentiment: mentioned ? judged.sentiment : null,
+  };
 });
 
 const translatePrompts = Effect.fn("geo.translatePrompts")(function* (
@@ -504,6 +525,7 @@ const runGeoCheck = Effect.fn("geo.runCheck")(function* (
       answer: GEO_AI_OVERVIEW_ABSENT_ANSWER,
       capturedAt: context.capturedAt,
       mentioned: false,
+      ownedSourceCited: false,
       position: null,
       sentiment: null,
       competitors: [],
@@ -527,6 +549,11 @@ const runGeoCheck = Effect.fn("geo.runCheck")(function* (
     answer
   );
   const judged = yield* judgeAnswer(context, task.prompt.text, answerText);
+  const ownedSourceCited = hasOwnedSourceCitation(
+    context.websiteUrl,
+    [...answer.grounding.sources, ...answer.sources],
+    context.domains
+  );
   const usage = answer.usage
     ? addTokenUsage(EMPTY_TOKEN_USAGE, answer.usage)
     : EMPTY_TOKEN_USAGE;
@@ -550,6 +577,7 @@ const runGeoCheck = Effect.fn("geo.runCheck")(function* (
     answer: answerText,
     capturedAt: context.capturedAt,
     mentioned: judged.mentioned,
+    ownedSourceCited,
     position: normalizePosition(judged.position),
     sentiment: judged.sentiment,
     competitors: judged.competitors.slice(0, MAX_JUDGE_COMPETITORS),
@@ -1125,8 +1153,11 @@ const buildGeoScanProjectPlan = Effect.fn("geo.buildScanProjectPlan")(
         runId,
         companyName: settings.companyName,
         aliases: settings.aliases,
+        websiteUrl: brand?.websiteUrl ?? null,
+        domains: settings.domains,
         gate,
         startedAtMs: Date.now(),
+        scoped: promptIds !== undefined,
       },
       claimedAt: claimedAt.toISOString(),
       tasks: interleaveGeoScanItemsByKey(tasks, (task) => task.engine),
@@ -1168,6 +1199,8 @@ const buildGeoScanCheckContext = Effect.fn("geo.buildScanCheckContext")(
       capturedAt: new Date(),
       companyName: context.companyName,
       aliases: context.aliases,
+      websiteUrl: context.websiteUrl,
+      domains: context.domains,
     };
     return checkContext;
   }
@@ -1516,7 +1549,7 @@ export const finalizeGeoScanProject = Effect.fn("geo.finalizeScanProject")(
 
     if (claimedAt) {
       const endClaim =
-        status === "completed"
+        status === "completed" && !context.scoped
           ? markGeoScanFinished(context.projectId, claimedAt).pipe(
               geoSkip("scan finish stamp failed", {
                 event: "geo.scan.stamp_failed",
@@ -1632,6 +1665,11 @@ const runGeoSequenceCheck = Effect.fn("geo.runSequenceCheck")(function* (
     }
     messages.push({ role: "assistant", content: answerText });
     const judged = yield* judgeAnswer(context, step, answerText);
+    const ownedSourceCited = hasOwnedSourceCitation(
+      context.websiteUrl,
+      [...answer.grounding.sources, ...answer.sources],
+      context.domains
+    );
 
     rows.push({
       organizationId: context.organizationId,
@@ -1645,6 +1683,7 @@ const runGeoSequenceCheck = Effect.fn("geo.runSequenceCheck")(function* (
       answer: answerText,
       capturedAt: context.capturedAt,
       mentioned: judged.mentioned,
+      ownedSourceCited,
       position: normalizePosition(judged.position),
       sentiment: judged.sentiment,
       competitors: judged.competitors.slice(0, MAX_JUDGE_COMPETITORS),
@@ -1794,6 +1833,11 @@ const runGeoOpenCodeSequenceCheck = Effect.fn("geo.runOpenCodeSequenceCheck")(
             ),
         })
       );
+      const ownedSourceCited = hasOwnedSourceCitation(
+        context.websiteUrl,
+        [...answer.grounding.sources, ...answer.sources],
+        context.domains
+      );
 
       rows.push({
         organizationId: context.organizationId,
@@ -1807,6 +1851,7 @@ const runGeoOpenCodeSequenceCheck = Effect.fn("geo.runOpenCodeSequenceCheck")(
         answer: answerText,
         capturedAt: context.capturedAt,
         mentioned: judged.mentioned,
+        ownedSourceCited,
         position: normalizePosition(judged.position),
         sentiment: judged.sentiment,
         competitors: judged.competitors.slice(0, MAX_JUDGE_COMPETITORS),
@@ -1879,6 +1924,10 @@ const runGeoSequenceNowProgram = Effect.fn("geo.runSequenceNow")(function* (
 
   const catalog = yield* loadGeoModelCatalog(scope.organizationId);
   const settings = toGeoSettings(settingsRow, catalog);
+  const brand = yield* loadGeoProjectBrand({
+    organizationId: scope.organizationId,
+    projectId,
+  });
   const zdrPolicy = yield* resolveScanZdrPolicy(
     scope.organizationId,
     settings,
@@ -1984,6 +2033,8 @@ const runGeoSequenceNowProgram = Effect.fn("geo.runSequenceNow")(function* (
           capturedAt: new Date(),
           companyName: settings.companyName,
           aliases: settings.aliases,
+          websiteUrl: brand?.websiteUrl ?? null,
+          domains: settings.domains,
         };
         const outcomes = yield* Effect.forEach(
           replayEngines,
@@ -2044,7 +2095,15 @@ const runGeoSequenceNowProgram = Effect.fn("geo.runSequenceNow")(function* (
         });
         return { rows, usage };
       }),
-    claim ? { claimedAt: claim.claimedAt } : { skipStatusStamps: true as const }
+    claim
+      ? {
+          claimedAt: claim.claimedAt,
+          // A conversation replay does not cover the project's scheduled scan.
+          finishStatusStamp: releaseGeoScanRun(projectId, claim.claimedAt).pipe(
+            geoSkip("scan claim release failed")
+          ),
+        }
+      : { skipStatusStamps: true as const }
   );
 
   const confirmBilling = (units: number, usage: AgentTokenUsage) =>

@@ -593,8 +593,50 @@
     {
       "idx": 84,
       "version": "7",
-      "when": 1789134725670,
-      "tag": "0084_user_backup_codes",
+      "when": 1789124275885,
+      "tag": "0084_geo_scan_lease",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1789159869899,
+      "tag": "0085_red_wrecker",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1789210000000,
+      "tag": "0086_geo_project_domains",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1789283361912,
+      "tag": "0087_mushy_calypso",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1789283852941,
+      "tag": "0088_geo_sentiment_attempt",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1789400315082,
+      "tag": "0089_geo_ignored_gap_prompt_ids",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1789411028365,
+      "tag": "0090_user_backup_codes",
       "breakpoints": true
     }
   ]

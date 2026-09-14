@@ -1,5 +1,5 @@
 {
-  "id": "ef7dcbf8-a2c9-47c9-bffd-dceaff33b4d9",
+  "id": "2af30101-d3f7-47ba-822d-79ee7e9ba8b2",
   "prevId": "1da2e5df-7a0b-49b7-9edd-7c7bd73f937d",
   "version": "7",
   "dialect": "postgresql",
@@ -6144,6 +6144,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "scan_lease_until": {
+          "name": "scan_lease_until",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
         "scan_started_at": {
           "name": "scan_started_at",
           "type": "timestamp",
@@ -10495,101 +10501,6 @@
           "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.user_backup_codes": {
-      "name": "user_backup_codes",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code_hash": {
-          "name": "code_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "used_at": {
-          "name": "used_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "user_backup_codes_userId_idx": {
-          "name": "user_backup_codes_userId_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "user_backup_codes_userId_codeHash_uidx": {
-          "name": "user_backup_codes_userId_codeHash_uidx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "code_hash",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "user_backup_codes_user_id_users_id_fk": {
-          "name": "user_backup_codes_user_id_users_id_fk",
-          "tableFrom": "user_backup_codes",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
           ],
           "columnsTo": [
             "id"
