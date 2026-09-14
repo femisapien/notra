@@ -19,6 +19,8 @@ export interface VerifyMfaCodeInput {
   authenticationChallengeId: string;
   code: string;
   returnTo?: string | null;
+  /** Name for the factor just enrolled (first-time enrollment only). */
+  factorLabel?: { factorId: string; name: string };
 }
 
 export interface RedeemBackupCodeInput {
@@ -60,6 +62,7 @@ export interface AuthFlowMfaEnrollmentRequired {
   status: "mfa-enrollment-required";
   pendingAuthenticationToken: string;
   authenticationChallengeId: string;
+  factorId: string;
   email: string;
   qrCode: string;
   secret: string;
@@ -111,6 +114,12 @@ export type StartSocialSignIn = (input: StartSocialSignInInput) => Promise<void>
  * show `result.message`.
  */
 export type ApplyAuthResult = (result: AuthFlowResult) => boolean;
+
+export interface TotpEnrollmentSubmission {
+  code: string;
+  /** Optional user-given name, already trimmed; null when left blank. */
+  name: string | null;
+}
 
 export type TotpVerifyResult =
   | { ok: true; backupCodes?: string[] }
@@ -213,7 +222,7 @@ export interface TotpEnrollmentPanelProps {
   submitLabel?: string;
   cancelLabel?: string;
   doneLabel?: string;
-  onSubmit: (code: string) => Promise<TotpVerifyResult>;
+  onSubmit: (submission: TotpEnrollmentSubmission) => Promise<TotpVerifyResult>;
   onCancel?: () => void;
   /** Called after the backup codes step (or right after verification when none were issued). */
   onDone?: () => void;

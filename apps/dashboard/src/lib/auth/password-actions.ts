@@ -42,6 +42,7 @@ import {
   replaceBackupCodes,
 } from "@/lib/auth/backup-codes";
 import { UserSyncError, WorkOSAuthError } from "@/lib/auth/errors";
+import { clearFactorLabels, setFactorLabel } from "@/lib/auth/factor-labels";
 import { resolveMfaFlow } from "@/lib/auth/mfa";
 import { authenticateResolvingOrgSelection } from "@/lib/auth/org-selection";
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
@@ -357,6 +358,26 @@ export async function verifyMfaCodeAction(
         POSTHOG_EVENTS.MFA_VERIFIED
       );
 
+      const label = parsed.data.factorLabel;
+      if (label?.name) {
+        // Only label a factor that really belongs to the user who just
+        // signed in; the id came from the client.
+        const factors = yield* tryWorkOSAuth(() =>
+          getWorkOS().multiFactorAuth.listUserAuthFactors({
+            userId: response.user.id,
+          })
+        );
+        if (factors.data.some((factor) => factor.id === label.factorId)) {
+          yield* Effect.promise(() =>
+            setFactorLabel(
+              session.localUserId,
+              label.factorId,
+              label.name ?? ""
+            )
+          );
+        }
+      }
+
       // The first successful TOTP sign-in is the end of enrollment: that is
       // when the user gets their one-time look at the backup codes.
       const alreadyHasCodes = yield* Effect.promise(() =>
@@ -453,6 +474,7 @@ export async function redeemBackupCodeAction(
       );
 
       yield* Effect.promise(() => clearBackupCodes(localUser.id));
+      yield* Effect.promise(() => clearFactorLabels(localUser.id));
       yield* Effect.promise(() => clearShortLivedCookie(MFA_RECOVERY_COOKIE));
       yield* Effect.promise(() =>
         trackAuthEvent(

@@ -2,7 +2,10 @@
 
 import { TwoFactorSettings } from "@notra/ui/components/shared/security/two-factor-settings";
 import { TitleCard } from "@notra/ui/components/ui/title-card";
-import type { TotpVerifyResult } from "@notra/ui/lib/auth-types";
+import type {
+  TotpEnrollmentSubmission,
+  TotpVerifyResult,
+} from "@notra/ui/lib/auth-types";
 import type { BackupCodesOutcome } from "@notra/ui/lib/security-types";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -81,7 +84,10 @@ export function TwoFactorSection({
     },
   });
 
-  async function verifyEnrollment(code: string): Promise<TotpVerifyResult> {
+  async function verifyEnrollment({
+    code,
+    name,
+  }: TotpEnrollmentSubmission): Promise<TotpVerifyResult> {
     if (!enrollment) {
       return { ok: false, message: "Start the setup again." };
     }
@@ -89,6 +95,7 @@ export function TwoFactorSection({
     const result = await authClient.security.verifyTotpEnrollment({
       authenticationChallengeId: enrollment.authenticationChallengeId,
       code,
+      name: name ?? undefined,
     });
 
     if (result.error) {

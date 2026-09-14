@@ -4,6 +4,7 @@ import { useRef } from "react";
 
 import type {
   MfaEnrollmentFormProps,
+  TotpEnrollmentSubmission,
   TotpVerifyResult,
 } from "../../../lib/auth-types";
 import { AuthFormHeader } from "./auth-form-header";
@@ -21,12 +22,16 @@ export function MfaEnrollmentForm({
 }: MfaEnrollmentFormProps) {
   const redirectToRef = useRef<string | null>(null);
 
-  async function handleSubmit(code: string): Promise<TotpVerifyResult> {
+  async function handleSubmit({
+    code,
+    name,
+  }: TotpEnrollmentSubmission): Promise<TotpVerifyResult> {
     const result = await verifyMfaCode({
       pendingAuthenticationToken: step.pendingAuthenticationToken,
       authenticationChallengeId: step.authenticationChallengeId,
       code,
       returnTo,
+      factorLabel: name ? { factorId: step.factorId, name } : undefined,
     }).catch(() => null);
 
     if (!result) {

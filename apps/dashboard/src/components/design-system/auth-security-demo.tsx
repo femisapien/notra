@@ -13,6 +13,7 @@ import {
 } from "@notra/ui/components/ui/card";
 import type {
   RedeemBackupCode,
+  TotpEnrollmentSubmission,
   TotpVerifyResult,
   VerifyMfaCode,
 } from "@notra/ui/lib/auth-types";
@@ -57,6 +58,7 @@ const DEMO_ENROLLMENT: TotpEnrollmentSecrets = {
 const INITIAL_FACTORS: TotpFactorSummary[] = [
   {
     id: "auth_factor_demo_1",
+    name: "iPhone",
     issuer: "Notra",
     createdAt: "2026-08-14T09:12:00.000Z",
   },
@@ -136,7 +138,9 @@ function MfaChallengeDemo() {
 function EnrollmentPanelDemo() {
   const [done, setDone] = useState(false);
 
-  async function handleSubmit(code: string): Promise<TotpVerifyResult> {
+  async function handleSubmit({
+    code,
+  }: TotpEnrollmentSubmission): Promise<TotpVerifyResult> {
     await wait(DEMO_LATENCY_MS);
     if (code !== DEMO_VALID_CODE) {
       return { ok: false, message: "That code didn't work. Try again." };
@@ -183,7 +187,10 @@ function TwoFactorSettingsDemo() {
     setIsStarting(false);
   }
 
-  async function verifyEnrollment(code: string): Promise<TotpVerifyResult> {
+  async function verifyEnrollment({
+    code,
+    name,
+  }: TotpEnrollmentSubmission): Promise<TotpVerifyResult> {
     await wait(DEMO_LATENCY_MS);
     if (code !== DEMO_VALID_CODE) {
       return { ok: false, message: "That code didn't work. Try again." };
@@ -191,6 +198,7 @@ function TwoFactorSettingsDemo() {
     setFactors([
       {
         id: `auth_factor_demo_${Date.now()}`,
+        name,
         issuer: "Notra",
         createdAt: new Date().toISOString(),
       },

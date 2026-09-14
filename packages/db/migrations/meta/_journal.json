@@ -638,6 +638,13 @@
       "when": 1789411028365,
       "tag": "0090_user_backup_codes",
       "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1789413186461,
+      "tag": "0091_user_auth_factor_labels",
+      "breakpoints": true
     }
   ]
 }

@@ -26,6 +26,7 @@ export interface RegenerateBackupCodesResult {
 export interface VerifyTotpEnrollmentInput {
   authenticationChallengeId: string;
   code: string;
+  name?: string;
 }
 
 export interface RemoveAuthFactorInput {

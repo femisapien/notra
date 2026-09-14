@@ -17,6 +17,16 @@ export const totpCodeSchema = z
 const workosIdSchema = (label: string) =>
   z.string().min(1, `${label} is missing`).max(WORKOS_ID_MAX_LENGTH);
 
+const FACTOR_NAME_MAX_LENGTH = 40;
+
+/** Optional user-given label for an authenticator; blank means "no name". */
+export const factorNameSchema = z
+  .string()
+  .trim()
+  .max(FACTOR_NAME_MAX_LENGTH, "Name must be at most 40 characters")
+  .transform((value) => (value.length > 0 ? value : undefined))
+  .optional();
+
 export const verifyMfaCodeInputSchema = z.object({
   pendingAuthenticationToken: z
     .string()
@@ -25,6 +35,9 @@ export const verifyMfaCodeInputSchema = z.object({
   authenticationChallengeId: workosIdSchema("Challenge"),
   code: totpCodeSchema,
   returnTo: returnToSchema,
+  factorLabel: z
+    .object({ factorId: workosIdSchema("Factor"), name: factorNameSchema })
+    .optional(),
 });
 
 const BACKUP_CODE_SEPARATOR_REGEX = /[\s-]/g;
@@ -45,6 +58,7 @@ export const redeemBackupCodeInputSchema = z.object({
 export const verifyTotpEnrollmentInputSchema = z.object({
   authenticationChallengeId: workosIdSchema("Challenge"),
   code: totpCodeSchema,
+  name: factorNameSchema,
 });
 
 export const removeAuthFactorInputSchema = z.object({

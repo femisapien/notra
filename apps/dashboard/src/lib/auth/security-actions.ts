@@ -25,6 +25,11 @@ import {
   countRemainingBackupCodes,
   replaceBackupCodes,
 } from "@/lib/auth/backup-codes";
+import {
+  deleteFactorLabel,
+  listFactorLabels,
+  setFactorLabel,
+} from "@/lib/auth/factor-labels";
 import { readWorkOSError } from "@/lib/auth/workos-error";
 import { requireSession } from "@/lib/organizations/guards";
 import type {
@@ -92,15 +97,25 @@ const trackSecurityEvent = (event: PostHogEventName, userId: string) =>
   });
 
 const listTotpFactors = Effect.fn("auth.security.listTotpFactors")(function* (
-  workosUserId: string
+  workosUserId: string,
+  localUserId: string
 ) {
-  const factors = yield* tryWorkOS(() =>
-    getWorkOS().multiFactorAuth.listUserAuthFactors({ userId: workosUserId })
+  const [factors, labels] = yield* Effect.all(
+    [
+      tryWorkOS(() =>
+        getWorkOS().multiFactorAuth.listUserAuthFactors({
+          userId: workosUserId,
+        })
+      ),
+      tryDb(() => listFactorLabels(localUserId), "Failed to load factor names"),
+    ],
+    { concurrency: "unbounded" }
   );
   return factors.data
     .filter((factor) => factor.type === TOTP_FACTOR_TYPE)
     .map<TotpFactorSummary>((factor) => ({
       id: factor.id,
+      name: labels.get(factor.id) ?? null,
       issuer: factor.totp?.issuer ?? null,
       createdAt: factor.createdAt,
     }));
@@ -113,7 +128,10 @@ export async function getSecurityOverviewAction(): Promise<
     Effect.gen(function* () {
       const context = yield* requireSecurityContext();
 
-      const totpFactors = yield* listTotpFactors(context.workosUserId);
+      const totpFactors = yield* listTotpFactors(
+        context.workosUserId,
+        context.localUserId
+      );
       const backupCodesRemaining =
         totpFactors.length > 0
           ? yield* Effect.promise(() =>
@@ -185,6 +203,18 @@ export async function verifyTotpEnrollmentAction(
         );
       }
 
+      if (input.name) {
+        yield* tryDb(
+          () =>
+            setFactorLabel(
+              context.localUserId,
+              verification.challenge.authenticationFactorId,
+              input.name ?? ""
+            ),
+          "Two-factor is on, but the name couldn't be saved."
+        );
+      }
+
       // The factor is live from here on. If issuing codes fails the user
       // still ends up with 2FA on and can regenerate from settings.
       const backupCodes = yield* tryDb(
@@ -206,7 +236,10 @@ export async function regenerateBackupCodesAction(): Promise<
   return runAction(
     Effect.gen(function* () {
       const context = yield* requireSecurityContext();
-      const factors = yield* listTotpFactors(context.workosUserId);
+      const factors = yield* listTotpFactors(
+        context.workosUserId,
+        context.localUserId
+      );
       if (factors.length === 0) {
         return yield* Effect.fail(
           new ActionFailure({
@@ -239,7 +272,10 @@ export async function removeAuthFactorAction(
         rawInput
       );
 
-      const factors = yield* listTotpFactors(context.workosUserId);
+      const factors = yield* listTotpFactors(
+        context.workosUserId,
+        context.localUserId
+      );
       if (!factors.some((factor) => factor.id === input.factorId)) {
         return yield* Effect.fail(
           new ActionFailure({
@@ -251,6 +287,7 @@ export async function removeAuthFactorAction(
       yield* tryWorkOS(() =>
         getWorkOS().multiFactorAuth.deleteFactor(input.factorId)
       );
+      yield* Effect.promise(() => deleteFactorLabel(input.factorId));
       if (factors.length === 1) {
         yield* Effect.promise(() => clearBackupCodes(context.localUserId));
       }

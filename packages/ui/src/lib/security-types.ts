@@ -1,7 +1,7 @@
 import type { IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
 
-import type { TotpVerifyResult } from "./auth-types";
+import type { TotpEnrollmentSubmission, TotpVerifyResult } from "./auth-types";
 
 export type SecurityLoadStatus = "loading" | "ready" | "error";
 
@@ -20,6 +20,7 @@ export interface BackupCodesPanelProps {
 
 export interface TotpFactorSummary {
   id: string;
+  name: string | null;
   issuer: string | null;
   createdAt: string;
 }
@@ -53,7 +54,9 @@ export interface TwoFactorSettingsProps {
   backupCodesRemaining: number | null;
   accountLabel?: string;
   onStartEnrollment: () => void;
-  onVerifyEnrollment: (code: string) => Promise<TotpVerifyResult>;
+  onVerifyEnrollment: (
+    submission: TotpEnrollmentSubmission
+  ) => Promise<TotpVerifyResult>;
   onCancelEnrollment: () => void;
   onEnrollmentDone: () => void;
   onRemoveFactor: (factorId: string) => void;

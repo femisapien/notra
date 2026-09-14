@@ -10,6 +10,8 @@ import type {
   TotpVerifyResult,
 } from "../../../lib/auth-types";
 import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
+import { Label } from "../../ui/label";
 import { BackupCodesPanel } from "../security/backup-codes-panel";
 import { StepTransition } from "../security/step-transition";
 import { TOTP_CODE_LENGTH, TotpCodeInput } from "./totp-code-input";
@@ -19,6 +21,7 @@ type EnrollmentStep = "scan" | "manual" | "code" | "backup";
 const ENROLLMENT_ERROR_FALLBACK = "That code didn't work. Please try again.";
 const COPIED_RESET_MS = 2000;
 const QR_CODE_SIZE = 176;
+const FACTOR_NAME_MAX_LENGTH = 40;
 const WHITESPACE_REGEX = /\s+/g;
 const SECRET_GROUP_REGEX = /.{1,4}/g;
 
@@ -115,6 +118,7 @@ export function TotpEnrollmentPanel({
 }: TotpEnrollmentPanelProps) {
   const [step, setStep] = useState<EnrollmentStep>("scan");
   const [code, setCode] = useState("");
+  const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
@@ -129,7 +133,10 @@ export function TotpEnrollmentPanel({
 
     let result: TotpVerifyResult;
     try {
-      result = await onSubmit(submittedCode);
+      result = await onSubmit({
+        code: submittedCode,
+        name: name.trim() || null,
+      });
     } catch {
       result = { ok: false, message: ENROLLMENT_ERROR_FALLBACK };
     } finally {
@@ -268,6 +275,17 @@ export function TotpEnrollmentPanel({
             src={qrCode}
             style={{ width: QR_CODE_SIZE, height: QR_CODE_SIZE }}
             width={QR_CODE_SIZE}
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="totp-factor-name">Name (optional)</Label>
+          <Input
+            autoComplete="off"
+            id="totp-factor-name"
+            maxLength={FACTOR_NAME_MAX_LENGTH}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="e.g. iPhone or 1Password"
+            value={name}
           />
         </div>
         <StepActions

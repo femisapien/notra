@@ -103,6 +103,7 @@ export const resolveMfaFlow = Effect.fn("auth.mfa.resolveFlow")(function* (
       status: "mfa-enrollment-required",
       pendingAuthenticationToken,
       authenticationChallengeId: enrollment.authenticationChallengeId,
+      factorId: enrollment.factorId,
       email: resolvedEmail,
       qrCode: enrollment.qrCode,
       secret: enrollment.secret,

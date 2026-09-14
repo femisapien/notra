@@ -3,6 +3,7 @@ export interface DevAccount {
   password: string;
   totpSecret: string | null;
   totpEnrolledAt: string | null;
+  totpName: string | null;
 }
 
 export interface DevSession {

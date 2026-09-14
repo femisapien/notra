@@ -4,6 +4,7 @@ import {
   Add01Icon,
   ArrowReloadHorizontalIcon,
   Delete02Icon,
+  SmartPhone01Icon,
   SquareLockPasswordIcon,
   TwoFactorAccessIcon,
 } from "@hugeicons/core-free-icons";
@@ -109,24 +110,31 @@ function FactorList({
   onRemoveFactor: (factorId: string) => void;
 }) {
   return (
-    <ul className="grid gap-3">
+    <ul className="divide-y rounded-lg border bg-muted/30">
       {factors.map((factor) => {
         const addedOn = formatSecurityDate(factor.createdAt);
         const isRemoving = removingFactorId === factor.id;
         return (
           <li
-            className="flex items-center justify-between gap-3 text-sm"
+            className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"
             key={factor.id}
           >
-            <div className="min-w-0">
-              <p className="font-medium">
-                {factor.issuer ?? "Authenticator app"}
-              </p>
-              {addedOn && (
-                <p className="text-muted-foreground text-xs">
-                  Added {addedOn}
+            <div className="flex min-w-0 items-center gap-3">
+              <HugeiconsIcon
+                className="shrink-0 text-muted-foreground"
+                icon={SmartPhone01Icon}
+                size={16}
+              />
+              <div className="min-w-0">
+                <p className="truncate font-medium">
+                  {factor.name ?? factor.issuer ?? "Authenticator app"}
                 </p>
-              )}
+                {addedOn && (
+                  <p className="text-muted-foreground text-xs">
+                    Added {addedOn}
+                  </p>
+                )}
+              </div>
             </div>
             <Button
               disabled={isRemoving}
