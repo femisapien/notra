@@ -68,10 +68,12 @@ export type GitHubAccountType = "User" | "Organization";
 
 export interface GitHubAppAccount {
   id: string;
+  installationId: string;
   login: string;
   name: string | null;
   avatarUrl: string;
   type: GitHubAccountType;
+  canPublish: boolean | null;
 }
 
 export interface GitHubAppRepository {
@@ -172,6 +174,38 @@ export interface GitHubPublishingSettingsProps {
   disabled?: boolean;
 }
 
+export interface GitHubBranchPickerProps {
+  organizationId: string;
+  repository: GitHubRepository;
+}
+
+export interface GitHubCreateBranchFormProps {
+  baseBranch: string;
+  errorMessage?: string;
+  isPending: boolean;
+  onCancel: () => void;
+  onChange: () => void;
+  onSubmit: (branchName: string) => void;
+}
+
+export interface GitHubBranchListProps {
+  branches: string[];
+  canCreate: boolean;
+  currentBranch: string | null;
+  isError: boolean;
+  isLoading: boolean;
+  isUpdating: boolean;
+  onCreate: () => void;
+  onRetry: () => void;
+  onSelect: (branchName: string) => void;
+}
+
+export interface GitHubBranchPanelTransitionProps {
+  branchList: React.ReactNode;
+  createForm: React.ReactNode;
+  creating: boolean;
+}
+
 export interface GitHubContentPublishingSettingsProps extends GitHubPublishingSettingsProps {
   contentLabel: string;
   contentType: GitHubPublishContentType;
@@ -183,9 +217,23 @@ export interface GitHubContentDirectoryMutationVariables {
   targetRepositoryId: string;
 }
 
-export interface GitHubOutputMutationVariables {
-  enabled: boolean;
-  outputId?: string;
+export interface GitHubContentPathMutationVariables {
+  contentPath: string | null;
+  imagePath: string | null;
+  targetRepositoryId: string;
+}
+
+export interface GitHubPublishingPathFieldsProps {
+  contentLabel: string;
+  contentPath: string | null;
+  directory: string;
+  disabled?: boolean;
+  imagePath: string | null;
+  isSaving?: boolean;
+  onSave: (paths: {
+    contentPath: string | null;
+    imagePath: string | null;
+  }) => void;
 }
 
 export interface GitHubDirectoryPickerProps {
@@ -268,6 +316,7 @@ export interface ResolveGitHubContentPathParams {
   contentId: string;
   customPath?: string;
   directory: string;
+  pathTemplate?: string | null;
   slug: string | null;
   title: string;
 }
@@ -286,7 +335,44 @@ export interface ValidateExistingGitHubBranchParams {
   octokit: GitHubClient;
   owner: string;
   path: string;
+  /** Login whose GitHub-signed commits may carry trusted publication metadata. */
+  publisherLogin: string | null;
   repo: string;
+}
+
+export interface GitHubComparisonFile {
+  filename: string;
+  previous_filename?: string;
+  status: string;
+}
+
+export interface GitHubContentCommitMetadata {
+  assetPaths: string[];
+  contentPath: string;
+}
+
+export interface GitHubContentAsset {
+  contents: Uint8Array;
+  path: string;
+}
+
+export interface GitHubSourceImageAsset {
+  contents: Uint8Array;
+  extension: string;
+}
+
+export interface PrepareGitHubContentAssetsParams {
+  contentPath: string;
+  imagePathTemplate: string;
+  markdown: string;
+  publicUrl: string;
+  slug: string;
+  loadImage: (key: string, maxBytes: number) => Promise<GitHubSourceImageAsset>;
+}
+
+export interface PreparedGitHubContent {
+  assets: GitHubContentAsset[];
+  markdown: string;
 }
 
 export type GitHubPullRequestOperation = "created" | "updated";
@@ -319,6 +405,17 @@ export interface PublishContentDraftPullRequestParams {
   path: string;
   title: string;
   markdown: string;
+  assets?: GitHubContentAsset[];
+  assetPathsToDelete?: string[];
+  /** Markdown shown in the pull request body when repository-local asset URLs differ from the committed file. */
+  pullRequestMarkdown?: string;
+  /** Prepares repository-local assets after an existing draft's pinned content path is known. */
+  prepareContent?: (contentPath: string) => Promise<PreparedGitHubContent>;
+  /**
+   * Login the octokit token commits as (`{app}[bot]` or the token's user).
+   * Publication metadata is only trusted on GitHub-signed commits by this login.
+   */
+  publisherLogin?: string;
   /** Deep link to the content in the Notra dashboard, rendered as an "Open in Notra" button. */
   contentUrl?: string;
   /** Absolute URLs of the "Open in Notra" badge images per color scheme. */

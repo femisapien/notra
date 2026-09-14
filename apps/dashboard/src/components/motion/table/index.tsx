@@ -17,7 +17,13 @@ import { useColumnReorder } from "./use-column-reorder";
 import { useColumnResize } from "./use-column-resize";
 import { useColumnSort } from "./use-column-sort";
 import { useRowSelection } from "./use-row-selection";
-import { DEFAULT_MIN_COLUMN_WIDTH, pinRowsFirst } from "./utils";
+import {
+  CHECKBOX_WIDTH,
+  DEFAULT_MIN_COLUMN_WIDTH,
+  pinRowsFirst,
+  REORDER_HANDLE_PX,
+  tableMinWidthCss,
+} from "./utils";
 
 export type { SortState, TableColumn, TableProps } from "./types";
 
@@ -151,6 +157,13 @@ export function Table<T>({
     "border-collapse",
     sized ? "w-max min-w-full" : "w-full"
   );
+  const minTableWidth = tableMinWidthCss(
+    orderedColumns,
+    minColumnWidth,
+    selectable ? [CHECKBOX_WIDTH] : [],
+    reorderable ? REORDER_HANDLE_PX : 0
+  );
+  const tableStyle = { tableLayout: "fixed" as const, minWidth: minTableWidth };
 
   const [activeColumn, setActiveColumn] = useState<string | null>(null);
   // Let the pointer cross the gap to the portal handle before deactivating.
@@ -215,7 +228,7 @@ export function Table<T>({
           ref={headerScrollRef}
           style={headerStyle}
         >
-          <table className={tableClassName} style={{ tableLayout: "fixed" }}>
+          <table className={tableClassName} style={tableStyle}>
             {columnGroup}
             <TableHeader
               {...columnMenuProps}
@@ -251,13 +264,13 @@ export function Table<T>({
         className={cn(
           "scrollbar-floating border-border bg-background relative -mt-5 box-content rounded-2xl border outline-none",
           isEmpty ? "overflow-hidden" : overflowClass,
-          flushBottom && !footer && "rounded-b-none"
+          flushBottom && !footer && "rounded-b-none border-b-0"
         )}
         onScroll={handleScroll}
         ref={scrollRef}
         style={bodyStyle}
       >
-        <table className={tableClassName} style={{ tableLayout: "fixed" }}>
+        <table className={tableClassName} style={tableStyle}>
           {columnGroup}
           <TableBody
             columns={orderedColumns}

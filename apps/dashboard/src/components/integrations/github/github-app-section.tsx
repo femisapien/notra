@@ -9,6 +9,7 @@ import type { GitHubAppSectionProps } from "@/types/integrations/github-settings
 function GitHubAccounts({
   githubAppQuery,
   isLoading,
+  isLoadingLegacyIntegrations,
   isConnected,
   accounts,
   repositories,
@@ -18,25 +19,28 @@ function GitHubAccounts({
   handleOpenConnect,
   setLegacyOpen,
 }: GitHubAppSectionProps) {
-  if (isLoading) {
-    return <GitHubIntegrationSkeleton />;
-  }
   if (githubAppQuery.isError && !githubAppQuery.data) {
     return (
       <div
         role="alert"
-        className="flex flex-wrap items-center gap-3 border-b pb-5"
+        className="flex min-h-36 flex-col items-center justify-center gap-3 px-5 py-6 text-center"
       >
-        <p className="text-sm">Unable to load GitHub accounts.</p>
+        <p className="text-muted-foreground text-sm">
+          Unable to load GitHub accounts.
+        </p>
         <Button
+          disabled={githubAppQuery.isFetching}
           variant="outline"
           size="sm"
           onClick={() => githubAppQuery.refetch()}
         >
-          Retry
+          {githubAppQuery.isFetching ? "Retrying" : "Retry"}
         </Button>
       </div>
     );
+  }
+  if (isLoading) {
+    return <GitHubIntegrationSkeleton />;
   }
   if (isConnected) {
     return (
@@ -61,6 +65,9 @@ function GitHubAccounts({
       </section>
     );
   }
+  if (isLoadingLegacyIntegrations) {
+    return <GitHubIntegrationSkeleton />;
+  }
   return (
     <div className="bg-muted/40 space-y-3 rounded-2xl p-5">
       <h3 className="text-sm font-medium">Connect the GitHub App</h3>
@@ -80,32 +87,19 @@ function GitHubAccounts({
 }
 
 export function GitHubAppSection(props: GitHubAppSectionProps) {
-  const {
-    githubAppQuery,
-    isLoading,
-    isLoadingLegacyIntegrations,
-    isConnected,
-    handleOpenConnect,
-    setLegacyOpen,
-  } = props;
-  const hasAccountContent =
-    isLoading ||
-    (githubAppQuery.isError && !githubAppQuery.data) ||
-    isConnected;
-  if (!hasAccountContent && isLoadingLegacyIntegrations) {
-    return null;
-  }
+  const { isConnected, handleOpenConnect, setLegacyOpen } = props;
   return (
     <section
       aria-labelledby="github-app-heading"
-      className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)] lg:gap-12"
+      className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)] 2xl:gap-12"
     >
       <div className="space-y-1">
         <h2 id="github-app-heading" className="text-base font-semibold">
           GitHub App
         </h2>
         <p className="text-muted-foreground max-w-xs text-sm leading-relaxed">
-          Manage connected accounts and repository access.
+          Manage connected accounts, repository access, and GitHub write
+          permissions for draft pull requests.
         </p>
       </div>
       <div className="min-w-0 space-y-4">

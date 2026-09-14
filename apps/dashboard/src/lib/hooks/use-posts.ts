@@ -3,14 +3,17 @@
 import type { PostsResponse } from "@notra/schemas/dashboard/content";
 import { useQuery } from "@tanstack/react-query";
 
-import { DASHBOARD_HOME_POST_LIMIT } from "@/constants/content-preview";
-
 import { dashboardOrpc } from "../orpc/query";
 import { useActiveProject } from "./use-active-project";
 
 const DEFAULT_PAGE_SIZE = 12;
 
-export function usePosts(organizationId: string, page: number, enabled = true) {
+export function usePosts(
+  organizationId: string,
+  page: number,
+  enabled = true,
+  pageSize: number = DEFAULT_PAGE_SIZE
+) {
   const { projectId, isResolved } = useActiveProject();
   return useQuery<PostsResponse>({
     ...dashboardOrpc.content.list.queryOptions({
@@ -18,7 +21,7 @@ export function usePosts(organizationId: string, page: number, enabled = true) {
         organizationId,
         projectId: projectId ?? undefined,
         page,
-        pageSize: DEFAULT_PAGE_SIZE,
+        pageSize,
       },
     }),
     enabled: enabled && !!organizationId && isResolved,
@@ -26,19 +29,17 @@ export function usePosts(organizationId: string, page: number, enabled = true) {
   });
 }
 
-export function useTodayPosts(organizationId: string) {
+export function useDashboardHomeContent(organizationId: string) {
   const { projectId, isResolved } = useActiveProject();
-  return useQuery<PostsResponse>({
-    ...dashboardOrpc.content.list.queryOptions({
+
+  return useQuery({
+    ...dashboardOrpc.content.home.get.queryOptions({
       input: {
         organizationId,
         projectId: projectId ?? undefined,
-        page: 1,
-        pageSize: DASHBOARD_HOME_POST_LIMIT,
-        date: "today",
       },
     }),
     enabled: !!organizationId && isResolved,
-    meta: { errorMessage: "Failed to load today's content" },
+    meta: { errorMessage: "Failed to load dashboard content" },
   });
 }
