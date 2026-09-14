@@ -14,9 +14,60 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/button";
 import { SkillDiff } from "@/components/skills/skill-diff";
 import { SkillMerge } from "@/components/skills/skill-merge";
-import type { SkillUpdateDialogProps } from "@/types/skills/page";
+import type {
+  SkillUpdateDialogFooterProps,
+  SkillUpdateDialogProps,
+} from "@/types/skills/page";
+import { parseSkillConflicts } from "@/utils/skill-merge";
 
 type SkillUpdateStep = "review" | "resolve";
+
+const MERGE_MINE_LABEL = "Your version";
+
+function SkillUpdateDialogFooter({
+  isModified,
+  isResolving,
+  canSaveResolved,
+  pending,
+  onBack,
+  onDiscard,
+  onMerge,
+  onSaveResolved,
+}: SkillUpdateDialogFooterProps) {
+  if (isResolving) {
+    return (
+      <ResponsiveDialogFooter>
+        <Button disabled={pending} onClick={onBack} variant="outline">
+          Back
+        </Button>
+        <Button disabled={pending || !canSaveResolved} onClick={onSaveResolved}>
+          {pending ? "Saving…" : "Save merged version"}
+        </Button>
+      </ResponsiveDialogFooter>
+    );
+  }
+
+  if (isModified) {
+    return (
+      <ResponsiveDialogFooter>
+        <Button disabled={pending} onClick={onDiscard} variant="outline">
+          Discard my changes
+        </Button>
+        <Button disabled={pending} onClick={onMerge}>
+          {pending ? "Merging…" : "Merge"}
+        </Button>
+      </ResponsiveDialogFooter>
+    );
+  }
+
+  return (
+    <ResponsiveDialogFooter>
+      <Button disabled={pending} onClick={onDiscard}>
+        {pending ? "Updating…" : "Update"}
+      </Button>
+    </ResponsiveDialogFooter>
+  );
+}
 
 /**
  * Review a newer Notra version of a system skill. Unedited copies just update;
@@ -35,34 +86,38 @@ export function SkillUpdateDialog({
   onUpgrade,
 }: SkillUpdateDialogProps) {
   const [step, setStep] = useState<SkillUpdateStep>("review");
-  const [resolvedText, setResolvedText] = useState<string | null>(null);
-
-  if (!open && step !== "review") {
-    setStep("review");
-  }
+  // The merge being resolved, owned here so saving reads it directly.
+  const [mergeText, setMergeText] = useState("");
 
   const latestLabel = `Notra v${detail.latest.version}`;
-  const mergeLabels = useMemo(
-    () => ({ mine: "Your version", theirs: latestLabel }),
-    [latestLabel]
-  );
   const merged = useMemo(
     () =>
       mergeThreeWay({
         base: detail.base.content,
         mine: content,
         theirs: detail.latest.content,
-        labels: mergeLabels,
+        labels: { mine: MERGE_MINE_LABEL, theirs: latestLabel },
       }),
-    [detail.base.content, detail.latest.content, content, mergeLabels]
+    [detail.base.content, detail.latest.content, content, latestLabel]
   );
 
+  const isResolving = step === "resolve";
+  const canSaveResolved =
+    isResolving && parseSkillConflicts(mergeText).length === 0;
   const mergedDescription = descriptionModified
     ? description
     : detail.latest.description;
 
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      setStep("review");
+    }
+    onOpenChange(next);
+  };
+
   const handleMerge = () => {
     if (merged.hasConflicts) {
+      setMergeText(merged.text);
       setStep("resolve");
       return;
     }
@@ -73,44 +128,35 @@ export function SkillUpdateDialog({
   };
 
   const handleSaveResolved = () => {
-    if (!resolvedText) {
-      return;
-    }
     onUpgrade("merge", {
-      content: resolvedText,
+      content: mergeText,
       description: mergedDescription,
     });
   };
 
-  const isResolving = step === "resolve";
+  const title = isResolving
+    ? "Resolve conflicts"
+    : `Update ${name} to v${detail.latest.version}`;
+  const subtitle = isResolving
+    ? "You and Notra changed the same lines. Pick a side for each."
+    : (detail.latest.changelog ??
+      "Notra published a new version of this skill.");
 
   return (
-    <ResponsiveDialog onOpenChange={onOpenChange} open={open}>
+    <ResponsiveDialog onOpenChange={handleOpenChange} open={open}>
       <ResponsiveDialogContent className="flex max-h-[85svh] flex-col gap-4 overflow-hidden sm:max-w-3xl">
         <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle>
-            {isResolving
-              ? "Resolve conflicts"
-              : `Update ${name} to v${detail.latest.version}`}
-          </ResponsiveDialogTitle>
-          <ResponsiveDialogDescription>
-            {isResolving
-              ? "You and Notra changed the same lines. Pick a side for each."
-              : (detail.latest.changelog ??
-                "Notra published a new version of this skill.")}
-          </ResponsiveDialogDescription>
+          <ResponsiveDialogTitle>{title}</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>{subtitle}</ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
 
         <div className="border-border/80 min-h-0 flex-1 overflow-auto rounded-xl border">
           {isResolving ? (
             <div className="p-3">
               <SkillMerge
-                base={detail.base.content}
-                labels={mergeLabels}
-                mine={content}
-                onResolved={setResolvedText}
+                onTextChange={setMergeText}
                 resetKey={`${name}:${detail.latest.version}`}
-                theirs={detail.latest.content}
+                text={mergeText}
               />
             </div>
           ) : (
@@ -131,44 +177,16 @@ export function SkillUpdateDialog({
           </p>
         ) : null}
 
-        <ResponsiveDialogFooter>
-          {isResolving ? (
-            <>
-              <Button
-                disabled={pending}
-                onClick={() => setStep("review")}
-                variant="outline"
-              >
-                Back
-              </Button>
-              <Button
-                disabled={pending || !resolvedText}
-                onClick={handleSaveResolved}
-              >
-                {pending ? "Saving…" : "Save merged version"}
-              </Button>
-            </>
-          ) : null}
-          {!isResolving && detail.isModified ? (
-            <>
-              <Button
-                disabled={pending}
-                onClick={() => onUpgrade("discard")}
-                variant="outline"
-              >
-                Discard my changes
-              </Button>
-              <Button disabled={pending} onClick={handleMerge}>
-                {pending ? "Merging…" : "Merge"}
-              </Button>
-            </>
-          ) : null}
-          {!isResolving && !detail.isModified ? (
-            <Button disabled={pending} onClick={() => onUpgrade("discard")}>
-              {pending ? "Updating…" : "Update"}
-            </Button>
-          ) : null}
-        </ResponsiveDialogFooter>
+        <SkillUpdateDialogFooter
+          canSaveResolved={canSaveResolved}
+          isModified={detail.isModified}
+          isResolving={isResolving}
+          onBack={() => setStep("review")}
+          onDiscard={() => onUpgrade("discard")}
+          onMerge={handleMerge}
+          onSaveResolved={handleSaveResolved}
+          pending={pending}
+        />
       </ResponsiveDialogContent>
     </ResponsiveDialog>
   );

@@ -11,7 +11,7 @@ import {
   ResponsiveDialogTitle,
 } from "@notra/ui/components/shared/responsive-dialog";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/button";
 import { LazySkillDiff } from "@/components/skills/lazy-skill-diff";
@@ -36,12 +36,9 @@ export function SkillDetailHeader({
   const [resetOpen, setResetOpen] = useState(false);
   const status = getSkillStatus(upstream);
   const hasUpdate = status === "update-available" || status === "conflict";
-
-  useEffect(() => {
-    if (status !== "modified") {
-      setResetOpen(false);
-    }
-  }, [status]);
+  // Resetting only makes sense for a modified copy; once the reset lands the
+  // dialog closes on its own.
+  const resetDialogOpen = resetOpen && status === "modified";
 
   return (
     <div className="space-y-4">
@@ -95,7 +92,7 @@ export function SkillDetailHeader({
         </div>
       </div>
 
-      <ResponsiveDialog onOpenChange={setResetOpen} open={resetOpen}>
+      <ResponsiveDialog onOpenChange={setResetOpen} open={resetDialogOpen}>
         <ResponsiveDialogContent className="flex max-h-[85svh] flex-col overflow-hidden sm:max-w-3xl">
           <ResponsiveDialogHeader>
             <ResponsiveDialogTitle>Reset to default?</ResponsiveDialogTitle>

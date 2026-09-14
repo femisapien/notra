@@ -84,6 +84,21 @@ export function getSkillStatus(
   return upstream.isModified ? "modified" : "current";
 }
 
+/** `null` for an empty or valid skills.sh link; otherwise the message to show. */
+export function getSkillQuickstartError(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    return new URL(trimmed).host === "skills.sh"
+      ? null
+      : "Only skills.sh links are supported.";
+  } catch {
+    return "Enter a valid skills.sh URL.";
+  }
+}
+
 export function isSkillEditorView(value: unknown): value is SkillEditorView {
   return (SKILL_EDITOR_VIEWS as readonly unknown[]).includes(value);
 }

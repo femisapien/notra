@@ -16,6 +16,13 @@ export interface SkillDetailPageClientProps {
   skillId: string;
 }
 
+/** The editable fields of a skill, as saved or as typed. */
+export interface SkillEditorSnapshot {
+  name: string;
+  description: string;
+  content: string;
+}
+
 export interface SkillDeleteTarget {
   id: string;
   name: string;
@@ -85,6 +92,12 @@ export interface SkillEditorFormProps {
   onContentChange: (value: string) => void;
 }
 
+export interface SkillCreateDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  organizationId: string | undefined;
+}
+
 export interface SkillDeleteDialogProps {
   open: boolean;
   name: string;
@@ -104,20 +117,24 @@ export interface SkillDiffProps {
   className?: string;
 }
 
-export interface SkillMergeLabels {
-  mine: string;
-  theirs: string;
+export interface SkillMergeProps {
+  /** Merged text; unresolved regions still carry git conflict markers. */
+  text: string;
+  onTextChange: (text: string) => void;
+  /** Changing this remounts the resolver. */
+  resetKey: string;
 }
 
-export interface SkillMergeProps {
-  base: string;
-  mine: string;
-  theirs: string;
-  labels: SkillMergeLabels;
-  /** The resolved text, or `null` while conflicts are still open. */
-  onResolved: (text: string | null) => void;
-  /** Changing this remounts the resolver, discarding partial resolutions. */
-  resetKey: string;
+export interface SkillUpdateDialogFooterProps {
+  isModified: boolean;
+  isResolving: boolean;
+  /** `true` once every conflict in the merged text is resolved. */
+  canSaveResolved: boolean;
+  pending: boolean;
+  onBack: () => void;
+  onDiscard: () => void;
+  onMerge: () => void;
+  onSaveResolved: () => void;
 }
 
 export interface SkillMergeBoundaryProps {
