@@ -1,64 +1,55 @@
-/**
- * Domain errors of the skill write paths. Plain `Error` subclasses on purpose:
- * `packages/ai` is consumed by the dashboard (oRPC), the agent tools (eve) and
- * the public API (Effect). Each boundary maps these onto its own error model —
- * `apps/api/src/errors/skills.ts` keeps the tagged Effect errors.
- */
-export class SkillServiceError extends Error {
-  readonly skillName: string;
+/* oxlint-disable unicorn/throw-new-error -- Schema.TaggedError is a curried class factory, not a constructor. */
+import { Schema } from "effect";
 
-  constructor(errorName: string, skillName: string, message: string) {
-    super(message);
-    this.name = errorName;
-    this.skillName = skillName;
+export class SkillNotFoundError extends Schema.TaggedError<SkillNotFoundError>()(
+  "SkillNotFoundError",
+  { skillName: Schema.String }
+) {
+  override get message() {
+    return `Skill "${this.skillName}" does not exist in this organization`;
   }
 }
 
-export class SkillNotFoundError extends SkillServiceError {
-  constructor(skillName: string) {
-    super(
-      "SkillNotFoundError",
-      skillName,
-      `Skill "${skillName}" does not exist in this organization`
-    );
-  }
-}
-
-export class SkillDuplicateError extends SkillServiceError {
-  constructor(skillName: string) {
-    super(
-      "SkillDuplicateError",
-      skillName,
-      `A skill named "${skillName}" already exists`
-    );
+export class SkillDuplicateError extends Schema.TaggedError<SkillDuplicateError>()(
+  "SkillDuplicateError",
+  { skillName: Schema.String }
+) {
+  override get message() {
+    return `A skill named "${this.skillName}" already exists`;
   }
 }
 
 /** Upgrades only apply to system skills; a custom skill has no upstream. */
-export class SkillNotSystemError extends SkillServiceError {
-  constructor(skillName: string) {
-    super(
-      "SkillNotSystemError",
-      skillName,
-      `Skill "${skillName}" is not a system skill`
-    );
+export class SkillNotSystemError extends Schema.TaggedError<SkillNotSystemError>()(
+  "SkillNotSystemError",
+  { skillName: Schema.String }
+) {
+  override get message() {
+    return `Skill "${this.skillName}" is not a system skill`;
   }
 }
 
 /** The registry has no published version of this name yet. */
-export class SystemSkillVersionMissingError extends SkillServiceError {
-  constructor(skillName: string) {
-    super(
-      "SystemSkillVersionMissingError",
-      skillName,
-      `No published version exists for skill "${skillName}"`
-    );
+export class SystemSkillVersionMissingError extends Schema.TaggedError<SystemSkillVersionMissingError>()(
+  "SystemSkillVersionMissingError",
+  { skillName: Schema.String }
+) {
+  override get message() {
+    return `No published version exists for skill "${this.skillName}"`;
   }
 }
 
 /** The upgrade payload does not satisfy the chosen strategy. */
-export class SkillUpgradeInputError extends SkillServiceError {
-  constructor(skillName: string, message: string) {
-    super("SkillUpgradeInputError", skillName, message);
+export class SkillUpgradeInputError extends Schema.TaggedError<SkillUpgradeInputError>()(
+  "SkillUpgradeInputError",
+  { skillName: Schema.String, reason: Schema.String }
+) {
+  override get message() {
+    return this.reason;
   }
 }
+
+export class SkillPersistenceError extends Schema.TaggedError<SkillPersistenceError>()(
+  "SkillPersistenceError",
+  { operation: Schema.String, cause: Schema.Defect() }
+) {}

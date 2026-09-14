@@ -1,3 +1,4 @@
+import { SkillPersistenceError } from "@notra/ai/skills/errors";
 import {
   getSkillUpstream,
   listSkillUpstreamStatuses,
@@ -54,8 +55,8 @@ export const listSkills = Effect.fn("skills.list")(function* ({
   db,
   organizationId,
 }: SkillProgramInput) {
-  const [rows, upstreamById] = yield* database(() =>
-    Promise.all([
+  const [rows, upstreamById] = yield* Effect.all([
+    database(() =>
       db
         .select({
           id: skills.id,
@@ -66,10 +67,12 @@ export const listSkills = Effect.fn("skills.list")(function* ({
         })
         .from(skills)
         .where(eq(skills.organizationId, organizationId))
-        .orderBy(asc(skills.name)),
-      listSkillUpstreamStatuses({ organizationId, database: db }),
-    ])
-  );
+        .orderBy(asc(skills.name))
+    ),
+    listSkillUpstreamStatuses({ organizationId, database: db }).pipe(
+      Effect.mapError(mapSkillServiceError)
+    ),
+  ]);
 
   return rows.map((row) => ({
     ...row,
@@ -94,9 +97,10 @@ export const getSkill = Effect.fn("skills.get")(function* ({
     return yield* new SkillNotFoundError();
   }
 
-  const upstream = yield* database(() =>
-    getSkillUpstream({ organizationId, database: db }, { id: skill.id })
-  );
+  const upstream = yield* getSkillUpstream(
+    { organizationId, database: db },
+    { id: skill.id }
+  ).pipe(Effect.mapError(mapSkillServiceError));
 
   return {
     ...skill,
@@ -140,14 +144,17 @@ export const patchSkill = Effect.fn("skills.patch")(function* ({
 }: PatchSkillProgramInput) {
   // The shared write path also covers system skill renames, which pin a base
   // version first so the copy keeps following its registry name.
-  const { id } = yield* Effect.tryPromise({
-    try: () =>
-      updateSkillContent({ organizationId, database: db }, { name }, body),
-    catch: (cause) =>
-      isPgUniqueViolation(cause)
+  const { id } = yield* updateSkillContent(
+    { organizationId, database: db },
+    { name },
+    body
+  ).pipe(
+    Effect.mapError((cause) =>
+      cause instanceof SkillPersistenceError && isPgUniqueViolation(cause.cause)
         ? new SkillDuplicateError({ name: body.name ?? name })
-        : mapSkillServiceError(cause),
-  });
+        : mapSkillServiceError(cause)
+    )
+  );
 
   const updated = yield* database(() =>
     db.query.skills.findFirst({
@@ -158,9 +165,10 @@ export const patchSkill = Effect.fn("skills.patch")(function* ({
     return yield* new SkillNotFoundError();
   }
 
-  const upstream = yield* database(() =>
-    getSkillUpstream({ organizationId, database: db }, { id })
-  );
+  const upstream = yield* getSkillUpstream(
+    { organizationId, database: db },
+    { id }
+  ).pipe(Effect.mapError(mapSkillServiceError));
 
   return {
     ...updated,
@@ -209,11 +217,11 @@ export const upgradeSkill = Effect.fn("skills.upgrade")(function* ({
   name,
   body,
 }: UpgradeSkillProgramInput) {
-  return yield* Effect.tryPromise({
-    try: () =>
-      upgradeSkillContent({ organizationId, database: db }, { name }, body),
-    catch: mapSkillServiceError,
-  });
+  return yield* upgradeSkillContent(
+    { organizationId, database: db },
+    { name },
+    body
+  ).pipe(Effect.mapError(mapSkillServiceError));
 });
 
 export const listSystemSkills = Effect.fn("system-skills.list")(function* ({

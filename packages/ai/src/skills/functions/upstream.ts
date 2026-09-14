@@ -1,11 +1,13 @@
 import { db } from "@notra/db/drizzle";
 import { skills, systemSkillVersions } from "@notra/db/schema";
 import { aliasedTable, and, eq } from "drizzle-orm";
+import { Effect } from "effect";
 
 import {
   SkillDuplicateError,
   SkillNotFoundError,
   SkillNotSystemError,
+  SkillPersistenceError,
   SkillUpgradeInputError,
   SystemSkillVersionMissingError,
 } from "../errors";
@@ -42,6 +44,13 @@ interface JoinedBaseColumns {
 
 function resolveDatabase(ctx: SkillUpstreamContext): SkillRegistryDatabase {
   return ctx.database ?? db;
+}
+
+function database<A>(operation: string, run: () => Promise<A>) {
+  return Effect.tryPromise({
+    try: run,
+    catch: (cause) => new SkillPersistenceError({ operation, cause }),
+  });
 }
 
 function skillLookupWhere(ctx: SkillUpstreamContext, lookup: SkillLookup) {
@@ -96,47 +105,53 @@ export function deriveSkillUpstreamStatus({
  * merge UIs. `null` for custom skills, unknown skills, and system skills whose
  * registry name has never been published.
  */
-export async function getSkillUpstream(
+export const getSkillUpstream = Effect.fn("SkillUpstream.get")(function* (
   ctx: SkillUpstreamContext,
   lookup: SkillLookup
-): Promise<SkillUpstreamDetail | null> {
-  const database = resolveDatabase(ctx);
+) {
+  const databaseClient = resolveDatabase(ctx);
 
-  const [skill] = await database
-    .select({
-      name: skills.name,
-      description: skills.description,
-      content: skills.content,
-      isSystem: skills.isSystem,
-      systemSkillVersionId: skills.systemSkillVersionId,
-      baseName: baseVersions.name,
-    })
-    .from(skills)
-    .leftJoin(baseVersions, eq(skills.systemSkillVersionId, baseVersions.id))
-    .where(skillLookupWhere(ctx, lookup))
-    .limit(1);
+  const [skill] = yield* database("SkillUpstream.get.skill", () =>
+    databaseClient
+      .select({
+        name: skills.name,
+        description: skills.description,
+        content: skills.content,
+        isSystem: skills.isSystem,
+        systemSkillVersionId: skills.systemSkillVersionId,
+        baseName: baseVersions.name,
+      })
+      .from(skills)
+      .leftJoin(baseVersions, eq(skills.systemSkillVersionId, baseVersions.id))
+      .where(skillLookupWhere(ctx, lookup))
+      .limit(1)
+  );
 
   if (!skill?.isSystem) {
     return null;
   }
 
   const systemName = resolveSystemName(skill);
-  const latest = await getLatestSystemSkill(database, systemName);
+  const latest = yield* database("SkillUpstream.get.latest", () =>
+    getLatestSystemSkill(databaseClient, systemName)
+  );
   if (!latest) {
     return null;
   }
 
-  const base = skill.systemSkillVersionId
-    ? await getSystemSkillVersionById(database, skill.systemSkillVersionId)
-    : await getOldestSystemSkill(database, systemName);
+  const base = yield* database("SkillUpstream.get.base", () =>
+    skill.systemSkillVersionId
+      ? getSystemSkillVersionById(databaseClient, skill.systemSkillVersionId)
+      : getOldestSystemSkill(databaseClient, systemName)
+  );
   const resolvedBase = base ?? latest;
 
   return {
     ...deriveSkillUpstreamStatus({ skill, base: resolvedBase, latest }),
     base: resolvedBase,
     latest,
-  };
-}
+  } satisfies SkillUpstreamDetail;
+});
 
 /**
  * Upstream status of every system skill in the organization, keyed by skill
@@ -147,47 +162,54 @@ export async function getSkillUpstream(
  * version, the latest version per name, and — only when a row has no base yet —
  * the oldest version per name.
  */
-export async function listSkillUpstreamStatuses(
-  ctx: SkillUpstreamContext
-): Promise<Map<string, SkillUpstreamStatus>> {
-  const database = resolveDatabase(ctx);
+export const listSkillUpstreamStatuses = Effect.fn(
+  "SkillUpstream.listStatuses"
+)(function* (ctx: SkillUpstreamContext) {
+  const databaseClient = resolveDatabase(ctx);
 
-  const [rows, latestVersions] = await Promise.all([
-    database
-      .select({
-        id: skills.id,
-        name: skills.name,
-        description: skills.description,
-        content: skills.content,
-        systemSkillVersionId: skills.systemSkillVersionId,
-        baseName: baseVersions.name,
-        baseVersion: baseVersions.version,
-        baseDescription: baseVersions.description,
-        baseContent: baseVersions.content,
-      })
-      .from(skills)
-      .leftJoin(baseVersions, eq(skills.systemSkillVersionId, baseVersions.id))
-      .where(
-        and(
-          eq(skills.organizationId, ctx.organizationId),
-          eq(skills.isSystem, true)
+  const [rows, latestVersions] = yield* Effect.all([
+    database("SkillUpstream.listStatuses.skills", () =>
+      databaseClient
+        .select({
+          id: skills.id,
+          name: skills.name,
+          description: skills.description,
+          content: skills.content,
+          systemSkillVersionId: skills.systemSkillVersionId,
+          baseName: baseVersions.name,
+          baseVersion: baseVersions.version,
+          baseDescription: baseVersions.description,
+          baseContent: baseVersions.content,
+        })
+        .from(skills)
+        .leftJoin(
+          baseVersions,
+          eq(skills.systemSkillVersionId, baseVersions.id)
         )
-      ),
-    listLatestSystemSkills(database),
+        .where(
+          and(
+            eq(skills.organizationId, ctx.organizationId),
+            eq(skills.isSystem, true)
+          )
+        )
+    ),
+    database("SkillUpstream.listStatuses.latest", () =>
+      listLatestSystemSkills(databaseClient)
+    ),
   ]);
 
   const latestByName = new Map(
     latestVersions.map((version) => [version.name, version])
   );
   const needsFallbackBase = rows.some((row) => row.baseVersion === null);
-  const oldestByName = needsFallbackBase
-    ? new Map(
-        (await listOldestSystemSkills(database)).map((version) => [
-          version.name,
-          version,
-        ])
+  const oldestVersions = needsFallbackBase
+    ? yield* database("SkillUpstream.listStatuses.oldest", () =>
+        listOldestSystemSkills(databaseClient)
       )
-    : new Map<string, SystemSkillVersion>();
+    : [];
+  const oldestByName = new Map(
+    oldestVersions.map((version) => [version.name, version])
+  );
 
   const statuses = new Map<string, SkillUpstreamStatus>();
 
@@ -209,7 +231,7 @@ export async function listSkillUpstreamStatuses(
   }
 
   return statuses;
-}
+});
 
 /**
  * The joined base columns are nullable together: a row whose backfill has not
@@ -242,145 +264,161 @@ function resolveJoinedBase(
  * version, not the name. A copy without a base yet gets one pinned before the
  * rename, the same way the backfill would, so it never loses its upstream.
  */
-export async function updateSkillContent(
-  ctx: SkillUpstreamContext,
-  lookup: SkillLookup,
-  input: UpdateSkillContentInput
-): Promise<UpdateSkillContentResult> {
-  const database = resolveDatabase(ctx);
+export const updateSkillContent = Effect.fn("SkillUpstream.updateContent")(
+  function* (
+    ctx: SkillUpstreamContext,
+    lookup: SkillLookup,
+    input: UpdateSkillContentInput
+  ) {
+    const databaseClient = resolveDatabase(ctx);
 
-  const [existing] = await database
-    .select({
-      id: skills.id,
-      name: skills.name,
-      description: skills.description,
-      content: skills.content,
-      isSystem: skills.isSystem,
-      systemSkillVersionId: skills.systemSkillVersionId,
-    })
-    .from(skills)
-    .where(skillLookupWhere(ctx, lookup))
-    .limit(1);
-
-  if (!existing) {
-    throw new SkillNotFoundError(describeSkillLookup(lookup));
-  }
-
-  const nextName = input.name ?? existing.name;
-  const isRename = nextName !== existing.name;
-
-  if (isRename) {
-    const [conflict] = await database
-      .select({ id: skills.id })
-      .from(skills)
-      .where(
-        and(
-          eq(skills.organizationId, ctx.organizationId),
-          eq(skills.name, nextName)
-        )
-      )
-      .limit(1);
-
-    if (conflict) {
-      throw new SkillDuplicateError(nextName);
-    }
-  }
-
-  const pinnedBase =
-    isRename && existing.isSystem && !existing.systemSkillVersionId
-      ? await findClosestSystemSkillVersion(database, existing)
-      : null;
-
-  await database
-    .update(skills)
-    .set({
-      name: nextName,
-      ...(input.description === undefined
-        ? {}
-        : { description: input.description }),
-      ...(input.content === undefined ? {} : { content: input.content }),
-      ...(pinnedBase ? { systemSkillVersionId: pinnedBase.id } : {}),
-    })
-    .where(eq(skills.id, existing.id));
-
-  return { id: existing.id, name: nextName };
-}
-
-function buildUpgradeValues(
-  name: string,
-  input: UpgradeSkillInput,
-  latest: SystemSkillVersion
-): { content?: string; description?: string } {
-  if (input.strategy === "discard") {
-    return { content: latest.content, description: latest.description };
-  }
-
-  // `keep` re-bases the fork without touching the text: the user consciously
-  // stays on their version and the "update available" badge disappears.
-  if (input.strategy === "keep") {
-    return {};
-  }
-
-  if (!input.content?.trim()) {
-    throw new SkillUpgradeInputError(
-      name,
-      'The "merge" strategy requires the merged content'
+    const [existing] = yield* database("SkillUpstream.updateContent.find", () =>
+      databaseClient
+        .select({
+          id: skills.id,
+          name: skills.name,
+          description: skills.description,
+          content: skills.content,
+          isSystem: skills.isSystem,
+          systemSkillVersionId: skills.systemSkillVersionId,
+        })
+        .from(skills)
+        .where(skillLookupWhere(ctx, lookup))
+        .limit(1)
     );
-  }
 
-  return {
-    content: input.content,
-    description: input.description ?? latest.description,
-  };
-}
+    if (!existing) {
+      return yield* new SkillNotFoundError({
+        skillName: describeSkillLookup(lookup),
+      });
+    }
+
+    const nextName = input.name ?? existing.name;
+    const isRename = nextName !== existing.name;
+
+    if (isRename) {
+      const [conflict] = yield* database(
+        "SkillUpstream.updateContent.conflict",
+        () =>
+          databaseClient
+            .select({ id: skills.id })
+            .from(skills)
+            .where(
+              and(
+                eq(skills.organizationId, ctx.organizationId),
+                eq(skills.name, nextName)
+              )
+            )
+            .limit(1)
+      );
+
+      if (conflict) {
+        return yield* new SkillDuplicateError({ skillName: nextName });
+      }
+    }
+
+    const pinnedBase =
+      isRename && existing.isSystem && !existing.systemSkillVersionId
+        ? yield* database("SkillUpstream.updateContent.pinBase", () =>
+            findClosestSystemSkillVersion(databaseClient, existing)
+          )
+        : null;
+
+    yield* database("SkillUpstream.updateContent.write", () =>
+      databaseClient
+        .update(skills)
+        .set({
+          name: nextName,
+          ...(input.description === undefined
+            ? {}
+            : { description: input.description }),
+          ...(input.content === undefined ? {} : { content: input.content }),
+          ...(pinnedBase ? { systemSkillVersionId: pinnedBase.id } : {}),
+        })
+        .where(eq(skills.id, existing.id))
+    );
+
+    return {
+      id: existing.id,
+      name: nextName,
+    } satisfies UpdateSkillContentResult;
+  }
+);
 
 /**
  * Lifts an org copy of a system skill onto the latest published version of the
  * registry name it follows. See `SKILL_UPGRADE_STRATEGIES` for what each
  * strategy does with the text; all three set the base to the latest version.
  */
-export async function upgradeSkill(
+export const upgradeSkill = Effect.fn("SkillUpstream.upgrade")(function* (
   ctx: SkillUpstreamContext,
   lookup: SkillLookup,
   input: UpgradeSkillInput
-): Promise<UpgradeSkillResult> {
-  const database = resolveDatabase(ctx);
+) {
+  const databaseClient = resolveDatabase(ctx);
 
-  const [existing] = await database
-    .select({
-      id: skills.id,
-      name: skills.name,
-      isSystem: skills.isSystem,
-      baseName: baseVersions.name,
-    })
-    .from(skills)
-    .leftJoin(baseVersions, eq(skills.systemSkillVersionId, baseVersions.id))
-    .where(skillLookupWhere(ctx, lookup))
-    .limit(1);
+  const [existing] = yield* database("SkillUpstream.upgrade.find", () =>
+    databaseClient
+      .select({
+        id: skills.id,
+        name: skills.name,
+        isSystem: skills.isSystem,
+        baseName: baseVersions.name,
+      })
+      .from(skills)
+      .leftJoin(baseVersions, eq(skills.systemSkillVersionId, baseVersions.id))
+      .where(skillLookupWhere(ctx, lookup))
+      .limit(1)
+  );
 
   if (!existing) {
-    throw new SkillNotFoundError(describeSkillLookup(lookup));
+    return yield* new SkillNotFoundError({
+      skillName: describeSkillLookup(lookup),
+    });
   }
 
   if (!existing.isSystem) {
-    throw new SkillNotSystemError(existing.name);
+    return yield* new SkillNotSystemError({ skillName: existing.name });
   }
 
-  const latest = await getLatestSystemSkill(
-    database,
-    resolveSystemName(existing)
+  const latest = yield* database("SkillUpstream.upgrade.latest", () =>
+    getLatestSystemSkill(databaseClient, resolveSystemName(existing))
   );
   if (!latest) {
-    throw new SystemSkillVersionMissingError(existing.name);
+    return yield* new SystemSkillVersionMissingError({
+      skillName: existing.name,
+    });
   }
 
-  await database
-    .update(skills)
-    .set({
-      ...buildUpgradeValues(existing.name, input, latest),
-      systemSkillVersionId: latest.id,
-    })
-    .where(eq(skills.id, existing.id));
+  let values: { content?: string; description?: string };
+  if (input.strategy === "discard") {
+    values = { content: latest.content, description: latest.description };
+  } else if (input.strategy === "keep") {
+    // Re-base without touching the text: the user consciously stays on their
+    // version and the update badge disappears.
+    values = {};
+  } else {
+    if (!input.content?.trim()) {
+      return yield* new SkillUpgradeInputError({
+        skillName: existing.name,
+        reason: 'The "merge" strategy requires the merged content',
+      });
+    }
+    values = {
+      content: input.content,
+      description: input.description ?? latest.description,
+    };
+  }
 
-  return { name: existing.name, version: latest.version };
-}
+  yield* database("SkillUpstream.upgrade.write", () =>
+    databaseClient
+      .update(skills)
+      .set({ ...values, systemSkillVersionId: latest.id })
+      .where(eq(skills.id, existing.id))
+  );
+
+  return {
+    name: existing.name,
+    version: latest.version,
+  } satisfies UpgradeSkillResult;
+});

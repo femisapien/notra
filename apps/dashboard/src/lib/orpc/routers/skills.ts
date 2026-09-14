@@ -25,6 +25,7 @@ import {
   upgradeSkillInputSchema,
 } from "@notra/schemas/dashboard/skills";
 import { and, eq } from "drizzle-orm";
+import { Effect } from "effect";
 import { nanoid } from "nanoid";
 
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
@@ -43,11 +44,7 @@ import {
 
 const SKILLS_SH_API_BASE = "https://skills.sh/api/v1/skills";
 
-/**
- * Boundary between the shared skill service in `@notra/ai` (plain `Error`
- * subclasses) and oRPC's error model. Unknown causes are rethrown so the oRPC
- * handler turns them into a 500.
- */
+/** Maps shared typed failures onto oRPC errors at the transport boundary. */
 function toSkillRouterError(cause: unknown): Error {
   if (cause instanceof SkillNotFoundError) {
     return notFound("Skill not found");
@@ -62,9 +59,13 @@ function toSkillRouterError(cause: unknown): Error {
     return notFound(cause.message);
   }
   if (cause instanceof SkillUpgradeInputError) {
-    return badRequest(cause.message);
+    return badRequest(cause.reason);
   }
   return cause instanceof Error ? cause : new Error(String(cause));
+}
+
+function runSkillEffect<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
+  return Effect.runPromise(effect.pipe(Effect.mapError(toSkillRouterError)));
 }
 
 interface SkillsShFile {
@@ -111,7 +112,9 @@ export const skillsRouter = {
           })
           .from(skills)
           .where(eq(skills.organizationId, input.organizationId)),
-        listSkillUpstreamStatuses({ organizationId: input.organizationId }),
+        runSkillEffect(
+          listSkillUpstreamStatuses({ organizationId: input.organizationId })
+        ),
       ]);
 
       return rows.map((row) => ({
@@ -141,9 +144,11 @@ export const skillsRouter = {
       }
 
       const detail = row.isSystem
-        ? await getSkillUpstream(
-            { organizationId: input.organizationId },
-            { id: row.id }
+        ? await runSkillEffect(
+            getSkillUpstream(
+              { organizationId: input.organizationId },
+              { id: row.id }
+            )
           )
         : null;
 
@@ -163,9 +168,11 @@ export const skillsRouter = {
         user: context.user,
       });
 
-      return await getSkillUpstream(
-        { organizationId: input.organizationId },
-        { id: input.id }
+      return await runSkillEffect(
+        getSkillUpstream(
+          { organizationId: input.organizationId },
+          { id: input.id }
+        )
       );
     }),
 
@@ -178,34 +185,34 @@ export const skillsRouter = {
         user: context.user,
       });
 
-      const detail = await getSkillUpstream(
-        { organizationId: input.organizationId },
-        { id: input.id }
+      const [detail, result] = await runSkillEffect(
+        Effect.gen(function* () {
+          const detail = yield* getSkillUpstream(
+            { organizationId: input.organizationId },
+            { id: input.id }
+          );
+          const result = yield* upgradeSkill(
+            { organizationId: input.organizationId },
+            { id: input.id },
+            input.payload
+          );
+          return [detail, result] as const;
+        })
       );
 
-      try {
-        const result = await upgradeSkill(
-          { organizationId: input.organizationId },
-          { id: input.id },
-          input.payload
-        );
+      trackServerEvent({
+        event: POSTHOG_EVENTS.SKILL_UPGRADED,
+        headers: context.headers,
+        userId: context.user.id,
+        organizationId: input.organizationId,
+        properties: {
+          strategy: input.payload.strategy,
+          from_version: detail?.baseVersion ?? null,
+          to_version: result.version,
+        },
+      });
 
-        trackServerEvent({
-          event: POSTHOG_EVENTS.SKILL_UPGRADED,
-          headers: context.headers,
-          userId: context.user.id,
-          organizationId: input.organizationId,
-          properties: {
-            strategy: input.payload.strategy,
-            from_version: detail?.baseVersion ?? null,
-            to_version: result.version,
-          },
-        });
-
-        return result;
-      } catch (error) {
-        throw toSkillRouterError(error);
-      }
+      return result;
     }),
 
   create: authorizedProcedure
@@ -282,9 +289,8 @@ export const skillsRouter = {
         throw notFound("Skill not found");
       }
 
-      let updated: { id: string; name: string };
-      try {
-        updated = await updateSkillContent(
+      const updated = await runSkillEffect(
+        updateSkillContent(
           { organizationId: input.organizationId },
           { id: row.id },
           {
@@ -292,10 +298,8 @@ export const skillsRouter = {
             description: input.payload.description,
             content: input.payload.content,
           }
-        );
-      } catch (error) {
-        throw toSkillRouterError(error);
-      }
+        )
+      );
       const isRename = updated.name !== row.name;
 
       trackServerEvent({
