@@ -208,11 +208,13 @@ import {
   geoShelfCreateInputSchema,
   geoShelfListInputSchema,
   geoShelfListResponseSchema,
+  geoShelfMembersInputSchema,
   geoShelfMembersResponseSchema,
   geoShelfMutationResponseSchema,
   geoShelfPreviewInputSchema,
   geoShelfPreviewResponseSchema,
   geoShelfUpdateInputSchema,
+  geoShelfUrlCheckResponseSchema,
 } from "@notra/schemas/dashboard/geo-shelf";
 import { QstashError } from "@upstash/qstash";
 import { and, eq } from "drizzle-orm";
@@ -225,6 +227,7 @@ import {
   GEO_SEQUENCE_RUN_OUTCOMES,
 } from "@/constants/geo-analytics";
 import {
+  GEO_SHELF_EMPTY_BOARD_COUNTS,
   GEO_SHELF_PREVIEW_CACHE_MS,
   GEO_SHELF_PREVIEW_OUTCOMES,
   GEO_SHELF_PREVIEW_RATE_LIMIT_MESSAGE,
@@ -252,9 +255,11 @@ import {
 import { previewGeoShelfUrl } from "@/lib/geo-shelf/preview";
 import {
   createGeoShelfSource,
-  hasGeoShelfScanData,
-  listGeoShelfSources,
+  isGeoShelfUrlOnShelf,
+  listGeoShelfSourcePage,
   loadGeoShelfContext,
+  resolveGeoShelfSearch,
+  scheduleGeoShelfCitationSync,
   updateGeoShelfSource,
 } from "@/lib/geo-shelf/service";
 import { assertGeoAccess } from "@/lib/geo/access";
@@ -659,34 +664,56 @@ export const geoRouter = {
     .input(geoShelfListInputSchema)
     .handler(async ({ context, input }) => {
       const seed = await loadGeoShelfSeed(context, input, {
-        withMembers: GEO_SAMPLE_DATA_ENABLED,
+        // Member names only matter to resolve "mine" and name searches.
+        withMembers:
+          GEO_SAMPLE_DATA_ENABLED ||
+          input.ticket === "mine" ||
+          input.search.trim().length > 0,
       });
       if (!seed.settings) {
         return geoShelfListResponseSchema.parse({
           sources: [],
+          nextOffset: null,
+          totalCount: 0,
+          filteredCount: 0,
+          boardCounts: GEO_SHELF_EMPTY_BOARD_COUNTS,
           hasScanData: false,
           ownBrandName: "",
           isSampleData: false,
         });
       }
-      const { sources, isSampleData } = await listGeoShelfSources({
-        ...seed,
-        settings: seed.settings,
-      });
+      const page = await listGeoShelfSourcePage(
+        { ...seed, settings: seed.settings },
+        {
+          offset: input.offset,
+          limit: input.limit,
+          shelf: input.shelf,
+          ticket: input.ticket,
+          currentMemberId: findCurrentGeoShelfMemberId(
+            seed.members,
+            context.user.id
+          ),
+          search: resolveGeoShelfSearch(
+            input.search,
+            seed.members,
+            seed.competitors
+          ),
+          sort: { key: input.sortKey, direction: input.sortDirection },
+        }
+      );
       const shelfMembers = await resolveGeoShelfReadMembers(
         input.organizationId,
         seed.members,
-        sources
+        page.sources
       );
       return geoShelfListResponseSchema.parse({
-        sources: sanitizeGeoShelfSourceMembers(sources, shelfMembers),
-        hasScanData: hasGeoShelfScanData(sources),
+        ...page,
+        sources: sanitizeGeoShelfSourceMembers(page.sources, shelfMembers),
         ownBrandName: seed.settings.companyName,
-        isSampleData,
       });
     }),
   shelfMembers: authorizedProcedure
-    .input(geoShelfListInputSchema)
+    .input(geoShelfMembersInputSchema)
     .handler(async ({ context, input }) => {
       await assertGeoAccess({
         headers: context.headers,
@@ -767,6 +794,20 @@ export const geoRouter = {
         });
       }
       return geoShelfMutationResponseSchema.parse({ source: result.source });
+    }),
+  shelfUrlCheck: authorizedProcedure
+    .input(geoShelfPreviewInputSchema)
+    .handler(async ({ context, input }) => {
+      const seed = await loadGeoShelfSeed(context, input, {
+        withMembers: false,
+      });
+      const onShelf = seed.settings
+        ? await isGeoShelfUrlOnShelf(
+            { ...seed, settings: seed.settings },
+            input.url
+          )
+        : false;
+      return geoShelfUrlCheckResponseSchema.parse({ onShelf });
     }),
   shelfPreview: authorizedProcedure
     .input(geoShelfPreviewInputSchema)
@@ -1307,6 +1348,9 @@ export const geoRouter = {
           engine_count: result.engines.length,
         },
       });
+      if (result.checks > 0) {
+        scheduleGeoShelfCitationSync(input);
+      }
       return result;
     }),
   projectsList: authorizedProcedure
