@@ -1,29 +1,41 @@
 "use client";
 
+import type { SkillUpgradeStrategy } from "@notra/ai/skills/types";
 import { updateSkillSchema } from "@notra/schemas/dashboard/skills";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { parseAsBoolean, parseAsStringLiteral, useQueryState } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/button";
 import { PageContainer } from "@/components/layout/container";
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
+import { LazySkillUpdateDialog } from "@/components/skills/lazy-skill-update-dialog";
 import { SkillDeleteDialog } from "@/components/skills/skill-delete-dialog";
 import { SkillDetailHeader } from "@/components/skills/skill-detail-header";
 import { SkillEditorForm } from "@/components/skills/skill-editor-form";
-import { SKILL_EDITOR_VIEWS } from "@/constants/skills";
+import {
+  SKILL_EDITOR_VIEWS,
+  SKILL_REVIEW_QUERY_PARAM,
+} from "@/constants/skills";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SkillDetailPageClientProps } from "@/types/skills/page";
 
-export default function PageClient({ slug, name }: SkillDetailPageClientProps) {
+export default function PageClient({
+  slug,
+  skillId,
+}: SkillDetailPageClientProps) {
   const { activeOrganization } = useOrganizationsContext();
   const organizationId = activeOrganization?.id;
   const queryClient = useQueryClient();
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useQueryState(
+    SKILL_REVIEW_QUERY_PARAM,
+    parseAsBoolean.withDefault(false)
+  );
   const [view, setView] = useQueryState(
     "view",
     parseAsStringLiteral(SKILL_EDITOR_VIEWS).withDefault("edit")
@@ -42,23 +54,38 @@ export default function PageClient({ slug, name }: SkillDetailPageClientProps) {
   const handleSaveRef = useRef<(() => void) | null>(null);
   const handleDiscardRef = useRef<(() => void) | null>(null);
 
+  const skillInput = { organizationId: organizationId ?? "", id: skillId };
+
   const { data: skill, isPending } = useQuery({
-    ...dashboardOrpc.skills.getByName.queryOptions({
-      input: { organizationId: organizationId ?? "", name },
-    }),
+    ...dashboardOrpc.skills.getById.queryOptions({ input: skillInput }),
     enabled: !!organizationId,
   });
 
-  if (skill && !original) {
+  const { data: upstreamDetail = null } = useQuery({
+    ...dashboardOrpc.skills.getUpstream.queryOptions({ input: skillInput }),
+    enabled: !!organizationId && Boolean(skill?.isSystem),
+  });
+
+  const syncEditorState = (row: {
+    name: string;
+    description: string;
+    content: string;
+  }) => {
     setOriginal({
-      name: skill.name,
-      description: skill.description,
-      content: skill.content,
+      name: row.name,
+      description: row.description,
+      content: row.content,
     });
-    setNameInput(skill.name);
-    setDescription(skill.description);
-    setContent(skill.content);
+    setNameInput(row.name);
+    setDescription(row.description);
+    setContent(row.content);
+  };
+
+  if (skill && !original) {
+    syncEditorState(skill);
   }
+
+  const skillName = original?.name ?? skill?.name ?? "";
 
   const hasChanges =
     !!original &&
@@ -73,9 +100,7 @@ export default function PageClient({ slug, name }: SkillDetailPageClientProps) {
       }),
     });
     queryClient.invalidateQueries({
-      queryKey: dashboardOrpc.skills.getByName.queryKey({
-        input: { organizationId: organizationId ?? "", name },
-      }),
+      queryKey: dashboardOrpc.skills.getById.queryKey({ input: skillInput }),
     });
   };
 
@@ -84,7 +109,7 @@ export default function PageClient({ slug, name }: SkillDetailPageClientProps) {
       if (!organizationId) {
         throw new Error("Organization ID is required");
       }
-      const willRename = nameInput !== name;
+      const willRename = nameInput !== original?.name;
       const parsed = updateSkillSchema.safeParse({
         name: willRename ? nameInput : undefined,
         description,
@@ -95,7 +120,7 @@ export default function PageClient({ slug, name }: SkillDetailPageClientProps) {
       }
       return dashboardOrpc.skills.update.call({
         organizationId,
-        name,
+        id: skillId,
         payload: parsed.data,
       });
     },
@@ -104,9 +129,42 @@ export default function PageClient({ slug, name }: SkillDetailPageClientProps) {
       setNameInput(data.name);
       invalidate();
       toast.success("Skill saved");
-      if (data.name !== name) {
-        router.replace(`/${slug}/skills/${data.name}`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const upgradeMutation = useMutation({
+    mutationFn: async (input: {
+      strategy: SkillUpgradeStrategy;
+      payload?: { content: string; description: string };
+    }) => {
+      if (!organizationId) {
+        throw new Error("Organization ID is required");
       }
+      return await dashboardOrpc.skills.upgrade.call({
+        organizationId,
+        id: skillId,
+        payload: { strategy: input.strategy, ...input.payload },
+      });
+    },
+    onSuccess: async (data) => {
+      setReviewOpen(false);
+      if (organizationId) {
+        const fresh = await dashboardOrpc.skills.getById.call({
+          organizationId,
+          id: skillId,
+        });
+        syncEditorState(fresh);
+      }
+      invalidate();
+      queryClient.invalidateQueries({
+        queryKey: dashboardOrpc.skills.getUpstream.queryKey({
+          input: skillInput,
+        }),
+      });
+      toast.success(`${data.name} is on v${data.version}`);
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -118,7 +176,7 @@ export default function PageClient({ slug, name }: SkillDetailPageClientProps) {
       if (!organizationId) {
         throw new Error("Organization ID is required");
       }
-      return dashboardOrpc.skills.delete.call({ organizationId, name });
+      return dashboardOrpc.skills.delete.call({ organizationId, id: skillId });
     },
     onSuccess: () => {
       invalidate();
@@ -129,6 +187,11 @@ export default function PageClient({ slug, name }: SkillDetailPageClientProps) {
       toast.error(error.message);
     },
   });
+
+  const busy =
+    saveMutation.isPending ||
+    deleteMutation.isPending ||
+    upgradeMutation.isPending;
 
   useEffect(() => {
     handleSaveRef.current = () => {
@@ -199,12 +262,18 @@ export default function PageClient({ slug, name }: SkillDetailPageClientProps) {
     <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
       <div className="w-full space-y-8 px-4 lg:px-6">
         <SkillDetailHeader
+          actionsDisabled={busy}
           canDelete={Boolean(skill && !skill.isSystem)}
+          content={original?.content ?? ""}
           deleteDisabled={saveMutation.isPending || deleteMutation.isPending}
-          isSystem={Boolean(skill?.isSystem)}
-          name={name}
+          name={skillName}
           onDelete={() => setDeleteOpen(true)}
+          onReviewUpdate={() => setReviewOpen(true)}
+          onUpgrade={(strategy) => upgradeMutation.mutate({ strategy })}
           slug={slug}
+          upgradePending={upgradeMutation.isPending}
+          upstream={skill?.upstream ?? null}
+          upstreamDetail={upstreamDetail}
         />
 
         {organizationId && isPending ? (
@@ -228,14 +297,32 @@ export default function PageClient({ slug, name }: SkillDetailPageClientProps) {
             onNameChange={setNameInput}
             onViewChange={setView}
             originalContent={original?.content ?? ""}
-            savePending={saveMutation.isPending}
+            savePending={busy}
             view={view}
           />
         ) : null}
       </div>
 
+      {upstreamDetail?.updateAvailable ? (
+        <LazySkillUpdateDialog
+          content={original?.content ?? ""}
+          description={original?.description ?? ""}
+          descriptionModified={
+            upstreamDetail.base.description !== (original?.description ?? "")
+          }
+          detail={upstreamDetail}
+          name={skillName}
+          onOpenChange={setReviewOpen}
+          onUpgrade={(strategy, payload) =>
+            upgradeMutation.mutate({ strategy, payload })
+          }
+          open={reviewOpen}
+          pending={busy}
+        />
+      ) : null}
+
       <SkillDeleteDialog
-        name={name}
+        name={skillName}
         onConfirm={() => deleteMutation.mutate()}
         onOpenChange={setDeleteOpen}
         open={deleteOpen}

@@ -1,3 +1,16 @@
+import {
+  SkillDuplicateError,
+  SkillNotFoundError,
+  SkillNotSystemError,
+  SkillUpgradeInputError,
+  SystemSkillVersionMissingError,
+} from "@notra/ai/skills/errors";
+import {
+  getSkillUpstream,
+  listSkillUpstreamStatuses,
+  updateSkillContent,
+  upgradeSkill,
+} from "@notra/ai/skills/functions/upstream";
 import { db } from "@notra/db/drizzle";
 import { skills } from "@notra/db/schema";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
@@ -5,9 +18,11 @@ import {
   createSkillInputSchema,
   deleteSkillInputSchema,
   getSkillInputSchema,
+  getSkillUpstreamInputSchema,
   importSkillFromUrlInputSchema,
   listSkillsInputSchema,
   updateSkillInputSchema,
+  upgradeSkillInputSchema,
 } from "@notra/schemas/dashboard/skills";
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
@@ -16,6 +31,7 @@ import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
 import { authorizedProcedure } from "@/lib/orpc/base";
 import { parseSkillFrontmatter } from "@/lib/skills/parse-frontmatter";
+import { toSkillUpstreamStatus } from "@/utils/skills";
 
 import {
   badRequest,
@@ -26,6 +42,30 @@ import {
 } from "../utils/errors";
 
 const SKILLS_SH_API_BASE = "https://skills.sh/api/v1/skills";
+
+/**
+ * Boundary between the shared skill service in `@notra/ai` (plain `Error`
+ * subclasses) and oRPC's error model. Unknown causes are rethrown so the oRPC
+ * handler turns them into a 500.
+ */
+function toSkillRouterError(cause: unknown): Error {
+  if (cause instanceof SkillNotFoundError) {
+    return notFound("Skill not found");
+  }
+  if (cause instanceof SkillDuplicateError) {
+    return conflict(cause.message);
+  }
+  if (cause instanceof SkillNotSystemError) {
+    return badRequest(cause.message);
+  }
+  if (cause instanceof SystemSkillVersionMissingError) {
+    return notFound(cause.message);
+  }
+  if (cause instanceof SkillUpgradeInputError) {
+    return badRequest(cause.message);
+  }
+  return cause instanceof Error ? cause : new Error(String(cause));
+}
 
 interface SkillsShFile {
   path: string;
@@ -60,21 +100,27 @@ export const skillsRouter = {
         user: context.user,
       });
 
-      const rows = await db
-        .select({
-          id: skills.id,
-          name: skills.name,
-          description: skills.description,
-          isSystem: skills.isSystem,
-          updatedAt: skills.updatedAt,
-        })
-        .from(skills)
-        .where(eq(skills.organizationId, input.organizationId));
+      const [rows, upstreamStatuses] = await Promise.all([
+        db
+          .select({
+            id: skills.id,
+            name: skills.name,
+            description: skills.description,
+            isSystem: skills.isSystem,
+            updatedAt: skills.updatedAt,
+          })
+          .from(skills)
+          .where(eq(skills.organizationId, input.organizationId)),
+        listSkillUpstreamStatuses({ organizationId: input.organizationId }),
+      ]);
 
-      return rows;
+      return rows.map((row) => ({
+        ...row,
+        upstream: row.isSystem ? (upstreamStatuses.get(row.id) ?? null) : null,
+      }));
     }),
 
-  getByName: authorizedProcedure
+  getById: authorizedProcedure
     .input(getSkillInputSchema)
     .handler(async ({ context, input }) => {
       await assertOrganizationAccess({
@@ -86,7 +132,7 @@ export const skillsRouter = {
       const row = await db.query.skills.findFirst({
         where: and(
           eq(skills.organizationId, input.organizationId),
-          eq(skills.name, input.name)
+          eq(skills.id, input.id)
         ),
       });
 
@@ -94,7 +140,72 @@ export const skillsRouter = {
         throw notFound("Skill not found");
       }
 
-      return row;
+      const detail = row.isSystem
+        ? await getSkillUpstream(
+            { organizationId: input.organizationId },
+            { id: row.id }
+          )
+        : null;
+
+      return {
+        ...row,
+        upstream: detail ? toSkillUpstreamStatus(detail) : null,
+      };
+    }),
+
+  /** Base and latest version with full content, for the diff and merge UI. */
+  getUpstream: authorizedProcedure
+    .input(getSkillUpstreamInputSchema)
+    .handler(async ({ context, input }) => {
+      await assertOrganizationAccess({
+        headers: context.headers,
+        organizationId: input.organizationId,
+        user: context.user,
+      });
+
+      return await getSkillUpstream(
+        { organizationId: input.organizationId },
+        { id: input.id }
+      );
+    }),
+
+  upgrade: authorizedProcedure
+    .input(upgradeSkillInputSchema)
+    .handler(async ({ context, input }) => {
+      await assertOrganizationAccess({
+        headers: context.headers,
+        organizationId: input.organizationId,
+        user: context.user,
+      });
+
+      const detail = await getSkillUpstream(
+        { organizationId: input.organizationId },
+        { id: input.id }
+      );
+
+      try {
+        const result = await upgradeSkill(
+          { organizationId: input.organizationId },
+          { id: input.id },
+          input.payload
+        );
+
+        trackServerEvent({
+          event: POSTHOG_EVENTS.SKILL_UPGRADED,
+          headers: context.headers,
+          userId: context.user.id,
+          organizationId: input.organizationId,
+          properties: {
+            strategy: input.payload.strategy,
+            from_version: detail?.baseVersion ?? null,
+            to_version: result.version,
+          },
+        });
+
+        return result;
+      } catch (error) {
+        throw toSkillRouterError(error);
+      }
     }),
 
   create: authorizedProcedure
@@ -129,6 +240,7 @@ export const skillsRouter = {
           isSystem: false,
         })
         .returning({
+          id: skills.id,
           name: skills.name,
         });
 
@@ -143,7 +255,10 @@ export const skillsRouter = {
         },
       });
 
-      return { name: created?.name ?? input.payload.name };
+      return {
+        id: created?.id ?? null,
+        name: created?.name ?? input.payload.name,
+      };
     }),
 
   update: authorizedProcedure
@@ -158,49 +273,30 @@ export const skillsRouter = {
       const row = await db.query.skills.findFirst({
         where: and(
           eq(skills.organizationId, input.organizationId),
-          eq(skills.name, input.name)
+          eq(skills.id, input.id)
         ),
-        columns: { id: true, isSystem: true },
+        columns: { id: true, name: true, isSystem: true },
       });
 
       if (!row) {
         throw notFound("Skill not found");
       }
 
-      const nextName = input.payload.name ?? input.name;
-      const isRename = nextName !== input.name;
-
-      if (isRename && row.isSystem) {
-        throw forbidden("System skills cannot be renamed");
-      }
-
-      if (isRename) {
-        const conflictRow = await db.query.skills.findFirst({
-          where: and(
-            eq(skills.organizationId, input.organizationId),
-            eq(skills.name, nextName)
-          ),
-          columns: { id: true },
-        });
-
-        if (conflictRow) {
-          throw conflict(`A skill named "${nextName}" already exists`);
-        }
-      }
-
-      await db
-        .update(skills)
-        .set({
-          name: nextName,
-          description: input.payload.description,
-          content: input.payload.content,
-        })
-        .where(
-          and(
-            eq(skills.organizationId, input.organizationId),
-            eq(skills.name, input.name)
-          )
+      let updated: { id: string; name: string };
+      try {
+        updated = await updateSkillContent(
+          { organizationId: input.organizationId },
+          { id: row.id },
+          {
+            name: input.payload.name,
+            description: input.payload.description,
+            content: input.payload.content,
+          }
         );
+      } catch (error) {
+        throw toSkillRouterError(error);
+      }
+      const isRename = updated.name !== row.name;
 
       trackServerEvent({
         event: POSTHOG_EVENTS.SKILL_UPDATED,
@@ -215,7 +311,7 @@ export const skillsRouter = {
         },
       });
 
-      return { success: true as const, name: nextName };
+      return { success: true as const, id: updated.id, name: updated.name };
     }),
 
   delete: authorizedProcedure
@@ -230,7 +326,7 @@ export const skillsRouter = {
       const row = await db.query.skills.findFirst({
         where: and(
           eq(skills.organizationId, input.organizationId),
-          eq(skills.name, input.name)
+          eq(skills.id, input.id)
         ),
         columns: { id: true, isSystem: true },
       });
@@ -248,7 +344,7 @@ export const skillsRouter = {
         .where(
           and(
             eq(skills.organizationId, input.organizationId),
-            eq(skills.name, input.name)
+            eq(skills.id, row.id)
           )
         );
 

@@ -206,17 +206,7 @@ export default function PageClient({ slug }: PageClientProps) {
         )}
         {!isLoadingSkills && skills.length > 0 && (
           <div className="space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm font-medium">
-                Installed skills{" "}
-                <span className="text-muted-foreground tabular-nums">
-                  (
-                  {searchActive
-                    ? `${visibleSkills.length} of ${skills.length}`
-                    : skills.length}
-                  )
-                </span>
-              </p>
+            <div className="flex justify-end">
               <InputGroup className="h-9 sm:max-w-72">
                 <InputGroupAddon>
                   <HugeiconsIcon
@@ -282,7 +272,10 @@ export default function PageClient({ slug }: PageClientProps) {
                   placeholder="https://skills.sh/..."
                   value={quickstartUrl}
                 />
-                <InputGroupAddon align="inline-end" className="pr-1">
+                <InputGroupAddon
+                  align="inline-end"
+                  className="pr-1 has-[>button]:mr-0"
+                >
                   <Button
                     className="h-7 px-2.5"
                     disabled={
@@ -362,7 +355,7 @@ export default function PageClient({ slug }: PageClientProps) {
                   setForm((f) => ({ ...f, content: e.target.value }))
                 }
                 onPaste={handlePasteFrontmatter}
-                placeholder="# My skill\n\nYou are..."
+                placeholder={"# My skill\n\nYou are..."}
                 value={form.content}
               />
             </Field>
