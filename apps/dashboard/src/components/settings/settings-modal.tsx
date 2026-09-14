@@ -126,6 +126,13 @@ const GeoSettingsPane = dynamic(
     })),
   { loading: SettingsPaneFallback }
 );
+const DevSettingsPane = dynamic(
+  () =>
+    import("@/components/settings/panes/dev-pane").then((mod) => ({
+      default: mod.DevSettingsPane,
+    })),
+  { loading: SettingsPaneFallback }
+);
 
 function SettingsSectionContent({ section }: { section: SettingsSectionId }) {
   switch (section) {
@@ -156,6 +163,8 @@ function SettingsSectionContent({ section }: { section: SettingsSectionId }) {
       return <GeoSettingsPane section="languages" />;
     case "geo-models":
       return <GeoSettingsPane section="models" />;
+    case "dev":
+      return <DevSettingsPane />;
     default: {
       const exhaustive: never = section;
       return exhaustive;
