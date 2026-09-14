@@ -11,7 +11,13 @@
  */
 
 import { db } from "@notra/db/drizzle";
-import { members, organizations, users } from "@notra/db/schema";
+import {
+  members,
+  organizations,
+  userAuthFactorLabels,
+  userBackupCodes,
+  users,
+} from "@notra/db/schema";
 import { WorkOS } from "@workos-inc/node";
 import { and, eq } from "drizzle-orm";
 
@@ -153,10 +159,18 @@ async function ensureOrganization(userId: string) {
 }
 
 const workosUser = await ensureWorkOSUser();
+const localUser = await ensureLocalUser(workosUser.id);
 if (RESET_MFA) {
   await resetFactors(workosUser.id);
+  // Mirror what removing a factor in the app does.
+  await db
+    .delete(userBackupCodes)
+    .where(eq(userBackupCodes.userId, localUser.id));
+  await db
+    .delete(userAuthFactorLabels)
+    .where(eq(userAuthFactorLabels.userId, localUser.id));
+  console.log("Cleared backup codes and factor names");
 }
-const localUser = await ensureLocalUser(workosUser.id);
 if (workosUser.externalId !== localUser.id) {
   await workos.userManagement.updateUser({
     userId: workosUser.id,

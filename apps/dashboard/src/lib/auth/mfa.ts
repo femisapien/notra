@@ -1,5 +1,8 @@
+import { db } from "@notra/db/drizzle";
+import { users } from "@notra/db/schema";
 import type { AuthFlowResult } from "@notra/ui/lib/auth-types";
 import { getWorkOS } from "@workos-inc/authkit-nextjs";
+import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import {
@@ -9,7 +12,9 @@ import {
   TOTP_FACTOR_TYPE,
   TOTP_ISSUER,
 } from "@/constants/security";
+import { clearBackupCodes } from "@/lib/auth/backup-codes";
 import { WorkOSAuthError } from "@/lib/auth/errors";
+import { clearFactorLabels } from "@/lib/auth/factor-labels";
 import { storeShortLivedCookie } from "@/lib/auth/short-lived-cookie";
 import type { WorkOSErrorInfo } from "@/lib/auth/workos-error";
 
@@ -49,6 +54,20 @@ const enrollTotpFactor = Effect.fn("auth.mfa.enrollTotp")(function* (
     otpauthUri: enrollment.authenticationFactor.totp.uri,
   };
 });
+
+async function forgetFactorState(workosUserId: string) {
+  const localUser = await db.query.users.findFirst({
+    where: eq(users.workosUserId, workosUserId),
+    columns: { id: true },
+  });
+  if (!localUser) {
+    return;
+  }
+  await Promise.all([
+    clearBackupCodes(localUser.id),
+    clearFactorLabels(localUser.id),
+  ]);
+}
 
 /**
  * Turns a WorkOS `mfa_challenge` / `mfa_enrollment` authentication error into
@@ -98,6 +117,10 @@ export const resolveMfaFlow = Effect.fn("auth.mfa.resolveFlow")(function* (
   }
 
   if (info.code === MFA_ERROR_CODES.ENROLLMENT && info.userId) {
+    // WorkOS only asks for enrollment when no factor is live, so anything
+    // left from an earlier factor is stale and would otherwise stop the new
+    // backup codes from being issued after verification.
+    yield* Effect.promise(() => forgetFactorState(info.userId ?? ""));
     const enrollment = yield* enrollTotpFactor(info.userId, resolvedEmail);
     const result: AuthFlowResult = {
       status: "mfa-enrollment-required",
