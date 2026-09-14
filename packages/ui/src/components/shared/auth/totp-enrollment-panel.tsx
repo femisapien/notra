@@ -5,7 +5,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Loader2Icon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import type { TotpEnrollmentPanelProps } from "../../../lib/auth-types";
+import type {
+  TotpEnrollmentPanelProps,
+  TotpVerifyResult,
+} from "../../../lib/auth-types";
 import { Button } from "../../ui/button";
 import { BackupCodesPanel } from "../security/backup-codes-panel";
 import { StepTransition } from "../security/step-transition";
@@ -124,12 +127,14 @@ export function TotpEnrollmentPanel({
     setError(null);
     setIsPending(true);
 
-    const result = await onSubmit(submittedCode).catch(() => ({
-      ok: false as const,
-      message: ENROLLMENT_ERROR_FALLBACK,
-    }));
-
-    setIsPending(false);
+    let result: TotpVerifyResult;
+    try {
+      result = await onSubmit(submittedCode);
+    } catch {
+      result = { ok: false, message: ENROLLMENT_ERROR_FALLBACK };
+    } finally {
+      setIsPending(false);
+    }
 
     if (!result.ok) {
       setError(result.message || ENROLLMENT_ERROR_FALLBACK);

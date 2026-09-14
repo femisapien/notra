@@ -19,17 +19,26 @@ import type {
 const DEFAULT_EMAIL = "jane@company.com";
 const TOTP_TICK_MS = 1000;
 
-export function formatClock(iso: string) {
-  return new Date(iso).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+// Log entries only ever exist in the browser, so formatting in the user's
+// zone is safe; the explicit locale keeps the output stable across devices.
+const CLOCK_TIME_ZONE =
+  typeof Intl === "undefined"
+    ? "UTC"
+    : Intl.DateTimeFormat().resolvedOptions().timeZone;
+const clockFormatter = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: CLOCK_TIME_ZONE,
+});
+
+function formatClock(iso: string) {
+  return clockFormatter.format(new Date(iso));
 }
 
 function AuthenticatorWidget({ secret }: { secret: string | null }) {
   const [code, setCode] = useState<string | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(secondsUntilNextTotp());
+  const [secondsLeft, setSecondsLeft] = useState(() => secondsUntilNextTotp());
 
   useEffect(() => {
     if (!secret) {

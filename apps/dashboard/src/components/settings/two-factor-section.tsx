@@ -26,7 +26,9 @@ export function TwoFactorSection({
     null
   );
   const enrollmentRef = useRef(enrollment);
-  enrollmentRef.current = enrollment;
+  useEffect(() => {
+    enrollmentRef.current = enrollment;
+  }, [enrollment]);
 
   // Walking away from an unverified enrollment would leave a dangling factor.
   useEffect(() => {

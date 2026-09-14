@@ -17,54 +17,14 @@ import {
   TabsTrigger,
 } from "@notra/ui/components/ui/tabs";
 import { TitleCard } from "@notra/ui/components/ui/title-card";
-import type {
-  AuthFlowResult,
-  SignInWithPasswordInput,
-  TotpVerifyResult,
-  RedeemBackupCodeInput,
-  RedeemBackupCodeResult,
-  VerifyMfaCodeInput,
-} from "@notra/ui/lib/auth-types";
-import type { BackupCodesOutcome } from "@notra/ui/lib/security-types";
-import { useCallback, useRef, useState } from "react";
-import { toast } from "sonner";
 
-import { Button } from "@/components/button";
 import {
-  formatClock,
   SignedInView,
   SimulatorPanel,
 } from "@/components/design-system/auth-flow-simulator-panel";
 import { DesignSystemFrame } from "@/components/design-system/design-system-frame";
-import { TOTP_ISSUER } from "@/constants/security";
-import {
-  buildOtpauthUri,
-  generateTotpSecret,
-  verifyTotpCode,
-} from "@/lib/auth/dev-totp";
-import type {
-  AuthFlowTab,
-  DevAccount,
-  DevLogEntry,
-  DevPendingAuth,
-  DevSession,
-  DevSettingsEnrollment,
-} from "@/types/design-system/auth-flow";
-import { buildPlaceholderQrCode } from "@/utils/design-system-qr";
-
-const DEFAULT_EMAIL = "jane@company.com";
-const DEFAULT_PASSWORD = "playground-pass";
-const SIMULATED_LATENCY_MS = 450;
-const BACKUP_CODE_COUNT = 10;
-const BACKUP_CODE_LENGTH = 8;
-const BACKUP_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
-const MAX_LOG_ENTRIES = 40;
-const MS_PER_SECOND = 1000;
-
-const wait = (ms: number) =>
-  new Promise<void>((resolve) => {
-    setTimeout(resolve, ms);
-  });
+import { useAuthFlowPlayground } from "@/components/design-system/use-auth-flow-playground";
+import type { AuthFlowTab } from "@/types/design-system/auth-flow";
 
 const validators = {
   email: (value: string) =>
@@ -73,318 +33,8 @@ const validators = {
     loginSchema.shape.password.safeParse(value).error?.issues[0]?.message,
 };
 
-function randomId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replaceAll("-", "").slice(0, 16)}`;
-}
-
-function randomBackupCodes() {
-  const bytes = new Uint8Array(BACKUP_CODE_COUNT * BACKUP_CODE_LENGTH);
-  crypto.getRandomValues(bytes);
-  return Array.from({ length: BACKUP_CODE_COUNT }, (_, index) =>
-    Array.from(
-      bytes.slice(index * BACKUP_CODE_LENGTH, (index + 1) * BACKUP_CODE_LENGTH),
-      (byte) => BACKUP_CODE_ALPHABET[byte % BACKUP_CODE_ALPHABET.length]
-    ).join("")
-  );
-}
-
 export function AuthFlowPlayground() {
-  const [account, setAccount] = useState<DevAccount>({
-    email: DEFAULT_EMAIL,
-    password: DEFAULT_PASSWORD,
-    totpSecret: null,
-    totpEnrolledAt: null,
-  });
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
-  const [orgRequiresMfa, setOrgRequiresMfa] = useState(false);
-  const [session, setSession] = useState<DevSession | null>(null);
-  const [pending, setPending] = useState<DevPendingAuth | null>(null);
-  const [log, setLog] = useState<DevLogEntry[]>([]);
-  const [tab, setTab] = useState<AuthFlowTab>("sign-in");
-  const [loginKey, setLoginKey] = useState(0);
-
-  const [settingsEnrollment, setSettingsEnrollment] =
-    useState<DevSettingsEnrollment | null>(null);
-  const [isStartingEnrollment, setIsStartingEnrollment] = useState(false);
-  const [removingFactorId, setRemovingFactorId] = useState<string | null>(null);
-  // A first-time enrollment shows backup codes before the redirect, so the
-  // session only becomes visible once the login form reports completion.
-  const pendingSessionRef = useRef<DevSession | null>(null);
-  // Handlers are captured by the login form at render time; reading through
-  // a ref keeps a re-submitted sign-in (after a backup code) on fresh state.
-  const accountRef = useRef(account);
-  accountRef.current = account;
-
-  const appendLog = useCallback((message: string) => {
-    setLog((current) =>
-      [
-        { id: randomId("log"), at: new Date().toISOString(), message },
-        ...current,
-      ].slice(0, MAX_LOG_ENTRIES)
-    );
-  }, []);
-
-  function reset() {
-    setAccount({
-      email: DEFAULT_EMAIL,
-      password: DEFAULT_PASSWORD,
-      totpSecret: null,
-      totpEnrolledAt: null,
-    });
-    setBackupCodes([]);
-    setOrgRequiresMfa(false);
-    setSession(null);
-    setPending(null);
-    setLog([]);
-    setSettingsEnrollment(null);
-    setTab("sign-in");
-    setLoginKey((key) => key + 1);
-  }
-
-  function signOut() {
-    setSession(null);
-    setSettingsEnrollment(null);
-    setTab("sign-in");
-    setLoginKey((key) => key + 1);
-    appendLog("Session ended");
-  }
-
-  // --- Sign-in handlers (stand in for the WorkOS server actions) -----------
-
-  async function signInWithPassword(
-    input: SignInWithPasswordInput
-  ): Promise<AuthFlowResult> {
-    await wait(SIMULATED_LATENCY_MS);
-    const account = accountRef.current;
-    const matches =
-      input.email.trim().toLowerCase() === account.email &&
-      input.password === account.password;
-    if (!matches) {
-      appendLog("authenticateWithPassword → invalid credentials");
-      return { status: "error", message: "Invalid email or password." };
-    }
-
-    if (account.totpSecret) {
-      const next: DevPendingAuth = {
-        token: randomId("pending"),
-        challengeId: randomId("auth_challenge"),
-        kind: "mfa",
-        enrollmentSecret: null,
-      };
-      setPending(next);
-      appendLog("authenticateWithPassword → mfa_challenge, challenge created");
-      return {
-        status: "mfa-required",
-        pendingAuthenticationToken: next.token,
-        authenticationChallengeId: next.challengeId,
-        email: account.email,
-      };
-    }
-
-    if (orgRequiresMfa) {
-      const secret = generateTotpSecret();
-      const next: DevPendingAuth = {
-        token: randomId("pending"),
-        challengeId: randomId("auth_challenge"),
-        kind: "enrollment",
-        enrollmentSecret: secret,
-      };
-      setPending(next);
-      appendLog("authenticateWithPassword → mfa_enrollment, factor created");
-      return {
-        status: "mfa-enrollment-required",
-        pendingAuthenticationToken: next.token,
-        authenticationChallengeId: next.challengeId,
-        email: account.email,
-        qrCode: buildPlaceholderQrCode(1),
-        secret,
-        otpauthUri: buildOtpauthUri(secret, TOTP_ISSUER, account.email),
-      };
-    }
-
-    setSession({
-      email: account.email,
-      secondFactor: null,
-      signedInAt: new Date().toISOString(),
-    });
-    appendLog("authenticateWithPassword → session created");
-    return { status: "success", redirectTo: "#signed-in" };
-  }
-
-  async function verifyMfaCode(
-    input: VerifyMfaCodeInput
-  ): Promise<AuthFlowResult> {
-    await wait(SIMULATED_LATENCY_MS);
-    if (
-      !pending ||
-      pending.token !== input.pendingAuthenticationToken ||
-      pending.challengeId !== input.authenticationChallengeId
-    ) {
-      appendLog("authenticateWithTotp → unknown challenge");
-      return {
-        status: "error",
-        message: "This sign-in attempt expired. Please start again.",
-      };
-    }
-
-    const secret =
-      pending.kind === "enrollment"
-        ? pending.enrollmentSecret
-        : account.totpSecret;
-    if (!secret) {
-      return { status: "error", message: "No authenticator enrolled." };
-    }
-
-    const valid = await verifyTotpCode(secret, input.code);
-    if (!valid) {
-      appendLog("authenticateWithTotp → invalid code");
-      return {
-        status: "error",
-        message: "That code didn't work. Please try again.",
-      };
-    }
-
-    const nextSession: DevSession = {
-      email: account.email,
-      secondFactor: "totp",
-      signedInAt: new Date().toISOString(),
-    };
-    setPending(null);
-
-    if (pending.kind !== "enrollment") {
-      appendLog("authenticateWithTotp → code accepted");
-      setSession(nextSession);
-      return { status: "success", redirectTo: "#signed-in" };
-    }
-
-    setAccount((current) => ({
-      ...current,
-      totpSecret: secret,
-      totpEnrolledAt: new Date().toISOString(),
-    }));
-    const issuedCodes = randomBackupCodes();
-    setBackupCodes(issuedCodes);
-    pendingSessionRef.current = nextSession;
-    appendLog(
-      "authenticateWithTotp → factor verified and enrolled, backup codes issued"
-    );
-    return {
-      status: "enrolled",
-      redirectTo: "#signed-in",
-      backupCodes: issuedCodes,
-    };
-  }
-
-  async function redeemBackupCode(
-    input: RedeemBackupCodeInput
-  ): Promise<RedeemBackupCodeResult> {
-    await wait(SIMULATED_LATENCY_MS);
-    if (!pending) {
-      return {
-        status: "error",
-        message: "This sign-in attempt expired. Please start again.",
-      };
-    }
-    const normalized = input.code.toLowerCase().replaceAll("-", "").trim();
-    if (!backupCodes.includes(normalized)) {
-      appendLog("redeemBackupCode → rejected");
-      return {
-        status: "error",
-        message: "That backup code isn't valid or was already used.",
-      };
-    }
-    setBackupCodes([]);
-    setAccount((current) => ({
-      ...current,
-      totpSecret: null,
-      totpEnrolledAt: null,
-    }));
-    setPending(null);
-    appendLog("redeemBackupCode → accepted, authenticator removed");
-    return { status: "recovered", email: account.email };
-  }
-
-  async function startSocialSignIn() {
-    await wait(SIMULATED_LATENCY_MS);
-    appendLog("Social sign-in is not simulated in this playground");
-    throw new Error("Social sign-in is not part of this playground.");
-  }
-
-  // --- Settings handlers ----------------------------------------------------
-
-  async function startSettingsEnrollment() {
-    setIsStartingEnrollment(true);
-    await wait(SIMULATED_LATENCY_MS);
-    const secret = generateTotpSecret();
-    setSettingsEnrollment({
-      secret,
-      qrCode: buildPlaceholderQrCode(2),
-      otpauthUri: buildOtpauthUri(secret, TOTP_ISSUER, account.email),
-    });
-    setIsStartingEnrollment(false);
-    appendLog("createUserAuthFactor → totp factor + challenge created");
-  }
-
-  async function verifySettingsEnrollment(
-    code: string
-  ): Promise<TotpVerifyResult> {
-    await wait(SIMULATED_LATENCY_MS);
-    if (!settingsEnrollment) {
-      return { ok: false, message: "Start the setup again." };
-    }
-    const valid = await verifyTotpCode(settingsEnrollment.secret, code);
-    if (!valid) {
-      appendLog("verifyChallenge → invalid code");
-      return { ok: false, message: "That code didn't work. Try again." };
-    }
-    setAccount((current) => ({
-      ...current,
-      totpSecret: settingsEnrollment.secret,
-      totpEnrolledAt: new Date().toISOString(),
-    }));
-    const codes = randomBackupCodes();
-    setBackupCodes(codes);
-    appendLog("verifyChallenge → factor verified, 2FA on, backup codes issued");
-    toast.success("Two-factor authentication is on");
-    return { ok: true, backupCodes: codes };
-  }
-
-  async function regenerateBackupCodes(): Promise<BackupCodesOutcome> {
-    await wait(SIMULATED_LATENCY_MS);
-    const codes = randomBackupCodes();
-    setBackupCodes(codes);
-    appendLog("regenerateBackupCodes → new set issued");
-    return { ok: true, codes };
-  }
-
-  function cancelSettingsEnrollment() {
-    setSettingsEnrollment(null);
-    appendLog("deleteFactor → abandoned enrollment removed");
-  }
-
-  async function removeFactor(factorId: string) {
-    setRemovingFactorId(factorId);
-    await wait(SIMULATED_LATENCY_MS);
-    setAccount((current) => ({
-      ...current,
-      totpSecret: null,
-      totpEnrolledAt: null,
-    }));
-    setBackupCodes([]);
-    setRemovingFactorId(null);
-    appendLog("deleteFactor → 2FA off");
-    toast.success("Two-factor authentication turned off");
-  }
-
-  const factors = account.totpSecret
-    ? [
-        {
-          id: "auth_factor_playground",
-          issuer: TOTP_ISSUER,
-          createdAt: account.totpEnrolledAt ?? "",
-        },
-      ]
-    : [];
+  const flow = useAuthFlowPlayground();
 
   return (
     <DesignSystemFrame
@@ -399,12 +49,12 @@ export function AuthFlowPlayground() {
     >
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Tabs
-          onValueChange={(value) => setTab(value as AuthFlowTab)}
-          value={tab}
+          onValueChange={(value) => flow.setTab(value as AuthFlowTab)}
+          value={flow.tab}
         >
           <TabsList>
             <TabsTrigger value="sign-in">Sign in</TabsTrigger>
-            <TabsTrigger disabled={!session} value="settings">
+            <TabsTrigger disabled={!flow.session} value="settings">
               Security settings
             </TabsTrigger>
           </TabsList>
@@ -418,35 +68,29 @@ export function AuthFlowPlayground() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {session ? (
+                {flow.session ? (
                   <SignedInView
-                    onOpenSettings={() => setTab("settings")}
-                    onSignOut={signOut}
-                    session={session}
+                    onOpenSettings={() => flow.setTab("settings")}
+                    onSignOut={flow.signOut}
+                    session={flow.session}
                   />
                 ) : (
                   <div className="mx-auto w-full max-w-md py-4">
                     <LoginForm
                       callbackPath="#signed-in"
-                      key={loginKey}
-                      onSuccess={() => {
-                        if (pendingSessionRef.current) {
-                          setSession(pendingSessionRef.current);
-                          pendingSessionRef.current = null;
-                        }
-                        setTab("sign-in");
-                      }}
+                      key={flow.loginKey}
+                      onSuccess={flow.completeSignIn}
                       showForgotPasswordLink={false}
                       showSignupLink={false}
-                      signInWithPassword={signInWithPassword}
-                      startSocialSignIn={startSocialSignIn}
-                      redeemBackupCode={redeemBackupCode}
+                      signInWithPassword={flow.signInWithPassword}
+                      startSocialSignIn={flow.startSocialSignIn}
+                      redeemBackupCode={flow.redeemBackupCode}
                       validators={validators}
                       verifyEmailCode={async () => ({
                         status: "error",
                         message: "Email verification is not simulated here.",
                       })}
-                      verifyMfaCode={verifyMfaCode}
+                      verifyMfaCode={flow.verifyMfaCode}
                     />
                   </div>
                 )}
@@ -461,20 +105,20 @@ export function AuthFlowPlayground() {
                   Add a second step when you sign in with your password.
                 </p>
                 <TwoFactorSettings
-                  accountLabel={account.email}
+                  accountLabel={flow.account.email}
                   backupCodesRemaining={
-                    account.totpSecret ? backupCodes.length : null
+                    flow.account.totpSecret ? flow.backupCodes.length : null
                   }
-                  enrollment={settingsEnrollment}
-                  factors={factors}
-                  isStartingEnrollment={isStartingEnrollment}
-                  onCancelEnrollment={cancelSettingsEnrollment}
-                  onEnrollmentDone={() => setSettingsEnrollment(null)}
-                  onRegenerateBackupCodes={regenerateBackupCodes}
-                  onRemoveFactor={removeFactor}
-                  onStartEnrollment={startSettingsEnrollment}
-                  onVerifyEnrollment={verifySettingsEnrollment}
-                  removingFactorId={removingFactorId}
+                  enrollment={flow.settingsEnrollment}
+                  factors={flow.factors}
+                  isStartingEnrollment={flow.isStartingEnrollment}
+                  onCancelEnrollment={flow.cancelSettingsEnrollment}
+                  onEnrollmentDone={flow.finishSettingsEnrollment}
+                  onRegenerateBackupCodes={flow.regenerateBackupCodes}
+                  onRemoveFactor={flow.removeFactor}
+                  onStartEnrollment={flow.startSettingsEnrollment}
+                  onVerifyEnrollment={flow.verifySettingsEnrollment}
+                  removingFactorId={flow.removingFactorId}
                   status="ready"
                 />
               </div>
@@ -483,15 +127,15 @@ export function AuthFlowPlayground() {
         </Tabs>
 
         <SimulatorPanel
-          account={account}
-          backupCodeCount={backupCodes.length}
-          log={log}
-          onReset={reset}
-          onToggleOrgRequiresMfa={setOrgRequiresMfa}
-          orgRequiresMfa={orgRequiresMfa}
-          pending={pending}
-          session={session}
-          settingsEnrollmentSecret={settingsEnrollment?.secret ?? null}
+          account={flow.account}
+          backupCodeCount={flow.backupCodes.length}
+          log={flow.log}
+          onReset={flow.reset}
+          onToggleOrgRequiresMfa={flow.setOrgRequiresMfa}
+          orgRequiresMfa={flow.orgRequiresMfa}
+          pending={flow.pending}
+          session={flow.session}
+          settingsEnrollmentSecret={flow.settingsEnrollment?.secret ?? null}
         />
       </div>
     </DesignSystemFrame>

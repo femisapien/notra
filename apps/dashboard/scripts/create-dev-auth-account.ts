@@ -63,10 +63,12 @@ async function resetFactors(workosUserId: string) {
   const factors = await workos.multiFactorAuth.listUserAuthFactors({
     userId: workosUserId,
   });
-  for (const factor of factors.data) {
-    await workos.multiFactorAuth.deleteFactor(factor.id);
-    console.log(`Removed ${factor.type} factor ${factor.id}`);
-  }
+  await Promise.all(
+    factors.data.map(async (factor) => {
+      await workos.multiFactorAuth.deleteFactor(factor.id);
+      console.log(`Removed ${factor.type} factor ${factor.id}`);
+    })
+  );
   if (factors.data.length === 0) {
     console.log("No MFA factors to remove");
   }

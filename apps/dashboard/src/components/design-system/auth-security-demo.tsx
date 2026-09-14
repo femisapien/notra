@@ -29,7 +29,7 @@ import { buildPlaceholderQrCode } from "@/utils/design-system-qr";
 const DEMO_VALID_CODE = "123456";
 const DEMO_LATENCY_MS = 600;
 const DEMO_EMAIL = "jane@company.com";
-const DEMO_SECRET = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
+const DEMO_SETUP_KEY = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
 const DEMO_BACKUP_CODES = [
   "rd8qnvjk",
   "sqz6jxmt",
@@ -50,8 +50,8 @@ const wait = (ms: number) =>
 const DEMO_QR_CODE = buildPlaceholderQrCode();
 const DEMO_ENROLLMENT: TotpEnrollmentSecrets = {
   qrCode: DEMO_QR_CODE,
-  secret: DEMO_SECRET,
-  otpauthUri: `otpauth://totp/Notra:${DEMO_EMAIL}?secret=${DEMO_SECRET}&issuer=Notra`,
+  secret: DEMO_SETUP_KEY,
+  otpauthUri: `otpauth://totp/Notra:${DEMO_EMAIL}?secret=${DEMO_SETUP_KEY}&issuer=Notra`,
 };
 
 const INITIAL_FACTORS: TotpFactorSummary[] = [
@@ -163,7 +163,7 @@ function EnrollmentPanelDemo() {
       onSubmit={handleSubmit}
       otpauthUri={DEMO_ENROLLMENT.otpauthUri}
       qrCode={DEMO_QR_CODE}
-      secret={DEMO_SECRET}
+      secret={DEMO_SETUP_KEY}
     />
   );
 }
