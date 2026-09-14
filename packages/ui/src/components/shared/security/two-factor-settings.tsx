@@ -31,7 +31,7 @@ function BackupCodesRow({
   accountLabel,
   onRegenerate,
 }: {
-  remaining: number | null | undefined;
+  remaining: number | null;
   accountLabel?: string;
   onRegenerate: () => Promise<BackupCodesOutcome>;
 }) {
@@ -153,8 +153,8 @@ export function TwoFactorSettings({
   factors,
   status,
   enrollment,
-  isStartingEnrollment = false,
-  removingFactorId = null,
+  isStartingEnrollment,
+  removingFactorId,
   accountLabel,
   onStartEnrollment,
   onVerifyEnrollment,
@@ -246,7 +246,7 @@ export function TwoFactorSettings({
       >
         {body && <StepTransition stepKey={bodyKey}>{body}</StepTransition>}
       </SecurityMethodRow>
-      {isEnabled && !enrollment && onRegenerateBackupCodes && (
+      {isEnabled && !enrollment && (
         <BackupCodesRow
           accountLabel={accountLabel}
           onRegenerate={onRegenerateBackupCodes}

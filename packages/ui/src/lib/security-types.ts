@@ -5,8 +5,6 @@ import type { TotpVerifyResult } from "./auth-types";
 
 export type SecurityLoadStatus = "loading" | "ready" | "error";
 
-export type SecurityActionOutcome = { ok: true } | { ok: false; message: string };
-
 export type BackupCodesOutcome =
   | { ok: true; codes: string[] }
   | { ok: false; message: string };
@@ -29,14 +27,7 @@ export interface TotpFactorSummary {
 export interface TotpEnrollmentSecrets {
   qrCode: string;
   secret: string;
-  otpauthUri?: string;
-}
-
-export interface PasskeySummary {
-  id: string;
-  name?: string | null;
-  createdAt?: string | null;
-  lastUsedAt?: string | null;
+  otpauthUri: string;
 }
 
 export interface SecurityMethodRowProps {
@@ -57,34 +48,15 @@ export interface TwoFactorSettingsProps {
   factors: TotpFactorSummary[];
   status: SecurityLoadStatus;
   enrollment: TotpEnrollmentSecrets | null;
-  isStartingEnrollment?: boolean;
-  removingFactorId?: string | null;
+  isStartingEnrollment: boolean;
+  removingFactorId: string | null;
+  backupCodesRemaining: number | null;
   accountLabel?: string;
   onStartEnrollment: () => void;
   onVerifyEnrollment: (code: string) => Promise<TotpVerifyResult>;
   onCancelEnrollment: () => void;
-  onEnrollmentDone?: () => void;
+  onEnrollmentDone: () => void;
   onRemoveFactor: (factorId: string) => void;
+  onRegenerateBackupCodes: () => Promise<BackupCodesOutcome>;
   onRetry?: () => void;
-  backupCodesRemaining?: number | null;
-  onRegenerateBackupCodes?: () => Promise<BackupCodesOutcome>;
-}
-
-export interface PasskeysSettingsProps {
-  passkeys: PasskeySummary[];
-  status: SecurityLoadStatus;
-  isSupported: boolean;
-  isAdding?: boolean;
-  removingPasskeyId?: string | null;
-  unavailableMessage?: string | null;
-  onAddPasskey: () => void;
-  onRemovePasskey: (passkeyId: string) => void;
-  onRetry?: () => void;
-}
-
-export interface StepUpVerificationProps {
-  email: string;
-  onSendCode: () => Promise<SecurityActionOutcome>;
-  onVerify: (code: string) => Promise<SecurityActionOutcome>;
-  onCancel?: () => void;
 }

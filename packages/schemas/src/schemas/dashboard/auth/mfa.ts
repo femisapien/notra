@@ -14,10 +14,6 @@ export const totpCodeSchema = z
     "Enter the 6-digit code from your authenticator app"
   );
 
-const emailCodeSchema = z
-  .string()
-  .regex(ONE_TIME_CODE_REGEX, "Enter the 6-digit code from your email");
-
 const workosIdSchema = (label: string) =>
   z.string().min(1, `${label} is missing`).max(WORKOS_ID_MAX_LENGTH);
 
@@ -46,10 +42,6 @@ export const redeemBackupCodeInputSchema = z.object({
   returnTo: returnToSchema,
 });
 
-export const startPasskeySignInInputSchema = z.object({
-  returnTo: returnToSchema,
-});
-
 export const verifyTotpEnrollmentInputSchema = z.object({
   authenticationChallengeId: workosIdSchema("Challenge"),
   code: totpCodeSchema,
@@ -57,18 +49,4 @@ export const verifyTotpEnrollmentInputSchema = z.object({
 
 export const removeAuthFactorInputSchema = z.object({
   factorId: workosIdSchema("Factor"),
-});
-
-export const verifySecurityChallengeInputSchema = z.object({
-  authenticationChallengeId: workosIdSchema("Challenge"),
-  code: emailCodeSchema,
-});
-
-export const completePasskeyRegistrationInputSchema = z.object({
-  challengeId: workosIdSchema("Challenge"),
-  response: z.record(z.string(), z.unknown()),
-});
-
-export const removePasskeyInputSchema = z.object({
-  passkeyId: workosIdSchema("Passkey"),
 });

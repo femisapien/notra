@@ -1,6 +1,6 @@
 export type SocialProvider = "google" | "github";
 
-export type AuthMethod = "email" | "google" | "github" | "passkey";
+export type AuthMethod = "email" | "google" | "github";
 
 export interface SignInWithPasswordInput {
   email: string;
@@ -28,10 +28,6 @@ export interface RedeemBackupCodeInput {
 
 export interface StartSocialSignInInput {
   provider: string;
-  returnTo?: string | null;
-}
-
-export interface StartPasskeySignInInput {
   returnTo?: string | null;
 }
 
@@ -108,9 +104,6 @@ export type RedeemBackupCode = (
   input: RedeemBackupCodeInput
 ) => Promise<RedeemBackupCodeResult>;
 export type StartSocialSignIn = (input: StartSocialSignInInput) => Promise<void>;
-export type StartPasskeySignIn = (
-  input: StartPasskeySignInInput
-) => Promise<void>;
 
 /**
  * Feeds a server result back into the auth flow. Returns true when the flow
@@ -138,14 +131,6 @@ export interface AuthSocialButtonsProps {
   disabled: boolean;
   lastMethod?: string | null;
   onSelect: (provider: SocialProvider) => void;
-}
-
-export interface AuthPasskeyButtonProps {
-  onClick: () => void;
-  disabled?: boolean;
-  loading?: boolean;
-  lastUsed?: boolean;
-  label?: string;
 }
 
 export interface AuthFieldErrorProps {
@@ -205,9 +190,9 @@ export interface MfaChallengeFormProps {
   onResult: ApplyAuthResult;
   onBack?: () => void;
   /** Called when a backup code was accepted and the authenticator removed. */
-  onRecovered?: (email: string) => void;
+  onRecovered: (email: string) => void;
   verifyMfaCode: VerifyMfaCode;
-  redeemBackupCode?: RedeemBackupCode;
+  redeemBackupCode: RedeemBackupCode;
 }
 
 export interface MfaEnrollmentFormProps {
@@ -223,7 +208,7 @@ export interface MfaEnrollmentFormProps {
 export interface TotpEnrollmentPanelProps {
   qrCode: string;
   secret: string;
-  otpauthUri?: string;
+  otpauthUri: string;
   accountLabel?: string;
   submitLabel?: string;
   cancelLabel?: string;
@@ -240,10 +225,10 @@ export interface AuthPendingStepProps {
   onResult: ApplyAuthResult;
   onFinish: (redirectTo: string) => void;
   onBack: () => void;
-  onRecovered?: (email: string) => void;
+  onRecovered: (email: string) => void;
   verifyEmailCode: VerifyEmailCode;
   verifyMfaCode: VerifyMfaCode;
-  redeemBackupCode?: RedeemBackupCode;
+  redeemBackupCode: RedeemBackupCode;
 }
 
 export interface LoginFieldValidators {
@@ -265,7 +250,6 @@ export interface LoginFormProps {
   signInWithPassword: SignInWithPassword;
   verifyEmailCode: VerifyEmailCode;
   verifyMfaCode: VerifyMfaCode;
-  redeemBackupCode?: RedeemBackupCode;
+  redeemBackupCode: RedeemBackupCode;
   startSocialSignIn: StartSocialSignIn;
-  startPasskeySignIn?: StartPasskeySignIn;
 }

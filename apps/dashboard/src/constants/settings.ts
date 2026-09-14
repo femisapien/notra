@@ -66,7 +66,7 @@ export const SETTINGS_NAV_GROUPS: readonly SettingsNavGroup[] = [
       {
         id: "security",
         label: "Security",
-        description: "Two-factor authentication and passkeys",
+        description: "Two-factor authentication and backup codes",
         icon: ShieldKeyIcon,
         keywords: [
           "security",
@@ -76,11 +76,7 @@ export const SETTINGS_NAV_GROUPS: readonly SettingsNavGroup[] = [
           "two factor",
           "authenticator",
           "totp",
-          "passkey",
-          "passkeys",
-          "webauthn",
-          "face id",
-          "touch id",
+          "backup codes",
         ],
       },
     ],
@@ -277,7 +273,7 @@ export const SETTINGS_SECTION_LABELS: Record<SettingsSectionId, string> = {
 export const SETTINGS_SECTION_DESCRIPTIONS: Record<SettingsSectionId, string> =
   {
     account: "Manage your profile and account settings",
-    security: "Two-factor authentication and passkeys for your account",
+    security: "Two-factor authentication and backup codes for your account",
     general: "Manage your organization settings",
     members: "Manage who has access to this organization",
     notifications: "Configure email notifications for your organization",

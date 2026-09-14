@@ -11,7 +11,6 @@ import { TOTP_ISSUER } from "@/constants/security";
 import { generateTotpCode, secondsUntilNextTotp } from "@/lib/auth/dev-totp";
 import type {
   DevAccount,
-  DevEmailMessage,
   DevLogEntry,
   DevPendingAuth,
   DevSession,
@@ -84,7 +83,6 @@ export function SimulatorPanel({
   session,
   pending,
   settingsEnrollmentSecret,
-  inbox,
   log,
   onToggleOrgRequiresMfa,
   onReset,
@@ -95,7 +93,6 @@ export function SimulatorPanel({
   session: DevSession | null;
   pending: DevPendingAuth | null;
   settingsEnrollmentSecret: string | null;
-  inbox: DevEmailMessage[];
   log: DevLogEntry[];
   onToggleOrgRequiresMfa: (value: boolean) => void;
   onReset: () => void;
@@ -139,20 +136,11 @@ export function SimulatorPanel({
             </dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">Passkeys</dt>
-            <dd>
-              <Badge variant={account.passkeys.length ? "success" : "outline"}>
-                {account.passkeys.length}
-              </Badge>
-            </dd>
-          </div>
-          <div className="flex justify-between gap-3">
             <dt className="text-muted-foreground">Session</dt>
             <dd>
               {session ? (
                 <Badge variant="success">
-                  {session.method}
-                  {session.secondFactor ? " + totp" : ""}
+                  password{session.secondFactor ? " + totp" : ""}
                 </Badge>
               ) : (
                 <Badge variant="outline">Signed out</Badge>
@@ -177,33 +165,6 @@ export function SimulatorPanel({
 
       <TitleCard heading="Authenticator app">
         <AuthenticatorWidget secret={authenticatorSecret} />
-      </TitleCard>
-
-      <TitleCard heading="Email inbox">
-        {inbox.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            Verification emails show up here.
-          </p>
-        ) : (
-          <ul className="grid gap-2 text-sm">
-            {inbox.map((message) => (
-              <li
-                className="flex items-center justify-between gap-3"
-                key={message.id}
-              >
-                <div>
-                  <p className="font-medium">{message.purpose}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {formatClock(message.sentAt)}
-                  </p>
-                </div>
-                <code className="bg-muted/50 rounded-md border px-2 py-1 font-mono text-sm tracking-widest">
-                  {message.code}
-                </code>
-              </li>
-            ))}
-          </ul>
-        )}
       </TitleCard>
 
       <TitleCard heading="Event log">
@@ -241,7 +202,7 @@ export function SignedInView({
       <div>
         <p className="text-lg font-semibold">{session.email}</p>
         <p className="text-muted-foreground text-sm">
-          via {session.method}
+          via password
           {session.secondFactor ? " + authenticator code" : ""} at{" "}
           {formatClock(session.signedInAt)}
         </p>

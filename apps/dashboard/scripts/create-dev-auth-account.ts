@@ -1,5 +1,5 @@
 /**
- * Creates (or repairs) a dev account for testing 2FA and passkeys against the
+ * Creates (or repairs) a dev account for testing 2FA against the
  * real WorkOS environment in the root `.env`.
  *
  *   cd apps/dashboard

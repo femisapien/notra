@@ -14,9 +14,6 @@ export const POSTHOG_EVENTS = {
   MFA_FACTOR_REMOVED: "mfa_factor_removed",
   MFA_BACKUP_CODE_USED: "mfa_backup_code_used",
   MFA_BACKUP_CODES_REGENERATED: "mfa_backup_codes_regenerated",
-  PASSKEY_SIGN_IN_STARTED: "passkey_sign_in_started",
-  PASSKEY_REGISTERED: "passkey_registered",
-  PASSKEY_REMOVED: "passkey_removed",
   LOGOUT: "logout",
   CALLBACK_ROUTED: "callback_routed",
 

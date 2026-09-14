@@ -25,6 +25,7 @@ import { SignupCreditsBanner } from "@/components/auth/signup-credits-banner";
 import { SHOW_SIGNUP_CREDITS_BANNER } from "@/constants/signup-credits";
 import { trackEvent } from "@/lib/analytics/posthog-client";
 import {
+  redeemBackupCodeAction,
   signUpWithPasswordAction,
   verifyEmailCodeAction,
   verifyMfaCodeAction,
@@ -194,7 +195,14 @@ export function SignupForm({
       <AuthPendingStep
         onBack={flow.reset}
         onFinish={flow.finish}
+        onRecovered={(email) => {
+          flow.reset();
+          setFormError(
+            `Backup code accepted. Two-factor authentication was turned off for ${email}. Sign in to continue.`
+          );
+        }}
         onResult={flow.applyResult}
+        redeemBackupCode={redeemBackupCodeAction}
         returnTo={buildCallbackUrl("email")}
         step={flow.pending}
         verifyEmailCode={verifyEmailCodeAction}

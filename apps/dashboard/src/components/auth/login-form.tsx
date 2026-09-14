@@ -12,7 +12,6 @@ import type {
 
 import { LOGIN_ERROR_CODES } from "@/constants/analytics-events";
 import { trackEvent } from "@/lib/analytics/posthog-client";
-import { startPasskeySignInAction } from "@/lib/auth/passkey-actions";
 import {
   signInWithPasswordAction,
   redeemBackupCodeAction,
@@ -77,7 +76,6 @@ export function LoginForm({ returnTo, ...props }: LoginFormProps) {
       callbackPath="/callback"
       returnTo={returnTo ? buildPostAuthRedirectPath(returnTo) : undefined}
       signInWithPassword={signInWithPasswordTracked}
-      startPasskeySignIn={startPasskeySignInAction}
       startSocialSignIn={startSocialSignInAction}
       redeemBackupCode={redeemBackupCodeTracked}
       validators={validators}

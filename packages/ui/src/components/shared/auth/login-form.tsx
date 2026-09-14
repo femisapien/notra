@@ -22,13 +22,11 @@ import { AuthEmailField } from "./auth-email-field";
 import { AuthFormError } from "./auth-form-error";
 import { AuthFormHeader } from "./auth-form-header";
 import { AuthOrDivider } from "./auth-or-divider";
-import { AuthPasskeyButton } from "./auth-passkey-button";
 import { AuthPasswordField } from "./auth-password-field";
 import { AuthPendingStep } from "./auth-pending-step";
 import { AuthSocialButtons } from "./auth-social-buttons";
 
 const LOGIN_ERROR_FALLBACK = "Failed to sign in. Please try again.";
-const PASSKEY_ERROR_FALLBACK = "Passkey sign-in failed. Please try again.";
 const SOCIAL_ERROR_FALLBACK = "Social sign-in failed. Please try again.";
 
 const noop = () => {
@@ -38,7 +36,7 @@ const subscribeToNothing = () => noop;
 const returnNull = () => null;
 
 /**
- * Leaving an untouched field (for example by clicking a social or passkey
+ * Leaving an untouched field (for example by clicking a social sign-in
  * button) should not flag it as missing; "required" surfaces on submit.
  */
 const validateFilledField = (
@@ -62,7 +60,6 @@ export function LoginForm({
   verifyMfaCode,
   redeemBackupCode,
   startSocialSignIn,
-  startPasskeySignIn,
 }: LoginFormProps) {
   const [authMethod, setAuthMethod] = useState<AuthMethod | null>(null);
   const [formError, setFormError] = useState<string | null>(
@@ -83,7 +80,7 @@ export function LoginForm({
     setAuthMethod(null);
   }
 
-  /** Runs a redirect-style sign-in (social, passkey); a Next redirect throws by design. */
+  /** Runs a redirect-style sign-in (social); a Next redirect throws by design. */
   function startRedirectSignIn(
     method: AuthMethod,
     start: () => Promise<void>,
@@ -202,21 +199,6 @@ export function LoginForm({
             )
           }
         />
-
-        {startPasskeySignIn && (
-          <AuthPasskeyButton
-            disabled={isAuthLoading}
-            lastUsed={lastMethod === "passkey"}
-            loading={authMethod === "passkey"}
-            onClick={() =>
-              startRedirectSignIn(
-                "passkey",
-                () => startPasskeySignIn({ returnTo: callbackURL }),
-                PASSKEY_ERROR_FALLBACK
-              )
-            }
-          />
-        )}
 
         <AuthOrDivider />
 

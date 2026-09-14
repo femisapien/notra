@@ -4,15 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { isNextRedirectError } from "@/lib/auth/redirect-error";
 import {
-  completePasskeyRegistrationAction,
   getSecurityOverviewAction,
   regenerateBackupCodesAction,
   removeAuthFactorAction,
-  removePasskeyAction,
-  sendSecurityChallengeAction,
-  startPasskeyRegistrationAction,
   startTotpEnrollmentAction,
-  verifySecurityChallengeAction,
   verifyTotpEnrollmentAction,
 } from "@/lib/auth/security-actions";
 import {
@@ -120,11 +115,6 @@ export const authClient = {
     verifyTotpEnrollment: verifyTotpEnrollmentAction,
     removeAuthFactor: removeAuthFactorAction,
     regenerateBackupCodes: regenerateBackupCodesAction,
-    sendChallenge: sendSecurityChallengeAction,
-    verifyChallenge: verifySecurityChallengeAction,
-    startPasskeyRegistration: startPasskeyRegistrationAction,
-    completePasskeyRegistration: completePasskeyRegistrationAction,
-    removePasskey: removePasskeyAction,
   },
   organization: {
     create: createOrganizationAction,

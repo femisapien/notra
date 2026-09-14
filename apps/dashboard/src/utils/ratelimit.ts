@@ -197,12 +197,6 @@ export const ratelimit = {
     prefix: "ratelimit:auth-backup-code",
     limiter: Ratelimit.slidingWindow(5, "10m"),
   }),
-  securityChallenge: new Ratelimit({
-    redis,
-    analytics: true,
-    prefix: "ratelimit:auth-security-challenge",
-    limiter: Ratelimit.slidingWindow(5, "10m"),
-  }),
 };
 
 export function getClientIpFromHeaders(headersList: Headers): string {

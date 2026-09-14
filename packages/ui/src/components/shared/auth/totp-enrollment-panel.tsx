@@ -232,7 +232,7 @@ export function TotpEnrollmentPanel({
           label="Setup key"
           value={secret}
         />
-        {otpauthUri && <CopyValueField label="Setup URI" value={otpauthUri} />}
+        <CopyValueField label="Setup URI" value={otpauthUri} />
         <StepActions
           secondary={
             <Button

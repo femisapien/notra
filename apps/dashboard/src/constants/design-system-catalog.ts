@@ -86,12 +86,6 @@ export const DESIGN_SYSTEM_CATALOG: DesignSystemCatalogItem[] = [
     level: "section",
   },
   {
-    id: "auth-passkeys",
-    label: "Auth · Passkeys",
-    href: "/design-system#auth-passkeys",
-    level: "section",
-  },
-  {
     id: "claude-session",
     label: "Claude · Session",
     href: "/design-system#claude-session",

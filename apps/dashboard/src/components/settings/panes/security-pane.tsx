@@ -5,7 +5,6 @@ import type { SecurityLoadStatus } from "@notra/ui/lib/security-types";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
-import { PasskeysSection } from "@/components/settings/passkeys-section";
 import { SettingsPane } from "@/components/settings/settings-pane";
 import { TwoFactorSection } from "@/components/settings/two-factor-section";
 import { authClient } from "@/lib/auth/client";
@@ -46,7 +45,6 @@ export function SecuritySettingsPane() {
     return (
       <SettingsPane>
         <Skeleton className="h-40 rounded-lg" />
-        <Skeleton className="h-40 rounded-lg" />
       </SettingsPane>
     );
   }
@@ -66,13 +64,6 @@ export function SecuritySettingsPane() {
         backupCodesRemaining={overviewQuery.data?.backupCodesRemaining ?? null}
         factors={overviewQuery.data?.totpFactors ?? []}
         onRefresh={refresh}
-        status={status}
-      />
-      <PasskeysSection
-        email={user.email}
-        onRefresh={refresh}
-        passkeys={overviewQuery.data?.passkeys ?? []}
-        passkeysAvailable={overviewQuery.data?.passkeysAvailable ?? true}
         status={status}
       />
     </SettingsPane>

@@ -93,7 +93,7 @@ export function MfaChallengeForm({
   }
 
   async function handleBackupCode() {
-    if (!redeemBackupCode || isPending) {
+    if (isPending) {
       return;
     }
     const isCurrent = beginRequest();
@@ -104,7 +104,7 @@ export function MfaChallengeForm({
       return;
     }
     if (result?.status === "recovered") {
-      onRecovered?.(result.email);
+      onRecovered(result.email);
       return;
     }
     fail(result?.message);
@@ -213,17 +213,15 @@ export function MfaChallengeForm({
         </div>
       </form>
       <div className="flex flex-col items-center gap-1">
-        {redeemBackupCode && (
-          <Button
-            className="text-muted-foreground"
-            disabled={isPending}
-            onClick={() => switchMode("backup")}
-            type="button"
-            variant="link"
-          >
-            Lost your device? Use a backup code
-          </Button>
-        )}
+        <Button
+          className="text-muted-foreground"
+          disabled={isPending}
+          onClick={() => switchMode("backup")}
+          type="button"
+          variant="link"
+        >
+          Lost your device? Use a backup code
+        </Button>
         {onBack && (
           <Button
             className="text-muted-foreground"
