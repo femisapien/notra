@@ -5,16 +5,20 @@ import {
   removeAuthFactorInputSchema,
   verifyTotpEnrollmentInputSchema,
 } from "@notra/schemas/dashboard/auth/mfa";
-import type { TotpFactorSummary } from "@notra/ui/lib/security-types";
+import type {
+  RegenerateBackupCodesResult,
+  RemoveAuthFactorInput,
+  SecurityOverview,
+  StartTotpEnrollmentResult,
+  TotpFactorSummary,
+  VerifyTotpEnrollmentInput,
+  VerifyTotpEnrollmentResult,
+} from "@notra/schemas/types/dashboard/auth";
 import type { Ratelimit } from "@upstash/ratelimit";
 import { getWorkOS } from "@workos-inc/authkit-nextjs";
 import { Effect } from "effect";
 
-import {
-  SECURITY_ERROR_CODES,
-  TOTP_FACTOR_TYPE,
-  TOTP_ISSUER,
-} from "@/constants/security";
+import { SECURITY_ERROR_CODES, TOTP_FACTOR_TYPE } from "@/constants/security";
 import { ActionFailure } from "@/lib/actions/errors";
 import { runAction } from "@/lib/actions/run-action";
 import { validateActionInput } from "@/lib/actions/validate-input";
@@ -31,15 +35,8 @@ import {
   setFactorLabel,
 } from "@/lib/auth/factor-labels";
 import { readWorkOSError } from "@/lib/auth/workos-error";
+import { createTotpFactor } from "@/lib/auth/workos-mfa";
 import { requireSession } from "@/lib/organizations/guards";
-import type {
-  RegenerateBackupCodesResult,
-  RemoveAuthFactorInput,
-  SecurityOverview,
-  StartTotpEnrollmentResult,
-  VerifyTotpEnrollmentInput,
-  VerifyTotpEnrollmentResult,
-} from "@/types/auth/security";
 import type { ActionResult } from "@/types/organizations/actions";
 import { isRateLimited, ratelimit } from "@/utils/ratelimit";
 
@@ -154,21 +151,9 @@ export async function startTotpEnrollmentAction(): Promise<
   return runAction(
     Effect.gen(function* () {
       const context = yield* requireSecurityContext();
-      const enrollment = yield* tryWorkOS(() =>
-        getWorkOS().multiFactorAuth.createUserAuthFactor({
-          userId: context.workosUserId,
-          type: TOTP_FACTOR_TYPE,
-          totpIssuer: TOTP_ISSUER,
-          totpUser: context.email,
-        })
+      return yield* tryWorkOS(() =>
+        createTotpFactor(context.workosUserId, context.email)
       );
-      return {
-        factorId: enrollment.authenticationFactor.id,
-        authenticationChallengeId: enrollment.authenticationChallenge.id,
-        qrCode: enrollment.authenticationFactor.totp.qrCode,
-        secret: enrollment.authenticationFactor.totp.secret,
-        otpauthUri: enrollment.authenticationFactor.totp.uri,
-      };
     })
   );
 }

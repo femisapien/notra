@@ -1,33 +1,34 @@
 "use client";
 
+import {
+  BACKUP_CODE_LENGTH,
+  TOTP_CODE_LENGTH,
+} from "@notra/schemas/constants/dashboard/auth";
+import { normalizeBackupCode } from "@notra/schemas/utils/auth";
 import { Loader2Icon } from "lucide-react";
 import { useRef, useState } from "react";
 
-import type { MfaChallengeFormProps } from "../../../lib/auth-types";
+import type {
+  ChallengeMode,
+  MfaChallengeFormProps,
+  MfaSubmitButtonProps,
+} from "../../../types/auth";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { CtaButton } from "../cta-button";
 import { AuthFormError } from "./auth-form-error";
 import { AuthFormHeader } from "./auth-form-header";
-import { TOTP_CODE_LENGTH, TotpCodeInput } from "./totp-code-input";
-
-type ChallengeMode = "totp" | "backup";
+import { TotpCodeInput } from "./totp-code-input";
 
 const MFA_ERROR_FALLBACK = "That code didn't work. Please try again.";
-const BACKUP_CODE_MIN_LENGTH = 8;
 
 function SubmitButton({
   isPending,
   disabled,
   pendingLabel,
   label,
-}: {
-  isPending: boolean;
-  disabled: boolean;
-  pendingLabel: string;
-  label: string;
-}) {
+}: MfaSubmitButtonProps) {
   return (
     <CtaButton className="w-full" disabled={disabled} type="submit">
       {isPending ? (
@@ -118,7 +119,7 @@ export function MfaChallengeForm({
   }
 
   const backupCodeReady =
-    backupCode.replaceAll("-", "").trim().length >= BACKUP_CODE_MIN_LENGTH;
+    normalizeBackupCode(backupCode).length === BACKUP_CODE_LENGTH;
 
   if (mode === "backup") {
     return (

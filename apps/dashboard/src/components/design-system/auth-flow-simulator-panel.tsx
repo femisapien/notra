@@ -10,10 +10,9 @@ import { Button } from "@/components/button";
 import { TOTP_ISSUER } from "@/constants/security";
 import { generateTotpCode, secondsUntilNextTotp } from "@/lib/auth/dev-totp";
 import type {
-  DevAccount,
-  DevLogEntry,
-  DevPendingAuth,
-  DevSession,
+  AuthenticatorWidgetProps,
+  SignedInViewProps,
+  SimulatorPanelProps,
 } from "@/types/design-system/auth-flow";
 
 const DEFAULT_EMAIL = "jane@company.com";
@@ -36,7 +35,7 @@ function formatClock(iso: string) {
   return clockFormatter.format(new Date(iso));
 }
 
-function AuthenticatorWidget({ secret }: { secret: string | null }) {
+function AuthenticatorWidget({ secret }: AuthenticatorWidgetProps) {
   const [code, setCode] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(() => secondsUntilNextTotp());
 
@@ -95,17 +94,7 @@ export function SimulatorPanel({
   log,
   onToggleOrgRequiresMfa,
   onReset,
-}: {
-  account: DevAccount;
-  backupCodeCount: number;
-  orgRequiresMfa: boolean;
-  session: DevSession | null;
-  pending: DevPendingAuth | null;
-  settingsEnrollmentSecret: string | null;
-  log: DevLogEntry[];
-  onToggleOrgRequiresMfa: (value: boolean) => void;
-  onReset: () => void;
-}) {
+}: SimulatorPanelProps) {
   const authenticatorSecret =
     account.totpSecret ?? pending?.enrollmentSecret ?? settingsEnrollmentSecret;
 
@@ -200,11 +189,7 @@ export function SignedInView({
   session,
   onSignOut,
   onOpenSettings,
-}: {
-  session: DevSession;
-  onSignOut: () => void;
-  onOpenSettings: () => void;
-}) {
+}: SignedInViewProps) {
   return (
     <div className="flex flex-col items-center gap-4 py-10 text-center">
       <Badge variant="success">Signed in</Badge>

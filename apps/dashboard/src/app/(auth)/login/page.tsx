@@ -1,8 +1,12 @@
-import type { PendingAuthStep } from "@notra/ui/lib/auth-types";
+import type { PendingAuthStep } from "@notra/schemas/types/dashboard/auth";
 
 import { LoginErrorTracker } from "@/components/auth/login-error-tracker";
 import { LoginForm } from "@/components/auth/login-form";
 import { LOGIN_ERROR_KEYS, LOGIN_MFA_QUERY_KEYS } from "@/constants/security";
+import type {
+  LoginPageProps,
+  LoginPendingParams,
+} from "@/types/auth/login-page";
 
 const ERROR_MESSAGES: Record<string, string> = {
   "social-sign-in-failed": "Social sign-in failed. Please try again.",
@@ -17,12 +21,7 @@ function resolveInitialPending({
   mfaToken,
   mfaChallengeId,
   email,
-}: {
-  verify?: string;
-  mfaToken?: string;
-  mfaChallengeId?: string;
-  email?: string;
-}): PendingAuthStep | undefined {
+}: LoginPendingParams): PendingAuthStep | undefined {
   if (mfaToken && mfaChallengeId) {
     return {
       status: "mfa-required",
@@ -41,11 +40,7 @@ function resolveInitialPending({
   return undefined;
 }
 
-export default async function Login({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+export default async function Login({ searchParams }: LoginPageProps) {
   const resolvedSearchParams = await searchParams;
 
   const readParam = (key: string) => {

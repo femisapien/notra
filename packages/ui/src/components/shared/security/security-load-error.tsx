@@ -1,4 +1,4 @@
-import type { SecurityLoadErrorProps } from "../../../lib/security-types";
+import type { SecurityLoadErrorProps } from "../../../types/security";
 import { Button } from "../../ui/button";
 
 export function SecurityLoadError({ message, onRetry }: SecurityLoadErrorProps) {

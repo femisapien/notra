@@ -6,7 +6,7 @@ import type {
   MfaEnrollmentFormProps,
   TotpEnrollmentSubmission,
   TotpVerifyResult,
-} from "../../../lib/auth-types";
+} from "../../../types/auth";
 import { AuthFormHeader } from "./auth-form-header";
 import { TotpEnrollmentPanel } from "./totp-enrollment-panel";
 

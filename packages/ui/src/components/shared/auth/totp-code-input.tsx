@@ -1,12 +1,11 @@
 "use client";
 
+import { TOTP_CODE_LENGTH } from "@notra/schemas/constants/dashboard/auth";
 import { cn } from "@notra/ui/lib/utils";
-import type { TotpCodeInputProps } from "../../../lib/auth-types";
+import type { TotpCodeInputProps } from "../../../types/auth";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "../../ui/input-otp";
 import { Label } from "../../ui/label";
 import { AuthFieldError } from "./auth-field-error";
-
-export const TOTP_CODE_LENGTH = 6;
 
 const SLOT_INDEXES = [0, 1, 2, 3, 4, 5] as const;
 

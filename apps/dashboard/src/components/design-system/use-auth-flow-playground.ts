@@ -1,15 +1,19 @@
 "use client";
 
+import { BACKUP_CODE_LENGTH } from "@notra/schemas/constants/dashboard/auth";
 import type {
   AuthFlowResult,
-  SignInWithPasswordInput,
-  TotpEnrollmentSubmission,
-  TotpVerifyResult,
   RedeemBackupCodeInput,
   RedeemBackupCodeResult,
+  SignInWithPasswordInput,
   VerifyMfaCodeInput,
-} from "@notra/ui/lib/auth-types";
-import type { BackupCodesOutcome } from "@notra/ui/lib/security-types";
+} from "@notra/schemas/types/dashboard/auth";
+import { normalizeBackupCode } from "@notra/schemas/utils/auth";
+import type {
+  TotpEnrollmentSubmission,
+  TotpVerifyResult,
+} from "@notra/ui/types/auth";
+import type { BackupCodesOutcome } from "@notra/ui/types/security";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -33,7 +37,6 @@ const DEFAULT_EMAIL = "jane@company.com";
 const DEFAULT_PASSWORD = "playground-pass";
 const SIMULATED_LATENCY_MS = 450;
 const BACKUP_CODE_COUNT = 10;
-const BACKUP_CODE_LENGTH = 8;
 const BACKUP_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
 const MAX_LOG_ENTRIES = 40;
 
@@ -264,7 +267,7 @@ export function useAuthFlowPlayground() {
         message: "This sign-in attempt expired. Please start again.",
       };
     }
-    const normalized = input.code.toLowerCase().replaceAll("-", "").trim();
+    const normalized = normalizeBackupCode(input.code);
     if (!backupCodes.includes(normalized)) {
       appendLog("redeemBackupCode → rejected");
       return {

@@ -1,20 +1,7 @@
 import { workosErrorSchema } from "@notra/schemas/dashboard/auth/workos-error";
 import { NotFoundException } from "@workos-inc/node";
 
-export interface WorkOSErrorInfo {
-  code: string | null;
-  message: string;
-  email: string | null;
-  pendingAuthenticationToken: string | null;
-  organizationIds: string[];
-  authenticationFactors: WorkOSAuthenticationFactorRef[];
-  userId: string | null;
-}
-
-interface WorkOSAuthenticationFactorRef {
-  id: string;
-  type: string;
-}
+import type { WorkOSErrorInfo } from "@/types/auth/workos-error";
 
 export function readWorkOSError(error: unknown): WorkOSErrorInfo {
   const parsed = workosErrorSchema.safeParse(error);

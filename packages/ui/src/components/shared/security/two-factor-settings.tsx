@@ -13,10 +13,10 @@ import { Loader2Icon } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import type {
-  BackupCodesOutcome,
-  TotpFactorSummary,
+  BackupCodesRowProps,
+  FactorListProps,
   TwoFactorSettingsProps,
-} from "../../../lib/security-types";
+} from "../../../types/security";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import { Skeleton } from "../../ui/skeleton";
@@ -31,11 +31,7 @@ function BackupCodesRow({
   remaining,
   accountLabel,
   onRegenerate,
-}: {
-  remaining: number | null;
-  accountLabel?: string;
-  onRegenerate: () => Promise<BackupCodesOutcome>;
-}) {
+}: BackupCodesRowProps) {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [codes, setCodes] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -104,11 +100,7 @@ function FactorList({
   factors,
   removingFactorId,
   onRemoveFactor,
-}: {
-  factors: TotpFactorSummary[];
-  removingFactorId: string | null;
-  onRemoveFactor: (factorId: string) => void;
-}) {
+}: FactorListProps) {
   return (
     <ul className="divide-y rounded-lg border bg-muted/30">
       {factors.map((factor) => {

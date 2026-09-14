@@ -1,6 +1,6 @@
 import { db } from "@notra/db/drizzle";
 import { users } from "@notra/db/schema";
-import type { AuthFlowResult } from "@notra/ui/lib/auth-types";
+import type { AuthFlowResult } from "@notra/schemas/types/dashboard/auth";
 import { getWorkOS } from "@workos-inc/authkit-nextjs";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
@@ -10,13 +10,13 @@ import {
   MFA_RECOVERY_COOKIE,
   MFA_RECOVERY_COOKIE_MAX_AGE_SECONDS,
   TOTP_FACTOR_TYPE,
-  TOTP_ISSUER,
 } from "@/constants/security";
 import { clearBackupCodes } from "@/lib/auth/backup-codes";
 import { WorkOSAuthError } from "@/lib/auth/errors";
 import { clearFactorLabels } from "@/lib/auth/factor-labels";
 import { storeShortLivedCookie } from "@/lib/auth/short-lived-cookie";
-import type { WorkOSErrorInfo } from "@/lib/auth/workos-error";
+import { createTotpFactor } from "@/lib/auth/workos-mfa";
+import type { WorkOSErrorInfo } from "@/types/auth/workos-error";
 
 const tryWorkOS = <T>(run: () => Promise<T>) =>
   Effect.tryPromise({
@@ -31,28 +31,6 @@ const createMfaChallenge = Effect.fn("auth.mfa.createChallenge")(function* (
     getWorkOS().multiFactorAuth.challengeFactor({ authenticationFactorId })
   );
   return challenge.id;
-});
-
-const enrollTotpFactor = Effect.fn("auth.mfa.enrollTotp")(function* (
-  userId: string,
-  totpUser: string
-) {
-  const enrollment = yield* tryWorkOS(() =>
-    getWorkOS().multiFactorAuth.createUserAuthFactor({
-      userId,
-      type: TOTP_FACTOR_TYPE,
-      totpIssuer: TOTP_ISSUER,
-      totpUser,
-    })
-  );
-
-  return {
-    factorId: enrollment.authenticationFactor.id,
-    authenticationChallengeId: enrollment.authenticationChallenge.id,
-    qrCode: enrollment.authenticationFactor.totp.qrCode,
-    secret: enrollment.authenticationFactor.totp.secret,
-    otpauthUri: enrollment.authenticationFactor.totp.uri,
-  };
 });
 
 async function forgetFactorState(workosUserId: string) {
@@ -117,11 +95,14 @@ export const resolveMfaFlow = Effect.fn("auth.mfa.resolveFlow")(function* (
   }
 
   if (info.code === MFA_ERROR_CODES.ENROLLMENT && info.userId) {
+    const userId = info.userId;
     // WorkOS only asks for enrollment when no factor is live, so anything
     // left from an earlier factor is stale and would otherwise stop the new
     // backup codes from being issued after verification.
-    yield* Effect.promise(() => forgetFactorState(info.userId ?? ""));
-    const enrollment = yield* enrollTotpFactor(info.userId, resolvedEmail);
+    yield* Effect.promise(() => forgetFactorState(userId));
+    const enrollment = yield* tryWorkOS(() =>
+      createTotpFactor(userId, resolvedEmail)
+    );
     const result: AuthFlowResult = {
       status: "mfa-enrollment-required",
       pendingAuthenticationToken,

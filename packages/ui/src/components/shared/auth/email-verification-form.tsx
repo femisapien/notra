@@ -2,7 +2,7 @@
 
 import { Loader2Icon } from "lucide-react";
 import { useRef, useState } from "react";
-import type { EmailVerificationFormProps } from "../../../lib/auth-types";
+import type { EmailVerificationFormProps } from "../../../types/auth";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { CtaButton } from "../cta-button";

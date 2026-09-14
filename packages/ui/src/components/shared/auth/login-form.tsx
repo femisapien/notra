@@ -9,7 +9,7 @@ import type {
   AuthMethod,
   LoginFormProps,
   SocialProvider,
-} from "../../../lib/auth-types";
+} from "../../../types/auth";
 import {
   getLastUsedLoginMethod,
   setLastUsedLoginMethod,

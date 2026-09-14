@@ -21,7 +21,6 @@ export const LOGIN_MFA_QUERY_KEYS = {
 } as const;
 
 export const BACKUP_CODE_COUNT = 10;
-export const BACKUP_CODE_LENGTH = 8;
 /** Lowercase, no ambiguous characters (0/o, 1/l/i). */
 export const BACKUP_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
 

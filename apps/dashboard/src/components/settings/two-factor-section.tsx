@@ -5,8 +5,8 @@ import { TitleCard } from "@notra/ui/components/ui/title-card";
 import type {
   TotpEnrollmentSubmission,
   TotpVerifyResult,
-} from "@notra/ui/lib/auth-types";
-import type { BackupCodesOutcome } from "@notra/ui/lib/security-types";
+} from "@notra/ui/types/auth";
+import type { BackupCodesOutcome } from "@notra/ui/types/security";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";

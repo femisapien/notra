@@ -1,12 +1,9 @@
 "use client";
 
+import type { PendingAuthStep } from "@notra/schemas/types/dashboard/auth";
 import { useState } from "react";
 
-import type {
-  ApplyAuthResult,
-  PendingAuthStep,
-  UseAuthFlowOptions,
-} from "../lib/auth-types";
+import type { ApplyAuthResult, UseAuthFlowOptions } from "../types/auth";
 
 /**
  * Owns the "what does the auth screen show next" state shared by the login

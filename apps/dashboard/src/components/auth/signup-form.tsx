@@ -12,8 +12,8 @@ import { AuthSocialButtons } from "@notra/ui/components/shared/auth/auth-social-
 import { CtaButton } from "@notra/ui/components/shared/cta-button";
 import { Separator } from "@notra/ui/components/ui/separator";
 import { useAuthFlow } from "@notra/ui/hooks/use-auth-flow";
-import type { AuthMethod, SocialProvider } from "@notra/ui/lib/auth-types";
 import { setLastUsedLoginMethod } from "@notra/ui/lib/last-login-method";
+import type { AuthMethod, SocialProvider } from "@notra/ui/types/auth";
 import { useForm } from "@tanstack/react-form";
 import { Loader2Icon } from "lucide-react";
 import Link from "next/link";
@@ -26,9 +26,11 @@ import { SHOW_SIGNUP_CREDITS_BANNER } from "@/constants/signup-credits";
 import { trackEvent } from "@/lib/analytics/posthog-client";
 import {
   redeemBackupCodeAction,
+  verifyMfaCodeAction,
+} from "@/lib/auth/mfa-actions";
+import {
   signUpWithPasswordAction,
   verifyEmailCodeAction,
-  verifyMfaCodeAction,
 } from "@/lib/auth/password-actions";
 import { isNextRedirectError } from "@/lib/auth/redirect-error";
 import { startSocialSignInAction } from "@/lib/auth/social-actions";

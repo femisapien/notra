@@ -7,9 +7,9 @@ import {
   m,
   useReducedMotion,
 } from "motion/react";
-import type { ReactNode } from "react";
 
 import { TRANSITION } from "@notra/ui/lib/motion";
+import type { StepTransitionProps } from "../../../types/security";
 
 const ENTER_OFFSET = 6;
 
@@ -21,11 +21,7 @@ export function StepTransition({
   stepKey,
   children,
   className,
-}: {
-  stepKey: string;
-  children: ReactNode;
-  className?: string;
-}) {
+}: StepTransitionProps) {
   const reduceMotion = useReducedMotion();
   const offset = reduceMotion ? 0 : ENTER_OFFSET;
 

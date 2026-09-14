@@ -1,7 +1,7 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { cn } from "@notra/ui/lib/utils";
-import type { SecurityMethodRowProps } from "../../../lib/security-types";
+import type { SecurityMethodRowProps } from "../../../types/security";
 
 export function SecurityMethodRow({
   icon,

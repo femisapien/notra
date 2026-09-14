@@ -2,21 +2,23 @@
 
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
 import { loginSchema } from "@notra/schemas/dashboard/auth/credentials";
-import { LoginForm as SharedLoginForm } from "@notra/ui/components/shared/auth/login-form";
 import type {
-  SignInWithPasswordInput,
   RedeemBackupCodeInput,
+  SignInWithPasswordInput,
   VerifyEmailCodeInput,
   VerifyMfaCodeInput,
-} from "@notra/ui/lib/auth-types";
+} from "@notra/schemas/types/dashboard/auth";
+import { LoginForm as SharedLoginForm } from "@notra/ui/components/shared/auth/login-form";
 
 import { LOGIN_ERROR_CODES } from "@/constants/analytics-events";
 import { trackEvent } from "@/lib/analytics/posthog-client";
 import {
-  signInWithPasswordAction,
   redeemBackupCodeAction,
-  verifyEmailCodeAction,
   verifyMfaCodeAction,
+} from "@/lib/auth/mfa-actions";
+import {
+  signInWithPasswordAction,
+  verifyEmailCodeAction,
 } from "@/lib/auth/password-actions";
 import { buildPostAuthRedirectPath } from "@/lib/auth/return-to";
 import { startSocialSignInAction } from "@/lib/auth/social-actions";

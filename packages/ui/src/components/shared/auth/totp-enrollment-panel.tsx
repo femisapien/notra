@@ -2,26 +2,30 @@
 
 import { CheckmarkCircle02Icon, Copy01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  FACTOR_NAME_MAX_LENGTH,
+  TOTP_CODE_LENGTH,
+} from "@notra/schemas/constants/dashboard/auth";
 import { Loader2Icon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type {
+  CopyValueFieldProps,
+  EnrollmentStep,
+  StepActionsProps,
   TotpEnrollmentPanelProps,
   TotpVerifyResult,
-} from "../../../lib/auth-types";
+} from "../../../types/auth";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { BackupCodesPanel } from "../security/backup-codes-panel";
 import { StepTransition } from "../security/step-transition";
-import { TOTP_CODE_LENGTH, TotpCodeInput } from "./totp-code-input";
-
-type EnrollmentStep = "scan" | "manual" | "code" | "backup";
+import { TotpCodeInput } from "./totp-code-input";
 
 const ENROLLMENT_ERROR_FALLBACK = "That code didn't work. Please try again.";
 const COPIED_RESET_MS = 2000;
 const QR_CODE_SIZE = 176;
-const FACTOR_NAME_MAX_LENGTH = 40;
 const WHITESPACE_REGEX = /\s+/g;
 const SECRET_GROUP_REGEX = /.{1,4}/g;
 
@@ -34,11 +38,7 @@ function CopyValueField({
   label,
   value,
   display,
-}: {
-  label: string;
-  value: string;
-  display?: string;
-}) {
+}: CopyValueFieldProps) {
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -89,13 +89,7 @@ function CopyValueField({
   );
 }
 
-function StepActions({
-  secondary,
-  children,
-}: {
-  secondary?: React.ReactNode;
-  children: React.ReactNode;
-}) {
+function StepActions({ secondary, children }: StepActionsProps) {
   return (
     <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div>{secondary}</div>

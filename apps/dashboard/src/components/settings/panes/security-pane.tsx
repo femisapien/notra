@@ -1,7 +1,7 @@
 "use client";
 
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
-import type { SecurityLoadStatus } from "@notra/ui/lib/security-types";
+import type { SecurityLoadStatus } from "@notra/ui/types/security";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 

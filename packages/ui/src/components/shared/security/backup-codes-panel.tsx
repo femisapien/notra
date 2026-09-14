@@ -10,7 +10,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@notra/ui/lib/utils";
-import type { BackupCodesPanelProps } from "../../../lib/security-types";
+import type { BackupCodesPanelProps } from "../../../types/security";
 import { Button } from "../../ui/button";
 
 const COPIED_RESET_MS = 2000;

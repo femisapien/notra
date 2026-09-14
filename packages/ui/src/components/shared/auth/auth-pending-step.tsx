@@ -1,6 +1,6 @@
 "use client";
 
-import type { AuthPendingStepProps } from "../../../lib/auth-types";
+import type { AuthPendingStepProps } from "../../../types/auth";
 import { EmailVerificationForm } from "./email-verification-form";
 import { MfaChallengeForm } from "./mfa-challenge-form";
 import { MfaEnrollmentForm } from "./mfa-enrollment-form";

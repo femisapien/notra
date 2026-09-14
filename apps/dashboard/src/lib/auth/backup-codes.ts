@@ -2,19 +2,11 @@ import { createHash, randomInt } from "node:crypto";
 
 import { db } from "@notra/db/drizzle";
 import { userBackupCodes } from "@notra/db/schema";
+import { BACKUP_CODE_LENGTH } from "@notra/schemas/constants/dashboard/auth";
+import { normalizeBackupCode } from "@notra/schemas/utils/auth";
 import { and, eq, isNull } from "drizzle-orm";
 
-import {
-  BACKUP_CODE_ALPHABET,
-  BACKUP_CODE_COUNT,
-  BACKUP_CODE_LENGTH,
-} from "@/constants/security";
-
-const BACKUP_CODE_SEPARATOR_REGEX = /[\s-]/g;
-
-function normalizeBackupCode(code: string): string {
-  return code.toLowerCase().replace(BACKUP_CODE_SEPARATOR_REGEX, "");
-}
+import { BACKUP_CODE_ALPHABET, BACKUP_CODE_COUNT } from "@/constants/security";
 
 /** Codes are 40+ bits of randomness, so a plain SHA-256 is enough at rest. */
 function hashBackupCode(code: string): string {

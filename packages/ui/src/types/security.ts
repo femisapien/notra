@@ -1,7 +1,11 @@
 import type { IconSvgElement } from "@hugeicons/react";
+import type {
+  TotpEnrollmentSecrets,
+  TotpFactorSummary,
+} from "@notra/schemas/types/dashboard/auth";
 import type { ReactNode } from "react";
 
-import type { TotpEnrollmentSubmission, TotpVerifyResult } from "./auth-types";
+import type { TotpEnrollmentSubmission, TotpVerifyResult } from "./auth";
 
 export type SecurityLoadStatus = "loading" | "ready" | "error";
 
@@ -18,19 +22,6 @@ export interface BackupCodesPanelProps {
   className?: string;
 }
 
-export interface TotpFactorSummary {
-  id: string;
-  name: string | null;
-  issuer: string | null;
-  createdAt: string;
-}
-
-export interface TotpEnrollmentSecrets {
-  qrCode: string;
-  secret: string;
-  otpauthUri: string;
-}
-
 export interface SecurityMethodRowProps {
   icon: IconSvgElement;
   title: ReactNode;
@@ -43,6 +34,24 @@ export interface SecurityMethodRowProps {
 export interface SecurityLoadErrorProps {
   message: string;
   onRetry?: () => void;
+}
+
+export interface StepTransitionProps {
+  stepKey: string;
+  children: ReactNode;
+  className?: string;
+}
+
+export interface BackupCodesRowProps {
+  remaining: number | null;
+  accountLabel?: string;
+  onRegenerate: () => Promise<BackupCodesOutcome>;
+}
+
+export interface FactorListProps {
+  factors: TotpFactorSummary[];
+  removingFactorId: string | null;
+  onRemoveFactor: (factorId: string) => void;
 }
 
 export interface TwoFactorSettingsProps {

@@ -32,3 +32,25 @@ export interface DevSettingsEnrollment {
 }
 
 export type AuthFlowTab = "sign-in" | "settings";
+
+export interface AuthenticatorWidgetProps {
+  secret: string | null;
+}
+
+export interface SimulatorPanelProps {
+  account: DevAccount;
+  backupCodeCount: number;
+  orgRequiresMfa: boolean;
+  session: DevSession | null;
+  pending: DevPendingAuth | null;
+  settingsEnrollmentSecret: string | null;
+  log: DevLogEntry[];
+  onToggleOrgRequiresMfa: (value: boolean) => void;
+  onReset: () => void;
+}
+
+export interface SignedInViewProps {
+  session: DevSession;
+  onSignOut: () => void;
+  onOpenSettings: () => void;
+}

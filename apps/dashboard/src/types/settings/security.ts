@@ -1,7 +1,9 @@
-import type {
-  SecurityLoadStatus,
-  TotpFactorSummary,
-} from "@notra/ui/lib/security-types";
+import type { TotpFactorSummary } from "@notra/schemas/types/dashboard/auth";
+import type { SecurityLoadStatus } from "@notra/ui/types/security";
+
+export interface SettingsSecurityRedirectProps {
+  params: Promise<{ slug: string }>;
+}
 
 export interface TwoFactorSectionProps {
   accountLabel: string;
