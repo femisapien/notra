@@ -29,7 +29,7 @@ export function SecurityMethodRow({
           <div className="flex shrink-0 items-center gap-2">{action}</div>
         )}
       </div>
-      {children && <div className="mt-4 pl-12">{children}</div>}
+      {children && <div className="mt-6 pl-12">{children}</div>}
     </div>
   );
 }

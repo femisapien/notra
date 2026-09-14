@@ -35,7 +35,6 @@ const BACKUP_CODE_COUNT = 10;
 const BACKUP_CODE_LENGTH = 8;
 const BACKUP_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
 const MAX_LOG_ENTRIES = 40;
-const MS_PER_SECOND = 1000;
 
 const wait = (ms: number) =>
   new Promise<void>((resolve) => {

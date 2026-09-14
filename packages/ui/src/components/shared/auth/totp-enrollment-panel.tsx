@@ -151,16 +151,27 @@ export function TotpEnrollmentPanel({
     onDone?.();
   }
 
-  const cancelButton = onCancel ? (
-    <Button
-      disabled={isPending}
-      onClick={onCancel}
-      type="button"
-      variant="ghost"
-    >
-      {cancelLabel}
-    </Button>
-  ) : null;
+  // One secondary action next to the primary one: leaving on the first step
+  // cancels the whole enrollment, on later steps it goes back to the QR code.
+  const isFirstStep = step === "scan";
+  const secondaryButton =
+    isFirstStep && !onCancel ? null : (
+      <Button
+        disabled={isPending}
+        onClick={() => {
+          if (isFirstStep) {
+            onCancel?.();
+            return;
+          }
+          setError(null);
+          setStep("scan");
+        }}
+        type="button"
+        variant="ghost"
+      >
+        {isFirstStep ? cancelLabel : "Back"}
+      </Button>
+    );
 
   const qrAltText = accountLabel
     ? `QR code to add ${accountLabel} to an authenticator app`
@@ -198,23 +209,8 @@ export function TotpEnrollmentPanel({
           onComplete={handleSubmit}
           value={code}
         />
-        <StepActions
-          secondary={
-            <Button
-              className="px-0"
-              disabled={isPending}
-              onClick={() => {
-                setError(null);
-                setStep("scan");
-              }}
-              type="button"
-              variant="link"
-            >
-              Back
-            </Button>
-          }
-        >
-          {cancelButton}
+        <StepActions>
+          {secondaryButton}
           <Button
             disabled={isPending || code.length !== TOTP_CODE_LENGTH}
             type="submit"
@@ -250,7 +246,7 @@ export function TotpEnrollmentPanel({
             </Button>
           }
         >
-          {cancelButton}
+          {secondaryButton}
           <Button onClick={() => setStep("code")} type="button">
             Continue
           </Button>
@@ -286,7 +282,7 @@ export function TotpEnrollmentPanel({
             </Button>
           }
         >
-          {cancelButton}
+          {secondaryButton}
           <Button onClick={() => setStep("code")} type="button">
             Continue
           </Button>
