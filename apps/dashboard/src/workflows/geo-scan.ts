@@ -8,12 +8,14 @@ import {
 import { geoScanWorkflowPayloadSchema } from "@notra/geo-core/schemas/geo";
 import type {
   GeoScanBatchOutcome,
+  GeoScanFailureMetadata,
   GeoScanProjectContext,
   GeoScanProjectPlan,
   GeoScanProjectTotals,
   GeoScanResult,
 } from "@notra/geo-core/types/geo";
 import {
+  classifyGeoScanExecutionFailure,
   chunkGeoScanItems,
   describeGeoScanFailure,
 } from "@notra/geo-core/utils/geo-scan";
@@ -157,12 +159,14 @@ async function finalizeProjectRun(
   options: {
     retried: boolean;
     failureReason?: string;
+    failure?: GeoScanFailureMetadata;
     retentionDays?: LogRetentionDays;
   }
 ): Promise<void> {
   await finalizeGeoScanProjectStep(plan.context, totals, status, claimedAt, {
     retried: options.retried,
     ...(options.failureReason ? { failureReason: options.failureReason } : {}),
+    ...(options.failure ? { failure: options.failure } : {}),
   });
   const { context } = plan;
   if (status === "completed" && totals.checks > 0) {
@@ -308,6 +312,7 @@ async function runGeoScanProjectRun(
     await finalizeProjectRun(plan, totals, "failed", state.claimedAt, {
       retried: options.retried,
       failureReason: describeGeoScanFailure(error),
+      failure: classifyGeoScanExecutionFailure(error),
       ...(retentionDays ? { retentionDays } : {}),
     });
     return { totals, attempted, noSuccessfulChecks: totals.checks === 0 };

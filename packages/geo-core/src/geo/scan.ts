@@ -56,6 +56,7 @@ import type {
   GeoModelGateway,
   GeoPromptDefinition,
   GeoScanBatchOutcome,
+  GeoScanFailureMetadata,
   GeoScanPlannedSequence,
   GeoScanPlannedTask,
   GeoScanProjectContext,
@@ -102,6 +103,7 @@ import {
 } from "../utils/geo-scan";
 import {
   geoScanPlanSnapshot,
+  geoScanPlanSummary,
   geoScanSequenceTasks,
 } from "../utils/geo-scan-plan";
 import { withGeoTiming } from "../utils/geo-timing";
@@ -1167,11 +1169,15 @@ const buildGeoScanProjectPlan = Effect.fn("geo.buildScanProjectPlan")(
       engines,
     };
     const planned: GeoScanProjectPlanResult = { status: "planned", plan };
+    const planSnapshot = geoScanPlanSnapshot(plan);
     yield* Effect.tryPromise({
       try: () =>
         db
           .update(geoScans)
-          .set({ plan: geoScanPlanSnapshot(plan) })
+          .set({
+            plan: planSnapshot,
+            planSummary: geoScanPlanSummary(planSnapshot),
+          })
           .where(
             and(
               eq(geoScans.id, scanId),
@@ -1476,7 +1482,8 @@ export const finalizeGeoScanProject = Effect.fn("geo.finalizeScanProject")(
     context: GeoScanProjectContext,
     totals: GeoScanProjectTotals,
     status: "completed" | "failed",
-    claimToken: string
+    claimToken: string,
+    failure?: GeoScanFailureMetadata
   ) {
     const billing = yield* GeoContentBillingService;
     const claimedAt = yield* parseGeoClaimToken(claimToken).pipe(
@@ -1535,7 +1542,8 @@ export const finalizeGeoScanProject = Effect.fn("geo.finalizeScanProject")(
     yield* finishGeoScanRow(
       { organizationId: context.organizationId, projectId: context.projectId },
       context.scanId,
-      status
+      status,
+      failure
     ).pipe(
       geoSkip("scan row finish failed", {
         event: "geo.scan.stamp_failed",

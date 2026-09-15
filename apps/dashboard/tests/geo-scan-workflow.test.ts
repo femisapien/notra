@@ -364,7 +364,13 @@ describe("GEO scan workflow orchestration", () => {
       return new Promise((resolve, reject) => {
         releases.push(() => {
           if (index === 2) {
-            reject(new Error("Engine unavailable"));
+            reject(
+              Object.assign(new Error("Engine unavailable"), {
+                _tag: "GeoScanError",
+                name: "GeoScanError",
+                timedOut: true,
+              })
+            );
             return;
           }
           resolve({
@@ -404,7 +410,16 @@ describe("GEO scan workflow orchestration", () => {
       }),
       "failed",
       plan.claimedAt,
-      { retried: false, failureReason: "Error" }
+      {
+        retried: false,
+        failureReason: "GeoScanError",
+        failure: {
+          errorCode: "geo_scan_error",
+          errorMessage: "Engine unavailable",
+          failedStage: "execution",
+          retryable: true,
+        },
+      }
     );
     expect(appendLog).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -413,7 +428,7 @@ describe("GEO scan workflow orchestration", () => {
         integrationType: "geo",
         title: "GEO scan failed for Notra",
         status: "failed",
-        errorMessage: "Error",
+        errorMessage: "GeoScanError",
       })
     );
   });
@@ -481,7 +496,16 @@ describe("GEO scan workflow orchestration", () => {
       },
       "failed",
       plan.claimedAt,
-      { retried: false, failureReason: "Error" }
+      {
+        retried: false,
+        failureReason: "Error",
+        failure: {
+          errorCode: "scan_execution_failed",
+          errorMessage: "The scan could not be completed.",
+          failedStage: "execution",
+          retryable: null,
+        },
+      }
     );
     expect(sequenceBatch).not.toHaveBeenCalled();
     expect(sleep).not.toHaveBeenCalled();
@@ -641,7 +665,16 @@ describe("GEO scan workflow orchestration", () => {
       expect.objectContaining({ checks: 2 }),
       "failed",
       plan.claimedAt,
-      { retried: false, failureReason: "Error" }
+      {
+        retried: false,
+        failureReason: "Error",
+        failure: {
+          errorCode: "scan_execution_failed",
+          errorMessage: "The scan could not be completed.",
+          failedStage: "execution",
+          retryable: null,
+        },
+      }
     );
     expect(appendLog).toHaveBeenCalledTimes(1);
   });
