@@ -5,16 +5,11 @@ import { getWorkOS } from "@workos-inc/authkit-nextjs";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import {
-  MFA_ERROR_CODES,
-  MFA_RECOVERY_COOKIE,
-  MFA_RECOVERY_COOKIE_MAX_AGE_SECONDS,
-  TOTP_FACTOR_TYPE,
-} from "@/constants/security";
+import { MFA_ERROR_CODES, TOTP_FACTOR_TYPE } from "@/constants/security";
 import { clearBackupCodes } from "@/lib/auth/backup-codes";
 import { WorkOSAuthError } from "@/lib/auth/errors";
 import { clearFactorLabels } from "@/lib/auth/factor-labels";
-import { storeShortLivedCookie } from "@/lib/auth/short-lived-cookie";
+import { storeMfaAttempt } from "@/lib/auth/mfa-cookies";
 import { createTotpFactor } from "@/lib/auth/workos-mfa";
 import type { WorkOSErrorInfo } from "@/types/auth/workos-error";
 
@@ -32,6 +27,19 @@ const createMfaChallenge = Effect.fn("auth.mfa.createChallenge")(function* (
   );
   return challenge.id;
 });
+
+/**
+ * Binds the browser to this attempt: the challenge form can fall back to a
+ * backup code and verification is rate-limited per account, without the
+ * client ever handling the user's identity.
+ */
+const rememberAttempt = (
+  workosUserId: string,
+  authenticationChallengeId: string
+) =>
+  Effect.promise(() =>
+    storeMfaAttempt({ workosUserId, authenticationChallengeId })
+  );
 
 async function forgetFactorState(workosUserId: string) {
   const localUser = await db.query.users.findFirst({
@@ -75,15 +83,7 @@ export const resolveMfaFlow = Effect.fn("auth.mfa.resolveFlow")(function* (
 
     const authenticationChallengeId = yield* createMfaChallenge(factor.id);
     if (info.userId) {
-      // Lets the challenge form fall back to a backup code without the
-      // client ever handling the user's identity.
-      yield* Effect.promise(() =>
-        storeShortLivedCookie(
-          MFA_RECOVERY_COOKIE,
-          info.userId ?? "",
-          MFA_RECOVERY_COOKIE_MAX_AGE_SECONDS
-        )
-      );
+      yield* rememberAttempt(info.userId, authenticationChallengeId);
     }
     const result: AuthFlowResult = {
       status: "mfa-required",
@@ -103,6 +103,7 @@ export const resolveMfaFlow = Effect.fn("auth.mfa.resolveFlow")(function* (
     const enrollment = yield* tryWorkOS(() =>
       createTotpFactor(userId, resolvedEmail)
     );
+    yield* rememberAttempt(userId, enrollment.authenticationChallengeId);
     const result: AuthFlowResult = {
       status: "mfa-enrollment-required",
       pendingAuthenticationToken,

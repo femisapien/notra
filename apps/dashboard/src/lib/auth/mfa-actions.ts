@@ -18,7 +18,7 @@ import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import { ANALYTICS_AUTH_METHODS } from "@/constants/analytics-events";
-import { MFA_RECOVERY_COOKIE, TOTP_FACTOR_TYPE } from "@/constants/security";
+import { TOTP_FACTOR_TYPE } from "@/constants/security";
 import {
   completeAuthentication,
   getWorkOSClientId,
@@ -33,19 +33,50 @@ import {
   hasUnusedBackupCode,
   replaceBackupCodes,
 } from "@/lib/auth/backup-codes";
-import { UserSyncError } from "@/lib/auth/errors";
 import { clearFactorLabels, setFactorLabel } from "@/lib/auth/factor-labels";
+import { clearMfaCookies, readMfaAttempt } from "@/lib/auth/mfa-cookies";
 import { authenticateResolvingOrgSelection } from "@/lib/auth/org-selection";
-import {
-  clearShortLivedCookie,
-  readShortLivedCookie,
-} from "@/lib/auth/short-lived-cookie";
 import { readWorkOSError } from "@/lib/auth/workos-error";
+import type { MfaAttempt } from "@/types/auth/mfa-cookies";
 import { isRateLimited, ratelimit } from "@/utils/ratelimit";
 
 const RATE_LIMITED_MESSAGE = "Too many attempts. Please try again shortly.";
+const ATTEMPT_EXPIRED_MESSAGE =
+  "This sign-in attempt expired. Please start again.";
 const BACKUP_CODE_REJECTED_MESSAGE =
   "That backup code isn't valid or was already used.";
+
+/**
+ * Every password attempt mints a fresh challenge, so limiting by challenge id
+ * alone would hand out a new guess budget per attempt. The attempt cookie
+ * adds a stable per-account key on top.
+ */
+async function isMfaVerifyRateLimited(
+  authenticationChallengeId: string,
+  attempt: MfaAttempt | null
+) {
+  if (await isRateLimited(ratelimit.mfaVerify, authenticationChallengeId)) {
+    return true;
+  }
+  return attempt
+    ? isRateLimited(ratelimit.mfaVerify, `user:${attempt.workosUserId}`)
+    : false;
+}
+
+/**
+ * Best-effort bookkeeping after the session already exists. A database
+ * failure must not report the sign-in as failed, so it is logged and the
+ * user can regenerate or rename from settings.
+ */
+const attemptAfterSignIn = <T>(run: () => Promise<T>, what: string) =>
+  Effect.tryPromise(run).pipe(
+    Effect.catch((error) =>
+      Effect.logWarning(`MFA sign-in succeeded but ${what} failed`).pipe(
+        Effect.annotateLogs({ error: String(error.cause) }),
+        Effect.as<T | null>(null)
+      )
+    )
+  );
 
 export async function verifyMfaCodeAction(
   rawInput: VerifyMfaCodeInput
@@ -59,11 +90,9 @@ export async function verifyMfaCodeAction(
     };
   }
 
+  const attempt = await readMfaAttempt();
   if (
-    await isRateLimited(
-      ratelimit.mfaVerify,
-      parsed.data.authenticationChallengeId
-    )
+    await isMfaVerifyRateLimited(parsed.data.authenticationChallengeId, attempt)
   ) {
     return { status: "error", message: RATE_LIMITED_MESSAGE };
   }
@@ -85,37 +114,38 @@ export async function verifyMfaCodeAction(
         parsed.data.returnTo,
         POSTHOG_EVENTS.MFA_VERIFIED
       );
+      yield* Effect.promise(clearMfaCookies);
 
+      // The session is live from here on: nothing below may turn the result
+      // into an error, or the client would show a failure for a signed-in user.
       const factorId = parsed.data.factorLabel?.factorId;
       const factorName = parsed.data.factorLabel?.name;
       if (factorId && factorName) {
-        const factors = yield* tryWorkOSAuth(() =>
-          getWorkOS().multiFactorAuth.listUserAuthFactors({
-            userId: response.user.id,
-          })
-        );
-        if (factors.data.some((factor) => factor.id === factorId)) {
-          yield* Effect.promise(() =>
-            setFactorLabel(session.localUserId, factorId, factorName)
+        yield* attemptAfterSignIn(async () => {
+          const factors = await getWorkOS().multiFactorAuth.listUserAuthFactors(
+            { userId: response.user.id }
           );
-        }
+          if (factors.data.some((factor) => factor.id === factorId)) {
+            await setFactorLabel(session.localUserId, factorId, factorName);
+          }
+        }, "saving the factor name");
       }
 
-      const alreadyHasCodes = yield* Effect.promise(() =>
-        hasBackupCodes(session.localUserId)
+      const alreadyHasCodes = yield* attemptAfterSignIn(
+        () => hasBackupCodes(session.localUserId),
+        "checking backup codes"
       );
-      if (alreadyHasCodes) {
+      if (alreadyHasCodes !== false) {
         return signedIn(session);
       }
 
-      const backupCodes = yield* Effect.tryPromise({
-        try: () => replaceBackupCodes(session.localUserId),
-        catch: (cause) =>
-          new UserSyncError({
-            message: "Failed to generate backup codes",
-            cause,
-          }),
-      });
+      const backupCodes = yield* attemptAfterSignIn(
+        () => replaceBackupCodes(session.localUserId),
+        "issuing backup codes"
+      );
+      if (!backupCodes) {
+        return signedIn(session);
+      }
       return {
         status: "enrolled" as const,
         redirectTo: session.redirectTo,
@@ -136,13 +166,17 @@ export async function redeemBackupCodeAction(
     };
   }
 
-  const workosUserId = await readShortLivedCookie(MFA_RECOVERY_COOKIE);
-  if (!workosUserId) {
-    return {
-      status: "error",
-      message: "This sign-in attempt expired. Please start again.",
-    };
+  // The cookie is browser-wide, so a second attempt in another tab replaces
+  // it. Requiring the challenge shown on screen keeps the code from being
+  // checked against, and the factors removed from, a different account.
+  const attempt = await readMfaAttempt();
+  if (
+    !attempt ||
+    attempt.authenticationChallengeId !== parsed.data.authenticationChallengeId
+  ) {
+    return { status: "error", message: ATTEMPT_EXPIRED_MESSAGE };
   }
+  const { workosUserId } = attempt;
 
   if (await isRateLimited(ratelimit.backupCode, workosUserId)) {
     return { status: "error", message: RATE_LIMITED_MESSAGE };
@@ -188,7 +222,7 @@ export async function redeemBackupCodeAction(
 
       yield* Effect.promise(() => clearBackupCodes(localUser.id));
       yield* Effect.promise(() => clearFactorLabels(localUser.id));
-      yield* Effect.promise(() => clearShortLivedCookie(MFA_RECOVERY_COOKIE));
+      yield* Effect.promise(clearMfaCookies);
       yield* Effect.promise(() =>
         trackAuthEvent(
           POSTHOG_EVENTS.MFA_BACKUP_CODE_USED,

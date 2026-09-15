@@ -57,6 +57,17 @@ const tryDb = <T>(run: () => Promise<T>, message: string) =>
     catch: (cause) => new ActionFailure({ message, cause }),
   });
 
+/** Runs a write that must not fail the action; `null` means it did not happen. */
+const attemptDb = <T>(run: () => Promise<T>) =>
+  Effect.tryPromise(run).pipe(
+    Effect.catch((error) =>
+      Effect.logWarning("Security bookkeeping failed after enrollment").pipe(
+        Effect.annotateLogs({ error: String(error.cause) }),
+        Effect.as<T | null>(null)
+      )
+    )
+  );
+
 const enforceRateLimit = (limiter: Ratelimit, key: string) =>
   Effect.promise(() => isRateLimited(limiter, key)).pipe(
     Effect.andThen((limited) =>
@@ -168,10 +179,9 @@ export async function verifyTotpEnrollmentAction(
         verifyTotpEnrollmentInputSchema,
         rawInput
       );
-      yield* enforceRateLimit(
-        ratelimit.mfaVerify,
-        input.authenticationChallengeId
-      );
+      // Keyed by account, not by challenge: restarting the setup mints a new
+      // challenge and must not hand out a fresh guess budget.
+      yield* enforceRateLimit(ratelimit.mfaVerify, context.localUserId);
 
       const verification = yield* tryWorkOS(() =>
         getWorkOS().multiFactorAuth.verifyChallenge({
@@ -188,29 +198,43 @@ export async function verifyTotpEnrollmentAction(
         );
       }
 
+      // The factor is live from here on, so nothing below may fail the
+      // action: the client would keep the setup in its unverified state and
+      // delete the working factor on cleanup. Problems become a warning and
+      // the user can rename or regenerate from settings.
+      const warnings: string[] = [];
       if (input.name) {
-        yield* tryDb(
-          () =>
-            setFactorLabel(
-              context.localUserId,
-              verification.challenge.authenticationFactorId,
-              input.name ?? ""
-            ),
-          "Two-factor is on, but the name couldn't be saved."
+        const saved = yield* attemptDb(() =>
+          setFactorLabel(
+            context.localUserId,
+            verification.challenge.authenticationFactorId,
+            input.name ?? ""
+          )
+        );
+        if (saved === null) {
+          warnings.push("the name couldn't be saved");
+        }
+      }
+      const backupCodes = yield* attemptDb(() =>
+        replaceBackupCodes(context.localUserId)
+      );
+      if (backupCodes === null) {
+        warnings.push(
+          "backup codes couldn't be generated. Regenerate them from settings"
         );
       }
-
-      // The factor is live from here on. If issuing codes fails the user
-      // still ends up with 2FA on and can regenerate from settings.
-      const backupCodes = yield* tryDb(
-        () => replaceBackupCodes(context.localUserId),
-        "Two-factor is on, but backup codes couldn't be generated. Regenerate them from settings."
-      );
       yield* trackSecurityEvent(
         POSTHOG_EVENTS.MFA_FACTOR_ENROLLED,
         context.localUserId
       );
-      return { verified: true as const, backupCodes };
+      return {
+        verified: true as const,
+        backupCodes,
+        warning:
+          warnings.length > 0
+            ? `Two-factor is on, but ${warnings.join(" and ")}.`
+            : null,
+      };
     })
   );
 }

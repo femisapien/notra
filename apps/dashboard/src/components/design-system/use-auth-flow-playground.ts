@@ -261,7 +261,7 @@ export function useAuthFlowPlayground() {
     input: RedeemBackupCodeInput
   ): Promise<RedeemBackupCodeResult> {
     await wait(SIMULATED_LATENCY_MS);
-    if (!pending) {
+    if (!pending || pending.challengeId !== input.authenticationChallengeId) {
       return {
         status: "error",
         message: "This sign-in attempt expired. Please start again.",

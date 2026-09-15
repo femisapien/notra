@@ -98,9 +98,11 @@ export function MfaChallengeForm({
       return;
     }
     const isCurrent = beginRequest();
-    const result = await redeemBackupCode({ code: backupCode, returnTo }).catch(
-      () => null
-    );
+    const result = await redeemBackupCode({
+      authenticationChallengeId: step.authenticationChallengeId,
+      code: backupCode,
+      returnTo,
+    }).catch(() => null);
     if (!isCurrent()) {
       return;
     }

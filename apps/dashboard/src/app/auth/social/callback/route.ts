@@ -6,12 +6,14 @@ import type { NextRequest } from "next/server";
 
 import {
   LOGIN_ERROR_KEYS,
-  LOGIN_MFA_QUERY_KEYS,
+  LOGIN_MFA_QUERY_KEY,
+  LOGIN_MFA_QUERY_VALUE,
   MFA_ERROR_CODES,
 } from "@/constants/security";
 import { SOCIAL_AUTH_STATE_COOKIE } from "@/constants/social-auth";
 import { UserSyncError, WorkOSAuthError } from "@/lib/auth/errors";
 import { resolveMfaFlow } from "@/lib/auth/mfa";
+import { storePendingMfaChallenge } from "@/lib/auth/mfa-cookies";
 import { authenticateResolvingOrgSelection } from "@/lib/auth/org-selection";
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
 import { syncAuthenticatedUser } from "@/lib/auth/sync";
@@ -153,14 +155,17 @@ export async function GET(request: NextRequest) {
   }
 
   if (outcome.kind === "mfa-required") {
+    // The pending token and challenge are credentials: they travel in an
+    // httpOnly cookie, never in the URL where history and logs would keep them.
+    await storePendingMfaChallenge({
+      pendingAuthenticationToken: outcome.pendingAuthenticationToken ?? "",
+      authenticationChallengeId: outcome.authenticationChallengeId ?? "",
+      email: outcome.email ?? "",
+    });
     const params = new URLSearchParams({
-      [LOGIN_MFA_QUERY_KEYS.token]: outcome.pendingAuthenticationToken ?? "",
-      [LOGIN_MFA_QUERY_KEYS.challenge]: outcome.authenticationChallengeId ?? "",
+      [LOGIN_MFA_QUERY_KEY]: LOGIN_MFA_QUERY_VALUE,
       returnTo,
     });
-    if (outcome.email) {
-      params.set("email", outcome.email);
-    }
     redirect(`/login?${params.toString()}`);
   }
 

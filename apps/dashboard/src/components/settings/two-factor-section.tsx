@@ -103,8 +103,12 @@ export function TwoFactorSection({
     }
 
     setEnrollment({ ...enrollment, kind: "verified" });
-    toast.success("Two-factor authentication is on");
-    return { ok: true, backupCodes: result.data.backupCodes };
+    if (result.data.warning) {
+      toast.warning(result.data.warning);
+    } else {
+      toast.success("Two-factor authentication is on");
+    }
+    return { ok: true, backupCodes: result.data.backupCodes ?? undefined };
   }
 
   async function finishEnrollment() {
