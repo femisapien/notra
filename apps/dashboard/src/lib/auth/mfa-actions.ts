@@ -5,12 +5,14 @@ import { users } from "@notra/db/schema";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
 import {
   redeemBackupCodeInputSchema,
+  resumeSocialEnrollmentInputSchema,
   verifyMfaCodeInputSchema,
 } from "@notra/schemas/dashboard/auth/mfa";
 import type {
   AuthFlowResult,
   RedeemBackupCodeInput,
   RedeemBackupCodeResult,
+  ResumeSocialEnrollmentInput,
   VerifyMfaCodeInput,
 } from "@notra/schemas/types/dashboard/auth";
 import { getWorkOS } from "@workos-inc/authkit-nextjs";
@@ -29,12 +31,22 @@ import {
 } from "@/lib/auth/auth-flow";
 import {
   clearBackupCodes,
+  consumeBackupCode,
   hasBackupCodes,
-  hasUnusedBackupCode,
   replaceBackupCodes,
 } from "@/lib/auth/backup-codes";
-import { clearFactorLabels, setFactorLabel } from "@/lib/auth/factor-labels";
-import { clearMfaAttemptCookie, readMfaAttempt } from "@/lib/auth/mfa-cookies";
+import {
+  clearFactorLabels,
+  deleteFactorLabel,
+  setFactorLabel,
+} from "@/lib/auth/factor-labels";
+import { beginTotpEnrollment } from "@/lib/auth/mfa";
+import {
+  clearMfaAttemptCookie,
+  clearPendingMfaFlow,
+  readMfaAttempt,
+  readPendingMfaFlow,
+} from "@/lib/auth/mfa-cookies";
 import { authenticateResolvingOrgSelection } from "@/lib/auth/org-selection";
 import { readWorkOSError } from "@/lib/auth/workos-error";
 import type { MfaAttempt } from "@/types/auth/mfa-cookies";
@@ -166,9 +178,10 @@ export async function redeemBackupCodeAction(
     };
   }
 
-  // The cookie is browser-wide, so a second attempt in another tab replaces
-  // it. Requiring the challenge shown on screen keeps the code from being
-  // checked against, and the factors removed from, a different account.
+  // The attempt cookie is signed by the server after WorkOS accepted the
+  // first factor, so it cannot be forged to point at another account. It is
+  // also browser-wide: a second attempt in another tab replaces it, so the
+  // challenge on screen has to match as well.
   const attempt = await readMfaAttempt();
   if (
     !attempt ||
@@ -176,7 +189,7 @@ export async function redeemBackupCodeAction(
   ) {
     return { status: "error", message: ATTEMPT_EXPIRED_MESSAGE };
   }
-  const { workosUserId } = attempt;
+  const { workosUserId, startedAt } = attempt;
 
   if (await isRateLimited(ratelimit.backupCode, workosUserId)) {
     return { status: "error", message: RATE_LIMITED_MESSAGE };
@@ -199,29 +212,43 @@ export async function redeemBackupCodeAction(
         return rejected;
       }
 
-      const matches = yield* Effect.promise(() =>
-        hasUnusedBackupCode(localUser.id, parsed.data.code)
+      // Burns the code first and atomically: a second request with the same
+      // code, or the same code from two tabs, cannot both get this far.
+      const accepted = yield* Effect.promise(() =>
+        consumeBackupCode(localUser.id, parsed.data.code)
       );
-      if (!matches) {
+      if (!accepted) {
         return rejected;
       }
 
+      // Only the factors this attempt was locked out by go away. One that
+      // was enrolled from a signed-in tab after the attempt began stays.
       const factors = yield* tryWorkOSAuth(() =>
         getWorkOS().multiFactorAuth.listUserAuthFactors({
           userId: workosUserId,
         })
       );
+      const totpFactors = factors.data.filter(
+        (factor) => factor.type === TOTP_FACTOR_TYPE
+      );
+      const lockedOutFactors = totpFactors.filter(
+        (factor) => Date.parse(factor.createdAt) <= startedAt
+      );
       yield* Effect.forEach(
-        factors.data.filter((factor) => factor.type === TOTP_FACTOR_TYPE),
+        lockedOutFactors,
         (factor) =>
           tryWorkOSAuth(() =>
             getWorkOS().multiFactorAuth.deleteFactor(factor.id)
+          ).pipe(
+            Effect.andThen(Effect.promise(() => deleteFactorLabel(factor.id)))
           ),
         { discard: true }
       );
 
-      yield* Effect.promise(() => clearBackupCodes(localUser.id));
-      yield* Effect.promise(() => clearFactorLabels(localUser.id));
+      if (lockedOutFactors.length === totpFactors.length) {
+        yield* Effect.promise(() => clearBackupCodes(localUser.id));
+        yield* Effect.promise(() => clearFactorLabels(localUser.id));
+      }
       yield* Effect.promise(clearMfaAttemptCookie);
       yield* Effect.promise(() =>
         trackAuthEvent(
@@ -242,5 +269,53 @@ export async function redeemBackupCodeAction(
         })
       )
     )
+  );
+}
+
+/**
+ * Finishes a social sign-in that WorkOS answered with `mfa_enrollment`. The
+ * callback could only hand over the pending token, so the factor (and its
+ * QR code, too large for a cookie) is created here once the page is up.
+ */
+export async function resumeSocialEnrollmentAction(
+  rawInput: ResumeSocialEnrollmentInput
+): Promise<AuthFlowResult> {
+  const parsed = resumeSocialEnrollmentInputSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return { status: "error", message: ATTEMPT_EXPIRED_MESSAGE };
+  }
+
+  const flow = await readPendingMfaFlow(parsed.data.flowId);
+  if (flow?.kind !== "enrollment") {
+    return { status: "error", message: ATTEMPT_EXPIRED_MESSAGE };
+  }
+  // Single use: every call mints a factor at WorkOS.
+  await clearPendingMfaFlow(parsed.data.flowId);
+  if (
+    await isRateLimited(ratelimit.signIn, `enrollment:${flow.workosUserId}`)
+  ) {
+    return { status: "error", message: RATE_LIMITED_MESSAGE };
+  }
+
+  return runAuthFlow(
+    flow.email,
+    Effect.gen(function* () {
+      const enrollment = yield* beginTotpEnrollment(
+        flow.workosUserId,
+        flow.email
+      );
+      yield* Effect.promise(() =>
+        trackAuthEvent(POSTHOG_EVENTS.MFA_ENROLLMENT_REQUIRED, {
+          method: ANALYTICS_AUTH_METHODS.UNKNOWN,
+        })
+      );
+      const result: AuthFlowResult = {
+        status: "mfa-enrollment-required",
+        pendingAuthenticationToken: flow.pendingAuthenticationToken,
+        email: flow.email,
+        ...enrollment,
+      };
+      return result;
+    })
   );
 }

@@ -31,6 +31,7 @@ export function AuthPendingStep({
       return (
         <MfaChallengeForm
           onBack={onBack}
+          onFinish={onFinish}
           onRecovered={onRecovered}
           onResult={onResult}
           redeemBackupCode={redeemBackupCode}

@@ -4,15 +4,11 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 
-import {
-  LOGIN_ERROR_KEYS,
-  LOGIN_MFA_QUERY_KEY,
-  MFA_ERROR_CODES,
-} from "@/constants/security";
+import { LOGIN_MFA_QUERY_KEY, MFA_ERROR_CODES } from "@/constants/security";
 import { SOCIAL_AUTH_STATE_COOKIE } from "@/constants/social-auth";
 import { UserSyncError, WorkOSAuthError } from "@/lib/auth/errors";
 import { resolveMfaFlow } from "@/lib/auth/mfa";
-import { storePendingMfaChallenge } from "@/lib/auth/mfa-cookies";
+import { storePendingMfaFlow } from "@/lib/auth/mfa-cookies";
 import { authenticateResolvingOrgSelection } from "@/lib/auth/org-selection";
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
 import { syncAuthenticatedUser } from "@/lib/auth/sync";
@@ -29,6 +25,7 @@ interface SocialCallbackOutcome {
     | "mfa-enrollment-required";
   pendingAuthenticationToken?: string;
   authenticationChallengeId?: string;
+  workosUserId?: string;
   email?: string;
 }
 
@@ -81,11 +78,18 @@ const mapFailure = (error: WorkOSAuthError | UserSyncError) => {
     return Effect.succeed(outcome);
   }
 
-  if (info.code === MFA_ERROR_CODES.ENROLLMENT) {
-    // Enrollment needs a QR code round-trip that does not survive a redirect,
-    // so social sign-ins fall back to the password form for first-time setup.
+  if (
+    info.code === MFA_ERROR_CODES.ENROLLMENT &&
+    info.pendingAuthenticationToken &&
+    info.userId
+  ) {
+    // Social-only accounts have no password to fall back to, so the login
+    // page picks the enrollment up and creates the factor there.
     return Effect.succeed<SocialCallbackOutcome>({
       kind: "mfa-enrollment-required",
+      pendingAuthenticationToken: info.pendingAuthenticationToken,
+      workosUserId: info.userId,
+      email: info.email ?? undefined,
     });
   }
 
@@ -110,6 +114,14 @@ const mapFailure = (error: WorkOSAuthError | UserSyncError) => {
 
   return logFailure(info.message);
 };
+
+function buildMfaLoginUrl(flowId: string, returnTo: string) {
+  const params = new URLSearchParams({
+    [LOGIN_MFA_QUERY_KEY]: flowId,
+    returnTo,
+  });
+  return `/login?${params.toString()}`;
+}
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
@@ -153,23 +165,26 @@ export async function GET(request: NextRequest) {
     redirect(`/login?${params.toString()}`);
   }
 
+  // The pending token and challenge are credentials: they travel in a signed
+  // httpOnly cookie, never in the URL where history and logs would keep them.
   if (outcome.kind === "mfa-required") {
-    // The pending token and challenge are credentials: they travel in an
-    // httpOnly cookie, never in the URL where history and logs would keep them.
-    const flowId = await storePendingMfaChallenge({
+    const flowId = await storePendingMfaFlow({
+      kind: "challenge",
       pendingAuthenticationToken: outcome.pendingAuthenticationToken ?? "",
       authenticationChallengeId: outcome.authenticationChallengeId ?? "",
       email: outcome.email ?? "",
     });
-    const params = new URLSearchParams({
-      [LOGIN_MFA_QUERY_KEY]: flowId,
-      returnTo,
-    });
-    redirect(`/login?${params.toString()}`);
+    redirect(buildMfaLoginUrl(flowId, returnTo));
   }
 
   if (outcome.kind === "mfa-enrollment-required") {
-    redirect(`/login?error=${LOGIN_ERROR_KEYS.MFA_ENROLLMENT_REQUIRED}`);
+    const flowId = await storePendingMfaFlow({
+      kind: "enrollment",
+      pendingAuthenticationToken: outcome.pendingAuthenticationToken ?? "",
+      workosUserId: outcome.workosUserId ?? "",
+      email: outcome.email ?? "",
+    });
+    redirect(buildMfaLoginUrl(flowId, returnTo));
   }
 
   if (outcome.kind === "failed") {

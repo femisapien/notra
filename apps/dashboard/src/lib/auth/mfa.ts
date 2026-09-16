@@ -38,7 +38,11 @@ const rememberAttempt = (
   authenticationChallengeId: string
 ) =>
   Effect.promise(() =>
-    storeMfaAttempt({ workosUserId, authenticationChallengeId })
+    storeMfaAttempt({
+      workosUserId,
+      authenticationChallengeId,
+      startedAt: Date.now(),
+    })
   );
 
 async function forgetFactorState(workosUserId: string) {
@@ -54,6 +58,24 @@ async function forgetFactorState(workosUserId: string) {
     clearFactorLabels(localUser.id),
   ]);
 }
+
+/**
+ * Creates the TOTP factor for a sign-in that WorkOS answered with
+ * `mfa_enrollment`, and binds the browser to its challenge. WorkOS only asks
+ * for enrollment when no factor is live, so anything left from an earlier
+ * factor is stale and would otherwise stop the new backup codes from being
+ * issued after verification.
+ */
+export const beginTotpEnrollment = Effect.fn("auth.mfa.beginEnrollment")(
+  function* (workosUserId: string, email: string) {
+    yield* Effect.promise(() => forgetFactorState(workosUserId));
+    const enrollment = yield* tryWorkOS(() =>
+      createTotpFactor(workosUserId, email)
+    );
+    yield* rememberAttempt(workosUserId, enrollment.authenticationChallengeId);
+    return enrollment;
+  }
+);
 
 /**
  * Turns a WorkOS `mfa_challenge` / `mfa_enrollment` authentication error into
@@ -95,24 +117,12 @@ export const resolveMfaFlow = Effect.fn("auth.mfa.resolveFlow")(function* (
   }
 
   if (info.code === MFA_ERROR_CODES.ENROLLMENT && info.userId) {
-    const userId = info.userId;
-    // WorkOS only asks for enrollment when no factor is live, so anything
-    // left from an earlier factor is stale and would otherwise stop the new
-    // backup codes from being issued after verification.
-    yield* Effect.promise(() => forgetFactorState(userId));
-    const enrollment = yield* tryWorkOS(() =>
-      createTotpFactor(userId, resolvedEmail)
-    );
-    yield* rememberAttempt(userId, enrollment.authenticationChallengeId);
+    const enrollment = yield* beginTotpEnrollment(info.userId, resolvedEmail);
     const result: AuthFlowResult = {
       status: "mfa-enrollment-required",
       pendingAuthenticationToken,
-      authenticationChallengeId: enrollment.authenticationChallengeId,
-      factorId: enrollment.factorId,
       email: resolvedEmail,
-      qrCode: enrollment.qrCode,
-      secret: enrollment.secret,
-      otpauthUri: enrollment.otpauthUri,
+      ...enrollment,
     };
     return result;
   }

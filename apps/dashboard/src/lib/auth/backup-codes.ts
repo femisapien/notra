@@ -4,7 +4,7 @@ import { db } from "@notra/db/drizzle";
 import { userBackupCodes } from "@notra/db/schema";
 import { BACKUP_CODE_LENGTH } from "@notra/schemas/constants/dashboard/auth";
 import { normalizeBackupCode } from "@notra/schemas/utils/auth";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { BACKUP_CODE_ALPHABET, BACKUP_CODE_COUNT } from "@/constants/security";
 
@@ -21,10 +21,21 @@ function generateBackupCode(): string {
   return code;
 }
 
+/**
+ * Serializes writes to one user's codes for the rest of the transaction.
+ * Without it two overlapping regenerations each delete the rows they can
+ * see and both insert, leaving the user with two valid sets.
+ */
+const lockBackupCodes = (
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  userId: string
+) => tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${userId}))`);
+
 /** Replaces every existing code for the user and returns the new plaintext set. */
 export async function replaceBackupCodes(userId: string): Promise<string[]> {
   const codes = Array.from({ length: BACKUP_CODE_COUNT }, generateBackupCode);
   await db.transaction(async (tx) => {
+    await lockBackupCodes(tx, userId);
     await tx.delete(userBackupCodes).where(eq(userBackupCodes.userId, userId));
     await tx.insert(userBackupCodes).values(
       codes.map((code) => ({
@@ -62,14 +73,18 @@ export async function hasBackupCodes(userId: string): Promise<boolean> {
   return Boolean(row);
 }
 
-/** True when `code` matches one of the user's unused backup codes. */
-export async function hasUnusedBackupCode(
+/**
+ * Marks `code` as used and reports whether it was an unused code of the
+ * user. A single conditional update, so two requests racing on the same
+ * code cannot both succeed.
+ */
+export async function consumeBackupCode(
   userId: string,
   code: string
 ): Promise<boolean> {
-  const [row] = await db
-    .select({ id: userBackupCodes.id })
-    .from(userBackupCodes)
+  const rows = await db
+    .update(userBackupCodes)
+    .set({ usedAt: new Date() })
     .where(
       and(
         eq(userBackupCodes.userId, userId),
@@ -77,6 +92,6 @@ export async function hasUnusedBackupCode(
         isNull(userBackupCodes.usedAt)
       )
     )
-    .limit(1);
-  return Boolean(row);
+    .returning({ id: userBackupCodes.id });
+  return rows.length > 0;
 }

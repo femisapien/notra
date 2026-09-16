@@ -13,7 +13,10 @@ import type {
   TotpEnrollmentSubmission,
   TotpVerifyResult,
 } from "@notra/ui/types/auth";
-import type { BackupCodesOutcome } from "@notra/ui/types/security";
+import type {
+  BackupCodesOutcome,
+  SecurityActionOutcome,
+} from "@notra/ui/types/security";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -334,8 +337,37 @@ export function useAuthFlowPlayground() {
     return { ok: true, backupCodes: codes };
   }
 
-  async function regenerateBackupCodes(): Promise<BackupCodesOutcome> {
+  /** Stand-in for the server's step-up: a live code or an unused backup code. */
+  async function confirmSecondFactor(
+    confirmationCode: string
+  ): Promise<SecurityActionOutcome> {
+    const normalized = normalizeBackupCode(confirmationCode);
+    if (backupCodes.includes(normalized)) {
+      setBackupCodes((current) => current.filter((c) => c !== normalized));
+      appendLog("confirmSecondFactor → backup code accepted");
+      return { ok: true };
+    }
+    const secret = accountRef.current.totpSecret;
+    if (secret && (await verifyTotpCode(secret, confirmationCode))) {
+      appendLog("confirmSecondFactor → authenticator code accepted");
+      return { ok: true };
+    }
+    appendLog("confirmSecondFactor → rejected");
+    return {
+      ok: false,
+      message:
+        "That code didn't work. Enter the code from your authenticator app or an unused backup code.",
+    };
+  }
+
+  async function regenerateBackupCodes(
+    confirmationCode: string
+  ): Promise<BackupCodesOutcome> {
     await wait(SIMULATED_LATENCY_MS);
+    const confirmation = await confirmSecondFactor(confirmationCode);
+    if (!confirmation.ok) {
+      return confirmation;
+    }
     const codes = randomBackupCodes();
     setBackupCodes(codes);
     appendLog("regenerateBackupCodes → new set issued");
@@ -347,9 +379,17 @@ export function useAuthFlowPlayground() {
     appendLog("deleteFactor → abandoned enrollment removed");
   }
 
-  async function removeFactor(factorId: string) {
+  async function removeFactor(
+    factorId: string,
+    confirmationCode: string
+  ): Promise<SecurityActionOutcome> {
     setRemovingFactorId(factorId);
     await wait(SIMULATED_LATENCY_MS);
+    const confirmation = await confirmSecondFactor(confirmationCode);
+    if (!confirmation.ok) {
+      setRemovingFactorId(null);
+      return confirmation;
+    }
     setAccount((current) => ({
       ...current,
       totpSecret: null,
@@ -360,6 +400,7 @@ export function useAuthFlowPlayground() {
     setRemovingFactorId(null);
     appendLog("deleteFactor → 2FA off");
     toast.success("Two-factor authentication turned off");
+    return { ok: true };
   }
 
   const factors = account.totpSecret

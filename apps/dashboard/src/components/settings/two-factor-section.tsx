@@ -6,8 +6,10 @@ import type {
   TotpEnrollmentSubmission,
   TotpVerifyResult,
 } from "@notra/ui/types/auth";
-import type { BackupCodesOutcome } from "@notra/ui/types/security";
-import { useMutation } from "@tanstack/react-query";
+import type {
+  BackupCodesOutcome,
+  SecurityActionOutcome,
+} from "@notra/ui/types/security";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -33,56 +35,64 @@ export function TwoFactorSection({
     enrollmentRef.current = enrollment;
   }, [enrollment]);
 
+  const [isStartingEnrollment, setIsStartingEnrollment] = useState(false);
+  const [removingFactorId, setRemovingFactorId] = useState<string | null>(null);
+
   // Walking away from an unverified enrollment would leave a dangling factor.
   useEffect(() => {
     return () => {
       const current = enrollmentRef.current;
       if (current?.kind === "scanning") {
         authClient.security
-          .removeAuthFactor({ factorId: current.factorId })
+          .discardTotpEnrollment({ factorId: current.factorId })
           .catch(() => undefined);
       }
     };
   }, []);
 
-  // react-doctor-disable-next-line query-mutation-missing-invalidation
-  const startMutation = useMutation({
-    mutationFn: async () => {
+  async function startEnrollment() {
+    setIsStartingEnrollment(true);
+    try {
       const result = await authClient.security.startTotpEnrollment();
       if (result.error) {
-        throw new Error(result.error.message);
+        toast.error(
+          errorMessageOr(
+            result.error.message,
+            "Couldn't start two-factor setup"
+          )
+        );
+        return;
       }
-      return result.data;
-    },
-    onSuccess: (data) => {
-      setEnrollment({ kind: "scanning", ...data });
-    },
-    onError: (error) => {
-      toast.error(
-        errorMessageOr(error.message, "Couldn't start two-factor setup")
-      );
-    },
-  });
+      setEnrollment({ kind: "scanning", ...result.data });
+    } catch {
+      toast.error("Couldn't start two-factor setup");
+    } finally {
+      setIsStartingEnrollment(false);
+    }
+  }
 
-  // react-doctor-disable-next-line query-mutation-missing-invalidation
-  const removeMutation = useMutation({
-    mutationFn: async (factorId: string) => {
-      const result = await authClient.security.removeAuthFactor({ factorId });
+  async function removeFactor(
+    factorId: string,
+    confirmationCode: string
+  ): Promise<SecurityActionOutcome> {
+    setRemovingFactorId(factorId);
+    try {
+      const result = await authClient.security.removeAuthFactor({
+        factorId,
+        confirmationCode,
+      });
       if (result.error) {
-        throw new Error(result.error.message);
+        return { ok: false, message: result.error.message };
       }
-      return result.data;
-    },
-    onSuccess: async () => {
       toast.success("Two-factor authentication turned off");
       await onRefresh();
-    },
-    onError: (error) => {
-      toast.error(
-        errorMessageOr(error.message, "Couldn't remove the authenticator app")
-      );
-    },
-  });
+      return { ok: true };
+    } catch {
+      return { ok: false, message: "Couldn't remove the authenticator app" };
+    } finally {
+      setRemovingFactorId(null);
+    }
+  }
 
   async function verifyEnrollment({
     code,
@@ -93,6 +103,7 @@ export function TwoFactorSection({
     }
 
     const result = await authClient.security.verifyTotpEnrollment({
+      factorId: enrollment.factorId,
       authenticationChallengeId: enrollment.authenticationChallengeId,
       code,
       name: name ?? undefined,
@@ -121,13 +132,17 @@ export function TwoFactorSection({
     setEnrollment(null);
     if (current?.kind === "scanning") {
       authClient.security
-        .removeAuthFactor({ factorId: current.factorId })
+        .discardTotpEnrollment({ factorId: current.factorId })
         .catch(() => undefined);
     }
   }
 
-  async function regenerateBackupCodes(): Promise<BackupCodesOutcome> {
-    const result = await authClient.security.regenerateBackupCodes();
+  async function regenerateBackupCodes(
+    confirmationCode: string
+  ): Promise<BackupCodesOutcome> {
+    const result = await authClient.security.regenerateBackupCodes({
+      confirmationCode,
+    });
     if (result.error) {
       return { ok: false, message: result.error.message };
     }
@@ -143,17 +158,15 @@ export function TwoFactorSection({
           backupCodesRemaining={backupCodesRemaining}
           enrollment={enrollment}
           factors={factors}
-          isStartingEnrollment={startMutation.isPending}
+          isStartingEnrollment={isStartingEnrollment}
           onCancelEnrollment={cancelEnrollment}
           onEnrollmentDone={finishEnrollment}
           onRegenerateBackupCodes={regenerateBackupCodes}
-          onRemoveFactor={(factorId) => removeMutation.mutate(factorId)}
+          onRemoveFactor={removeFactor}
           onRetry={() => onRefresh()}
-          onStartEnrollment={() => startMutation.mutate()}
+          onStartEnrollment={startEnrollment}
           onVerifyEnrollment={verifyEnrollment}
-          removingFactorId={
-            removeMutation.isPending ? removeMutation.variables : null
-          }
+          removingFactorId={removingFactorId}
           status={status}
         />
       </div>

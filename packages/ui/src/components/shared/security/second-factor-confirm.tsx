@@ -1,0 +1,109 @@
+"use client";
+
+import { Loader2Icon } from "lucide-react";
+import { useState } from "react";
+
+import type { SecondFactorConfirmProps } from "../../../types/security";
+import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
+import { Label } from "../../ui/label";
+
+const CONFIRM_ERROR_FALLBACK = "That code didn't work. Please try again.";
+
+/**
+ * Inline prompt for a fresh authenticator or backup code. A signed-in
+ * session alone must not be able to switch two-factor off.
+ */
+export function SecondFactorConfirm({
+  title,
+  description,
+  confirmLabel,
+  destructive = false,
+  onConfirm,
+  onCancel,
+}: SecondFactorConfirmProps) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+
+  async function submit() {
+    if (isPending || code.trim().length === 0) {
+      return;
+    }
+    setError(null);
+    setIsPending(true);
+    const result = await onConfirm(code).catch(() => ({
+      ok: false as const,
+      message: CONFIRM_ERROR_FALLBACK,
+    }));
+    setIsPending(false);
+    if (!result.ok) {
+      setError(result.message || CONFIRM_ERROR_FALLBACK);
+      setCode("");
+    }
+  }
+
+  return (
+    <form
+      aria-busy={isPending}
+      className="grid gap-4 rounded-lg border bg-muted/30 p-4"
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+    >
+      <div className="grid gap-1">
+        <p className="font-medium text-sm">{title}</p>
+        <p className="text-muted-foreground text-sm">{description}</p>
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="second-factor-confirm-code">
+          Authenticator or backup code
+        </Label>
+        <Input
+          aria-describedby={error ? "second-factor-confirm-error" : undefined}
+          aria-invalid={error ? true : undefined}
+          autoCapitalize="off"
+          autoComplete="one-time-code"
+          autoFocus
+          className="font-mono tracking-wider"
+          disabled={isPending}
+          id="second-factor-confirm-code"
+          inputMode="text"
+          onChange={(event) => setCode(event.target.value)}
+          placeholder="123456 or xxxx-xxxx"
+          spellCheck={false}
+          value={code}
+        />
+        {error && (
+          <p
+            className="text-destructive text-xs"
+            id="second-factor-confirm-error"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
+      </div>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button
+          disabled={isPending}
+          onClick={onCancel}
+          type="button"
+          variant="ghost"
+        >
+          Cancel
+        </Button>
+        <Button
+          disabled={isPending || code.trim().length === 0}
+          type="submit"
+          variant={destructive ? "destructive" : "default"}
+        >
+          {isPending && <Loader2Icon className="animate-spin" />}
+          {confirmLabel}
+        </Button>
+      </div>
+    </form>
+  );
+}

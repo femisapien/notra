@@ -12,6 +12,11 @@ export const MFA_ATTEMPT_COOKIE = "notra_mfa_attempt";
  * login page so they never appear in a URL.
  */
 export const MFA_PENDING_COOKIE_PREFIX = "notra_mfa_pending";
+/**
+ * Binds a settings enrollment to the account that started it, so a
+ * challenge from another tab or account cannot be verified against this one.
+ */
+export const TOTP_ENROLLMENT_COOKIE = "notra_totp_enrollment";
 export const MFA_COOKIE_MAX_AGE_SECONDS = 10 * 60;
 
 export const MFA_ERROR_CODES = {
@@ -30,7 +35,3 @@ export const LOGIN_MFA_QUERY_KEY = "mfa";
 export const BACKUP_CODE_COUNT = 10;
 /** Lowercase, no ambiguous characters (0/o, 1/l/i). */
 export const BACKUP_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
-
-export const LOGIN_ERROR_KEYS = {
-  MFA_ENROLLMENT_REQUIRED: "mfa-enrollment-required",
-} as const;

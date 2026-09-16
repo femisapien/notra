@@ -61,12 +61,41 @@ export const redeemBackupCodeInputSchema = z.object({
   returnTo: returnToSchema,
 });
 
+/**
+ * Proof that the caller holds the second factor: a code from the
+ * authenticator app, or one of the backup codes. The server tells them apart.
+ */
+export const secondFactorCodeSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) =>
+      ONE_TIME_CODE_REGEX.test(value) ||
+      BACKUP_CODE_REGEX.test(normalizeBackupCode(value)),
+    "Enter the code from your authenticator app or a backup code"
+  );
+
 export const verifyTotpEnrollmentInputSchema = z.object({
+  factorId: workosIdSchema("Factor"),
   authenticationChallengeId: workosIdSchema("Challenge"),
   code: totpCodeSchema,
   name: factorNameSchema,
 });
 
+export const discardTotpEnrollmentInputSchema = z.object({
+  factorId: workosIdSchema("Factor"),
+});
+
 export const removeAuthFactorInputSchema = z.object({
   factorId: workosIdSchema("Factor"),
+  confirmationCode: secondFactorCodeSchema,
+});
+
+export const regenerateBackupCodesInputSchema = z.object({
+  confirmationCode: secondFactorCodeSchema,
+});
+
+export const resumeSocialEnrollmentInputSchema = z.object({
+  flowId: z.uuid("Sign-in session is missing"),
+  returnTo: returnToSchema,
 });

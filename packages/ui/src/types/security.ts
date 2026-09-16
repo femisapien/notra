@@ -13,6 +13,20 @@ export type BackupCodesOutcome =
   | { ok: true; codes: string[] }
   | { ok: false; message: string };
 
+export type SecurityActionOutcome =
+  | { ok: true }
+  | { ok: false; message: string };
+
+/** Asks for the second factor again before a sensitive change. */
+export interface SecondFactorConfirmProps {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  destructive?: boolean;
+  onConfirm: (code: string) => Promise<SecurityActionOutcome>;
+  onCancel: () => void;
+}
+
 export interface BackupCodesPanelProps {
   codes: string[];
   issuer?: string;
@@ -45,13 +59,16 @@ export interface StepTransitionProps {
 export interface BackupCodesRowProps {
   remaining: number | null;
   accountLabel?: string;
-  onRegenerate: () => Promise<BackupCodesOutcome>;
+  onRegenerate: (confirmationCode: string) => Promise<BackupCodesOutcome>;
 }
 
 export interface FactorListProps {
   factors: TotpFactorSummary[];
   removingFactorId: string | null;
-  onRemoveFactor: (factorId: string) => void;
+  onRemoveFactor: (
+    factorId: string,
+    confirmationCode: string
+  ) => Promise<SecurityActionOutcome>;
 }
 
 export interface TwoFactorSettingsProps {
@@ -68,7 +85,13 @@ export interface TwoFactorSettingsProps {
   ) => Promise<TotpVerifyResult>;
   onCancelEnrollment: () => void;
   onEnrollmentDone: () => void;
-  onRemoveFactor: (factorId: string) => void;
-  onRegenerateBackupCodes: () => Promise<BackupCodesOutcome>;
+  /** Both take a fresh authenticator code or a backup code as proof. */
+  onRemoveFactor: (
+    factorId: string,
+    confirmationCode: string
+  ) => Promise<SecurityActionOutcome>;
+  onRegenerateBackupCodes: (
+    confirmationCode: string
+  ) => Promise<BackupCodesOutcome>;
   onRetry?: () => void;
 }

@@ -22,6 +22,7 @@ import { Button } from "../../ui/button";
 import { Skeleton } from "../../ui/skeleton";
 import { TotpEnrollmentPanel } from "../auth/totp-enrollment-panel";
 import { BackupCodesPanel } from "./backup-codes-panel";
+import { SecondFactorConfirm } from "./second-factor-confirm";
 import { StepTransition } from "./step-transition";
 import { formatSecurityDate } from "./format-security-date";
 import { SecurityLoadError } from "./security-load-error";
@@ -32,23 +33,17 @@ function BackupCodesRow({
   accountLabel,
   onRegenerate,
 }: BackupCodesRowProps) {
-  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [codes, setCodes] = useState<string[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  async function regenerate() {
-    setIsRegenerating(true);
-    setError(null);
-    const result = await onRegenerate().catch(() => ({
-      ok: false as const,
-      message: "Couldn't generate backup codes. Please try again.",
-    }));
-    setIsRegenerating(false);
+  async function regenerate(confirmationCode: string) {
+    const result = await onRegenerate(confirmationCode);
     if (!result.ok) {
-      setError(result.message);
-      return;
+      return result;
     }
+    setIsConfirming(false);
     setCodes(result.codes);
+    return { ok: true as const };
   }
 
   let description = "One-time codes for when your device isn't around.";
@@ -58,40 +53,53 @@ function BackupCodesRow({
     description = "All codes used. Generate a new set.";
   }
 
+  let body: ReactNode = null;
+  let bodyKey = "empty";
+  if (codes) {
+    bodyKey = "codes";
+    body = (
+      <BackupCodesPanel
+        accountLabel={accountLabel}
+        codes={codes}
+        onDone={() => setCodes(null)}
+      />
+    );
+  } else if (isConfirming) {
+    bodyKey = "confirm";
+    body = (
+      <SecondFactorConfirm
+        confirmLabel="Generate new codes"
+        description="Your current codes stop working once new ones are generated. Confirm with your authenticator app or an unused backup code."
+        onCancel={() => setIsConfirming(false)}
+        onConfirm={regenerate}
+        title="Regenerate backup codes?"
+      />
+    );
+  }
+
   return (
     <SecurityMethodRow
       action={
-        codes ? null : (
+        codes || isConfirming ? null : (
           <Button
-            disabled={isRegenerating}
-            onClick={regenerate}
+            onClick={() => setIsConfirming(true)}
             size="sm"
             type="button"
             variant="outline"
           >
-            {isRegenerating ? (
-              <Loader2Icon className="animate-spin" data-icon="inline-start" />
-            ) : (
-              <HugeiconsIcon
-                data-icon="inline-start"
-                icon={ArrowReloadHorizontalIcon}
-              />
-            )}
+            <HugeiconsIcon
+              data-icon="inline-start"
+              icon={ArrowReloadHorizontalIcon}
+            />
             Regenerate
           </Button>
         )
       }
-      description={error ?? description}
+      description={description}
       icon={SquareLockPasswordIcon}
       title="Backup codes"
     >
-      {codes ? (
-        <BackupCodesPanel
-          accountLabel={accountLabel}
-          codes={codes}
-          onDone={() => setCodes(null)}
-        />
-      ) : null}
+      {body && <StepTransition stepKey={bodyKey}>{body}</StepTransition>}
     </SecurityMethodRow>
   );
 }
@@ -101,16 +109,28 @@ function FactorList({
   removingFactorId,
   onRemoveFactor,
 }: FactorListProps) {
+  const [confirmingFactorId, setConfirmingFactorId] = useState<string | null>(
+    null
+  );
+
+  async function remove(factorId: string, confirmationCode: string) {
+    const result = await onRemoveFactor(factorId, confirmationCode);
+    if (result.ok) {
+      setConfirmingFactorId(null);
+    }
+    return result;
+  }
+
   return (
     <ul className="divide-y rounded-lg border bg-muted/30">
       {factors.map((factor) => {
         const addedOn = formatSecurityDate(factor.createdAt);
         const isRemoving = removingFactorId === factor.id;
+        const isConfirming = confirmingFactorId === factor.id;
+        const factorName = factor.name ?? factor.issuer ?? "Authenticator app";
         return (
-          <li
-            className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"
-            key={factor.id}
-          >
+          <li className="grid gap-3 px-3 py-2.5 text-sm" key={factor.id}>
+            <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <HugeiconsIcon
                 className="shrink-0 text-muted-foreground"
@@ -118,9 +138,7 @@ function FactorList({
                 size={16}
               />
               <div className="min-w-0">
-                <p className="truncate font-medium">
-                  {factor.name ?? factor.issuer ?? "Authenticator app"}
-                </p>
+                <p className="truncate font-medium">{factorName}</p>
                 {addedOn && (
                   <p className="text-muted-foreground text-xs">
                     Added {addedOn}
@@ -129,8 +147,8 @@ function FactorList({
               </div>
             </div>
             <Button
-              disabled={isRemoving}
-              onClick={() => onRemoveFactor(factor.id)}
+              disabled={isRemoving || isConfirming}
+              onClick={() => setConfirmingFactorId(factor.id)}
               size="sm"
               type="button"
               variant="outline"
@@ -142,6 +160,17 @@ function FactorList({
               )}
               Remove
             </Button>
+            </div>
+            {isConfirming && (
+              <SecondFactorConfirm
+                confirmLabel="Remove authenticator"
+                description={`Signing in will no longer ask for a code from ${factorName}. Confirm with a code from your authenticator app or an unused backup code.`}
+                destructive
+                onCancel={() => setConfirmingFactorId(null)}
+                onConfirm={(code) => remove(factor.id, code)}
+                title="Turn off two-factor authentication?"
+              />
+            )}
           </li>
         );
       })}

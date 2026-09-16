@@ -2,37 +2,42 @@ import type { PendingAuthStep } from "@notra/schemas/types/dashboard/auth";
 
 import { LoginErrorTracker } from "@/components/auth/login-error-tracker";
 import { LoginForm } from "@/components/auth/login-form";
-import { LOGIN_ERROR_KEYS, LOGIN_MFA_QUERY_KEY } from "@/constants/security";
-import { readPendingMfaChallenge } from "@/lib/auth/mfa-cookies";
-import type { LoginPageProps } from "@/types/auth/login-page";
+import { SocialEnrollmentResume } from "@/components/auth/social-enrollment-resume";
+import { LOGIN_MFA_QUERY_KEY } from "@/constants/security";
+import { readPendingMfaFlow } from "@/lib/auth/mfa-cookies";
+import type { LoginPageProps, LoginPageStart } from "@/types/auth/login-page";
 
 const ERROR_MESSAGES: Record<string, string> = {
   "social-sign-in-failed": "Social sign-in failed. Please try again.",
   "external-login-failed":
     "Authorization could not be completed. Please try again.",
-  [LOGIN_ERROR_KEYS.MFA_ENROLLMENT_REQUIRED]:
-    "Your organization requires two-factor authentication. Sign in with your email and password to set it up.",
 };
 
-async function resolveInitialPending(
+/** Which screen the page opens on, from the social handoff or the URL. */
+async function resolveStart(
   mfa: string | undefined,
   verify: string | undefined,
   email: string | undefined
-): Promise<PendingAuthStep | undefined> {
+): Promise<LoginPageStart> {
   if (mfa) {
-    const challenge = await readPendingMfaChallenge(mfa);
-    if (challenge) {
-      return { status: "mfa-required", ...challenge };
+    const flow = await readPendingMfaFlow(mfa);
+    if (flow?.kind === "challenge") {
+      const { kind: _kind, ...challenge } = flow;
+      return { pending: { status: "mfa-required", ...challenge } };
+    }
+    if (flow?.kind === "enrollment") {
+      return { resumeEnrollmentFlowId: mfa };
     }
   }
   if (verify) {
-    return {
+    const pending: PendingAuthStep = {
       status: "verification-required",
       pendingAuthenticationToken: verify,
       email: email ?? "",
     };
+    return { pending };
   }
-  return undefined;
+  return {};
 }
 
 export default async function Login({ searchParams }: LoginPageProps) {
@@ -50,16 +55,23 @@ export default async function Login({ searchParams }: LoginPageProps) {
   const mfa = readParam(LOGIN_MFA_QUERY_KEY);
   const knownErrorKey =
     errorKey && errorKey in ERROR_MESSAGES ? errorKey : undefined;
-  const initialPending = await resolveInitialPending(mfa, verify, email);
+  const start = await resolveStart(mfa, verify, email);
 
   return (
     <div className="mx-auto w-full max-w-md rounded-md p-6 lg:px-8 lg:py-10">
       {knownErrorKey ? <LoginErrorTracker errorCode={knownErrorKey} /> : null}
-      <LoginForm
-        initialError={errorKey ? ERROR_MESSAGES[errorKey] : undefined}
-        initialPending={initialPending}
-        returnTo={returnTo}
-      />
+      {start.resumeEnrollmentFlowId ? (
+        <SocialEnrollmentResume
+          flowId={start.resumeEnrollmentFlowId}
+          returnTo={returnTo}
+        />
+      ) : (
+        <LoginForm
+          initialError={errorKey ? ERROR_MESSAGES[errorKey] : undefined}
+          initialPending={start.pending}
+          returnTo={returnTo}
+        />
+      )}
     </div>
   );
 }

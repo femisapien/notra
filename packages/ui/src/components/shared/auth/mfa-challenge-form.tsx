@@ -16,6 +16,7 @@ import type {
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
+import { BackupCodesPanel } from "../security/backup-codes-panel";
 import { CtaButton } from "../cta-button";
 import { AuthFormError } from "./auth-form-error";
 import { AuthFormHeader } from "./auth-form-header";
@@ -47,6 +48,7 @@ export function MfaChallengeForm({
   step,
   returnTo,
   onResult,
+  onFinish,
   onBack,
   onRecovered,
   verifyMfaCode,
@@ -55,6 +57,10 @@ export function MfaChallengeForm({
   const [mode, setMode] = useState<ChallengeMode>("totp");
   const [code, setCode] = useState("");
   const [backupCode, setBackupCode] = useState("");
+  const [issuedCodes, setIssuedCodes] = useState<{
+    codes: string[];
+    redirectTo: string;
+  } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const requestIdRef = useRef(0);
@@ -85,6 +91,16 @@ export function MfaChallengeForm({
       returnTo,
     }).catch(() => null);
     if (!isCurrent()) {
+      return;
+    }
+    // The account had no backup codes yet, so the server issued a set. Hold
+    // the redirect until the user has had a chance to save them.
+    if (result?.status === "enrolled") {
+      setIsPending(false);
+      setIssuedCodes({
+        codes: result.backupCodes,
+        redirectTo: result.redirectTo,
+      });
       return;
     }
     if (result && onResult(result)) {
@@ -122,6 +138,23 @@ export function MfaChallengeForm({
 
   const backupCodeReady =
     normalizeBackupCode(backupCode).length === BACKUP_CODE_LENGTH;
+
+  if (issuedCodes) {
+    return (
+      <div className="flex w-full flex-col gap-5">
+        <AuthFormHeader
+          description="You're signed in. Save these backup codes now: each one lets you in once if you lose your authenticator app."
+          title="Your backup codes"
+        />
+        <BackupCodesPanel
+          accountLabel={step.email || undefined}
+          codes={issuedCodes.codes}
+          doneLabel="Continue"
+          onDone={() => onFinish(issuedCodes.redirectTo)}
+        />
+      </div>
+    );
+  }
 
   if (mode === "backup") {
     return (

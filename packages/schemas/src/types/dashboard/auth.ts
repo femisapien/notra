@@ -8,8 +8,11 @@ import type {
   verifyEmailCodeInputSchema,
 } from "../../schemas/dashboard/auth/credentials.js";
 import type {
+  discardTotpEnrollmentInputSchema,
   redeemBackupCodeInputSchema,
+  regenerateBackupCodesInputSchema,
   removeAuthFactorInputSchema,
+  resumeSocialEnrollmentInputSchema,
   verifyMfaCodeInputSchema,
   verifyTotpEnrollmentInputSchema,
 } from "../../schemas/dashboard/auth/mfa.js";
@@ -32,7 +35,16 @@ export type StartSocialSignInInput = z.input<
 export type VerifyTotpEnrollmentInput = z.input<
   typeof verifyTotpEnrollmentInputSchema
 >;
+export type DiscardTotpEnrollmentInput = z.input<
+  typeof discardTotpEnrollmentInputSchema
+>;
 export type RemoveAuthFactorInput = z.input<typeof removeAuthFactorInputSchema>;
+export type RegenerateBackupCodesInput = z.input<
+  typeof regenerateBackupCodesInputSchema
+>;
+export type ResumeSocialEnrollmentInput = z.input<
+  typeof resumeSocialEnrollmentInputSchema
+>;
 
 export interface TotpEnrollmentSecrets {
   qrCode: string;
