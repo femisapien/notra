@@ -11,6 +11,7 @@ import {
   HTTP_NOT_FOUND,
   HTTP_PAYMENT_REQUIRED,
   HTTP_SERVER_ERROR_MIN,
+  HTTP_UNAUTHORIZED,
   OPENROUTER_NO_ZDR_ENDPOINT_PATTERN,
   NO_TRAINING_PROVIDER_ERROR_PATTERN,
   RETRYABLE_STATUS_CODES,
@@ -31,6 +32,7 @@ import type {
 import { createModelCallTelemetry } from "@notra/ai/utils/model-call-telemetry";
 import { observeModelStream } from "@notra/ai/utils/observe-model-stream";
 
+import { GatewayUnavailableError } from "./errors";
 import { otherGateway } from "./policy";
 import {
   splitRouterOptions,
@@ -92,7 +94,7 @@ function readIsRetryable(error: unknown): boolean {
 /**
  * Decide whether a failed upstream call may be retried on the other gateway
  * and why. Returns undefined for errors that must surface to the caller
- * (validation errors, aborts, auth errors, ...).
+ * (validation errors, aborts, prompt-level client errors, ...).
  */
 export function classifyUpstreamFailure(
   error: unknown
@@ -103,6 +105,11 @@ export function classifyUpstreamFailure(
   const status = readStatusCode(error);
   if (status === HTTP_PAYMENT_REQUIRED) {
     return "no-credits";
+  }
+  if (status === HTTP_UNAUTHORIZED) {
+    // Rejected credentials (expired/revoked key) fail every model on the
+    // gateway account: try the other gateway instead of surfacing the 401.
+    return "auth-failure";
   }
   if (NO_TRAINING_PROVIDER_ERROR_PATTERN.test(readMessage(error))) {
     return "non-compliant";
@@ -380,7 +387,11 @@ export class RoutedLanguageModel implements LanguageModelV4 {
       if (!fallback) {
         throw error;
       }
-      return await run(fallback, this.buildParams(fallback, options));
+      try {
+        return await run(fallback, this.buildParams(fallback, options));
+      } catch (fallbackError) {
+        throw this.classifyFallbackFailure(fallback, fallbackError);
+      }
     }
   }
 
@@ -436,18 +447,34 @@ export class RoutedLanguageModel implements LanguageModelV4 {
       });
   }
 
-  private async tryFallbackRoute(
+  /**
+   * Record a classified upstream failure so later routes avoid the gateway
+   * (or just the model on it) until the mark expires. Returns whether a mark
+   * was recorded — an unmarked failure leaves routing untouched.
+   */
+  private recordUpstreamFailure(
     route: ResolvedRoute,
+    reason: FallbackReason,
     error: unknown
-  ): Promise<ResolvedRoute | undefined> {
-    const reason = classifyUpstreamFailure(error);
-    if (!reason) {
-      return undefined;
-    }
+  ): boolean {
     if (reason === "no-credits") {
       this.context.credits.markExhausted(route.decision.gateway);
       this.verifyExhaustion(route.decision.gateway);
-    } else if (reason === "non-compliant") {
+      return true;
+    }
+    if (reason === "auth-failure") {
+      // A rejected key is a fact about the gateway account, not the model:
+      // mark the whole gateway so later routes avoid it until the TTL heals.
+      this.context.credits.markUnavailable(route.decision.gateway, reason);
+      this.context.logger.error("ai.router.auth_rejected", {
+        gateway: route.decision.gateway,
+        requestedModel: route.decision.requestedModelId,
+        organizationId: route.decision.organizationId,
+        message: readMessage(error),
+      });
+      return true;
+    }
+    if (reason === "non-compliant") {
       // A missing ZDR host is a fact about this model on this gateway, so the
       // mark is model-scoped: other models keep routing here.
       this.context.credits.markUnavailable(
@@ -462,7 +489,47 @@ export class RoutedLanguageModel implements LanguageModelV4 {
         zdr: route.decision.zdr,
         message: readMessage(error),
       });
+      return true;
     }
+    return false;
+  }
+
+  /**
+   * The fallback call failed too: classify and record it on the fallback
+   * gateway so later routes avoid it, and normalize rejected credentials to
+   * the same error a route-time failure would produce.
+   */
+  private classifyFallbackFailure(
+    route: ResolvedRoute,
+    error: unknown
+  ): unknown {
+    const reason = classifyUpstreamFailure(error);
+    if (!reason) {
+      return error;
+    }
+    if (this.recordUpstreamFailure(route, reason, error)) {
+      // The mark must win over the cached fallback route: drop it so the next
+      // call re-resolves instead of hitting the marked gateway again.
+      this.routePromise = undefined;
+    }
+    if (reason === "auth-failure") {
+      return new GatewayUnavailableError(
+        route.decision.gateway,
+        "authentication failed"
+      );
+    }
+    return error;
+  }
+
+  private async tryFallbackRoute(
+    route: ResolvedRoute,
+    error: unknown
+  ): Promise<ResolvedRoute | undefined> {
+    const reason = classifyUpstreamFailure(error);
+    if (!reason) {
+      return undefined;
+    }
+    const marked = this.recordUpstreamFailure(route, reason, error);
 
     // Prefer a ZDR-capable route on the other gateway over dropping the
     // flag; a `preferred` request only relaxes once no such route exists.
@@ -472,6 +539,19 @@ export class RoutedLanguageModel implements LanguageModelV4 {
     }
     if (reason === "non-compliant" && this.canRelaxZdr(route)) {
       return this.relaxZdr(route, error);
+    }
+    if (marked) {
+      // No usable route survives: the mark must win over the cached route, so
+      // the next call re-resolves instead of hitting the marked gateway.
+      this.routePromise = undefined;
+    }
+    if (reason === "auth-failure") {
+      // No eligible fallback: surface the normalized router error a
+      // route-time auth rejection would throw, not the raw upstream 401.
+      throw new GatewayUnavailableError(
+        route.decision.gateway,
+        "authentication failed"
+      );
     }
     return undefined;
   }
