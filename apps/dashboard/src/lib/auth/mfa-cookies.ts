@@ -5,7 +5,7 @@ import * as z from "zod";
 import {
   MFA_ATTEMPT_COOKIE,
   MFA_COOKIE_MAX_AGE_SECONDS,
-  MFA_PENDING_COOKIE,
+  MFA_PENDING_COOKIE_PREFIX,
 } from "@/constants/security";
 import {
   clearShortLivedCookie,
@@ -24,6 +24,13 @@ const pendingMfaChallengeSchema = z.object({
   authenticationChallengeId: z.string().min(1),
   email: z.string(),
 });
+
+const mfaFlowIdSchema = z.uuid();
+
+function getPendingMfaCookieName(flowId: string) {
+  const parsed = mfaFlowIdSchema.safeParse(flowId);
+  return parsed.success ? `${MFA_PENDING_COOKIE_PREFIX}_${parsed.data}` : null;
+}
 
 async function readJsonCookie<T>(
   name: string,
@@ -53,22 +60,23 @@ export function readMfaAttempt() {
   return readJsonCookie(MFA_ATTEMPT_COOKIE, mfaAttemptSchema);
 }
 
-export function storePendingMfaChallenge(challenge: PendingMfaChallenge) {
-  return storeShortLivedCookie(
-    MFA_PENDING_COOKIE,
+export async function storePendingMfaChallenge(challenge: PendingMfaChallenge) {
+  const flowId = crypto.randomUUID();
+  await storeShortLivedCookie(
+    `${MFA_PENDING_COOKIE_PREFIX}_${flowId}`,
     JSON.stringify(challenge),
     MFA_COOKIE_MAX_AGE_SECONDS
   );
+  return flowId;
 }
 
-export function readPendingMfaChallenge() {
-  return readJsonCookie(MFA_PENDING_COOKIE, pendingMfaChallengeSchema);
+export function readPendingMfaChallenge(flowId: string) {
+  const cookieName = getPendingMfaCookieName(flowId);
+  return cookieName
+    ? readJsonCookie(cookieName, pendingMfaChallengeSchema)
+    : Promise.resolve(null);
 }
 
-/** Drops both MFA cookies once the attempt they belong to is over. */
-export async function clearMfaCookies() {
-  await Promise.all([
-    clearShortLivedCookie(MFA_ATTEMPT_COOKIE),
-    clearShortLivedCookie(MFA_PENDING_COOKIE),
-  ]);
+export function clearMfaAttemptCookie() {
+  return clearShortLivedCookie(MFA_ATTEMPT_COOKIE);
 }

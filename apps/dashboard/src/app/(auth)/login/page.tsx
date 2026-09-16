@@ -2,11 +2,7 @@ import type { PendingAuthStep } from "@notra/schemas/types/dashboard/auth";
 
 import { LoginErrorTracker } from "@/components/auth/login-error-tracker";
 import { LoginForm } from "@/components/auth/login-form";
-import {
-  LOGIN_ERROR_KEYS,
-  LOGIN_MFA_QUERY_KEY,
-  LOGIN_MFA_QUERY_VALUE,
-} from "@/constants/security";
+import { LOGIN_ERROR_KEYS, LOGIN_MFA_QUERY_KEY } from "@/constants/security";
 import { readPendingMfaChallenge } from "@/lib/auth/mfa-cookies";
 import type { LoginPageProps } from "@/types/auth/login-page";
 
@@ -23,8 +19,8 @@ async function resolveInitialPending(
   verify: string | undefined,
   email: string | undefined
 ): Promise<PendingAuthStep | undefined> {
-  if (mfa === LOGIN_MFA_QUERY_VALUE) {
-    const challenge = await readPendingMfaChallenge();
+  if (mfa) {
+    const challenge = await readPendingMfaChallenge(mfa);
     if (challenge) {
       return { status: "mfa-required", ...challenge };
     }

@@ -7,7 +7,6 @@ import type { NextRequest } from "next/server";
 import {
   LOGIN_ERROR_KEYS,
   LOGIN_MFA_QUERY_KEY,
-  LOGIN_MFA_QUERY_VALUE,
   MFA_ERROR_CODES,
 } from "@/constants/security";
 import { SOCIAL_AUTH_STATE_COOKIE } from "@/constants/social-auth";
@@ -157,13 +156,13 @@ export async function GET(request: NextRequest) {
   if (outcome.kind === "mfa-required") {
     // The pending token and challenge are credentials: they travel in an
     // httpOnly cookie, never in the URL where history and logs would keep them.
-    await storePendingMfaChallenge({
+    const flowId = await storePendingMfaChallenge({
       pendingAuthenticationToken: outcome.pendingAuthenticationToken ?? "",
       authenticationChallengeId: outcome.authenticationChallengeId ?? "",
       email: outcome.email ?? "",
     });
     const params = new URLSearchParams({
-      [LOGIN_MFA_QUERY_KEY]: LOGIN_MFA_QUERY_VALUE,
+      [LOGIN_MFA_QUERY_KEY]: flowId,
       returnTo,
     });
     redirect(`/login?${params.toString()}`);

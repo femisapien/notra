@@ -11,7 +11,7 @@ export const MFA_ATTEMPT_COOKIE = "notra_mfa_attempt";
  * Carries the pending WorkOS credentials from the social callback to the
  * login page so they never appear in a URL.
  */
-export const MFA_PENDING_COOKIE = "notra_mfa_pending";
+export const MFA_PENDING_COOKIE_PREFIX = "notra_mfa_pending";
 export const MFA_COOKIE_MAX_AGE_SECONDS = 10 * 60;
 
 export const MFA_ERROR_CODES = {
@@ -24,9 +24,8 @@ export const SECURITY_ERROR_CODES = {
   UNAVAILABLE: "unavailable",
 } as const;
 
-/** `/login?mfa=pending` tells the login page to pick up the pending cookie. */
+/** `/login?mfa=<attempt-id>` binds the page to one pending social sign-in. */
 export const LOGIN_MFA_QUERY_KEY = "mfa";
-export const LOGIN_MFA_QUERY_VALUE = "pending";
 
 export const BACKUP_CODE_COUNT = 10;
 /** Lowercase, no ambiguous characters (0/o, 1/l/i). */

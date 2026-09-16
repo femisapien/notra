@@ -34,7 +34,7 @@ import {
   replaceBackupCodes,
 } from "@/lib/auth/backup-codes";
 import { clearFactorLabels, setFactorLabel } from "@/lib/auth/factor-labels";
-import { clearMfaCookies, readMfaAttempt } from "@/lib/auth/mfa-cookies";
+import { clearMfaAttemptCookie, readMfaAttempt } from "@/lib/auth/mfa-cookies";
 import { authenticateResolvingOrgSelection } from "@/lib/auth/org-selection";
 import { readWorkOSError } from "@/lib/auth/workos-error";
 import type { MfaAttempt } from "@/types/auth/mfa-cookies";
@@ -114,7 +114,7 @@ export async function verifyMfaCodeAction(
         parsed.data.returnTo,
         POSTHOG_EVENTS.MFA_VERIFIED
       );
-      yield* Effect.promise(clearMfaCookies);
+      yield* Effect.promise(clearMfaAttemptCookie);
 
       // The session is live from here on: nothing below may turn the result
       // into an error, or the client would show a failure for a signed-in user.
@@ -222,7 +222,7 @@ export async function redeemBackupCodeAction(
 
       yield* Effect.promise(() => clearBackupCodes(localUser.id));
       yield* Effect.promise(() => clearFactorLabels(localUser.id));
-      yield* Effect.promise(clearMfaCookies);
+      yield* Effect.promise(clearMfaAttemptCookie);
       yield* Effect.promise(() =>
         trackAuthEvent(
           POSTHOG_EVENTS.MFA_BACKUP_CODE_USED,
