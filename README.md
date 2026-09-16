@@ -1,4 +1,8 @@
-# Notra
+<h1>
+  <img src=".github/assets/vercel-oss-badge.svg" alt="Vercel Open Source Program 2026" width="240" height="40" align="right" />
+  <img src="apps/web/src/app/icon0.svg" alt="Notra logo" width="40" height="40" align="left" />
+  &nbsp;Notra
+</h1>
 
 **See where your brand shows up in AI answers, who gets recommended instead, and what to write next.**
 
@@ -13,8 +17,6 @@ Notra is a generative engine optimization (GEO) platform. It runs the questions 
     <img src=".github/assets/landing-light.png" alt="Notra landing page: track your brand’s visibility in AI answers" width="1440" />
   </picture>
 </a>
-
-[Light preview](.github/assets/landing-light.png) · [Dark preview](.github/assets/landing-dark.png). Captured from the live landing page with [Context.dev](https://www.context.dev/data/screenshot-api).
 
 ## From AI answers to your next draft
 
