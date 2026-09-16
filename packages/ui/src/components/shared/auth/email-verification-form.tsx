@@ -1,16 +1,14 @@
 "use client";
 
+import { TOTP_CODE_LENGTH } from "@notra/schemas/constants/dashboard/auth";
 import { Loader2Icon } from "lucide-react";
 import { useRef, useState } from "react";
 import type { EmailVerificationFormProps } from "../../../types/auth";
-import { Input } from "../../ui/input";
-import { Label } from "../../ui/label";
 import { CtaButton } from "../cta-button";
 import { AuthFormError } from "./auth-form-error";
 import { AuthFormHeader } from "./auth-form-header";
+import { TotpCodeInput } from "./totp-code-input";
 
-const NON_DIGIT_REGEX = /\D/g;
-const CODE_LENGTH = 6;
 const VERIFY_ERROR_FALLBACK = "Verification failed. Please try again.";
 
 export function EmailVerificationForm({
@@ -24,7 +22,10 @@ export function EmailVerificationForm({
   const [isPending, setIsPending] = useState(false);
   const requestIdRef = useRef(0);
 
-  async function handleVerify() {
+  async function handleVerify(submittedCode: string) {
+    if (submittedCode.length !== TOTP_CODE_LENGTH || isPending) {
+      return;
+    }
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
     setFormError(null);
@@ -32,7 +33,7 @@ export function EmailVerificationForm({
 
     const result = await verifyEmailCode({
       pendingAuthenticationToken: step.pendingAuthenticationToken,
-      code,
+      code: submittedCode,
       returnTo,
     }).catch(() => null);
 
@@ -45,6 +46,7 @@ export function EmailVerificationForm({
     setFormError(
       result?.status === "error" ? result.message : VERIFY_ERROR_FALLBACK
     );
+    setCode("");
     setIsPending(false);
   }
 
@@ -56,37 +58,30 @@ export function EmailVerificationForm({
       />
 
       <form
+        aria-busy={isPending}
         className="grid gap-4"
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          handleVerify();
+          handleVerify(code);
         }}
       >
-        <div className="grid gap-2">
-          <Label htmlFor="verification-code">Verification code</Label>
-          <Input
-            autoComplete="one-time-code"
-            autoFocus
-            className="h-11 rounded-xl px-3.5 text-center font-mono text-lg tracking-[0.5em]"
-            disabled={isPending}
-            id="verification-code"
-            inputMode="numeric"
-            maxLength={CODE_LENGTH}
-            onChange={(event) =>
-              setCode(event.target.value.replace(NON_DIGIT_REGEX, ""))
-            }
-            placeholder="000000"
-            value={code}
-          />
-        </div>
+        <TotpCodeInput
+          autoFocus
+          disabled={isPending}
+          id="verification-code"
+          label="Verification code"
+          onChange={setCode}
+          onComplete={handleVerify}
+          value={code}
+        />
 
         <div>
           <AuthFormError className="mb-4" error={formError} />
 
           <CtaButton
             className="w-full"
-            disabled={isPending || code.length !== CODE_LENGTH}
+            disabled={isPending || code.length !== TOTP_CODE_LENGTH}
             type="submit"
           >
             {isPending ? (
