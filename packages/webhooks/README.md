@@ -84,17 +84,28 @@ Creation body:
 }
 ```
 
-Events are currently limited to terminal **tracked post-generation jobs**:
+Events are currently limited to terminal **tracked generation jobs** and the
+first publish of a post:
 `post.generation.completed` (`jobId`, `postId`), `post.generation.failed`
-(`jobId`, `error`) and `post.generation.skipped` (`jobId`, `reason`). This does
-not emit post edits, scheduled runs without a tracked job, brand analysis, or GEO
-scan events. A completed job requires a post ID. The first terminal event for a
-job wins, even if a retried producer later reports a different terminal outcome.
+(`jobId`, `error`), `post.generation.skipped` (`jobId`, `reason`),
+`brand_identity.generation.completed` (`jobId`, `brandIdentityId`),
+`brand_identity.generation.failed` (`jobId`, `error`) and `post.published`
+(`postId`). This does not emit post edits, scheduled runs without a tracked
+job, or GEO scan events. A completed job requires a post ID or brand identity
+ID. The first terminal event for a job wins, even if a retried producer later
+reports a different terminal outcome; the first `post.published` for a post
+wins, so unpublishing and republishing does not re-emit.
 
 The terminal event is written before Redis job state. These stores cannot share a
 transaction: if the Redis update fails, a receiver may see the terminal event
 before the polling endpoint catches up. The generation step must retry; its stable
 source key prevents creating a second event or snapshotting new subscriptions.
+
+`post.published` is stronger: the outbox row is inserted in the same Postgres
+transaction as the post's status update (via `publishEventInTransaction` from
+`@notra/webhooks/drizzle`), so a publish either commits with its event or rolls
+back entirely. A failing outbox insert fails the request; the client's retry is
+deduped by the source key.
 
 ## Receiver verification
 

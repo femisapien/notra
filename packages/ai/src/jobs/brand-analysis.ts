@@ -1,3 +1,4 @@
+import { recordBrandAnalysisOutcome } from "@notra/webhooks/runtime/brand-analysis";
 import type { Redis } from "@upstash/redis";
 // biome-ignore lint/performance/noNamespaceImport: Zod recommended way to import
 import * as z from "zod";
@@ -114,6 +115,13 @@ export async function updateBrandAnalysisJob(
     createdAt: existingJob.createdAt,
     updatedAt: new Date().toISOString(),
   });
+
+  // Terminal event is written to the webhook outbox before the Redis job
+  // state, mirroring content-generation: on failure the step retries and the
+  // stable source key prevents a duplicate event.
+  if (nextJob.status === "completed" || nextJob.status === "failed") {
+    await recordBrandAnalysisOutcome(nextJob);
+  }
 
   await redis.hset(
     getJobKey(jobId),

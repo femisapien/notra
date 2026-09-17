@@ -421,6 +421,8 @@ postsRoutes.openapi(patchPostRoute, async (c) => {
 
   const { post, previousStatus } = result.success;
 
+  // The post.published webhook event is written transactionally inside
+  // commitPatchPost; only the GEO rescan stays fire-and-forget here.
   if (post.status === "published" && previousStatus !== "published") {
     void runGeoEffect(
       "rescanForPost",

@@ -10,9 +10,13 @@ import {
 import { readdir, readFile } from "node:fs/promises";
 
 import { PGlite } from "@electric-sql/pglite";
+import { sql as drizzleSql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import { Effect, Layer, Redacted, Schema } from "effect";
 
+import { publishEventInTransaction } from "../src/drizzle";
 import { WebhookQueueError, WebhookStorageError } from "../src/errors/webhooks";
+import { publishBrandAnalysisOutcome } from "../src/programs/brand-analysis";
 import {
   claimDelivery,
   deliver,
@@ -30,6 +34,10 @@ import {
   listDeliveries,
   retryDelivery,
 } from "../src/programs/history";
+import {
+  postPublishedInput,
+  publishPostPublished,
+} from "../src/programs/posts";
 import { cleanup, dispatchEvent, recover } from "../src/programs/recovery";
 import { OrganizationId } from "../src/schemas/webhooks";
 import { WebhookCrypto, webCryptoLayer } from "../src/services/crypto";
@@ -105,6 +113,12 @@ const layers = Layer.mergeAll(
           ? Effect.fail(new WebhookQueueError({ operation: "test" }))
           : Effect.sync(() => {
               queuedDeliveries.push(id);
+            }),
+      deliveries: (ids) =>
+        queueFails
+          ? Effect.fail(new WebhookQueueError({ operation: "test" }))
+          : Effect.sync(() => {
+              queuedDeliveries.push(...ids);
             }),
     })
   )
@@ -554,6 +568,139 @@ test("generation outcome schema rejects missing posts and emits failure/skipped 
       ).toEqual(["post.generation.failed", "post.generation.skipped"]);
     }).pipe(Effect.provide(layers))
   ));
+
+test("brand analysis outcome emits terminal events and dedupes retries", () =>
+  Effect.runPromise(
+    Effect.gen(function* () {
+      yield* createEndpoint({
+        organizationId: org,
+        url: "https://hooks.usenotra.com/receive",
+        events: [
+          "brand_identity.generation.completed",
+          "brand_identity.generation.failed",
+        ],
+      });
+      expect(
+        (yield* Effect.result(
+          publishBrandAnalysisOutcome({
+            id: "missing",
+            organizationId: org,
+            brandIdentityId: "",
+            status: "completed",
+            error: null,
+          })
+        ))._tag
+      ).toBe("Failure");
+      yield* publishBrandAnalysisOutcome({
+        id: "queued",
+        organizationId: org,
+        brandIdentityId: "brand_1",
+        status: "queued",
+        error: null,
+      });
+      yield* publishBrandAnalysisOutcome({
+        id: "done",
+        organizationId: org,
+        brandIdentityId: "brand_1",
+        status: "completed",
+        error: null,
+      });
+      yield* publishBrandAnalysisOutcome({
+        id: "broken",
+        organizationId: org,
+        brandIdentityId: "brand_2",
+        status: "failed",
+        error: "Scrape failed",
+      });
+      // A retried producer re-reporting the same job is a no-op.
+      yield* publishBrandAnalysisOutcome({
+        id: "broken",
+        organizationId: org,
+        brandIdentityId: "brand_2",
+        status: "failed",
+        error: "Scrape failed",
+      });
+      expect(
+        (yield* listDeliveries(org))
+          .map((delivery) => delivery.eventType)
+          .sort()
+      ).toEqual([
+        "brand_identity.generation.completed",
+        "brand_identity.generation.failed",
+      ]);
+    }).pipe(Effect.provide(layers))
+  ));
+
+test("post.published is emitted once even when a post is republished", () =>
+  Effect.runPromise(
+    Effect.gen(function* () {
+      yield* createEndpoint({
+        organizationId: org,
+        url: "https://hooks.usenotra.com/receive",
+        events: ["post.published"],
+      });
+      const input = { organizationId: org, postId: "post_1" };
+      yield* publishPostPublished(input);
+      yield* publishPostPublished(input);
+      expect(
+        (yield* listDeliveries(org)).map((delivery) => delivery.eventType)
+      ).toEqual(["post.published"]);
+    }).pipe(Effect.provide(layers))
+  ));
+
+test("transactional outbox publish commits and rolls back with the caller", async () => {
+  await Effect.runPromise(
+    createEndpoint({
+      organizationId: org,
+      url: "https://hooks.usenotra.com/receive",
+      events: ["post.published"],
+    }).pipe(Effect.provide(layers))
+  );
+
+  const txDb = drizzle({ client: db });
+
+  const committedId = await txDb.transaction(async (tx) => {
+    const id = await publishEventInTransaction(
+      tx,
+      postPublishedInput({ organizationId: org, postId: "post_tx_committed" })
+    );
+    // The outbox row is visible inside the caller's transaction.
+    const inside = await tx.execute(
+      drizzleSql`SELECT id FROM webhook_events WHERE id = ${id}`
+    );
+    expect(inside.rows).toHaveLength(1);
+    return id;
+  });
+
+  await expect(
+    txDb.transaction(async (tx) => {
+      await publishEventInTransaction(
+        tx,
+        postPublishedInput({
+          organizationId: org,
+          postId: "post_tx_rolled_back",
+        })
+      );
+      throw new Error("simulated caller failure");
+    })
+  ).rejects.toThrow("simulated caller failure");
+
+  // The Effect pipeline dedupes against the transactionally committed event.
+  const deduped = await Effect.runPromise(
+    publishPostPublished({
+      organizationId: org,
+      postId: "post_tx_committed",
+    }).pipe(Effect.provide(layers))
+  );
+  expect(committedId).toBe(deduped);
+
+  const { rows } = await db.query<{ source_key: string }>(
+    "SELECT source_key FROM webhook_events"
+  );
+  expect(rows.map((row) => row.source_key).sort()).toEqual([
+    "post:post_tx_committed:published",
+  ]);
+});
 
 const dnsAnswer = (addresses: readonly string[]) =>
   Response.json({

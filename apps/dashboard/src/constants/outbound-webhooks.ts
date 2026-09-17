@@ -39,6 +39,9 @@ export const WEBHOOK_EVENTS = [
   "post.generation.completed",
   "post.generation.failed",
   "post.generation.skipped",
+  "brand_identity.generation.completed",
+  "brand_identity.generation.failed",
+  "post.published",
 ] as const satisfies readonly WebhookEventName[];
 
 export const WEBHOOK_STATUS_VARIANTS: Record<

@@ -1,4 +1,4 @@
-import { Clock, Effect, Schema } from "effect";
+import { Effect, Result, Schema } from "effect";
 
 import { API_VERSION, MAX_PAYLOAD_BYTES } from "../constants/delivery";
 import {
@@ -8,32 +8,44 @@ import {
 import { EventId, IdentifierRow, PublishInput } from "../schemas/webhooks";
 import { queryRows } from "../services/database";
 
-export const publishEvent = Effect.fn("webhooks.publishEvent")(function* (
-  input: unknown
-) {
-  const body = yield* Schema.decodeUnknownEffect(PublishInput)(input).pipe(
-    Effect.mapError(
-      () => new WebhookValidationError({ message: "Invalid webhook event" })
-    )
-  );
-  const now = yield* Clock.currentTimeMillis;
-  const id = yield* Effect.sync(() => `whev_${crypto.randomUUID()}`);
+export type PublishBody = typeof PublishInput.Type;
+
+export interface EventRecord {
+  readonly id: string;
+  readonly body: PublishBody;
+  readonly payload: string;
+}
+
+// Pure validation + payload building, shared by the Effect pipeline
+// (publishEvent) and the transactional drizzle adapter
+// (publishEventInTransaction) so both produce byte-identical payloads.
+// Throws WebhookValidationError on invalid input.
+export const buildEventRecord = (input: unknown): EventRecord => {
+  const decoded = Schema.decodeUnknownResult(PublishInput)(input);
+  if (Result.isFailure(decoded)) {
+    throw new WebhookValidationError({ message: "Invalid webhook event" });
+  }
+  const body = decoded.success;
+  const id = `whev_${crypto.randomUUID()}`;
   const payload = JSON.stringify({
     id,
     type: body.event.type,
     apiVersion: API_VERSION,
-    createdAt: new Date(now).toISOString(),
+    createdAt: new Date().toISOString(),
     organizationId: body.organizationId,
     data: body.event.data,
   });
   if (new TextEncoder().encode(payload).length > MAX_PAYLOAD_BYTES) {
-    return yield* new WebhookValidationError({
+    throw new WebhookValidationError({
       message: "Webhook payload exceeds 64 KiB",
     });
   }
-  const [event] = yield* queryRows(
-    IdentifierRow,
-    `WITH inserted AS (
+  return { id, body, payload };
+};
+
+// The event row and its per-endpoint delivery rows are one statement so a
+// subscription snapshot is created atomically with the event.
+export const EVENT_INSERT_QUERY = `WITH inserted AS (
     INSERT INTO webhook_events (id, organization_id, source_key, event_type, payload)
     VALUES ($1, $2, $3, $4, $5) ON CONFLICT (organization_id, source_key) DO NOTHING RETURNING *
   ), deliveries AS (
@@ -42,15 +54,44 @@ export const publishEvent = Effect.fn("webhooks.publishEvent")(function* (
     FROM inserted JOIN webhook_endpoints endpoint ON endpoint.organization_id = inserted.organization_id
     WHERE endpoint.enabled AND endpoint.deleted_at IS NULL AND inserted.event_type = ANY(endpoint.events)
     ON CONFLICT (event_id, endpoint_id) DO NOTHING
-  ) SELECT id FROM inserted`,
-    [id, body.organizationId, body.sourceKey, body.event.type, payload]
+  ) SELECT id FROM inserted`;
+
+export const eventInsertParameters = (record: EventRecord) =>
+  [
+    record.id,
+    record.body.organizationId,
+    record.body.sourceKey,
+    record.body.event.type,
+    record.payload,
+  ] as const;
+
+export const EVENT_SELECT_BY_SOURCE_QUERY =
+  "SELECT id FROM webhook_events WHERE organization_id = $1 AND source_key = $2";
+
+export const eventSelectBySourceParameters = (record: EventRecord) =>
+  [record.body.organizationId, record.body.sourceKey] as const;
+
+export const publishEvent = Effect.fn("webhooks.publishEvent")(function* (
+  input: unknown
+) {
+  const record = yield* Effect.try({
+    try: () => buildEventRecord(input),
+    catch: (cause) =>
+      cause instanceof WebhookValidationError
+        ? cause
+        : new WebhookValidationError({ message: "Invalid webhook event" }),
+  });
+  const [event] = yield* queryRows(
+    IdentifierRow,
+    EVENT_INSERT_QUERY,
+    eventInsertParameters(record)
   );
   const existing =
     event ??
     (yield* queryRows(
       IdentifierRow,
-      "SELECT id FROM webhook_events WHERE organization_id = $1 AND source_key = $2",
-      [body.organizationId, body.sourceKey]
+      EVENT_SELECT_BY_SOURCE_QUERY,
+      eventSelectBySourceParameters(record)
     ))[0];
   if (!existing) {
     return yield* new WebhookStorageError({

@@ -4,6 +4,9 @@ export const webhookEventTypeSchema = z.enum([
   "post.generation.completed",
   "post.generation.failed",
   "post.generation.skipped",
+  "brand_identity.generation.completed",
+  "brand_identity.generation.failed",
+  "post.published",
 ]);
 export const webhookStatusFilterSchema = z.enum([
   "all",
@@ -17,7 +20,7 @@ export const webhookStatusFilterSchema = z.enum([
 export const webhookEventsInputSchema = z
   .array(webhookEventTypeSchema)
   .min(1)
-  .max(3);
+  .max(6);
 export const webhookUrlInputSchema = z.string().url().max(2048);
 export const createWebhookRequestSchema = z.object({
   url: webhookUrlInputSchema,

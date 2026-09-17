@@ -16,6 +16,9 @@ export const EventType = Schema.Literals([
   "post.generation.completed",
   "post.generation.failed",
   "post.generation.skipped",
+  "brand_identity.generation.completed",
+  "brand_identity.generation.failed",
+  "post.published",
 ]);
 const jobId = Schema.NonEmptyString;
 export const EventData = Schema.Union([
@@ -31,6 +34,21 @@ export const EventData = Schema.Union([
     type: Schema.Literal("post.generation.skipped"),
     data: Schema.Struct({ jobId, reason: Schema.NullOr(Schema.String) }),
   }),
+  Schema.Struct({
+    type: Schema.Literal("brand_identity.generation.completed"),
+    data: Schema.Struct({
+      jobId,
+      brandIdentityId: Schema.NonEmptyString,
+    }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("brand_identity.generation.failed"),
+    data: Schema.Struct({ jobId, error: Schema.NullOr(Schema.String) }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("post.published"),
+    data: Schema.Struct({ postId: Schema.NonEmptyString }),
+  }),
 ]);
 export const PublishInput = Schema.Struct({
   organizationId: OrganizationId,
@@ -42,7 +60,7 @@ export const EndpointInput = Schema.Struct({
   url: Schema.NonEmptyString,
   events: Schema.Array(EventType).check(
     Schema.isMinLength(1),
-    Schema.isMaxLength(3)
+    Schema.isMaxLength(6)
   ),
 });
 export const Endpoint = Schema.Struct({

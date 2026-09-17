@@ -15,9 +15,16 @@ failed deliveries; members can view delivery history.
 | `post.generation.completed` | `jobId`, `postId` |
 | `post.generation.failed` | `jobId`, `error` |
 | `post.generation.skipped` | `jobId`, `reason` |
+| `brand_identity.generation.completed` | `jobId`, `brandIdentityId` |
+| `brand_identity.generation.failed` | `jobId`, `error` |
+| `post.published` | `postId` |
 
-These events apply to tracked post-generation jobs, including jobs started through
-`POST /v1/posts/generate`. Brand analysis and GEO scans still require polling.
+The `post.generation.*` events apply to tracked post-generation jobs, including
+jobs started through `POST /v1/posts/generate`. `post.published` fires the first
+time a post transitions to `published` — unpublishing and republishing does not
+emit it again. It is written in the same database transaction as the status
+update, so a published post always has its event. GEO scans still require
+polling.
 
 ## Subscribe through the API
 

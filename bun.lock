@@ -337,6 +337,7 @@
         "@notra/db": "workspace:*",
         "@notra/posthog": "workspace:*",
         "@notra/utils": "workspace:*",
+        "@notra/webhooks": "workspace:*",
         "@octokit/core": "^7.0.6",
         "@openrouter/ai-sdk-provider": "2.10.0",
         "@resvg/resvg-js": "^2.6.2",
@@ -619,6 +620,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@neondatabase/serverless": "^1.0.2",
+        "drizzle-orm": "^0.45.2",
         "effect": "4.0.0-rc.112",
         "ipaddr.js": "^2.2.0",
         "pg": "^8.20.0",

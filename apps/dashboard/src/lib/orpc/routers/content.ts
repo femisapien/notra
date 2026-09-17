@@ -66,6 +66,8 @@ import {
 import { clearCompletedGenerationSchema } from "@notra/schemas/dashboard/generations";
 import { repositoryContentDirectoryConfigSchema } from "@notra/schemas/dashboard/integrations";
 import { slugify } from "@notra/utils/slugify";
+import { publishEventInTransaction } from "@notra/webhooks/drizzle";
+import { postPublishedInput } from "@notra/webhooks/programs/posts";
 import {
   and,
   asc,
@@ -706,31 +708,50 @@ export const contentRouter = {
       }
 
       try {
-        const [updatedPost] = await db
-          .update(posts)
-          .set(updateData)
-          .where(
-            and(
-              eq(posts.id, input.contentId),
-              eq(posts.organizationId, input.organizationId)
+        const [updatedPost] = await db.transaction(async (tx) => {
+          const rows = await tx
+            .update(posts)
+            .set(updateData)
+            .where(
+              and(
+                eq(posts.id, input.contentId),
+                eq(posts.organizationId, input.organizationId)
+              )
             )
-          )
-          .returning({
-            id: posts.id,
-            organizationId: posts.organizationId,
-            collectionId: posts.collectionId,
-            title: posts.title,
-            slug: posts.slug,
-            content: posts.content,
-            htmlUrl: posts.htmlUrl,
-            markdown: posts.markdown,
-            recommendations: posts.recommendations,
-            contentType: posts.contentType,
-            createdAt: posts.createdAt,
-            sourceMetadata: posts.sourceMetadata,
-            status: posts.status,
-            updatedAt: posts.updatedAt,
-          });
+            .returning({
+              id: posts.id,
+              organizationId: posts.organizationId,
+              collectionId: posts.collectionId,
+              title: posts.title,
+              slug: posts.slug,
+              content: posts.content,
+              htmlUrl: posts.htmlUrl,
+              markdown: posts.markdown,
+              recommendations: posts.recommendations,
+              contentType: posts.contentType,
+              createdAt: posts.createdAt,
+              sourceMetadata: posts.sourceMetadata,
+              status: posts.status,
+              updatedAt: posts.updatedAt,
+            });
+          const [row] = rows;
+          if (
+            row &&
+            row.status === "published" &&
+            existingPost.status !== "published"
+          ) {
+            // The webhook outbox row commits with the post update: a failure
+            // rolls both back, and the source key dedupes the retried request.
+            await publishEventInTransaction(
+              tx,
+              postPublishedInput({
+                organizationId: input.organizationId,
+                postId: row.id,
+              })
+            );
+          }
+          return rows;
+        });
 
         if (!updatedPost) {
           throw internalServerError("Failed to update content");
@@ -768,6 +789,8 @@ export const contentRouter = {
           });
         }
 
+        // The post.published webhook event is written transactionally with
+        // the update above; only the GEO rescan stays post-commit.
         if (
           updatedPost.status === "published" &&
           existingPost.status !== "published"

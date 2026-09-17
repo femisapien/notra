@@ -50,6 +50,7 @@
     "@notra/db": "workspace:*",
     "@notra/posthog": "workspace:*",
     "@notra/utils": "workspace:*",
+    "@notra/webhooks": "workspace:*",
     "@octokit/core": "^7.0.6",
     "@openrouter/ai-sdk-provider": "2.10.0",
     "@resvg/resvg-js": "^2.6.2",
