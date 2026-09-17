@@ -3513,6 +3513,7 @@ export const webhookEvents = pgTable(
     ),
     unique("webhook_events_org_id").on(table.organizationId, table.id),
     index("webhook_events_dispatch").on(table.dispatchAt),
+    index("webhook_events_created_at").on(table.createdAt),
   ]
 );
 

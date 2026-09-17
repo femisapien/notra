@@ -40,6 +40,9 @@ export interface WebhookQueuesService {
   readonly delivery: (
     deliveryId: string
   ) => Effect.Effect<void, WebhookQueueError>;
+  readonly deliveries: (
+    deliveryIds: readonly string[]
+  ) => Effect.Effect<void, WebhookQueueError>;
 }
 
 export interface WebhookTransportService {

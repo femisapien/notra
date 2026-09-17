@@ -61,4 +61,5 @@ CREATE UNIQUE INDEX "webhook_deliveries_event_endpoint" ON "webhook_deliveries" 
 CREATE INDEX "webhook_deliveries_due" ON "webhook_deliveries" USING btree ("status","next_attempt_at");--> statement-breakpoint
 CREATE INDEX "webhook_deliveries_org_created" ON "webhook_deliveries" USING btree ("organization_id","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "webhook_events_org_source" ON "webhook_events" USING btree ("organization_id","source_key");--> statement-breakpoint
-CREATE INDEX "webhook_events_dispatch" ON "webhook_events" USING btree ("dispatch_at");
+CREATE INDEX "webhook_events_dispatch" ON "webhook_events" USING btree ("dispatch_at");--> statement-breakpoint
+CREATE INDEX "webhook_events_created_at" ON "webhook_events" USING btree ("created_at");

@@ -1,10 +1,43 @@
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 
 import { RECOVERY_BATCH_SIZE, RETENTION_DAYS } from "../constants/delivery";
 import { IdentifierRow } from "../schemas/webhooks";
 import { queryRows } from "../services/database";
 import { WebhookQueues } from "../services/queue";
 import type { EventId } from "../types/webhooks";
+
+const PipelineMetrics = Schema.Struct({
+  openDeliveries: Schema.Number,
+  dueDeliveries: Schema.Number,
+  oldestOpenSeconds: Schema.Number,
+  undispatchedEvents: Schema.Number,
+  oldestUndispatchedSeconds: Schema.Number,
+  succeededLastMinute: Schema.Number,
+  failedLastMinute: Schema.Number,
+});
+
+// One compact snapshot per cron run. These are the alertable signals:
+// dispatch lag (oldestUndispatchedSeconds), backlog pressure (openDeliveries,
+// oldestOpenSeconds) and outcome rate (succeeded/failedLastMinute).
+export const emitMetrics = Effect.fn("webhooks.emitMetrics")(function* () {
+  const [metrics] = yield* queryRows(
+    PipelineMetrics,
+    `SELECT
+    (SELECT count(*) FROM webhook_deliveries WHERE status IN ('pending', 'retrying', 'sending'))::int AS "openDeliveries",
+    (SELECT count(*) FROM webhook_deliveries WHERE status IN ('pending', 'retrying') AND next_attempt_at <= now())::int AS "dueDeliveries",
+    (SELECT COALESCE(max(EXTRACT(EPOCH FROM (now() - created_at))), 0)::int FROM webhook_deliveries WHERE status IN ('pending', 'retrying')) AS "oldestOpenSeconds",
+    (SELECT count(*) FROM webhook_events WHERE dispatch_at <= now())::int AS "undispatchedEvents",
+    (SELECT COALESCE(max(EXTRACT(EPOCH FROM (now() - created_at))), 0)::int FROM webhook_events WHERE dispatch_at <= now()) AS "oldestUndispatchedSeconds",
+    (SELECT count(*) FROM webhook_attempts WHERE finished_at > now() - interval '1 minute' AND status_code BETWEEN 200 AND 299)::int AS "succeededLastMinute",
+    (SELECT count(*) FROM webhook_attempts WHERE finished_at > now() - interval '1 minute' AND (status_code IS NULL OR status_code < 200 OR status_code >= 300))::int AS "failedLastMinute"`,
+    []
+  );
+  if (metrics) {
+    yield* Effect.logInfo("Webhook pipeline metrics").pipe(
+      Effect.annotateLogs(metrics)
+    );
+  }
+});
 
 export const dispatchEvent = Effect.fn("webhooks.dispatchEvent")(function* (
   eventId: EventId
@@ -14,16 +47,13 @@ export const dispatchEvent = Effect.fn("webhooks.dispatchEvent")(function* (
   while (true) {
     const rows = yield* queryRows(
       IdentifierRow,
-      `SELECT id FROM webhook_deliveries WHERE event_id = $1 AND id > $2 AND status IN ('pending', 'retrying') ORDER BY id LIMIT $3`,
+      `SELECT id FROM webhook_deliveries WHERE event_id = $1 AND id > $2 AND status IN ('pending', 'retrying') AND next_attempt_at <= now() ORDER BY id LIMIT $3`,
       [eventId, cursor, RECOVERY_BATCH_SIZE]
     );
     if (rows.length === 0) {
       break;
     }
-    yield* Effect.forEach(rows, (row) => queues.delivery(row.id), {
-      concurrency: 5,
-      discard: true,
-    });
+    yield* queues.deliveries(rows.map((row) => row.id));
     const last = rows.at(-1);
     if (!last) {
       break;
@@ -75,13 +105,12 @@ export const recover = Effect.fn("webhooks.recover")(function* () {
   );
   const deliveries = yield* queryRows(
     IdentifierRow,
-    `SELECT id FROM webhook_deliveries WHERE status IN ('pending', 'retrying') AND next_attempt_at <= now() ORDER BY next_attempt_at, id LIMIT $1`,
+    // Fresh deliveries (attempt_count = 0) outrank retries, so one tenant's
+    // retry backlog cannot starve other tenants' new work.
+    `SELECT id FROM webhook_deliveries WHERE status IN ('pending', 'retrying') AND next_attempt_at <= now() ORDER BY attempt_count, next_attempt_at, id LIMIT $1`,
     [RECOVERY_BATCH_SIZE]
   );
-  yield* Effect.forEach(deliveries, (row) => queues.delivery(row.id), {
-    concurrency: 5,
-    discard: true,
-  });
+  yield* queues.deliveries(deliveries.map((row) => row.id));
 });
 
 export const cleanup = Effect.fn("webhooks.cleanup")(function* () {

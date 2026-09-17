@@ -3,7 +3,12 @@ import { Effect, Schema } from "effect";
 import { DELIVERY_QUEUE_NAME, EVENT_QUEUE_NAME } from "./constants/queues";
 import { WebhookValidationError } from "./errors/webhooks";
 import { deliver } from "./programs/deliveries";
-import { cleanup, dispatchEvent, recover } from "./programs/recovery";
+import {
+  cleanup,
+  dispatchEvent,
+  emitMetrics,
+  recover,
+} from "./programs/recovery";
 import { workerLayer } from "./runtime/worker";
 import { DeliveryMessage, EventMessage } from "./schemas/webhooks";
 import type { WorkerBindings } from "./types/worker";
@@ -54,6 +59,7 @@ export default {
       Effect.gen(function* () {
         yield* recover();
         yield* cleanup();
+        yield* emitMetrics();
       }).pipe(Effect.provide(workerLayer(bindings)))
     );
   },
