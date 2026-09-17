@@ -5,6 +5,7 @@ import { POSTHOG_EVENTS } from "@notra/posthog/events";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
 import { GEO_MODULES_REVEAL_MS } from "@/constants/geo-overview";
@@ -182,7 +183,18 @@ export function useGeoOverviewPage(
       open: preflightOpen,
       onOpenChange: setPreflightOpen,
       onConfirm: (engines) => {
-        startScan.mutate(engines ? { engines } : undefined);
+        // Await the promise instead of passing onSuccess to mutate: observer
+        // callbacks never run if this page unmounts first, the promise does.
+        void (async () => {
+          try {
+            await startScan.mutateAsync(engines ? { engines } : undefined);
+            toast.success(
+              "Scan started. It runs in the background. You can leave this page."
+            );
+          } catch {
+            // The mutation reports the error itself.
+          }
+        })();
         setPreflightOpen(false);
       },
       isPending: startScan.isPending,
