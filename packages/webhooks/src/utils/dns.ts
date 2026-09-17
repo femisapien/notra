@@ -22,7 +22,9 @@ export const validateDns = Effect.fn("webhooks.validateDns")(function* (
               {
                 signal,
                 headers: { accept: "application/dns-json" },
-                redirect: "error",
+                // NOTE: workerd only supports "follow" | "manual".
+                // "error" throws TypeError at runtime on Cloudflare Workers.
+                redirect: "manual",
               }
             ),
           catch: () => new WebhookTransportError({ reason: "network" }),

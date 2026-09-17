@@ -6,7 +6,13 @@ export function shouldRetry(
   attempt: number,
   limit = MAX_ATTEMPTS
 ) {
-  if (attempt >= limit || outcome.error === "unsafe_url") {
+  // unsafe_url and signing_failed are permanent: retrying cannot fix a
+  // rejected target or an undecryptable endpoint secret.
+  if (
+    attempt >= limit ||
+    outcome.error === "unsafe_url" ||
+    outcome.error === "signing_failed"
+  ) {
     return false;
   }
   return (
