@@ -15,7 +15,7 @@ import {
   ALL_POST_STATUSES,
 } from "@notra/schemas/api/content";
 import { publishEventInTransaction } from "@notra/webhooks/drizzle";
-import { postPublishedInput } from "@notra/webhooks/programs/posts";
+import { postPublishedInput } from "@notra/webhooks/utils/posts";
 import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 import { nanoid } from "nanoid";

@@ -34,10 +34,7 @@ import {
   listDeliveries,
   retryDelivery,
 } from "../src/programs/history";
-import {
-  postPublishedInput,
-  publishPostPublished,
-} from "../src/programs/posts";
+import { publishPostPublished } from "../src/programs/posts";
 import { cleanup, dispatchEvent, recover } from "../src/programs/recovery";
 import { OrganizationId } from "../src/schemas/webhooks";
 import { WebhookCrypto, webCryptoLayer } from "../src/services/crypto";
@@ -49,6 +46,7 @@ import {
 } from "../src/services/transport";
 import type { DeliveryOutcome, SendRequest } from "../src/types/webhooks";
 import type { WorkerBindings } from "../src/types/worker";
+import { postPublishedInput } from "../src/utils/posts";
 import {
   parseRetryAfter,
   retryDelaySeconds,

@@ -135,3 +135,12 @@ export const DeliveryStats = Schema.Struct({
   failed: Schema.Number,
   active: Schema.Number,
 });
+export const PipelineMetrics = Schema.Struct({
+  openDeliveries: Schema.Number,
+  dueDeliveries: Schema.Number,
+  oldestOpenSeconds: Schema.Number,
+  undispatchedEvents: Schema.Number,
+  oldestUndispatchedSeconds: Schema.Number,
+  succeededLastMinute: Schema.Number,
+  failedLastMinute: Schema.Number,
+});

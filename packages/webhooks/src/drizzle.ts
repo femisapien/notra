@@ -1,20 +1,17 @@
 import { sql, type SQL } from "drizzle-orm";
 import { Cause, Effect, Exit } from "effect";
 
-import { WebhookStorageError } from "./errors/webhooks";
 import {
-  buildEventRecord,
   EVENT_INSERT_QUERY,
   EVENT_SELECT_BY_SOURCE_QUERY,
+} from "./constants/events";
+import { WebhookStorageError } from "./errors/webhooks";
+import { buildEventRecord } from "./programs/events";
+import type { DrizzleExecutor } from "./types/drizzle";
+import {
   eventInsertParameters,
   eventSelectBySourceParameters,
-} from "./programs/events";
-
-// The minimal part of a drizzle database or transaction handle this module
-// needs. Both NodePgDatabase and its transaction objects satisfy it.
-export interface DrizzleExecutor {
-  execute(query: SQL): Promise<unknown>;
-}
+} from "./utils/events";
 
 // Converts the parameterized "$n" statements shared with the Effect programs
 // into drizzle SQL templates so the raw SQL stays single-sourced. Only safe

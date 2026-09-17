@@ -1,5 +1,6 @@
 import { Array, Context, Effect, Layer } from "effect";
 
+import { SEND_BATCH_CHUNK } from "../constants/queues";
 import { WebhookQueueError } from "../errors/webhooks";
 import type { WebhookQueuesService } from "../types/services";
 import type { WorkerBindings } from "../types/worker";
@@ -8,9 +9,6 @@ export class WebhookQueues extends Context.Service<
   WebhookQueues,
   WebhookQueuesService
 >()("@notra/webhooks/Queues") {}
-
-// Queue.sendBatch accepts at most 100 messages per call.
-const SEND_BATCH_CHUNK = 100;
 
 export const cloudflareQueuesLayer = (
   bindings: Pick<WorkerBindings, "EVENT_QUEUE" | "DELIVERY_QUEUE">

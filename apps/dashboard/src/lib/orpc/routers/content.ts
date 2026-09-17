@@ -67,7 +67,7 @@ import { clearCompletedGenerationSchema } from "@notra/schemas/dashboard/generat
 import { repositoryContentDirectoryConfigSchema } from "@notra/schemas/dashboard/integrations";
 import { slugify } from "@notra/utils/slugify";
 import { publishEventInTransaction } from "@notra/webhooks/drizzle";
-import { postPublishedInput } from "@notra/webhooks/programs/posts";
+import { postPublishedInput } from "@notra/webhooks/utils/posts";
 import {
   and,
   asc,

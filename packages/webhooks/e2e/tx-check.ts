@@ -6,7 +6,7 @@ import "./env";
 import { drizzle } from "drizzle-orm/node-postgres";
 
 import { publishEventInTransaction } from "../src/drizzle";
-import { postPublishedInput } from "../src/programs/posts";
+import { postPublishedInput } from "../src/utils/posts";
 
 const db = drizzle(process.env.DATABASE_URL as string);
 

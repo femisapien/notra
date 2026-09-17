@@ -1,20 +1,10 @@
-import { Effect, Option, Schema, Stream } from "effect";
+import { Effect, Option, Stream } from "effect";
 
 import { RECOVERY_BATCH_SIZE, RETENTION_DAYS } from "../constants/delivery";
-import { IdentifierRow } from "../schemas/webhooks";
+import { IdentifierRow, PipelineMetrics } from "../schemas/webhooks";
 import { queryRows } from "../services/database";
 import { WebhookQueues } from "../services/queue";
 import type { EventId } from "../types/webhooks";
-
-const PipelineMetrics = Schema.Struct({
-  openDeliveries: Schema.Number,
-  dueDeliveries: Schema.Number,
-  oldestOpenSeconds: Schema.Number,
-  undispatchedEvents: Schema.Number,
-  oldestUndispatchedSeconds: Schema.Number,
-  succeededLastMinute: Schema.Number,
-  failedLastMinute: Schema.Number,
-});
 
 // One compact snapshot per cron run. These are the alertable signals:
 // dispatch lag (oldestUndispatchedSeconds), backlog pressure (openDeliveries,

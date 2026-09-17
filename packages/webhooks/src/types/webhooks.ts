@@ -9,6 +9,11 @@ export type DeliveryId = Schema.Schema.Type<typeof schemas.DeliveryId>;
 export type PublishInput = Schema.Schema.Type<typeof schemas.PublishInput>;
 export type EndpointInput = Schema.Schema.Type<typeof schemas.EndpointInput>;
 export type StoredDelivery = Schema.Schema.Type<typeof schemas.StoredDelivery>;
+export interface EventRecord {
+  readonly id: string;
+  readonly body: PublishInput;
+  readonly payload: string;
+}
 export interface DeliveryOutcome {
   readonly statusCode: number | null;
   readonly error: string | null;
