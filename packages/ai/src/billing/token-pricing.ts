@@ -47,6 +47,8 @@ const CLAUDE_FABLE_5_PRICING: ModelPricing = {
 
 export const MODEL_PRICING: Record<string, ModelPricing> = {
   "anthropic/claude-fable-5.1": CLAUDE_FABLE_5_1_PRICING,
+  // Claude Code reports Fable 5.1 usage with the dashed id.
+  "anthropic/claude-fable-5-1": CLAUDE_FABLE_5_1_PRICING,
   "anthropic/claude-fable-5": CLAUDE_FABLE_5_PRICING,
   "opencode/claude-opus-5": CLAUDE_OPUS_5_PRICING,
   "anthropic/claude-opus-5": CLAUDE_OPUS_5_PRICING,
