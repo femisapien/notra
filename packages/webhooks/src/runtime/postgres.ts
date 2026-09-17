@@ -20,12 +20,13 @@ export const postgresDatabaseLayer = Layer.effect(
       (client) => Effect.promise(() => client.end())
     );
     return WebhookDatabase.of({
-      query: (sql, parameters) =>
+      query: Effect.fn("webhooks.postgres.query")((sql, parameters) =>
         Effect.tryPromise({
           try: () => pool.query(sql, [...parameters]),
           catch: (cause) =>
             new WebhookStorageError({ operation: "postgres.query", cause }),
-        }).pipe(Effect.map((result) => result.rows)),
+        }).pipe(Effect.map((result) => result.rows))
+      ),
     });
   })
 );

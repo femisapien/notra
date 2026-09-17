@@ -19,7 +19,7 @@ export class WebhookTransportError extends Schema.TaggedError<WebhookTransportEr
 ) {}
 export class WebhookQueueError extends Schema.TaggedError<WebhookQueueError>()(
   "WebhookQueueError",
-  { operation: Schema.String }
+  { operation: Schema.String, cause: Schema.optional(Schema.Defect()) }
 ) {}
 export class WebhookNotFound extends Schema.TaggedError<WebhookNotFound>()(
   "WebhookNotFound",

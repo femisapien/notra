@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema, Stream } from "effect";
 
 import { RECOVERY_BATCH_SIZE, RETENTION_DAYS } from "../constants/delivery";
 import { IdentifierRow } from "../schemas/webhooks";
@@ -43,20 +43,23 @@ export const dispatchEvent = Effect.fn("webhooks.dispatchEvent")(function* (
   eventId: EventId
 ) {
   const queues = yield* WebhookQueues;
-  let cursor = "";
-  while (true) {
-    const rows = yield* queryRows(
+  yield* Stream.paginate("", (cursor: string) =>
+    queryRows(
       IdentifierRow,
       `SELECT id FROM webhook_deliveries WHERE event_id = $1 AND id > $2 AND status IN ('pending', 'retrying') AND next_attempt_at <= now() ORDER BY id LIMIT $3`,
       [eventId, cursor, RECOVERY_BATCH_SIZE]
-    );
-    const last = rows.at(-1);
-    if (!last) {
-      break;
-    }
-    yield* queues.deliveries(rows.map((row) => row.id));
-    cursor = last.id;
-  }
+    ).pipe(
+      Effect.map((rows) => {
+        const last = rows.at(-1);
+        return [
+          last === undefined ? [] : [rows],
+          last === undefined ? Option.none() : Option.some(last.id),
+        ] as const;
+      })
+    )
+  ).pipe(
+    Stream.runForEach((rows) => queues.deliveries(rows.map((row) => row.id)))
+  );
   yield* queryRows(
     IdentifierRow,
     "UPDATE webhook_events SET dispatch_at = NULL WHERE id = $1 RETURNING id",

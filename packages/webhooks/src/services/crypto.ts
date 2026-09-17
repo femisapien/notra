@@ -28,10 +28,11 @@ export const webCryptoLayer = (encryptionKey: Redacted.Redacted<string>) =>
         ])
       );
       return WebhookCrypto.of({
-        createSecret: () =>
+        createSecret: Effect.fn("webhooks.createSecret")(() =>
           Effect.sync(
             () => `whsec_${base64(crypto.getRandomValues(new Uint8Array(32)))}`
-          ),
+          )
+        ),
         encrypt: Effect.fn("webhooks.encrypt")(function* (secret, endpointId) {
           const iv = yield* Effect.sync(() =>
             crypto.getRandomValues(new Uint8Array(12))

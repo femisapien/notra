@@ -18,16 +18,20 @@ export const cloudflareQueuesLayer = (
   Layer.succeed(
     WebhookQueues,
     WebhookQueues.of({
-      event: (eventId) =>
+      event: Effect.fn("webhooks.queues.event")((eventId) =>
         Effect.tryPromise({
           try: () => bindings.EVENT_QUEUE.send({ eventId }),
-          catch: () => new WebhookQueueError({ operation: "event.send" }),
-        }),
-      delivery: (deliveryId) =>
+          catch: (cause) =>
+            new WebhookQueueError({ operation: "event.send", cause }),
+        })
+      ),
+      delivery: Effect.fn("webhooks.queues.delivery")((deliveryId) =>
         Effect.tryPromise({
           try: () => bindings.DELIVERY_QUEUE.send({ deliveryId }),
-          catch: () => new WebhookQueueError({ operation: "delivery.send" }),
-        }),
+          catch: (cause) =>
+            new WebhookQueueError({ operation: "delivery.send", cause }),
+        })
+      ),
       deliveries: Effect.fn("webhooks.queues.deliveries")(
         function* (deliveryIds) {
           yield* Effect.forEach(
@@ -38,8 +42,11 @@ export const cloudflareQueuesLayer = (
                   bindings.DELIVERY_QUEUE.sendBatch(
                     chunk.map((deliveryId) => ({ body: { deliveryId } }))
                   ),
-                catch: () =>
-                  new WebhookQueueError({ operation: "delivery.sendBatch" }),
+                catch: (cause) =>
+                  new WebhookQueueError({
+                    operation: "delivery.sendBatch",
+                    cause,
+                  }),
               }),
             { discard: true }
           );

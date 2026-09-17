@@ -23,33 +23,33 @@ export const EventType = Schema.Literals([
 const jobId = Schema.NonEmptyString;
 export const EventData = Schema.Union([
   Schema.Struct({
-    type: Schema.Literal("post.generation.completed"),
+    type: Schema.tag("post.generation.completed"),
     data: Schema.Struct({ jobId, postId: Schema.NonEmptyString }),
   }),
   Schema.Struct({
-    type: Schema.Literal("post.generation.failed"),
+    type: Schema.tag("post.generation.failed"),
     data: Schema.Struct({ jobId, error: Schema.NullOr(Schema.String) }),
   }),
   Schema.Struct({
-    type: Schema.Literal("post.generation.skipped"),
+    type: Schema.tag("post.generation.skipped"),
     data: Schema.Struct({ jobId, reason: Schema.NullOr(Schema.String) }),
   }),
   Schema.Struct({
-    type: Schema.Literal("brand_identity.generation.completed"),
+    type: Schema.tag("brand_identity.generation.completed"),
     data: Schema.Struct({
       jobId,
       brandIdentityId: Schema.NonEmptyString,
     }),
   }),
   Schema.Struct({
-    type: Schema.Literal("brand_identity.generation.failed"),
+    type: Schema.tag("brand_identity.generation.failed"),
     data: Schema.Struct({ jobId, error: Schema.NullOr(Schema.String) }),
   }),
   Schema.Struct({
-    type: Schema.Literal("post.published"),
+    type: Schema.tag("post.published"),
     data: Schema.Struct({ postId: Schema.NonEmptyString }),
   }),
-]);
+]).pipe(Schema.toTaggedUnion("type"));
 export const PublishInput = Schema.Struct({
   organizationId: OrganizationId,
   sourceKey: Schema.NonEmptyString,
@@ -124,10 +124,11 @@ export const DnsResponse = Schema.Struct({
   ),
 });
 
-export const DeliveryDetail = Schema.Struct({
-  ...DeliverySummary.fields,
-  payload: Schema.String,
-});
+export const DeliveryDetail = DeliverySummary.pipe(
+  Schema.fieldsAssign({
+    payload: Schema.String,
+  })
+);
 export const DeliveryStats = Schema.Struct({
   total: Schema.Number,
   succeeded: Schema.Number,

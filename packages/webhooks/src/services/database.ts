@@ -14,12 +14,13 @@ export const databaseLayer = (
   Layer.succeed(
     WebhookDatabase,
     WebhookDatabase.of({
-      query: (sql, parameters) =>
+      query: Effect.fn("webhooks.database.query")((sql, parameters) =>
         Effect.tryPromise({
           try: () => query(sql, parameters),
           catch: (cause) =>
             new WebhookStorageError({ operation: "query", cause }),
-        }),
+        })
+      ),
     })
   );
 
