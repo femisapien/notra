@@ -618,7 +618,7 @@ function GeoEngineProviderRow({
   showMore,
   zdrActive,
 }: GeoEngineProviderRowProps) {
-  const models = geoModelsForProvider(catalog, provider.id);
+  const models = geoModelsForProvider(catalog, provider.id, selectedIds);
   const row = geoProviderRowModel({
     hiddenCount,
     id,
