@@ -1,4 +1,5 @@
 import { sql, type SQL } from "drizzle-orm";
+import { Cause, Effect, Exit } from "effect";
 
 import { WebhookStorageError } from "./errors/webhooks";
 import {
@@ -60,7 +61,11 @@ export const publishEventInTransaction = async (
   tx: DrizzleExecutor,
   input: unknown
 ): Promise<string> => {
-  const record = buildEventRecord(input);
+  const exit = Effect.runSyncExit(buildEventRecord(input));
+  if (Exit.isFailure(exit)) {
+    throw Cause.squash(exit.cause);
+  }
+  const record = exit.value;
   const [inserted] = rowsOf<{ id: string }>(
     await tx.execute(
       toDrizzleSql(EVENT_INSERT_QUERY, eventInsertParameters(record))

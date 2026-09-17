@@ -1,4 +1,4 @@
-import { Effect, Result, Schema } from "effect";
+import { DateTime, Effect, Schema } from "effect";
 
 import { API_VERSION, MAX_PAYLOAD_BYTES } from "../constants/delivery";
 import {
@@ -16,32 +16,33 @@ export interface EventRecord {
   readonly payload: string;
 }
 
-// Pure validation + payload building, shared by the Effect pipeline
-// (publishEvent) and the transactional drizzle adapter
-// (publishEventInTransaction) so both produce byte-identical payloads.
-// Throws WebhookValidationError on invalid input.
-export const buildEventRecord = (input: unknown): EventRecord => {
-  const decoded = Schema.decodeUnknownResult(PublishInput)(input);
-  if (Result.isFailure(decoded)) {
-    throw new WebhookValidationError({ message: "Invalid webhook event" });
-  }
-  const body = decoded.success;
-  const id = `whev_${crypto.randomUUID()}`;
-  const payload = JSON.stringify({
-    id,
-    type: body.event.type,
-    apiVersion: API_VERSION,
-    createdAt: new Date().toISOString(),
-    organizationId: body.organizationId,
-    data: body.event.data,
-  });
-  if (new TextEncoder().encode(payload).length > MAX_PAYLOAD_BYTES) {
-    throw new WebhookValidationError({
-      message: "Webhook payload exceeds 64 KiB",
+// Shared by the Effect pipeline and the transactional drizzle adapter so both
+// produce byte-identical payloads.
+export const buildEventRecord = Effect.fn("webhooks.buildEventRecord")(
+  function* (input: unknown) {
+    const body = yield* Schema.decodeUnknownEffect(PublishInput)(input).pipe(
+      Effect.mapError(
+        () => new WebhookValidationError({ message: "Invalid webhook event" })
+      )
+    );
+    const id = yield* Effect.sync(() => `whev_${crypto.randomUUID()}`);
+    const createdAt = yield* DateTime.now;
+    const payload = JSON.stringify({
+      id,
+      type: body.event.type,
+      apiVersion: API_VERSION,
+      createdAt: DateTime.formatIso(createdAt),
+      organizationId: body.organizationId,
+      data: body.event.data,
     });
+    if (new TextEncoder().encode(payload).length > MAX_PAYLOAD_BYTES) {
+      return yield* new WebhookValidationError({
+        message: "Webhook payload exceeds 64 KiB",
+      });
+    }
+    return { id, body, payload } satisfies EventRecord;
   }
-  return { id, body, payload };
-};
+);
 
 // The event row and its per-endpoint delivery rows are one statement so a
 // subscription snapshot is created atomically with the event.
@@ -74,13 +75,7 @@ export const eventSelectBySourceParameters = (record: EventRecord) =>
 export const publishEvent = Effect.fn("webhooks.publishEvent")(function* (
   input: unknown
 ) {
-  const record = yield* Effect.try({
-    try: () => buildEventRecord(input),
-    catch: (cause) =>
-      cause instanceof WebhookValidationError
-        ? cause
-        : new WebhookValidationError({ message: "Invalid webhook event" }),
-  });
+  const record = yield* buildEventRecord(input);
   const [event] = yield* queryRows(
     IdentifierRow,
     EVENT_INSERT_QUERY,
