@@ -1,7 +1,7 @@
 // Local webhook receiver for end-to-end testing. Verifies Notra signatures,
 // simulates various endpoint behaviors (per path mode), and serves a live
 // HTML inspector page.
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 import { RECEIVER_ORIGIN } from "./env";
 
