@@ -50,14 +50,11 @@ export const dispatchEvent = Effect.fn("webhooks.dispatchEvent")(function* (
       `SELECT id FROM webhook_deliveries WHERE event_id = $1 AND id > $2 AND status IN ('pending', 'retrying') AND next_attempt_at <= now() ORDER BY id LIMIT $3`,
       [eventId, cursor, RECOVERY_BATCH_SIZE]
     );
-    if (rows.length === 0) {
-      break;
-    }
-    yield* queues.deliveries(rows.map((row) => row.id));
     const last = rows.at(-1);
     if (!last) {
       break;
     }
+    yield* queues.deliveries(rows.map((row) => row.id));
     cursor = last.id;
   }
   yield* queryRows(

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Array, Context, Effect, Layer } from "effect";
 
 import { WebhookQueueError } from "../errors/webhooks";
 import type { WebhookQueuesService } from "../types/services";
@@ -28,19 +28,22 @@ export const cloudflareQueuesLayer = (
           try: () => bindings.DELIVERY_QUEUE.send({ deliveryId }),
           catch: () => new WebhookQueueError({ operation: "delivery.send" }),
         }),
-      deliveries: (deliveryIds) =>
-        Effect.tryPromise({
-          try: async () => {
-            for (let i = 0; i < deliveryIds.length; i += SEND_BATCH_CHUNK) {
-              await bindings.DELIVERY_QUEUE.sendBatch(
-                deliveryIds
-                  .slice(i, i + SEND_BATCH_CHUNK)
-                  .map((deliveryId) => ({ body: { deliveryId } }))
-              );
-            }
-          },
-          catch: () =>
-            new WebhookQueueError({ operation: "delivery.sendBatch" }),
-        }),
+      deliveries: Effect.fn("webhooks.queues.deliveries")(
+        function* (deliveryIds) {
+          yield* Effect.forEach(
+            Array.chunksOf(deliveryIds, SEND_BATCH_CHUNK),
+            (chunk) =>
+              Effect.tryPromise({
+                try: () =>
+                  bindings.DELIVERY_QUEUE.sendBatch(
+                    chunk.map((deliveryId) => ({ body: { deliveryId } }))
+                  ),
+                catch: () =>
+                  new WebhookQueueError({ operation: "delivery.sendBatch" }),
+              }),
+            { discard: true }
+          );
+        }
+      ),
     })
   );

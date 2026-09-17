@@ -42,7 +42,7 @@ import { cleanup, dispatchEvent, recover } from "../src/programs/recovery";
 import { OrganizationId } from "../src/schemas/webhooks";
 import { WebhookCrypto, webCryptoLayer } from "../src/services/crypto";
 import { WebhookDatabase } from "../src/services/database";
-import { WebhookQueues } from "../src/services/queue";
+import { cloudflareQueuesLayer, WebhookQueues } from "../src/services/queue";
 import {
   cloudflareTransportLayer,
   WebhookTransport,
@@ -842,6 +842,33 @@ const runBatch = async (queue: string, body: unknown) => {
   await worker.queue(batch, bindings);
   return { acked, retried };
 };
+
+test("queue deliveries chunks sendBatch at Cloudflare's 100-message limit", async () => {
+  const batches: number[] = [];
+  await Effect.runPromise(
+    Effect.gen(function* () {
+      const queues = yield* WebhookQueues;
+      yield* queues.deliveries(
+        Array.from({ length: 250 }, (_, index) => `d${index}`)
+      );
+      yield* queues.deliveries([]);
+    }).pipe(
+      Effect.provide(
+        cloudflareQueuesLayer({
+          EVENT_QUEUE: queueStub(),
+          DELIVERY_QUEUE: {
+            ...queueStub<{ deliveryId: string }>(),
+            sendBatch: (messages) => {
+              batches.push([...messages].length);
+              return Promise.resolve({ metadata: { metrics: idleMetrics } });
+            },
+          },
+        })
+      )
+    )
+  );
+  expect(batches).toEqual([100, 100, 50]);
+});
 
 test("worker retries messages it cannot process instead of acking or crashing", async () => {
   const unknownQueue = await runBatch("notra-unknown", { deliveryId: "x" });
