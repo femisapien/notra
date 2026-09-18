@@ -1,12 +1,15 @@
 import { Notra } from "@notra/ui/components/ui/svgs/notra";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { AuthBrandPanel } from "@/components/auth/auth-brand-panel";
 import { getLastActiveOrganization, getSession } from "@/lib/auth/actions";
 import { withGeoProject } from "@/utils/geo-paths";
 
-export default async function AuthLayout({
+export const instant = true;
+
+async function RedirectIfAuthenticated({
   children,
 }: {
   children: React.ReactNode;
@@ -22,6 +25,15 @@ export default async function AuthLayout({
       redirect("/onboarding");
     }
   }
+
+  return children;
+}
+
+export default function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex h-screen w-full justify-center lg:grid lg:grid-cols-2">
       <section className="flex h-full min-h-0 w-full flex-col items-center justify-between px-6 py-5 lg:px-10 lg:py-6">
@@ -36,7 +48,11 @@ export default async function AuthLayout({
             Notra
           </h1>
         </Link>
-        <div className="w-full max-w-md">{children}</div>
+        <div className="w-full max-w-md">
+          <Suspense fallback={children}>
+            <RedirectIfAuthenticated>{children}</RedirectIfAuthenticated>
+          </Suspense>
+        </div>
         <div>
           <p className="text-muted-foreground px-8 text-center text-xs">
             By continuing, you agree to our{" "}
