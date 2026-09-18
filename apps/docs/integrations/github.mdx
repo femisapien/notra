@@ -108,6 +108,10 @@ Notra only acts on comments from members of your Notra organization whose login 
 
 Notra never commits to the repository's default branch or to pull requests from forks. On those, ask for a separate pull request instead.
 
+Mentions edit content, not code. Notra commits Markdown, MDX, and text files, plus the JSON, YAML, TOML, or CSV data that sits next to them, such as a docs navigation file. Code, scripts, dot files and folders like `.github`, and build or tool configuration such as `package.json` or `vercel.json` are never committed, whatever the comment asks for. If you ask for one of those, Notra tells you it needs a regular commit.
+
+If someone pushed to the pull request after Notra's last commit, Notra continues from the file on the pull request, so edits made by hand are kept and flow back into the Notra post with the next change.
+
 Mentions arrive through the GitHub App, not the per-repository webhook above. The App must be subscribed to the **Issue comment**, **Pull request review comment**, and **Pull request** events; closing or merging a pull request Notra published marks that publication as closed so the post can be published again.
 
 ## Legacy: personal access token
