@@ -68,6 +68,7 @@ import {
   useEffect,
   useId,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -907,13 +908,23 @@ export function ChatInputAdvanced({
     [persistDraft]
   );
 
+  const flushPendingDraft = useCallback(() => {
+    if (persistDraftTimeoutRef.current === null) {
+      return;
+    }
+    clearTimeout(persistDraftTimeoutRef.current);
+    persistDraftTimeoutRef.current = null;
+    persistDraft(contextRef.current);
+  }, [persistDraft]);
+
+  useLayoutEffect(() => {
+    return flushPendingDraft;
+  }, [flushPendingDraft]);
+
   useEffect(() => {
-    return () => {
-      if (persistDraftTimeoutRef.current !== null) {
-        clearTimeout(persistDraftTimeoutRef.current);
-      }
-    };
-  }, []);
+    window.addEventListener("pagehide", flushPendingDraft);
+    return () => window.removeEventListener("pagehide", flushPendingDraft);
+  }, [flushPendingDraft]);
 
   const handleInput = useCallback(() => {
     const editor = editorRef.current;

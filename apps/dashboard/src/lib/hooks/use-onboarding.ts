@@ -11,6 +11,7 @@ import {
 
 import { COMPANY_LOGO_STALE_TIME_MS } from "@/constants/company-logo";
 import {
+  AGENT_RUN_IDLE_REFETCH_INTERVAL_MS,
   AGENT_RUN_REFETCH_INTERVAL_MS,
   AGENT_RUN_STALE_TIME_MS,
   SUGGESTIONS_STALE_TIME_MS,
@@ -69,7 +70,9 @@ export function useOnboardingAgentRun(
           : undefined,
       staleTime: AGENT_RUN_STALE_TIME_MS,
       refetchInterval: (current) =>
-        current.state.data?.running ? AGENT_RUN_REFETCH_INTERVAL_MS : false,
+        current.state.data?.running
+          ? AGENT_RUN_REFETCH_INTERVAL_MS
+          : AGENT_RUN_IDLE_REFETCH_INTERVAL_MS,
     })
   );
 
