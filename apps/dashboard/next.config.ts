@@ -13,13 +13,18 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  outputFileTracingIncludes: {
-    "/*": ["./src/lib/ai/skills/**/*", "../../packages/ai/src/skills/**/*"],
+  compiler: {
+    removeConsole:
+      process.env.NODE_ENV === "production"
+        ? { exclude: ["error", "warn"] }
+        : false,
   },
   experimental: {
     optimizePackageImports: [
+      "@base-ui/react",
       "@hugeicons/core-free-icons",
       "@hugeicons/react",
+      "cmdk",
       "date-fns",
       "echarts",
       "lucide-react",

@@ -7,6 +7,8 @@ import { Providers } from "@/utils/providers";
 
 import { SITE_CONFIG } from "../utils/site";
 
+// Covers onboarding, callback, and deeplink pages that await session without
+// their own opt-out. Auth and GEO pages set instant=true on the segment.
 export const instant = false;
 
 const inter = Inter({

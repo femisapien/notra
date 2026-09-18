@@ -6,4 +6,6 @@ export const metadata: Metadata = {
   title: "Dashboard",
 };
 
+export const instant = true;
+
 export default DashboardHomePageShell;
