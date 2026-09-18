@@ -3,10 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { ArrowReloadHorizontalIcon, X } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  chatTransportRequestInputSchema,
-  externalChannelIdSchema,
-} from "@notra/ai/schemas/chat";
+import { externalChannelIdSchema } from "@notra/ai/schemas/chat";
 import type { ContentType } from "@notra/ai/schemas/content";
 import type {
   ChatAttachment,
@@ -34,9 +31,13 @@ import {
   MessageScrollerViewport,
 } from "@notra/ui/components/ui/message-scroller";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  DefaultChatTransport,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
+import {
   type DynamicToolUIPart,
   getToolName,
   isToolUIPart,
@@ -80,10 +81,7 @@ import {
   UserMessageTextBubble,
 } from "@/components/chat/user-message-actions";
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
-import {
-  CHAT_ACTIVE_STREAM_CONFLICT_STATUS,
-  CHAT_ACTIVE_STREAM_POLL_INTERVAL_MS,
-} from "@/constants/chat-active-stream";
+import { CHAT_ACTIVE_STREAM_POLL_INTERVAL_MS } from "@/constants/chat-active-stream";
 import { MAX_VISIBLE_CHAT_IMAGES } from "@/constants/chat-images";
 import { TOOL_TIMER_THRESHOLD_SECONDS } from "@/constants/chat-tool-timer";
 import { INTEGRATION_REFERENCE_TOKEN_SPLIT_REGEX } from "@/constants/integration-reference";
@@ -97,7 +95,12 @@ import {
   relaySlackApproval,
   relaySlackMirrorMessage,
 } from "@/lib/chat/slack-relay";
+import { createStandaloneChatTransport } from "@/lib/chat/standalone-chat-transport";
 import { useActiveProject } from "@/lib/hooks/use-active-project";
+import {
+  reconcileCreatedChatTitle,
+  useChatSessionMutations,
+} from "@/lib/hooks/use-chat-sessions";
 import { useElapsedSeconds } from "@/lib/hooks/use-elapsed-seconds";
 import { useSlackMirrorStream } from "@/lib/hooks/use-slack-mirror-stream";
 import { getMcpIconUrls } from "@/lib/integrations/mcp";
@@ -432,6 +435,29 @@ function ProjectScopeLoadingInput() {
   );
 }
 
+function discardFailedNewChatFromSidebar({
+  chatId,
+  initialChatId,
+  organizationId,
+  queryClient,
+  removePendingChatSession,
+}: {
+  chatId: string;
+  initialChatId: string | undefined;
+  organizationId: string;
+  queryClient: QueryClient;
+  removePendingChatSession: (chatId: string) => void;
+}) {
+  if (initialChatId) {
+    return;
+  }
+  removePendingChatSession(chatId);
+  queryClient.invalidateQueries({
+    queryKey: ["chat-sessions", organizationId],
+  });
+}
+
+// react-doctor-disable-next-line react-doctor/no-high-complexity-react-function -- standalone chat page predates the complexity cap; split in a dedicated refactor
 function StandaloneChatPageClient({
   organizationSlug,
   chatId: initialChatId,
@@ -452,6 +478,8 @@ function StandaloneChatPageClient({
     useActiveProject();
   const { data: session } = authClient.useSession();
   const queryClient = useQueryClient();
+  const { insertPendingChatSession, removePendingChatSession } =
+    useChatSessionMutations();
   const { data: membersData } = useQuery({
     queryKey: ["members", organizationId],
     queryFn: async () => {
@@ -549,6 +577,7 @@ function StandaloneChatPageClient({
   const contextRef = useRef(context);
   const hasCustomizedContextRef = useRef(hasCustomizedContext);
   const organizationIdRef = useRef(organizationId);
+  const activeProjectIdRef = useRef(activeProjectId);
   // Latest user message the server rejected because another response for
   // this chat was still streaming.
   const activeStreamConflictRef = useRef<string | null>(null);
@@ -558,94 +587,56 @@ function StandaloneChatPageClient({
   const selectedModelRef = useRef(selectedModel);
   const thinkingLevelRef = useRef(thinkingLevel);
 
+  const handleChatCreated = useCallback(
+    (chatId: string) => {
+      void reconcileCreatedChatTitle(
+        queryClient,
+        organizationId,
+        activeProjectId,
+        chatId
+      );
+    },
+    [activeProjectId, organizationId, queryClient]
+  );
+  const onChatCreatedRef = useRef(
+    initialChatId ? undefined : handleChatCreated
+  );
+
   useEffect(() => {
     contextRef.current = context;
     hasCustomizedContextRef.current = hasCustomizedContext;
     selectedModelRef.current = selectedModel;
     thinkingLevelRef.current = thinkingLevel;
     organizationIdRef.current = organizationId;
+    activeProjectIdRef.current = activeProjectId;
+    onChatCreatedRef.current = initialChatId ? undefined : handleChatCreated;
   }, [
+    activeProjectId,
     context,
+    handleChatCreated,
     hasCustomizedContext,
+    initialChatId,
+    organizationId,
     selectedModel,
     thinkingLevel,
-    organizationId,
   ]);
 
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport<ChatUIMessage>({
-        api: `/api/organizations/${organizationId}/chat`,
-        prepareSendMessagesRequest: ({ id, messages }) => ({
-          body: {
-            chatId: id,
-            projectId: activeProjectId ?? undefined,
-            messages: getSendableMessages(messages),
-            context: hasCustomizedContextRef.current
-              ? contextRef.current
-              : undefined,
-            model: selectedModelRef.current,
-            enableThinking: thinkingLevelRef.current !== "off",
-            thinkingLevel: thinkingLevelRef.current,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          },
-        }),
-        prepareReconnectToStreamRequest: ({ id }) => ({
-          api: `/api/organizations/${organizationIdRef.current}/chat/${id}/stream`,
-          headers: { "x-chat-reconnect": "true" },
-        }),
-        fetch: async (input, init) => {
-          const headers = new Headers(init?.headers);
-
-          if (headers.get("x-chat-reconnect") === "true") {
-            return fetch(input, init);
-          }
-
-          const parsedRequestBody = chatTransportRequestInputSchema.safeParse(
-            init?.body
-          );
-          const requestBody = parsedRequestBody.success
-            ? parsedRequestBody.data
-            : null;
-
-          const latestMessageId = requestBody?.messages.at(-1)?.id;
-
-          if (latestMessageId) {
-            setPendingMessageId(latestMessageId);
-          }
-
-          const triggerResponse = await fetch(input, init);
-          if (
-            triggerResponse.status === CHAT_ACTIVE_STREAM_CONFLICT_STATUS &&
-            latestMessageId
-          ) {
-            activeStreamConflictRef.current = latestMessageId;
-          }
-          if (!triggerResponse.ok) {
-            return triggerResponse;
-          }
-
-          const contentType = triggerResponse.headers.get("content-type") ?? "";
-          if (contentType.includes("text/event-stream")) {
-            return triggerResponse;
-          }
-
-          if (!requestBody) {
-            return triggerResponse;
-          }
-
-          return fetch(
-            `/api/organizations/${organizationIdRef.current}/chat/${requestBody.chatId}/stream`,
-            {
-              method: "GET",
-              headers: init?.headers,
-              credentials: init?.credentials,
-              signal: init?.signal,
-            }
-          );
-        },
-      }),
-    [activeProjectId, organizationId]
+  // react-doctor-disable-next-line react-hooks-js/refs -- the transport only reads these refs inside fetch callbacks, never during render
+  const [transport] = useState(() =>
+    createStandaloneChatTransport({
+      getSendableMessages,
+      live: {
+        activeProjectId: activeProjectIdRef,
+        context: contextRef,
+        hasCustomizedContext: hasCustomizedContextRef,
+        onChatCreated: onChatCreatedRef,
+        organizationId: organizationIdRef,
+        selectedModel: selectedModelRef,
+        streamConflict: activeStreamConflictRef,
+        thinkingLevel: thinkingLevelRef,
+      },
+      setPendingMessageId,
+    })
   );
 
   const [wasStoppedByUser, setWasStoppedByUser] = useState(false);
@@ -705,6 +696,13 @@ function StandaloneChatPageClient({
       ) {
         return;
       }
+      discardFailedNewChatFromSidebar({
+        chatId: stableChatId,
+        initialChatId,
+        organizationId,
+        queryClient,
+        removePendingChatSession,
+      });
       handleStandaloneChatError(err, { setChatError, setPendingMessageId });
     },
   });
@@ -1038,13 +1036,13 @@ function StandaloneChatPageClient({
   }, [chatHistoryData, setMessages]);
 
   const hasUpdatedUrlRef = useRef(false);
-  const hasRunInitialChatIdEffectRef = useRef(false);
+  const previousInitialChatIdRef = useRef(initialChatId);
 
   useEffect(() => {
-    if (!hasRunInitialChatIdEffectRef.current) {
-      hasRunInitialChatIdEffectRef.current = true;
+    if (previousInitialChatIdRef.current === initialChatId) {
       return;
     }
+    previousInitialChatIdRef.current = initialChatId;
 
     if (initialChatId) {
       clearPendingChatClientState({
@@ -1472,6 +1470,7 @@ function StandaloneChatPageClient({
           "",
           `/${organizationSlug}/chat/${stableChatId}`
         );
+        insertPendingChatSession(stableChatId);
       }
       if (attachments.length > 0) {
         const parts: ChatMessagePart[] = [];
@@ -1495,6 +1494,7 @@ function StandaloneChatPageClient({
       addToolApprovalResponse,
       authorMetadata,
       initialChatId,
+      insertPendingChatSession,
       isProjectScopePending,
       isSlackMirrored,
       organizationSlug,
