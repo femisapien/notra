@@ -33,6 +33,13 @@ import { createOpenApiApp } from "../utils/openapi-app";
 import { rateLimitResponse } from "../utils/openapi-responses";
 import { enforceRatelimit, RATE_LIMITS, ratelimit } from "../utils/ratelimit";
 
+/**
+ * Competitor CRUD and import. Domain programs run through `runGeoEffect`.
+ *
+ * Route-level guards (not Drizzle): suggestion queries normalize the domain and
+ * reject invalid hosts before rate limiting; CSV import parses text here so 400s
+ * do not consume the import budget and `issues` can be returned alongside rows.
+ */
 export const geoCompetitorsRoutes = createOpenApiApp();
 
 const GEO_TAG = GEO_OPENAPI_TAG;
