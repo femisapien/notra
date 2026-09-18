@@ -70,7 +70,11 @@ export function OrganizationsProvider({
   }, []);
 
   const [
-    { data: organizationsData, isPending: isFetchingOrgs },
+    {
+      data: organizationsData,
+      isPending: isPendingOrgs,
+      isPlaceholderData: isOrgListPlaceholder,
+    },
     { data: activeOrganization, isPending: isLoadingActive },
   ] = useQueries({
     queries: [
@@ -99,7 +103,9 @@ export function OrganizationsProvider({
 
   const organizations =
     organizationsData ?? FALLBACK_ORGANIZATIONS_CONTEXT.organizations;
-  const isLoadingOrgs = orgListRequested && isFetchingOrgs;
+  // placeholderData makes isPending false, so settings would otherwise treat
+  // `[activeOrg]` as the complete membership list.
+  const isLoadingOrgs = isPendingOrgs || Boolean(isOrgListPlaceholder);
   const isLoading = isLoadingOrgs || isLoadingActive;
   const organizationFromPath = useMemo(
     () =>
