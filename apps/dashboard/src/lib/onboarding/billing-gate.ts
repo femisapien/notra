@@ -3,15 +3,24 @@ import { redirect } from "next/navigation";
 import { getAllUserOrganizations } from "@/lib/auth/actions";
 import { hasPaidSubscriptionHistory } from "@/lib/billing/subscription";
 
+async function firstMatch<T>(
+  lookups: readonly Promise<T | null>[]
+): Promise<T | null> {
+  if (lookups.length === 0) {
+    return null;
+  }
+  const [head, ...tail] = lookups;
+  return (await head) ?? firstMatch(tail);
+}
+
 export async function redirectIfAnyOrganizationHasPaidHistory() {
   const allOrgs = await getAllUserOrganizations();
-  const paidLookups = allOrgs.map(async (org) =>
-    (await hasPaidSubscriptionHistory(org.id)) ? org : null
+  const paidOrg = await firstMatch(
+    allOrgs.map((org) =>
+      hasPaidSubscriptionHistory(org.id).then((paid) => (paid ? org : null))
+    )
   );
-  for (const paidOrg of paidLookups) {
-    const org = await paidOrg;
-    if (org) {
-      redirect(`/${org.slug}`);
-    }
+  if (paidOrg) {
+    redirect(`/${paidOrg.slug}`);
   }
 }
