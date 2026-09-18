@@ -55,6 +55,7 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -147,6 +148,8 @@ import {
 } from "@/utils/integration-reference";
 import { getOutputTypeLabel } from "@/utils/output-types";
 import { buildPublishedChatMessage } from "@/utils/social-publish";
+
+import { ChatPageSkeleton } from "./skeleton";
 
 const BlogChangelogPreview = dynamic(
   () =>
@@ -706,6 +709,9 @@ function StandaloneChatPageClient({
       handleStandaloneChatError(err, { setChatError, setPendingMessageId });
     },
   });
+  const replaceChatMessages = useEffectEvent((next: []) => {
+    setMessages(next);
+  });
 
   const [isStopping, setIsStopping] = useState(false);
   const [isWaitingForActiveStream, setIsWaitingForActiveStream] =
@@ -1059,13 +1065,13 @@ function StandaloneChatPageClient({
       setContext,
       setGeneratedChatId,
       setHasCustomizedContext,
-      setMessages,
+      setMessages: replaceChatMessages,
       setPendingMessageId,
       setQueuedMessages,
       setWasStoppedByUser,
       wasStoppedByUserRef,
     });
-  }, [initialChatId, setMessages]);
+  }, [initialChatId]);
 
   const draftStorageKey = localStorageKeys.chatDraft(
     initialChatId ?? `new:${organizationSlug}`
@@ -1568,7 +1574,7 @@ function StandaloneChatPageClient({
         setContext,
         setGeneratedChatId,
         setHasCustomizedContext,
-        setMessages,
+        setMessages: replaceChatMessages,
         setPendingMessageId,
         setQueuedMessages,
         setWasStoppedByUser,
@@ -1615,7 +1621,6 @@ function StandaloneChatPageClient({
     isProjectResolved,
     organizationId,
     setInitialQuery,
-    setMessages,
   ]);
 
   const handleRemoveQueued = useCallback((id: string) => {
@@ -2372,40 +2377,7 @@ function StandaloneChatPageClient({
   }
 
   if (isLoadingHistory) {
-    return (
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-          <div className="relative flex min-h-full min-w-0 flex-col">
-            <div className="flex flex-1 flex-col px-4 pt-6 pb-28">
-              <div className="mx-auto flex w-full max-w-2xl min-w-0 flex-col gap-6">
-                <div className="flex justify-end">
-                  <Skeleton className="h-10 w-48 rounded-2xl" />
-                </div>
-                <div className="flex flex-col gap-3">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-5/6" />
-                  <Skeleton className="h-4 w-4/6" />
-                </div>
-                <div className="flex justify-end">
-                  <Skeleton className="h-10 w-64 rounded-2xl" />
-                </div>
-                <div className="flex flex-col gap-3">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-5/6" />
-                  <Skeleton className="h-4 w-3/6" />
-                </div>
-              </div>
-            </div>
-            <div className="bg-background sticky bottom-0 z-10 px-4 pb-4">
-              <div className="from-background pointer-events-none absolute -inset-x-4 bottom-full h-12 bg-linear-to-t to-transparent" />
-              <div className="mx-auto w-full max-w-2xl">
-                <Skeleton className="h-28 w-full rounded-2xl" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <ChatPageSkeleton />;
   }
 
   if (!(hasMessages || isPendingAutoSubmit || isLoading)) {
@@ -2421,7 +2393,9 @@ function StandaloneChatPageClient({
 
     const now = isHydrated ? new Date() : null;
     const greeting = now ? getGreeting(now) : "Welcome";
-    const userName = session?.user?.name?.split(" ")[0];
+    const userName = isHydrated
+      ? session?.user?.name?.split(" ")[0]
+      : undefined;
     const dateStr = now ? formatLongDate(now) : "\u00A0";
 
     return (
