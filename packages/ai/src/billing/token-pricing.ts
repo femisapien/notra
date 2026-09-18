@@ -80,6 +80,12 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
     cacheReadPerMillionTokens: 0.02,
     cacheWritePerMillionTokens: 0,
   },
+  "openai/gpt-6-astra": {
+    inputPerMillionTokens: 10.0,
+    outputPerMillionTokens: 50.0,
+    cacheReadPerMillionTokens: 1.0,
+    cacheWritePerMillionTokens: 12.5,
+  },
   "openai/gpt-5.6-sol": {
     inputPerMillionTokens: 2.0,
     outputPerMillionTokens: 10.0,
