@@ -9,7 +9,8 @@ const MENTION_HANDLE_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i;
 const FENCED_CODE_PATTERN = /(?:```|~~~)[\s\S]*?(?:```|~~~|$)/g;
 const INLINE_CODE_PATTERN = /`[^`\n]*`/g;
 const QUOTED_LINE_PATTERN = /^[ \t]*>.*$/gm;
-const HTML_COMMENT_PATTERN = /<!--[\s\S]*?-->/g;
+// GitHub hides everything after an unterminated `<!--`, so that counts too.
+const HTML_COMMENT_PATTERN = /<!--[\s\S]*?(?:-->|$)/g;
 // A mention must not be glued to a preceding word, so `jan@notra.dev` or
 // `path/@notra` do not count.
 // `@org/team` is a team mention, so a handle followed by a slash is skipped too.
@@ -40,9 +41,22 @@ export function getGitHubMentionAppHandles() {
   return MENTION_HANDLE_PATTERN.test(handle) ? [handle] : [];
 }
 
+/**
+ * One pass is not enough: removing the inner comment of `<!-<!-- x -->- @notra -->`
+ * leaves a new comment behind. Repeat until nothing changes.
+ */
+function removeHtmlComments(body: string) {
+  let current = body;
+  let previous = "";
+  while (current !== previous) {
+    previous = current;
+    current = current.replace(HTML_COMMENT_PATTERN, "");
+  }
+  return current;
+}
+
 function stripNonMentionText(body: string) {
-  return body
-    .replace(HTML_COMMENT_PATTERN, "")
+  return removeHtmlComments(body)
     .replace(FENCED_CODE_PATTERN, "")
     .replace(INLINE_CODE_PATTERN, "")
     .replace(QUOTED_LINE_PATTERN, "");

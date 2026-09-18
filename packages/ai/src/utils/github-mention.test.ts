@@ -64,6 +64,10 @@ describe("commentMentionsNotra", () => {
       commentMentionsNotra("> @notra shorten this\n\nagreed", ["notra"])
     ).toBe(false);
     expect(commentMentionsNotra("<!-- @notra -->", ["notra"])).toBe(false);
+    expect(commentMentionsNotra("<!-<!-- x -->- @notra -->", ["notra"])).toBe(
+      false
+    );
+    expect(commentMentionsNotra("fine <!-- @notra", ["notra"])).toBe(false);
   });
 });
 
