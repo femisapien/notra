@@ -79,36 +79,36 @@ export async function resolveGitHubMentionContext(params: {
     return { status: "ignored", reason: "unknown_installation" };
   }
 
-  const candidates: Array<{
-    organizationId: string;
-    userId: string;
-    integration: NonNullable<
-      Awaited<ReturnType<typeof findGitHubIntegrationForMention>>
-    >;
-  }> = [];
-  for (const organization of organizations) {
-    const auth = await resolveGitHubMentionAuth({
-      githubUserId: sender.id,
-      organizationId: organization.organizationId,
-    });
-    if (!auth) {
-      continue;
-    }
-    const integration = await findGitHubIntegrationForMention({
-      organizationId: organization.organizationId,
-      githubRepositoryId: String(repository.id),
-      owner: repository.owner.login,
-      repo: repository.name,
-    });
-    if (!integration?.owner || !integration.repo) {
-      continue;
-    }
-    candidates.push({
-      organizationId: organization.organizationId,
-      userId: auth.userId,
-      integration,
-    });
-  }
+  // An installation can be linked to several organizations. Check them together
+  // and only proceed when exactly one has both the member and the repository.
+  const resolved = await Promise.all(
+    organizations.map(async ({ organizationId }) => {
+      const auth = await resolveGitHubMentionAuth({
+        githubUserId: sender.id,
+        organizationId,
+      });
+      if (!auth) {
+        return null;
+      }
+      const integration = await findGitHubIntegrationForMention({
+        organizationId,
+        githubRepositoryId: String(repository.id),
+        owner: repository.owner.login,
+        repo: repository.name,
+      });
+      if (!integration?.owner || !integration.repo) {
+        return null;
+      }
+      return {
+        organizationId,
+        userId: auth.userId,
+        integrationId: integration.id,
+        owner: integration.owner,
+        repo: integration.repo,
+      };
+    })
+  );
+  const candidates = resolved.filter((candidate) => candidate !== null);
 
   if (candidates.length > 1) {
     return { status: "ignored", reason: "ambiguous_organization" };
@@ -116,7 +116,7 @@ export async function resolveGitHubMentionContext(params: {
 
   const match = candidates[0];
   if (match) {
-    const { organizationId, userId, integration } = match;
+    const { organizationId, userId, integrationId, owner, repo } = match;
 
     let pullRequest: GitHubMentionPullRequest | null = null;
     if (issue?.pull_request || params.payload.pull_request) {
@@ -134,14 +134,14 @@ export async function resolveGitHubMentionContext(params: {
           draft: Boolean(payloadPullRequest.draft),
         };
       } else {
-        const token = await getGitHubPublishToken(integration.id, {
+        const token = await getGitHubPublishToken(integrationId, {
           organizationId,
         });
         if (token) {
           pullRequest = await getPullRequestHead({
             octokit: createOctokit(token),
-            owner: integration.owner,
-            repo: integration.repo,
+            owner,
+            repo,
             pullNumber: issueNumber,
           });
         }
@@ -151,8 +151,8 @@ export async function resolveGitHubMentionContext(params: {
     const publication = pullRequest
       ? await findContentPublicationForPullRequest({
           organizationId,
-          owner: integration.owner,
-          repo: integration.repo,
+          owner,
+          repo,
           pullRequestNumber: pullRequest.number,
         })
       : null;
@@ -164,9 +164,9 @@ export async function resolveGitHubMentionContext(params: {
         installationId: String(installation.id),
         organizationId,
         userId,
-        integrationId: integration.id,
-        owner: integration.owner,
-        repo: integration.repo,
+        integrationId,
+        owner,
+        repo,
         defaultBranch: repository.default_branch,
         issueNumber,
         comment: {

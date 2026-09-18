@@ -18,6 +18,10 @@ import type {
 } from "@notra/ai/types/github-mention";
 import { buildGitHubMentionThread } from "@notra/ai/utils/github-mention";
 import {
+  readPublishedFile,
+  resolveEditableMarkdown,
+} from "@notra/ai/utils/github-mention-published-file";
+import {
   listGitHubIssueComments,
   listGitHubReviewComments,
 } from "@notra/ai/utils/github-pr-commit";
@@ -39,7 +43,14 @@ export async function runGitHubMentionAgent(params: {
     writeBranch: null,
     writePullNumber: null,
     writePullRequestUrl: null,
+    publishedFile: await readPublishedFile(params),
   };
+  const editable = resolveEditableMarkdown({
+    postMarkdown: params.context.publication?.markdown ?? null,
+    publishedFile: state.publishedFile,
+    recordedHeadSha: params.context.publication?.headSha ?? null,
+    pullRequestHeadSha: params.context.pullRequest?.headSha ?? null,
+  });
 
   const agent = new ToolLoopAgent({
     model: createModel(params.context.organizationId, AGENT_DEFAULT_MODEL, {
@@ -93,7 +104,8 @@ export async function runGitHubMentionAgent(params: {
       destinationMode: params.context.destination.mode,
       publicationPath: params.context.publication?.path ?? null,
       publicationTitle: params.context.publication?.title ?? null,
-      markdown: params.context.publication?.markdown ?? null,
+      markdown: editable.markdown,
+      markdownFromPullRequest: editable.fromPullRequest,
       thread: buildGitHubMentionThread({
         comments: [...issueComments, ...reviewComments],
         current: {

@@ -66,13 +66,14 @@ export function commentMentionsNotra(
   body: string,
   handles: readonly string[] = getGitHubMentionAppHandles()
 ) {
+  const configured = new Set(handles);
   const mentioned = new Set(
     [...stripNonMentionText(body).matchAll(MENTION_PATTERN)].map((match) =>
       normalizeHandle(match[1] ?? "")
     )
   );
   return [...mentioned].some(
-    (handle) => handles.includes(handle) || isNotraMentionHandle(handle)
+    (handle) => configured.has(handle) || isNotraMentionHandle(handle)
   );
 }
 
@@ -117,16 +118,27 @@ export function buildGitHubMentionThread(params: {
   comments: readonly GitHubMentionThreadComment[];
   current: { id: number; kind: "issue" | "review"; threadRootId?: number };
 }) {
-  const appHandles = getGitHubMentionAppHandles();
+  const appHandles = new Set(getGitHubMentionAppHandles());
+  const isNotraComment = (comment: GitHubMentionThreadComment) =>
+    comment.authorIsBot && appHandles.has(normalizeHandle(comment.authorLogin));
   const thread: Array<{ author: string; body: string }> = [];
-  const reviewRootId =
-    params.current.kind === "review" ? params.current.threadRootId : undefined;
+  // A review mention only needs its own thread. An issue mention also needs the
+  // threads Notra replied in (its inline replies live there), but not every
+  // unrelated review discussion on a busy pull request.
+  const reviewRootIds =
+    params.current.kind === "review" && params.current.threadRootId != null
+      ? new Set([params.current.threadRootId])
+      : new Set(
+          params.comments
+            .filter(
+              (comment) => comment.kind === "review" && isNotraComment(comment)
+            )
+            .map((comment) => comment.threadRootId)
+        );
   const ordered = [...params.comments]
     .filter(
       (comment) =>
-        comment.kind !== "review" ||
-        reviewRootId == null ||
-        comment.threadRootId === reviewRootId
+        comment.kind !== "review" || reviewRootIds.has(comment.threadRootId)
     )
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   for (const comment of ordered) {
@@ -136,9 +148,7 @@ export function buildGitHubMentionThread(params: {
     ) {
       continue;
     }
-    const isNotra =
-      comment.authorIsBot &&
-      appHandles.includes(normalizeHandle(comment.authorLogin));
+    const isNotra = isNotraComment(comment);
     if (comment.authorIsBot && !isNotra) {
       continue;
     }

@@ -8,6 +8,7 @@ import type {
   GitHubMentionOctokit,
 } from "@notra/ai/types/github-mention";
 import { logGitHubMentionEvent } from "@notra/ai/utils/github-mention-log";
+import { getGitHubMentionPathBlockReason } from "@notra/ai/utils/github-mention-path-policy";
 import { commitFilesToPullRequest } from "@notra/ai/utils/github-pr-commit";
 import { syncPublishedPostAfterCommit } from "@notra/ai/utils/update-published-content";
 import type { BoxConfig, Runtime, VercelModel } from "@upstash/box";
@@ -20,8 +21,6 @@ const SANDBOX_MODEL_ID = "vercel/anthropic/claude-sonnet-4.6";
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const SANDBOX_FILE_LIMIT = 25;
-// Anything under `.github/` can change Actions, local actions, or App config.
-const BLOCKED_PATH_PATTERN = /^\.github\//;
 
 function shellQuote(value: string) {
   return `'${value.replace(/'/g, `'\\''`)}'`;
@@ -161,7 +160,8 @@ export async function runGitHubMentionSandbox(params: {
       prompt: [
         "You are editing a cloned GitHub pull request branch for Notra.",
         "Apply the requested change in the working tree. Do not run git commit, git push, or any other command that needs credentials; your edits are collected and committed for you.",
-        "Keep the change as small as the request allows. Follow the conventions of neighbouring files. Do not touch .github.",
+        "Keep the change as small as the request allows. Follow the conventions of neighbouring files.",
+        "Only content is committed: Markdown, MDX, text, and the JSON, YAML, TOML, or CSV data next to it. Changes to code, scripts, dot files, or build configuration are discarded, so do not make them.",
         publicationPath
           ? `The content Notra published in this pull request is ${publicationPath}.`
           : "",
@@ -175,13 +175,16 @@ export async function runGitHubMentionSandbox(params: {
       void chunk;
     }
     const changes = await listChangedSandboxFiles(box, baseSha);
-    const files = [];
-    for (const path of changes.written) {
-      const contents = await box.files.read(path);
-      if (typeof contents === "string") {
-        files.push({ path, contents });
-      }
-    }
+    const reads = await Promise.all(
+      changes.written.map(async (path) => ({
+        path,
+        contents: await box.files.read(path),
+      }))
+    );
+    const files = reads.filter(
+      (file): file is { path: string; contents: string } =>
+        typeof file.contents === "string"
+    );
     const deletions = changes.deleted;
     if (files.length === 0 && deletions.length === 0) {
       logGitHubMentionEvent(GITHUB_MENTION_LOG_EVENTS.sandboxCompleted, {
@@ -259,7 +262,8 @@ export async function runGitHubMentionSandbox(params: {
 
 /**
  * Parses `git diff --name-status` plus `--numstat` output. Exported for tests.
- * Binary files and blocked paths are reported instead of committed.
+ * Binary files and paths outside the content allowlist are reported instead
+ * of committed.
  */
 export function parseSandboxChanges(nameStatus: string, numstat: string) {
   const binary = new Set(
@@ -278,8 +282,9 @@ export function parseSandboxChanges(nameStatus: string, numstat: string) {
     }
     const status = line.slice(0, separator);
     const path = line.slice(separator + 1);
-    if (BLOCKED_PATH_PATTERN.test(path)) {
-      skipped.push({ path, reason: ".github files are not committed" });
+    const blockReason = getGitHubMentionPathBlockReason(path);
+    if (blockReason) {
+      skipped.push({ path, reason: blockReason });
     } else if (status === "D") {
       deleted.push(path);
     } else if (binary.has(path)) {

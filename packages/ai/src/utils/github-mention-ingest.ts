@@ -58,8 +58,12 @@ async function claimDelivery(deliveryId: string) {
   return claimed === "OK";
 }
 
-/** Drop a claim that never reached a durable accept/ignore so GitHub can retry. */
-async function releaseDelivery(deliveryId: string | null) {
+/**
+ * Drops a claim whose mention was not handled (ingest error, failed run), so
+ * redelivering the webhook from the GitHub App settings runs it again instead
+ * of answering "duplicate".
+ */
+export async function releaseGitHubMentionDelivery(deliveryId: string | null) {
   if (!(redis && deliveryId) || process.env.NODE_ENV === "development") {
     return;
   }
@@ -184,11 +188,11 @@ export async function ingestGitHubAppMentionWebhook(params: {
       rawBody: params.rawBody,
     });
     if (result.httpStatus >= 500) {
-      await releaseDelivery(params.deliveryId);
+      await releaseGitHubMentionDelivery(params.deliveryId);
     }
     return result;
   } catch (error) {
-    await releaseDelivery(params.deliveryId);
+    await releaseGitHubMentionDelivery(params.deliveryId);
     throw error;
   }
 }

@@ -5,7 +5,10 @@ import type {
   GitHubMentionOctokit,
 } from "@notra/ai/types/github-mention";
 
-import { resolveGitHubMentionWriteTarget } from "./github-mention-write-target";
+import {
+  type GitHubMentionWriteState,
+  resolveGitHubMentionWriteTarget,
+} from "./github-mention-write-target";
 
 function fakeOctokit(head: { ref: string; repoFullName: string | null }) {
   return {
@@ -45,7 +48,7 @@ function context(
   } as GitHubMentionContext;
 }
 
-const emptyState = () => ({
+const emptyState = (): GitHubMentionWriteState => ({
   writeBranch: null,
   writePullNumber: null,
   writePullRequestUrl: null,

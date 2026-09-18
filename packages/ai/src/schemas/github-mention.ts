@@ -32,12 +32,10 @@ const commentSchema = z.object({
   in_reply_to_id: z.number().optional(),
 });
 
-const issuePullRequestSchema = z
-  .object({
-    url: z.string().optional(),
-    html_url: z.string().optional(),
-  })
-  .passthrough();
+const issuePullRequestSchema = z.looseObject({
+  url: z.string().optional(),
+  html_url: z.string().optional(),
+});
 
 const issueSchema = z.object({
   number: z.number(),

@@ -1,25 +1,17 @@
 import type { GitHubMentionOctokit } from "@notra/ai/types/github-mention";
 import { updateContentPublicationHead } from "@notra/ai/utils/content-publication";
+import { carryOverImageTargets } from "@notra/ai/utils/github-mention-published-file";
 import { commitFilesToPullRequest } from "@notra/ai/utils/github-pr-commit";
 import { updatePostRecord } from "@notra/ai/utils/post-service";
-
-async function retryAfterCommit<T>(run: () => Promise<T>): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      return await run();
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  throw lastError;
-}
+import { retryWrite } from "@notra/ai/utils/retry-write";
 
 export async function updatePublishedContentAndCommit(params: {
   octokit: GitHubMentionOctokit;
   organizationId: string;
   postId: string;
   markdown: string;
+  /** What goes into the repository when it differs from the post (image paths). */
+  fileContents?: string;
   title?: string;
   owner: string;
   repo: string;
@@ -40,9 +32,11 @@ export async function updatePublishedContentAndCommit(params: {
     branch: params.branch,
     expectedHeadOid: params.expectedHeadOid,
     headline: params.commitMessage,
-    files: [{ path: params.path, contents: params.markdown }],
+    files: [
+      { path: params.path, contents: params.fileContents ?? params.markdown },
+    ],
   });
-  await retryAfterCommit(() =>
+  await retryWrite(() =>
     updatePostRecord({
       organizationId: params.organizationId,
       postId: params.postId,
@@ -51,7 +45,7 @@ export async function updatePublishedContentAndCommit(params: {
     })
   );
   if (params.recordPublicationHead ?? true) {
-    await retryAfterCommit(() =>
+    await retryWrite(() =>
       updateContentPublicationHead({
         publicationId: params.publicationId,
         organizationId: params.organizationId,
@@ -65,13 +59,18 @@ export async function updatePublishedContentAndCommit(params: {
 
 /**
  * Keeps the Notra post in step when the published file was committed through
- * another path (plain file commit or the sandbox). The file is the post's
- * markdown one to one, so its new contents become the post. Returns whether
- * the post changed; the publication head is recorded either way.
+ * another path (plain file commit or the sandbox). The file's new contents
+ * become the post, keeping the post's own image URLs. Returns whether the post
+ * changed; the publication head is recorded either way.
  */
 export async function syncPublishedPostAfterCommit(params: {
   organizationId: string;
-  publication: { id: string; postId: string; path: string } | null;
+  publication: {
+    id: string;
+    postId: string;
+    path: string;
+    markdown?: string | null;
+  } | null;
   files: ReadonlyArray<{ path: string; contents: string }>;
   commitSha: string;
   branch: string;
@@ -82,7 +81,7 @@ export async function syncPublishedPostAfterCommit(params: {
     return false;
   }
   if (params.recordPublicationHead) {
-    await retryAfterCommit(() =>
+    await retryWrite(() =>
       updateContentPublicationHead({
         publicationId: publication.id,
         organizationId: params.organizationId,
@@ -95,11 +94,14 @@ export async function syncPublishedPostAfterCommit(params: {
   if (!file) {
     return false;
   }
-  await retryAfterCommit(() =>
+  await retryWrite(() =>
     updatePostRecord({
       organizationId: params.organizationId,
       postId: publication.postId,
-      markdown: file.contents,
+      markdown: carryOverImageTargets(
+        file.contents,
+        publication.markdown ?? ""
+      ),
     })
   );
   return true;

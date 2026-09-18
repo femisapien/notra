@@ -1,7 +1,10 @@
 import { GITHUB_MENTION_LOG_EVENTS } from "@notra/ai/constants/github-mention";
 import { flushLogs, withEvlog } from "@notra/ai/evlog";
 import type { GitHubMentionWebhookLog } from "@notra/ai/types/github-mention";
-import { ingestGitHubAppMentionWebhook } from "@notra/ai/utils/github-mention-ingest";
+import {
+  ingestGitHubAppMentionWebhook,
+  releaseGitHubMentionDelivery,
+} from "@notra/ai/utils/github-mention-ingest";
 import {
   buildMentionResultWebhookLog,
   logGitHubMentionEvent,
@@ -44,7 +47,18 @@ export const POST = withEvlog(async (request: NextRequest) => {
   });
 
   if (result.log) {
-    await writeMentionWebhookLog(result.log, deliveryId);
+    // The Logs page entry is secondary: losing it must not drop the mention.
+    await writeMentionWebhookLog(result.log, deliveryId).catch((error) => {
+      logGitHubMentionEvent(
+        GITHUB_MENTION_LOG_EVENTS.ingestRejected,
+        {
+          deliveryId,
+          reason: "webhook_log_failed",
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "error"
+      );
+    });
   }
 
   if (result.run && result.context) {
@@ -53,6 +67,9 @@ export const POST = withEvlog(async (request: NextRequest) => {
       const startedAt = Date.now();
       try {
         const processed = await result.run?.();
+        if (processed?.status === "failed") {
+          await releaseGitHubMentionDelivery(deliveryId);
+        }
         if (processed) {
           await writeMentionWebhookLog(
             buildMentionResultWebhookLog({
@@ -65,6 +82,7 @@ export const POST = withEvlog(async (request: NextRequest) => {
         }
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
+        await releaseGitHubMentionDelivery(deliveryId).catch(() => undefined);
         logGitHubMentionEvent(
           GITHUB_MENTION_LOG_EVENTS.completed,
           {

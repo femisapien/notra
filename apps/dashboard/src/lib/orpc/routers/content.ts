@@ -24,6 +24,7 @@ import { githubAppInstallationCanPublishContent } from "@notra/ai/utils/github-a
 import { getGitHubConnectionMethod } from "@notra/ai/utils/github-connection-method";
 import { createLinearClient } from "@notra/ai/utils/linear";
 import { createOctokit } from "@notra/ai/utils/octokit";
+import { retryWrite } from "@notra/ai/utils/retry-write";
 import { sanitizeMarkdownHtml } from "@notra/ai/utils/sanitize";
 import { db } from "@notra/db/drizzle";
 import {
@@ -1173,22 +1174,18 @@ export const contentRouter = {
           branch: result.branchName,
           pullRequestNumber: result.pullRequestNumber,
           pullRequestUrl: result.pullRequestUrl,
+          headSha: result.headSha,
         };
-        let recorded = false;
-        for (let attempt = 0; attempt < 3 && !recorded; attempt += 1) {
-          try {
-            await recordContentPublication(publication);
-            recorded = true;
-          } catch (error) {
+        await retryWrite(() => recordContentPublication(publication)).catch(
+          (error) => {
             console.error("Failed to record content publication", {
               organizationId: input.organizationId,
               contentId: input.contentId,
               pullRequestUrl: result.pullRequestUrl,
-              attempt,
               error,
             });
           }
-        }
+        );
         return result;
       } catch (error) {
         throw await toGitHubPublishOrpcError(error, {

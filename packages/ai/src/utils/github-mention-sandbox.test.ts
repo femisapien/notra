@@ -12,6 +12,8 @@ describe("parseSandboxChanges", () => {
         "A\tdocs/logo.png",
         "A\t.github/workflows/pwn.yml",
         "A\t.github/actions/setup/action.yml",
+        "M\tsrc/server.ts",
+        "D\tpackage.json",
       ].join("\n"),
       ["3\t1\tdocs/changelog/release 2.4.md", "-\t-\tdocs/logo.png"].join("\n")
     );
@@ -24,6 +26,8 @@ describe("parseSandboxChanges", () => {
       "docs/logo.png",
       ".github/workflows/pwn.yml",
       ".github/actions/setup/action.yml",
+      "src/server.ts",
+      "package.json",
     ]);
   });
 

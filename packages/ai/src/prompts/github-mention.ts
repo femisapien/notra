@@ -12,6 +12,8 @@ export function getGitHubMentionPrompt(params: {
   publicationPath: string | null;
   publicationTitle: string | null;
   markdown: string | null;
+  /** True when the markdown is the pull request file, which is ahead of the Notra post. */
+  markdownFromPullRequest?: boolean;
   thread: ReadonlyArray<{ author: string; body: string }>;
   review: GitHubMentionReviewThread | null;
 }) {
@@ -30,7 +32,9 @@ export function getGitHubMentionPrompt(params: {
       ? [
           `Published file: ${params.publicationPath}`,
           `Title: ${params.publicationTitle ?? "(untitled)"}`,
-          "Current markdown:",
+          params.markdownFromPullRequest
+            ? "Current markdown (from the file on the pull request: someone pushed changes that are not in the Notra post yet, so keep them):"
+            : "Current markdown:",
           params.markdown,
         ].join("\n")
       : "No Notra publication is linked to this pull request.";

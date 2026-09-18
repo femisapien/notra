@@ -108,25 +108,41 @@ export async function getRepositoryFileContents(params: {
   return Buffer.from(data.content, "base64").toString("utf8");
 }
 
+const LAST_PAGE_LINK_PATTERN = /[?&]page=(\d+)[^>]*>;\s*rel="last"/;
+
+/**
+ * Newest issue comments. This endpoint only sorts oldest first and ignores
+ * `direction`, so on long threads the newest comments sit on the last pages.
+ */
 export async function listGitHubIssueComments(params: {
   octokit: CommitFilesToPullRequestParams["octokit"];
   owner: string;
   repo: string;
   issueNumber: number;
 }) {
-  const { data } = await params.octokit.request(
-    "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
-    {
-      owner: params.owner,
-      repo: params.repo,
-      issue_number: params.issueNumber,
-      per_page: 100,
-      sort: "created",
-      direction: "desc",
-      headers: GITHUB_API_VERSION_HEADERS,
-    }
+  const fetchPage = (page: number) =>
+    params.octokit.request(
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
+      {
+        owner: params.owner,
+        repo: params.repo,
+        issue_number: params.issueNumber,
+        per_page: 100,
+        page,
+        headers: GITHUB_API_VERSION_HEADERS,
+      }
+    );
+  const first = await fetchPage(1);
+  const lastPage = Number(
+    LAST_PAGE_LINK_PATTERN.exec(first.headers?.link ?? "")?.[1] ?? 1
   );
-  return data.map((comment) => ({
+  // Two pages, so a nearly empty last page still leaves enough context.
+  const pages = await Promise.all(
+    [lastPage - 1, lastPage]
+      .filter((page) => page >= 1)
+      .map(async (page) => (page === 1 ? first : await fetchPage(page)).data)
+  );
+  return pages.flat().map((comment) => ({
     id: comment.id,
     kind: "issue" as const,
     createdAt: comment.created_at,

@@ -220,4 +220,65 @@ describe("buildGitHubMentionThread", () => {
       },
     ]);
   });
+
+  test("an issue mention only pulls in review threads Notra replied in", () => {
+    const previous = process.env.GITHUB_APP_SLUG;
+    process.env.GITHUB_APP_SLUG = "notra-ai";
+    try {
+      const thread = buildGitHubMentionThread({
+        current: { id: 30, kind: "issue" },
+        comments: [
+          {
+            id: 8,
+            kind: "review",
+            createdAt: "2026-09-18T10:01:00Z",
+            threadRootId: 8,
+            authorLogin: "bob",
+            authorIsBot: false,
+            body: "Unrelated nit on another file",
+          },
+          {
+            id: 20,
+            kind: "review",
+            createdAt: "2026-09-18T10:02:00Z",
+            threadRootId: 20,
+            authorLogin: "notra-ai[bot]",
+            authorIsBot: true,
+            body: "Shortened the intro. Want the same for Fixed?",
+          },
+          {
+            id: 21,
+            kind: "review",
+            createdAt: "2026-09-18T10:03:00Z",
+            threadRootId: 20,
+            authorLogin: "alice",
+            authorIsBot: false,
+            body: "Looks good",
+          },
+          {
+            id: 30,
+            kind: "issue",
+            createdAt: "2026-09-18T10:04:00Z",
+            threadRootId: null,
+            authorLogin: "alice",
+            authorIsBot: false,
+            body: "@notra yes, do that",
+          },
+        ],
+      });
+      expect(thread).toEqual([
+        {
+          author: "Notra (you), in a review thread",
+          body: "Shortened the intro. Want the same for Fixed?",
+        },
+        { author: "@alice, in a review thread", body: "Looks good" },
+      ]);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.GITHUB_APP_SLUG;
+      } else {
+        process.env.GITHUB_APP_SLUG = previous;
+      }
+    }
+  });
 });

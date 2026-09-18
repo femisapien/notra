@@ -5,6 +5,8 @@ import type {
   GitHubMentionOctokit,
 } from "@notra/ai/types/github-mention";
 import { findOpenContentPublicationForPost } from "@notra/ai/utils/content-publication";
+import { partitionGitHubMentionPaths } from "@notra/ai/utils/github-mention-path-policy";
+import { carryOverImageTargets } from "@notra/ai/utils/github-mention-published-file";
 import { runGitHubMentionSandbox } from "@notra/ai/utils/github-mention-sandbox";
 import {
   type GitHubMentionWriteState,
@@ -31,6 +33,8 @@ export interface GitHubMentionToolState extends GitHubMentionWriteState {
   committed: boolean;
   commitSha: string | null;
   pullRequestUrl: string | null;
+  /** The published file on the pull request head, read once before the run. */
+  publishedFile: string | null;
 }
 
 async function recordWrite(
@@ -183,6 +187,10 @@ export function buildGitHubMentionTools(params: {
             organizationId: context.organizationId,
             postId: publication.postId,
             markdown,
+            fileContents: carryOverImageTargets(
+              markdown,
+              state.publishedFile ?? markdown
+            ),
             title,
             owner: context.owner,
             repo: context.repo,
@@ -211,7 +219,7 @@ export function buildGitHubMentionTools(params: {
     }),
     commitFilesToPullRequest: tool({
       description:
-        "Commits one or more files onto the mention pull request head. Use after reading files when the change is not the linked Notra publication.",
+        "Commits one or more content files (Markdown, MDX, text, or the JSON, YAML, TOML, CSV data next to them) onto the mention pull request head. Code, scripts, dot files, and build configuration are rejected. Use after reading files when the change is not the linked Notra publication.",
       inputSchema: z.object({
         headline: z.string().describe("Commit headline"),
         files: z
@@ -225,6 +233,16 @@ export function buildGitHubMentionTools(params: {
       }),
       execute: ({ headline, files }) =>
         inWriteOrder(async () => {
+          const { blocked } = partitionGitHubMentionPaths(
+            files.map((file) => file.path)
+          );
+          if (blocked.length > 0) {
+            return {
+              error:
+                "Nothing was committed. Mentions only edit content files; tell the commenter these need a regular commit.",
+              blocked,
+            };
+          }
           const target = await resolveGitHubMentionWriteTarget({
             octokit,
             context,
@@ -258,7 +276,7 @@ export function buildGitHubMentionTools(params: {
     }),
     runRepoSandbox: tool({
       description:
-        "Runs a repository sandbox on the mention pull request branch when you need a working tree. Do not use this for questions or single-file content edits.",
+        "Runs a repository sandbox on the mention pull request branch when you need a working tree. Only content files are committed; anything else comes back under skipped. Do not use this for questions or single-file content edits.",
       inputSchema: z.object({
         instruction: z
           .string()
