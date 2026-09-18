@@ -66,7 +66,14 @@ export const OFFERING_CITATION_BAR_COLOR = "#8B5CF6";
 export const OFFERING_SIGNUP_SOURCE = "offering-tool";
 
 export const OFFERING_SAMPLES: readonly OfferingSample[] = [
-  { brand: "Notra", feature: "Agent readiness" },
-  { brand: "Resend", feature: "Inbound emails" },
-  { brand: "Linear", feature: "Customer requests" },
+  {
+    brand: "Notra",
+    feature: "Agent readiness",
+    domain: "usenotra.com",
+    logoSrc: "/notra-mark.svg",
+  },
+  { brand: "Resend", feature: "Inbound emails", domain: "resend.com" },
+  { brand: "Linear", feature: "Customer requests", domain: "linear.app" },
 ];
+
+export const OFFERING_DEMO_DELAY = "400 millis";

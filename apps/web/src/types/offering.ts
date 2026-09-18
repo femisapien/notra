@@ -30,6 +30,8 @@ export interface OfferingScanResult {
 export interface OfferingSample {
   brand: string;
   feature: string;
+  domain: string;
+  logoSrc?: string;
 }
 
 export type OfferingScanStatus =

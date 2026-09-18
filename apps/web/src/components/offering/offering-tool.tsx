@@ -6,6 +6,7 @@ import {
   Loading03Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { getFaviconUrl } from "@notra/geo-core/utils/reference-display";
 import { CtaButton } from "@notra/ui/components/shared/cta-button";
 import { Input } from "@notra/ui/components/ui/input";
 import { Label } from "@notra/ui/components/ui/label";
@@ -34,6 +35,7 @@ import {
   offeringScanResultSchema,
 } from "@/schemas/offering";
 import type {
+  OfferingSample,
   OfferingScanResult,
   OfferingScanStatus,
   OfferingToolProps,
@@ -197,24 +199,37 @@ export function OfferingTool({
         </CtaButton>
       </form>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-sans text-[0.8125rem]/5 font-medium text-[#1E1E1E99] dark:text-white/50">
-          Try one
-        </span>
+      <ul className="flex flex-col gap-0.5">
         {samples.map((sample) => (
-          <button
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#1E1E1E14] bg-white px-2.5 py-1 font-sans text-[0.8125rem]/5 font-medium text-[#1E1E1E] transition-colors hover:border-[#8B5CF6] hover:text-[#8B5CF6] disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.04] dark:text-white dark:hover:border-[#A78BFA] dark:hover:text-[#A78BFA]"
-            disabled={isChecking}
-            key={`${sample.brand}-${sample.feature}`}
-            onClick={() => handleSample(sample.brand, sample.feature)}
-            type="button"
-          >
-            {sample.brand}
-            <span className="text-[#1E1E1E66] dark:text-white/40">·</span>
-            {sample.feature}
-          </button>
+          <li key={`${sample.brand}-${sample.feature}`}>
+            <button
+              aria-label={`Check whether ChatGPT knows ${sample.brand} ${sample.feature}`}
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-1 py-1.5 text-left font-sans text-[0.9375rem]/5 text-[#1E1E1E99] transition-colors hover:bg-[#1E1E1E08] hover:text-[#1E1E1E] disabled:opacity-60 dark:text-white/50 dark:hover:bg-white/[0.04] dark:hover:text-white"
+              disabled={isChecking}
+              onClick={() => handleSample(sample.brand, sample.feature)}
+              type="button"
+            >
+              <span
+                aria-hidden="true"
+                className="w-3.5 shrink-0 text-[#1E1E1E66] dark:text-white/35"
+              >
+                ↳
+              </span>
+              {/* biome-ignore lint/performance/noImgElement: sample logo is a per-brand URL, not a Next Image host */}
+              <img
+                alt=""
+                className="size-4 shrink-0 rounded-sm"
+                height={16}
+                src={sampleLogoSrc(sample)}
+                width={16}
+              />
+              <span className="min-w-0 truncate">
+                {sample.brand} · {sample.feature}
+              </span>
+            </button>
+          </li>
         ))}
-      </div>
+      </ul>
 
       <LazyMotion features={domAnimation}>
         <AnimatedHeight>
@@ -233,6 +248,10 @@ export function OfferingTool({
       </LazyMotion>
     </div>
   );
+}
+
+function sampleLogoSrc(sample: OfferingSample) {
+  return sample.logoSrc ?? getFaviconUrl(sample.domain);
 }
 
 function noticeIcon(status: OfferingScanStatus) {

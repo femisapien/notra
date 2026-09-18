@@ -4,6 +4,7 @@ import { generateText, isStepCount } from "ai";
 import { Data, Effect } from "effect";
 
 import {
+  OFFERING_DEMO_DELAY,
   OFFERING_DIRECT_MODEL_ID,
   OFFERING_ENGINE_ID,
   OFFERING_ENGINE_LABEL,
@@ -16,6 +17,7 @@ import {
   readOfferingScanCache,
   writeOfferingScanCache,
 } from "@/lib/offering/cache";
+import { buildDemoOfferingScan, isOfferingDemoMode } from "@/lib/offering/demo";
 import {
   citationShareFor,
   offeringMatchedTerm,
@@ -118,6 +120,11 @@ export const runOfferingScan = Effect.fn("runOfferingScan")(function* (input: {
   const cached = yield* Effect.promise(() => readOfferingScanCache(cacheKey));
   if (cached) {
     return cached;
+  }
+
+  if (!createInvocation() && isOfferingDemoMode()) {
+    yield* Effect.sleep(OFFERING_DEMO_DELAY);
+    return buildDemoOfferingScan(input);
   }
 
   const prompt = buildOfferingPrompt(input.brand);
