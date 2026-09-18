@@ -7,8 +7,6 @@ import type { GatewayArgs, GatewayResult } from "@notra/ai/types/gateway";
 import type { SupermemoryOptions } from "@notra/ai/types/model";
 import { withSupermemory } from "@supermemory/tools/ai-sdk";
 
-import { wrapModelWithDevTools } from "#model-devtools";
-
 export interface CreateModelOptions {
   supermemory?: Omit<SupermemoryOptions, "mode" | "addMemory">;
   disableMemory?: boolean;
@@ -23,12 +21,12 @@ export function createModel(
   const base = gateway(modelId, { organizationId });
 
   if (!organizationId || options?.disableMemory) {
-    return wrapModelForDevTools(wrapModelWithObservability(base, log));
+    return wrapModelWithObservability(base, log);
   }
 
   const supermemoryApiKey = process.env.SUPERMEMORY_API_KEY?.trim();
   if (!supermemoryApiKey) {
-    return wrapModelForDevTools(wrapModelWithObservability(base, log));
+    return wrapModelWithObservability(base, log);
   }
 
   // @supermemory/tools is typed against AI SDK 5, but its wrapper is a Proxy
@@ -40,16 +38,5 @@ export function createModel(
     ...options?.supermemory,
   }) as unknown as GatewayResult;
 
-  return wrapModelForDevTools(wrapModelWithObservability(model, log));
-}
-
-function wrapModelForDevTools(model: GatewayResult): GatewayResult {
-  if (
-    process.env.NODE_ENV !== "development" ||
-    process.env.AI_SDK_DEVTOOLS !== "true"
-  ) {
-    return model;
-  }
-
-  return wrapModelWithDevTools(model);
+  return wrapModelWithObservability(model, log);
 }

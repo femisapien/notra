@@ -14,6 +14,18 @@ export async function register() {
 
   if (
     process.env.NEXT_RUNTIME === "nodejs" &&
+    process.env.NODE_ENV === "development" &&
+    process.env.AI_SDK_DEVTOOLS === "true"
+  ) {
+    const [{ DevToolsTelemetry }, { registerTelemetry }] = await Promise.all([
+      import("@ai-sdk/devtools"),
+      import("ai"),
+    ]);
+    registerTelemetry(DevToolsTelemetry());
+  }
+
+  if (
+    process.env.NEXT_RUNTIME === "nodejs" &&
     process.env.NODE_ENV === "production"
   ) {
     const [{ registerOTelTCC }, { OpenTelemetry }, { registerTelemetry }] =
