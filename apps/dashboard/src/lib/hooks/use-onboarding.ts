@@ -69,10 +69,7 @@ export function useOnboardingAgentRun(
           : undefined,
       staleTime: AGENT_RUN_STALE_TIME_MS,
       refetchInterval: (current) =>
-        current.state.data?.running
-          ? AGENT_RUN_REFETCH_INTERVAL_MS
-          : AGENT_RUN_STALE_TIME_MS,
-      refetchOnWindowFocus: "always",
+        current.state.data?.running ? AGENT_RUN_REFETCH_INTERVAL_MS : false,
     })
   );
 

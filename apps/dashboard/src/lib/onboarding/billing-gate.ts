@@ -5,8 +5,12 @@ import { hasPaidSubscriptionHistory } from "@/lib/billing/subscription";
 
 export async function redirectIfAnyOrganizationHasPaidHistory() {
   const allOrgs = await getAllUserOrganizations();
-  for (const org of allOrgs) {
-    if (await hasPaidSubscriptionHistory(org.id)) {
+  const paidLookups = allOrgs.map(async (org) =>
+    (await hasPaidSubscriptionHistory(org.id)) ? org : null
+  );
+  for (const paidOrg of paidLookups) {
+    const org = await paidOrg;
+    if (org) {
       redirect(`/${org.slug}`);
     }
   }

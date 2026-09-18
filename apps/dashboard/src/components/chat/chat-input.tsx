@@ -77,6 +77,7 @@ import { toast } from "sonner";
 
 import { Composer } from "@/components/composer/composer-shell";
 import { McpIcon } from "@/components/integrations/mcp-icon";
+import { CHAT_COMPOSER_DRAFT_PERSIST_MS } from "@/constants/chat-composer";
 import { useAutumnRefreshListener } from "@/lib/hooks/use-autumn-refresh-listener";
 import { useBillingCustomer } from "@/lib/hooks/use-billing-customer";
 import { dashboardOrpc } from "@/lib/orpc/query";
@@ -336,6 +337,9 @@ export function ChatInputAdvanced({
   const [mentionIndex, setMentionIndex] = useState(0);
   const mentionAnchorRef = useRef<{ node: Node; offset: number } | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const persistDraftTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const mentionListRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const lastInitialValueRef = useRef<string | undefined>(undefined);
@@ -890,13 +894,34 @@ export function ChatInputAdvanced({
     [draftStorageKey]
   );
 
+  const schedulePersistDraft = useCallback(
+    (draftContext: readonly ContextItem[]) => {
+      if (persistDraftTimeoutRef.current !== null) {
+        clearTimeout(persistDraftTimeoutRef.current);
+      }
+      persistDraftTimeoutRef.current = setTimeout(() => {
+        persistDraftTimeoutRef.current = null;
+        persistDraft(draftContext);
+      }, CHAT_COMPOSER_DRAFT_PERSIST_MS);
+    },
+    [persistDraft]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (persistDraftTimeoutRef.current !== null) {
+        clearTimeout(persistDraftTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleInput = useCallback(() => {
     const editor = editorRef.current;
     if (!editor) {
       return;
     }
     setIsEmpty(readEditorText().trim().length === 0);
-    persistDraft(contextRef.current);
+    schedulePersistDraft(contextRef.current);
 
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) {
@@ -946,7 +971,7 @@ export function ChatInputAdvanced({
 
     mentionAnchorRef.current = null;
     setMentionQuery(null);
-  }, [persistDraft, readEditorText]);
+  }, [schedulePersistDraft, readEditorText]);
 
   const restoredDraftKeyRef = useRef<string | null>(null);
 

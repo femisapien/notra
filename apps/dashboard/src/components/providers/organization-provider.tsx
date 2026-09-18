@@ -34,6 +34,7 @@ interface OrganizationsContextValue {
   activeOrganization: Organization | null;
   isLoading: boolean;
   getOrganization: (slug: string) => Organization | undefined;
+  requestOrganizations: () => void;
 }
 
 const OrganizationsContext = createContext<OrganizationsContextValue | null>(
@@ -45,6 +46,7 @@ const FALLBACK_ORGANIZATIONS_CONTEXT: OrganizationsContextValue = {
   activeOrganization: null,
   isLoading: true,
   getOrganization: () => undefined,
+  requestOrganizations: () => undefined,
 };
 
 export function OrganizationsProvider({
@@ -60,9 +62,15 @@ export function OrganizationsProvider({
   const hasAutoSelectedRef = useRef(false);
   const [optimisticActiveOrg, setOptimisticActiveOrg] =
     useState<Organization | null>(null);
+  const [orgListRequested, setOrgListRequested] = useState(
+    !initialActiveOrganization
+  );
+  const requestOrganizations = useCallback(() => {
+    setOrgListRequested(true);
+  }, []);
 
   const [
-    { data: organizationsData, isPending: isLoadingOrgs },
+    { data: organizationsData, isPending: isFetchingOrgs },
     { data: activeOrganization, isPending: isLoadingActive },
   ] = useQueries({
     queries: [
@@ -72,8 +80,13 @@ export function OrganizationsProvider({
           const result = await authClient.organization.list();
           return result.data ?? [];
         },
+        enabled: orgListRequested,
+        placeholderData: initialActiveOrganization
+          ? [initialActiveOrganization]
+          : undefined,
         staleTime: 5 * 60 * 1000,
         gcTime: 10 * 60 * 1000,
+        refetchOnMount: false,
       },
       slugFromPath
         ? organizationSummaryQueryOptions(
@@ -86,6 +99,7 @@ export function OrganizationsProvider({
 
   const organizations =
     organizationsData ?? FALLBACK_ORGANIZATIONS_CONTEXT.organizations;
+  const isLoadingOrgs = orgListRequested && isFetchingOrgs;
   const isLoading = isLoadingOrgs || isLoadingActive;
   const organizationFromPath = useMemo(
     () =>
@@ -221,8 +235,15 @@ export function OrganizationsProvider({
       activeOrganization: resolvedActiveOrganization,
       isLoading,
       getOrganization,
+      requestOrganizations,
     }),
-    [organizations, resolvedActiveOrganization, isLoading, getOrganization]
+    [
+      organizations,
+      resolvedActiveOrganization,
+      isLoading,
+      getOrganization,
+      requestOrganizations,
+    ]
   );
 
   return (
