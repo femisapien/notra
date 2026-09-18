@@ -235,6 +235,16 @@ export function OfferingTool({
   );
 }
 
+function noticeIcon(status: OfferingScanStatus) {
+  if (status === "checking") {
+    return Loading03Icon;
+  }
+  if (status === "rate-limited") {
+    return Clock01Icon;
+  }
+  return Alert02Icon;
+}
+
 function OfferingNotice({
   message,
   status,
@@ -243,12 +253,7 @@ function OfferingNotice({
   status: OfferingScanStatus;
 }) {
   const reduceMotion = useReducedMotion();
-  const icon =
-    status === "checking"
-      ? Loading03Icon
-      : status === "rate-limited"
-        ? Clock01Icon
-        : Alert02Icon;
+  const icon = noticeIcon(status);
   const motionProps = reduceMotion
     ? {}
     : {
