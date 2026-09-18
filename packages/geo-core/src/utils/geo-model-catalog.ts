@@ -11,6 +11,7 @@ import {
   GEO_MODEL_VERSION_PATTERN,
   GEO_MODELS_PER_PROVIDER,
   GEO_STATIC_ENGINE_ENV,
+  GEO_VISIBLE_FAMILY_GENERATIONS,
 } from "../constants/geo-model-catalog";
 import type {
   GeoGatewayModel,
@@ -128,21 +129,23 @@ function geoModelFamily(id: string): string {
 }
 
 /**
- * Hide superseded releases (an older version of the same model family) and
- * niche variants from the picker. Defaults are never hidden. Hidden models
- * stay in the catalog so stored selections keep resolving.
+ * Hide old releases (more than GEO_VISIBLE_FAMILY_GENERATIONS generations
+ * behind in the same model family) and niche variants from the picker.
+ * Defaults are never hidden. Hidden models stay in the catalog so stored
+ * selections keep resolving.
  */
 function markHiddenGeoModels(
   entries: readonly GeoModelCatalogEntry[]
 ): GeoModelCatalogEntry[] {
-  const families = new Set<string>();
+  const generations = new Map<string, number>();
   return [...entries].sort(byReleaseDescending).map((entry) => {
     const family = geoModelFamily(entry.id);
-    const superseded = families.has(family);
-    families.add(family);
+    const generation = generations.get(family) ?? 0;
+    generations.set(family, generation + 1);
     const hidden =
       !entry.default &&
-      (superseded || GEO_MODEL_HIDDEN_ID_PATTERN.test(entry.id));
+      (generation >= GEO_VISIBLE_FAMILY_GENERATIONS ||
+        GEO_MODEL_HIDDEN_ID_PATTERN.test(entry.id));
     return hidden ? { ...entry, hidden } : entry;
   });
 }

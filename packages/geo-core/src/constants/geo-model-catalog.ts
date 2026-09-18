@@ -480,6 +480,8 @@ export const GEO_PICKER_VISIBLE_MODELS = 3;
 export const GEO_PICKER_VISIBLE_PROVIDERS = 7;
 /** Newest models kept per provider; defaults are always included. */
 export const GEO_MODELS_PER_PROVIDER = 10;
+/** Generations of a model family offered in the picker; older ones are hidden. */
+export const GEO_VISIBLE_FAMILY_GENERATIONS = 2;
 /**
  * Variants kept in the catalog but hidden from the picker: tiers that answer
  * like their base model, dated snapshots, and open-weight families that no
