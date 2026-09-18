@@ -16,13 +16,11 @@ export async function updatePublishedContentAndCommit(params: {
   path: string;
   publicationId: string;
   commitMessage: string;
+  /** False when committing to a follow-up branch that is not the publication's pull request. */
+  recordPublicationHead?: boolean;
 }) {
-  await updatePostRecord({
-    organizationId: params.organizationId,
-    postId: params.postId,
-    markdown: params.markdown,
-    title: params.title,
-  });
+  // Commit first: a rejected commit (stale head, protected branch) must not
+  // leave the Notra post ahead of the pull request.
   const commitSha = await commitFilesToPullRequest({
     octokit: params.octokit,
     owner: params.owner,
@@ -32,11 +30,57 @@ export async function updatePublishedContentAndCommit(params: {
     headline: params.commitMessage,
     files: [{ path: params.path, contents: params.markdown }],
   });
-  await updateContentPublicationHead({
-    publicationId: params.publicationId,
+  await updatePostRecord({
     organizationId: params.organizationId,
-    headSha: commitSha,
-    branch: params.branch,
+    postId: params.postId,
+    markdown: params.markdown,
+    title: params.title,
   });
+  if (params.recordPublicationHead ?? true) {
+    await updateContentPublicationHead({
+      publicationId: params.publicationId,
+      organizationId: params.organizationId,
+      headSha: commitSha,
+      branch: params.branch,
+    });
+  }
   return { commitSha, postId: params.postId, path: params.path };
+}
+
+/**
+ * Keeps the Notra post in step when the published file was committed through
+ * another path (plain file commit or the sandbox). The file is the post's
+ * markdown one to one, so its new contents become the post. Returns whether
+ * the post changed; the publication head is recorded either way.
+ */
+export async function syncPublishedPostAfterCommit(params: {
+  organizationId: string;
+  publication: { id: string; postId: string; path: string } | null;
+  files: ReadonlyArray<{ path: string; contents: string }>;
+  commitSha: string;
+  branch: string;
+  recordPublicationHead: boolean;
+}) {
+  const publication = params.publication;
+  if (!publication) {
+    return false;
+  }
+  if (params.recordPublicationHead) {
+    await updateContentPublicationHead({
+      publicationId: publication.id,
+      organizationId: params.organizationId,
+      headSha: params.commitSha,
+      branch: params.branch,
+    });
+  }
+  const file = params.files.find((entry) => entry.path === publication.path);
+  if (!file) {
+    return false;
+  }
+  await updatePostRecord({
+    organizationId: params.organizationId,
+    postId: publication.postId,
+    markdown: file.contents,
+  });
+  return true;
 }

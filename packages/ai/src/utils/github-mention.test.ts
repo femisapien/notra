@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  buildGitHubMentionThread,
   commentMentionsNotra,
+  getGitHubMentionAppHandles,
   isGitHubBotSender,
   wantsSeparatePullRequest,
 } from "./github-mention";
@@ -23,6 +25,61 @@ describe("commentMentionsNotra", () => {
     expect(commentMentionsNotra("ping @octocat", ["notra"])).toBe(false);
     expect(commentMentionsNotra("email usenotra.com", ["notra"])).toBe(false);
     expect(commentMentionsNotra("notra please", ["notra"])).toBe(false);
+    expect(commentMentionsNotra("@notraxyz fix this", ["notra"])).toBe(false);
+    expect(commentMentionsNotra("@nota fix this", ["notra"])).toBe(false);
+    expect(commentMentionsNotra("@notra/content fix", ["notra"])).toBe(false);
+  });
+
+  test("accepts the Notra handle family regardless of the App slug", () => {
+    for (const handle of [
+      "@notra",
+      "@Notra-AI",
+      "@notrabot",
+      "@notra-bot",
+      "@notra-dev-jan-1032",
+      "@notra-ai[bot]",
+    ]) {
+      expect(
+        commentMentionsNotra(`${handle} shorten this`, ["acme-writer"])
+      ).toBe(true);
+    }
+    expect(commentMentionsNotra("@acme-writer shorten", ["acme-writer"])).toBe(
+      true
+    );
+  });
+
+  test("matches mentions next to punctuation", () => {
+    expect(commentMentionsNotra("(@notra) shorten this", ["notra"])).toBe(true);
+    expect(commentMentionsNotra("thanks, @notra.", ["notra"])).toBe(true);
+    expect(commentMentionsNotra("line one\n@notra-ai go", ["notra-ai"])).toBe(
+      true
+    );
+  });
+
+  test("ignores emails, code, quotes, and HTML comments", () => {
+    expect(commentMentionsNotra("mail jan@notra.dev", ["notra"])).toBe(false);
+    expect(commentMentionsNotra("see `@notra` in docs", ["notra"])).toBe(false);
+    expect(commentMentionsNotra("```\n@notra\n```", ["notra"])).toBe(false);
+    expect(
+      commentMentionsNotra("> @notra shorten this\n\nagreed", ["notra"])
+    ).toBe(false);
+    expect(commentMentionsNotra("<!-- @notra -->", ["notra"])).toBe(false);
+  });
+});
+
+describe("getGitHubMentionAppHandles", () => {
+  test("returns the configured App slug", () => {
+    const previous = process.env.GITHUB_APP_SLUG;
+    process.env.GITHUB_APP_SLUG = "notra-ai";
+    try {
+      expect(getGitHubMentionAppHandles()).toEqual(["notra-ai"]);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.GITHUB_APP_SLUG;
+      } else {
+        process.env.GITHUB_APP_SLUG = previous;
+      }
+    }
   });
 });
 
@@ -44,5 +101,68 @@ describe("wantsSeparatePullRequest", () => {
     );
     expect(wantsSeparatePullRequest("don't commit on this PR")).toBe(true);
     expect(wantsSeparatePullRequest("@notra shorten the intro")).toBe(false);
+  });
+});
+
+describe("buildGitHubMentionThread", () => {
+  test("keeps people and Notra, drops other bots and the current comment", () => {
+    const previous = process.env.GITHUB_APP_SLUG;
+    process.env.GITHUB_APP_SLUG = "notra-ai";
+    try {
+      const thread = buildGitHubMentionThread({
+        current: { id: 4, kind: "issue" },
+        comments: [
+          {
+            id: 1,
+            kind: "issue",
+            createdAt: "2026-09-18T10:01:00Z",
+            threadRootId: null,
+            authorLogin: "coderabbitai[bot]",
+            authorIsBot: true,
+            body: "Review skipped",
+          },
+          {
+            id: 2,
+            kind: "issue",
+            createdAt: "2026-09-18T10:02:00Z",
+            threadRootId: null,
+            authorLogin: "alice",
+            authorIsBot: false,
+            body: "@notra shorten the intro",
+          },
+          {
+            id: 3,
+            kind: "issue",
+            createdAt: "2026-09-18T10:03:00Z",
+            threadRootId: null,
+            authorLogin: "notra-ai[bot]",
+            authorIsBot: true,
+            body: "Cut the intro.\n\n```diff\n-a\n+b\n```\n\nWant me to tighten Fixed too?\n\n<sub>abc</sub>",
+          },
+          {
+            id: 4,
+            kind: "issue",
+            createdAt: "2026-09-18T10:04:00Z",
+            threadRootId: null,
+            authorLogin: "alice",
+            authorIsBot: false,
+            body: "@notra yes",
+          },
+        ],
+      });
+      expect(thread).toEqual([
+        { author: "@alice", body: "@notra shorten the intro" },
+        {
+          author: "Notra (you)",
+          body: "Cut the intro.\n\nWant me to tighten Fixed too?",
+        },
+      ]);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.GITHUB_APP_SLUG;
+      } else {
+        process.env.GITHUB_APP_SLUG = previous;
+      }
+    }
   });
 });

@@ -6,6 +6,7 @@ import {
 import { getGitHubPublishToken } from "@notra/ai/integrations/github-publish-auth";
 import type { GitHubAppWebhookPayload } from "@notra/ai/schemas/github-mention";
 import type {
+  GitHubMentionChangedFile,
   GitHubMentionContext,
   GitHubMentionLogTarget,
   GitHubMentionProcessResult,
@@ -25,9 +26,17 @@ import {
 import { resolveGitHubMentionDestination } from "@notra/ai/utils/github-mention-destination";
 import { logGitHubMentionEvent } from "@notra/ai/utils/github-mention-log";
 import {
-  addGitHubIssueReaction,
+  buildGitHubMentionReply,
+  findGitHubMentionReplyAnchor,
+} from "@notra/ai/utils/github-mention-reply";
+import {
+  addGitHubCommentReaction,
+  getGitHubChangedFiles,
   getPullRequestHead,
   postGitHubIssueComment,
+  postGitHubReviewComment,
+  removeGitHubCommentReaction,
+  replyToGitHubReviewThread,
 } from "@notra/ai/utils/github-pr-commit";
 import { createOctokit } from "@notra/ai/utils/octokit";
 
@@ -48,7 +57,9 @@ export async function resolveGitHubMentionContext(params: {
   const issue = params.payload.issue;
   const installation = params.payload.installation;
 
-  if (!(sender && repository && comment && issue && installation)) {
+  // Review comments carry the pull request instead of an issue.
+  const issueNumber = issue?.number ?? params.payload.pull_request?.number;
+  if (!(sender && repository && comment && issueNumber && installation)) {
     return { status: "ignored", reason: "missing_payload_fields" };
   }
   if (params.payload.action && params.payload.action !== "created") {
@@ -88,7 +99,7 @@ export async function resolveGitHubMentionContext(params: {
     }
 
     let pullRequest: GitHubMentionPullRequest | null = null;
-    if (issue.pull_request || params.payload.pull_request) {
+    if (issue?.pull_request || params.payload.pull_request) {
       const payloadPullRequest = params.payload.pull_request;
       if (payloadPullRequest) {
         pullRequest = {
@@ -98,6 +109,7 @@ export async function resolveGitHubMentionContext(params: {
           htmlUrl: payloadPullRequest.html_url,
           headRef: payloadPullRequest.head.ref,
           headSha: payloadPullRequest.head.sha,
+          headRepoFullName: payloadPullRequest.head.repo?.full_name ?? null,
           baseRef: payloadPullRequest.base.ref,
           draft: Boolean(payloadPullRequest.draft),
         };
@@ -110,7 +122,7 @@ export async function resolveGitHubMentionContext(params: {
             octokit: createOctokit(token),
             owner: integration.owner,
             repo: integration.repo,
-            pullNumber: issue.number,
+            pullNumber: issueNumber,
           });
         }
       }
@@ -133,11 +145,20 @@ export async function resolveGitHubMentionContext(params: {
       integrationId: integration.id,
       owner: integration.owner,
       repo: integration.repo,
-      issueNumber: issue.number,
+      defaultBranch: repository.default_branch,
+      issueNumber,
       comment: {
         id: comment.id,
         body: comment.body,
         htmlUrl: comment.html_url,
+        review: comment.path
+          ? {
+              path: comment.path,
+              line: comment.line ?? null,
+              diffHunk: comment.diff_hunk ?? null,
+              rootCommentId: comment.in_reply_to_id ?? comment.id,
+            }
+          : null,
       },
       sender: {
         id: sender.id,
@@ -176,6 +197,71 @@ export async function resolveGitHubMentionContext(params: {
     return { status: "unauthorized", reason: "not_org_member", logTarget };
   }
   return { status: "ready", context: resolved };
+}
+
+/**
+ * Replies where the conversation is: inside the review thread the mention came
+ * from, or, after a commit, anchored to the changed lines under "Files changed".
+ * Anything GitHub refuses (line outside the diff, outdated thread) falls back
+ * to a regular comment so the reply is never lost.
+ */
+async function postGitHubMentionReply(params: {
+  octokit: ReturnType<typeof createOctokit>;
+  context: GitHubMentionContext;
+  body: string;
+  commitSha: string | null;
+  changedFiles: readonly GitHubMentionChangedFile[];
+}) {
+  const { octokit, context, body } = params;
+  const pullNumber = context.pullRequest?.number;
+  try {
+    if (context.comment.review && pullNumber) {
+      return await replyToGitHubReviewThread({
+        octokit,
+        owner: context.owner,
+        repo: context.repo,
+        pullNumber,
+        rootCommentId: context.comment.review.rootCommentId,
+        body,
+      });
+    }
+    const anchor = params.commitSha
+      ? findGitHubMentionReplyAnchor(
+          params.changedFiles,
+          context.publication?.path ?? null
+        )
+      : null;
+    if (anchor && params.commitSha && pullNumber) {
+      return await postGitHubReviewComment({
+        octokit,
+        owner: context.owner,
+        repo: context.repo,
+        pullNumber,
+        commitSha: params.commitSha,
+        path: anchor.path,
+        startLine: anchor.startLine,
+        line: anchor.line,
+        body,
+      });
+    }
+  } catch (error) {
+    logGitHubMentionEvent(
+      GITHUB_MENTION_LOG_EVENTS.ignored,
+      {
+        deliveryId: context.deliveryId,
+        reason: "inline_reply_failed",
+        error: error instanceof Error ? error.message : String(error),
+      },
+      "warn"
+    );
+  }
+  return await postGitHubIssueComment({
+    octokit,
+    owner: context.owner,
+    repo: context.repo,
+    issueNumber: context.issueNumber,
+    body,
+  });
 }
 
 export async function processGitHubMention(
@@ -219,29 +305,79 @@ export async function processGitHubMention(
   }
   const octokit = createOctokit(token);
 
-  await addGitHubIssueReaction({
+  const commentKind = context.comment.review ? "review" : "issue";
+  // Eyes on the comment while working, swapped for a thumbs up (or a confused
+  // face) once the mention is handled. Reactions are cosmetic, so never fail on them.
+  const workingReaction = await addGitHubCommentReaction({
     octokit,
     owner: context.owner,
     repo: context.repo,
-    issueNumber: context.issueNumber,
+    commentId: context.comment.id,
+    kind: commentKind,
     content: "eyes",
-  }).catch(() => undefined);
-
-  try {
-    const agentResult = await runGitHubMentionAgent({ octokit, context });
-    const reply = clipComment(
-      agentResult.reply ||
-        (agentResult.committed
-          ? `Updated this pull request in ${agentResult.commitSha}.`
-          : "I looked at this, but I do not have anything to change.")
-    );
-    await postGitHubIssueComment({
+  }).catch(() => null);
+  const finishReaction = async (content: "+1" | "confused") => {
+    await addGitHubCommentReaction({
       octokit,
       owner: context.owner,
       repo: context.repo,
-      issueNumber: context.issueNumber,
+      commentId: context.comment.id,
+      kind: commentKind,
+      content,
+    }).catch(() => undefined);
+    if (workingReaction) {
+      await removeGitHubCommentReaction({
+        octokit,
+        owner: context.owner,
+        repo: context.repo,
+        commentId: context.comment.id,
+        kind: commentKind,
+        reactionId: workingReaction.id,
+      }).catch(() => undefined);
+    }
+  };
+
+  try {
+    const agentResult = await runGitHubMentionAgent({ octokit, context });
+    const baseSha = context.pullRequest?.headSha ?? null;
+    // The diff is decoration: a failed compare must not lose the reply.
+    const changedFiles =
+      agentResult.commitSha && baseSha
+        ? await getGitHubChangedFiles({
+            octokit,
+            owner: context.owner,
+            repo: context.repo,
+            baseSha,
+            headSha: agentResult.commitSha,
+          }).catch(() => [])
+        : [];
+    const openedFollowUp =
+      context.destination.mode === "new_pull_request" &&
+      agentResult.pullRequestUrl !== context.pullRequest?.htmlUrl;
+    const reply = clipComment(
+      buildGitHubMentionReply({
+        text:
+          agentResult.reply ||
+          (agentResult.committed
+            ? "Done, I pushed the change. Take a look and tell me if you want it worded differently."
+            : "I took a look, but I did not find anything to change here. Tell me what you would like to be different and I will pick it up."),
+        owner: context.owner,
+        repo: context.repo,
+        commitSha: agentResult.commitSha,
+        files: changedFiles,
+        followUpPullRequestUrl: openedFollowUp
+          ? agentResult.pullRequestUrl
+          : null,
+      })
+    );
+    await postGitHubMentionReply({
+      octokit,
+      context,
       body: reply,
+      commitSha: openedFollowUp ? null : agentResult.commitSha,
+      changedFiles,
     });
+    await finishReaction("+1");
     const result = {
       status: agentResult.committed
         ? ("committed" as const)
@@ -269,8 +405,9 @@ export async function processGitHubMention(
       owner: context.owner,
       repo: context.repo,
       issueNumber: context.issueNumber,
-      body: "I could not finish that mention. Please try again from the dashboard if this keeps happening.",
+      body: "Sorry, something went wrong on my side and I could not finish this. Mention me again to retry, or make the change from the Notra dashboard.",
     }).catch(() => undefined);
+    await finishReaction("confused");
     logGitHubMentionEvent(
       GITHUB_MENTION_LOG_EVENTS.completed,
       {

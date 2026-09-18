@@ -16,7 +16,10 @@ import {
   getRepositoryFileContents,
 } from "@notra/ai/utils/github-pr-commit";
 import { updatePostRecord } from "@notra/ai/utils/post-service";
-import { updatePublishedContentAndCommit } from "@notra/ai/utils/update-published-content";
+import {
+  syncPublishedPostAfterCommit,
+  updatePublishedContentAndCommit,
+} from "@notra/ai/utils/update-published-content";
 import { db } from "@notra/db/drizzle";
 import { posts } from "@notra/db/schema";
 import { type Tool, tool } from "ai";
@@ -50,12 +53,27 @@ async function recordWrite(
   params.state.pullRequestUrl = followUp?.htmlUrl ?? target.pullRequestUrl;
 }
 
+/**
+ * The model may call several write tools in one step. Each commit moves the
+ * branch head, so overlapping writes fail GitHub's expectedHeadOid check.
+ * Running them one after another lets each resolve the head the previous left.
+ */
+function createWriteQueue() {
+  let tail: Promise<unknown> = Promise.resolve();
+  return <T>(task: () => Promise<T>): Promise<T> => {
+    const run = tail.then(task, task);
+    tail = run.catch(() => undefined);
+    return run;
+  };
+}
+
 export function buildGitHubMentionTools(params: {
   octokit: GitHubMentionOctokit;
   context: GitHubMentionContext;
   state: GitHubMentionToolState;
 }): Record<string, Tool> {
   const { octokit, context, state } = params;
+  const inWriteOrder = createWriteQueue();
 
   return {
     viewPublishedPost: tool({
@@ -136,47 +154,50 @@ export function buildGitHubMentionTools(params: {
             "Commit headline. Defaults to a short docs update message."
           ),
       }),
-      execute: async ({ markdown, title, commitMessage }) => {
-        const publication = context.publication;
-        if (!publication) {
+      execute: ({ markdown, title, commitMessage }) =>
+        inWriteOrder(async () => {
+          const publication = context.publication;
+          if (!publication) {
+            return {
+              error:
+                "No Notra publication is linked to this pull request. Use commitFilesToPullRequest to edit files on the PR instead.",
+            };
+          }
+          const target = await resolveGitHubMentionWriteTarget({
+            octokit,
+            context,
+            state,
+          });
+          const result = await updatePublishedContentAndCommit({
+            octokit,
+            organizationId: context.organizationId,
+            postId: publication.postId,
+            markdown,
+            title,
+            owner: context.owner,
+            repo: context.repo,
+            branch: target.branch,
+            expectedHeadOid: target.expectedHeadOid,
+            path: publication.path,
+            publicationId: publication.id,
+            recordPublicationHead:
+              context.destination.mode === "same_pull_request",
+            commitMessage:
+              commitMessage ??
+              `docs: update ${publication.title ?? publication.path}`,
+          });
+          await recordWrite(
+            { octokit, context, state },
+            result.commitSha,
+            target
+          );
           return {
-            error:
-              "No Notra publication is linked to this pull request. Use commitFilesToPullRequest to edit files on the PR instead.",
+            postId: publication.postId,
+            path: publication.path,
+            commitSha: result.commitSha,
+            pullRequestUrl: state.pullRequestUrl,
           };
-        }
-        const target = await resolveGitHubMentionWriteTarget({
-          octokit,
-          context,
-          state,
-        });
-        const result = await updatePublishedContentAndCommit({
-          octokit,
-          organizationId: context.organizationId,
-          postId: publication.postId,
-          markdown,
-          title,
-          owner: context.owner,
-          repo: context.repo,
-          branch: target.branch,
-          expectedHeadOid: target.expectedHeadOid,
-          path: publication.path,
-          publicationId: publication.id,
-          commitMessage:
-            commitMessage ??
-            `docs: update ${publication.title ?? publication.path}`,
-        });
-        await recordWrite(
-          { octokit, context, state },
-          result.commitSha,
-          target
-        );
-        return {
-          postId: publication.postId,
-          path: publication.path,
-          commitSha: result.commitSha,
-          pullRequestUrl: state.pullRequestUrl,
-        };
-      },
+        }),
     }),
     commitFilesToPullRequest: tool({
       description:
@@ -192,24 +213,38 @@ export function buildGitHubMentionTools(params: {
           )
           .min(1),
       }),
-      execute: async ({ headline, files }) => {
-        const target = await resolveGitHubMentionWriteTarget({
-          octokit,
-          context,
-          state,
-        });
-        const commitSha = await commitFilesToPullRequest({
-          octokit,
-          owner: context.owner,
-          repo: context.repo,
-          branch: target.branch,
-          expectedHeadOid: target.expectedHeadOid,
-          headline,
-          files: files as GitHubMentionFileChange[],
-        });
-        await recordWrite({ octokit, context, state }, commitSha, target);
-        return { commitSha, pullRequestUrl: state.pullRequestUrl };
-      },
+      execute: ({ headline, files }) =>
+        inWriteOrder(async () => {
+          const target = await resolveGitHubMentionWriteTarget({
+            octokit,
+            context,
+            state,
+          });
+          const commitSha = await commitFilesToPullRequest({
+            octokit,
+            owner: context.owner,
+            repo: context.repo,
+            branch: target.branch,
+            expectedHeadOid: target.expectedHeadOid,
+            headline,
+            files: files as GitHubMentionFileChange[],
+          });
+          const postUpdated = await syncPublishedPostAfterCommit({
+            organizationId: context.organizationId,
+            publication: context.publication,
+            files,
+            commitSha,
+            branch: target.branch,
+            recordPublicationHead:
+              context.destination.mode === "same_pull_request",
+          });
+          await recordWrite({ octokit, context, state }, commitSha, target);
+          return {
+            commitSha,
+            pullRequestUrl: state.pullRequestUrl,
+            postUpdated,
+          };
+        }),
     }),
     runRepoSandbox: tool({
       description:
@@ -219,31 +254,31 @@ export function buildGitHubMentionTools(params: {
           .string()
           .describe("What the sandbox should change in the working tree"),
       }),
-      execute: async ({ instruction }) => {
-        const target = await resolveGitHubMentionWriteTarget({
-          octokit,
-          context,
-          state,
-        });
-        const result = await runGitHubMentionSandbox({
-          octokit,
-          context,
-          instruction,
-          expectedHeadOid: target.expectedHeadOid,
-          branch: target.branch,
-        });
-        if (!result.available) {
-          return { error: result.error };
-        }
-        if (result.commitSha) {
-          await recordWrite(
-            { octokit, context, state },
-            result.commitSha,
-            target
-          );
-        }
-        return result;
-      },
+      execute: ({ instruction }) =>
+        inWriteOrder(async () => {
+          const target = await resolveGitHubMentionWriteTarget({
+            octokit,
+            context,
+            state,
+          });
+          const result = await runGitHubMentionSandbox({
+            octokit,
+            context,
+            instruction,
+            branch: target.branch,
+          });
+          if (!result.available) {
+            return { error: result.error };
+          }
+          if (result.commitSha) {
+            await recordWrite(
+              { octokit, context, state },
+              result.commitSha,
+              target
+            );
+          }
+          return result;
+        }),
     }),
     updatePostById: tool({
       description:

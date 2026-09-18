@@ -36,13 +36,29 @@ export async function resolveGitHubMentionWriteTarget(params: {
     );
   }
 
+  const head = await getPullRequestHead({
+    octokit,
+    owner: context.owner,
+    repo: context.repo,
+    pullNumber: context.destination.pullRequestNumber,
+  });
+  // Commits go through the base repository, so a fork head branch would be
+  // created or overwritten there instead of on the pull request.
+  if (
+    head.headRepoFullName?.toLowerCase() !==
+    `${context.owner}/${context.repo}`.toLowerCase()
+  ) {
+    throw new Error(
+      "This pull request comes from a fork, so Notra cannot commit to it."
+    );
+  }
+
   if (context.destination.mode === "same_pull_request") {
-    const head = await getPullRequestHead({
-      octokit,
-      owner: context.owner,
-      repo: context.repo,
-      pullNumber: context.destination.pullRequestNumber,
-    });
+    if (head.headRef === context.defaultBranch) {
+      throw new Error(
+        `This pull request's head is the default branch (${context.defaultBranch}). Notra never commits to it; ask for a separate pull request instead.`
+      );
+    }
     return {
       branch: head.headRef,
       expectedHeadOid: head.headSha,
@@ -52,30 +68,13 @@ export async function resolveGitHubMentionWriteTarget(params: {
   }
 
   const branch = state.writeBranch ?? followUpBranchName(context);
-  const sourceSha =
-    state.writeBranch == null
-      ? (
-          await getPullRequestHead({
-            octokit,
-            owner: context.owner,
-            repo: context.repo,
-            pullNumber: context.destination.pullRequestNumber,
-          })
-        ).headSha
-      : await getGitHubBranchHeadSha({
-          octokit,
-          owner: context.owner,
-          repo: context.repo,
-          branch,
-        });
-
   if (state.writeBranch == null) {
     await createGitHubBranch({
       octokit,
       owner: context.owner,
       repo: context.repo,
       branch,
-      sha: sourceSha,
+      sha: head.headSha,
     });
     state.writeBranch = branch;
   }

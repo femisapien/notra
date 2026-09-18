@@ -4,7 +4,7 @@ import type {
 } from "@notra/ai/types/github-mention";
 import { db } from "@notra/db/drizzle";
 import { contentPublications, posts } from "@notra/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 import { customAlphabet } from "nanoid";
 
 const generatePublicationId = customAlphabet(
@@ -46,52 +46,101 @@ export async function recordContentPublication(
 ) {
   const id = generatePublicationId();
   const status = params.status ?? "open";
-  const [row] = await db
-    .insert(contentPublications)
-    .values({
-      id,
-      organizationId: params.organizationId,
-      postId: params.postId,
-      repositoryId: params.repositoryId,
-      owner: params.owner,
-      repo: params.repo,
-      path: params.path,
-      branch: params.branch,
-      pullRequestNumber: params.pullRequestNumber,
-      pullRequestUrl: params.pullRequestUrl,
-      headSha: params.headSha ?? null,
-      status,
-    })
-    .onConflictDoUpdate({
-      target: [
-        contentPublications.repositoryId,
-        contentPublications.pullRequestNumber,
-      ],
-      set: {
+  return await db.transaction(async (tx) => {
+    if (status === "open") {
+      // A post keeps one open publication. Republishing after its pull request
+      // closed, or into another repository, supersedes the older row instead of
+      // violating contentPublications_open_post_uidx.
+      await tx
+        .update(contentPublications)
+        .set({ status: "closed", updatedAt: new Date() })
+        .where(
+          and(
+            eq(contentPublications.organizationId, params.organizationId),
+            eq(contentPublications.postId, params.postId),
+            eq(contentPublications.status, "open"),
+            or(
+              ne(contentPublications.repositoryId, params.repositoryId),
+              ne(
+                contentPublications.pullRequestNumber,
+                params.pullRequestNumber
+              )
+            )
+          )
+        );
+    }
+
+    const [row] = await tx
+      .insert(contentPublications)
+      .values({
+        id,
+        organizationId: params.organizationId,
         postId: params.postId,
+        repositoryId: params.repositoryId,
+        owner: params.owner,
+        repo: params.repo,
         path: params.path,
         branch: params.branch,
+        pullRequestNumber: params.pullRequestNumber,
         pullRequestUrl: params.pullRequestUrl,
         headSha: params.headSha ?? null,
         status,
-        updatedAt: new Date(),
-      },
-    })
-    .returning({
-      id: contentPublications.id,
-      postId: contentPublications.postId,
-      repositoryId: contentPublications.repositoryId,
-      owner: contentPublications.owner,
-      repo: contentPublications.repo,
-      path: contentPublications.path,
-      branch: contentPublications.branch,
-      pullRequestNumber: contentPublications.pullRequestNumber,
-      pullRequestUrl: contentPublications.pullRequestUrl,
-      headSha: contentPublications.headSha,
-      status: contentPublications.status,
-    });
+      })
+      .onConflictDoUpdate({
+        target: [
+          contentPublications.repositoryId,
+          contentPublications.pullRequestNumber,
+        ],
+        set: {
+          postId: params.postId,
+          path: params.path,
+          branch: params.branch,
+          pullRequestUrl: params.pullRequestUrl,
+          headSha: params.headSha ?? null,
+          status,
+          updatedAt: new Date(),
+        },
+      })
+      .returning({
+        id: contentPublications.id,
+        postId: contentPublications.postId,
+        repositoryId: contentPublications.repositoryId,
+        owner: contentPublications.owner,
+        repo: contentPublications.repo,
+        path: contentPublications.path,
+        branch: contentPublications.branch,
+        pullRequestNumber: contentPublications.pullRequestNumber,
+        pullRequestUrl: contentPublications.pullRequestUrl,
+        headSha: contentPublications.headSha,
+        status: contentPublications.status,
+      });
 
-  return row ?? null;
+    return row ?? null;
+  });
+}
+
+export async function closeContentPublicationForPullRequest(params: {
+  owner: string;
+  repo: string;
+  pullRequestNumber: number;
+  merged: boolean;
+}) {
+  const rows = await db
+    .update(contentPublications)
+    .set({
+      status: params.merged ? "merged" : "closed",
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        sql`lower(${contentPublications.owner}) = ${params.owner.toLowerCase()}`,
+        sql`lower(${contentPublications.repo}) = ${params.repo.toLowerCase()}`,
+        eq(contentPublications.pullRequestNumber, params.pullRequestNumber),
+        eq(contentPublications.status, "open")
+      )
+    )
+    .returning({ id: contentPublications.id });
+  return rows.length;
 }
 
 export async function updateContentPublicationHead(params: {

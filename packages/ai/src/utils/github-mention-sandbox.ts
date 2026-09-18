@@ -9,11 +9,20 @@ import type {
 } from "@notra/ai/types/github-mention";
 import { logGitHubMentionEvent } from "@notra/ai/utils/github-mention-log";
 import { commitFilesToPullRequest } from "@notra/ai/utils/github-pr-commit";
+import { syncPublishedPostAfterCommit } from "@notra/ai/utils/update-published-content";
 import type { BoxConfig, Runtime, VercelModel } from "@upstash/box";
 import { Agent, Box } from "@upstash/box";
 
 const REPO_CLONE_TOKEN_PATH = "/tmp/notra-github-token";
-const SANDBOX_MODEL_ID = "anthropic/claude-sonnet-4.6";
+// Box routes by prefix: without `vercel/` the gateway key is sent to Anthropic
+// directly and every run fails with "invalid x-api-key".
+const SANDBOX_MODEL_ID = "vercel/anthropic/claude-sonnet-4.6";
+
+const SHA_PATTERN = /^[0-9a-f]{40}$/;
+const SANDBOX_FILE_LIMIT = 25;
+// Workflow files need an extra App permission and are the obvious target for a
+// prompt injection, so the sandbox never commits them.
+const BLOCKED_PATH_PATTERN = /^\.github\/workflows\//;
 
 function shellQuote(value: string) {
   return `'${value.replace(/'/g, `'\\''`)}'`;
@@ -28,7 +37,9 @@ async function clonePullRequestBranch(params: {
 }) {
   const repositoryUrl = `https://github.com/${params.owner}/${params.repo}.git`;
   const credentialConfig = params.token
-    ? `-c ${shellQuote(
+    ? // The empty helper first resets the box's global `credential.helper=store`,
+      // which would otherwise save the token to ~/.git-credentials for good.
+      `-c credential.helper= -c ${shellQuote(
         `credential.helper=!f() { echo username=x-access-token; printf "password=%s\\n" "$(cat ${REPO_CLONE_TOKEN_PATH})"; }; f`
       )}`
     : "";
@@ -62,21 +73,35 @@ async function clonePullRequestBranch(params: {
     if (cloneRun.exitCode !== 0) {
       throw new Error(`git clone exited with code ${cloneRun.exitCode ?? 1}`);
     }
-    await params.box.cd(params.repo);
   } finally {
-    if (params.token) {
-      await params.box.exec
-        .command(`rm -f ${shellQuote(REPO_CLONE_TOKEN_PATH)}`)
-        .catch(() => undefined);
-    }
+    await params.box.exec
+      .command(
+        `rm -f ${shellQuote(REPO_CLONE_TOKEN_PATH)} ~/.git-credentials; git config --global --unset-all credential.helper`
+      )
+      .catch(() => undefined);
   }
+
+  // A leftover credential would let the agent push, so verify instead of trusting the cleanup.
+  const leftover = await params.box.exec.command(
+    `test ! -e ${shellQuote(REPO_CLONE_TOKEN_PATH)} && test ! -e ~/.git-credentials`
+  );
+  if (leftover.exitCode !== 0) {
+    throw new Error("Could not remove the clone credential from the sandbox");
+  }
+
+  await params.box.cd(params.repo);
+  const head = await params.box.exec.command("git rev-parse HEAD");
+  const baseSha = (head.result ?? "").trim();
+  if (!SHA_PATTERN.test(baseSha)) {
+    throw new Error("Could not read the cloned commit");
+  }
+  return baseSha;
 }
 
 export async function runGitHubMentionSandbox(params: {
   octokit: GitHubMentionOctokit;
   context: GitHubMentionContext;
   instruction: string;
-  expectedHeadOid: string;
   branch: string;
 }) {
   const boxApiKey = process.env.UPSTASH_BOX_API_KEY;
@@ -103,11 +128,6 @@ export async function runGitHubMentionSandbox(params: {
   const box = await Box.create({
     apiKey: boxApiKey,
     runtime: "node" satisfies Runtime,
-    git: {
-      ...(token ? { token } : {}),
-      userName: "notra-bot",
-      userEmail: "bot@usenotra.com",
-    },
     agent: {
       harness: Agent.OpenCode,
       model: SANDBOX_MODEL_ID as VercelModel,
@@ -127,34 +147,44 @@ export async function runGitHubMentionSandbox(params: {
   });
 
   try {
-    await clonePullRequestBranch({
+    // The box never holds a GitHub credential after the clone: the token file is
+    // removed and no git identity or token is configured. The agent can edit the
+    // working tree, but only this function can commit, through the API below.
+    const baseSha = await clonePullRequestBranch({
       box,
       owner: params.context.owner,
       repo: params.context.repo,
       branch: params.branch,
       token,
     });
+    const publicationPath = params.context.publication?.path;
     const stream = await box.agent.stream({
       prompt: [
         "You are editing a cloned GitHub pull request branch for Notra.",
-        "Apply the requested change. Do not commit or push.",
-        "Stay on the current branch. Do not force-push.",
+        "Apply the requested change in the working tree. Do not run git commit, git push, or any other command that needs credentials; your edits are collected and committed for you.",
+        "Keep the change as small as the request allows. Follow the conventions of neighbouring files. Do not touch .github/workflows.",
+        publicationPath
+          ? `The content Notra published in this pull request is ${publicationPath}.`
+          : "",
         `Instruction: ${params.instruction}`,
-      ].join("\n"),
+      ]
+        .filter(Boolean)
+        .join("\n"),
       timeout: GITHUB_MENTION_SANDBOX_TIMEOUT_MS,
     });
     for await (const chunk of stream) {
       void chunk;
     }
-    const diffList = await listChangedSandboxFiles(box);
+    const changes = await listChangedSandboxFiles(box, baseSha);
     const files = [];
-    for (const path of diffList) {
+    for (const path of changes.written) {
       const contents = await box.files.read(path);
       if (typeof contents === "string") {
         files.push({ path, contents });
       }
     }
-    if (files.length === 0) {
+    const deletions = changes.deleted;
+    if (files.length === 0 && deletions.length === 0) {
       logGitHubMentionEvent(GITHUB_MENTION_LOG_EVENTS.sandboxCompleted, {
         organizationId: params.context.organizationId,
         deliveryId: params.context.deliveryId,
@@ -162,28 +192,52 @@ export async function runGitHubMentionSandbox(params: {
         files: [],
         durationMs: Date.now() - startedAt,
       });
-      return { available: true as const, commitSha: null, files: [] };
+      return {
+        available: true as const,
+        commitSha: null,
+        files: [],
+        deleted: [],
+        skipped: changes.skipped,
+        postUpdated: false,
+      };
     }
     const commitSha = await commitFilesToPullRequest({
       octokit: params.octokit,
       owner: params.context.owner,
       repo: params.context.repo,
       branch: params.branch,
-      expectedHeadOid: params.expectedHeadOid,
-      headline: "docs: apply mention sandbox edits",
+      // The commit must apply to exactly the tree the sandbox agent saw.
+      expectedHeadOid: baseSha,
+      headline: "docs: apply requested changes",
       files,
+      deletions,
+    });
+    const postUpdated = await syncPublishedPostAfterCommit({
+      organizationId: params.context.organizationId,
+      publication: params.context.publication,
+      files,
+      commitSha,
+      branch: params.branch,
+      recordPublicationHead:
+        params.context.destination.mode === "same_pull_request",
     });
     logGitHubMentionEvent(GITHUB_MENTION_LOG_EVENTS.sandboxCompleted, {
       organizationId: params.context.organizationId,
       deliveryId: params.context.deliveryId,
       commitSha,
       files: files.map((file) => file.path),
+      deleted: deletions,
+      skipped: changes.skipped,
+      postUpdated,
       durationMs: Date.now() - startedAt,
     });
     return {
       available: true as const,
       commitSha,
       files: files.map((file) => file.path),
+      deleted: deletions,
+      skipped: changes.skipped,
+      postUpdated,
     };
   } catch (error) {
     logGitHubMentionEvent(
@@ -204,19 +258,64 @@ export async function runGitHubMentionSandbox(params: {
   }
 }
 
-async function listChangedSandboxFiles(
-  box: Awaited<ReturnType<typeof Box.create>>
-) {
-  const result = await box.exec.command(
-    "git diff --name-only && git ls-files --others --exclude-standard"
+/**
+ * Parses `git diff --name-status` plus `--numstat` output. Exported for tests.
+ * Binary files and blocked paths are reported instead of committed.
+ */
+export function parseSandboxChanges(nameStatus: string, numstat: string) {
+  const binary = new Set(
+    numstat
+      .split("\n")
+      .filter((line) => line.startsWith("-\t-\t"))
+      .map((line) => line.slice("-\t-\t".length))
   );
-  const output = result.result ?? "";
-  return [
-    ...new Set(
-      output
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0 && !line.includes(" "))
-    ),
-  ];
+  const written: string[] = [];
+  const deleted: string[] = [];
+  const skipped: Array<{ path: string; reason: string }> = [];
+  for (const line of nameStatus.split("\n")) {
+    const separator = line.indexOf("\t");
+    if (separator < 1) {
+      continue;
+    }
+    const status = line.slice(0, separator);
+    const path = line.slice(separator + 1);
+    if (BLOCKED_PATH_PATTERN.test(path)) {
+      skipped.push({ path, reason: "workflow files are not committed" });
+    } else if (status === "D") {
+      deleted.push(path);
+    } else if (binary.has(path)) {
+      skipped.push({ path, reason: "binary files are not supported" });
+    } else {
+      written.push(path);
+    }
+  }
+  const overflow = [...written, ...deleted].slice(SANDBOX_FILE_LIMIT);
+  for (const path of overflow) {
+    skipped.push({ path, reason: `more than ${SANDBOX_FILE_LIMIT} files` });
+  }
+  const allowed = new Set(
+    [...written, ...deleted].slice(0, SANDBOX_FILE_LIMIT)
+  );
+  return {
+    written: written.filter((path) => allowed.has(path)),
+    deleted: deleted.filter((path) => allowed.has(path)),
+    skipped,
+  };
+}
+
+/**
+ * Diffs against the cloned commit rather than the index, so local commits by
+ * the agent, deleted files, and paths with spaces are all picked up.
+ */
+async function listChangedSandboxFiles(
+  box: Awaited<ReturnType<typeof Box.create>>,
+  baseSha: string
+) {
+  const diff = `git -c core.quotePath=false diff --cached --no-renames ${baseSha}`;
+  await box.exec.command("git add -A");
+  const [nameStatus, numstat] = await Promise.all([
+    box.exec.command(`${diff} --name-status`),
+    box.exec.command(`${diff} --numstat`),
+  ]);
+  return parseSandboxChanges(nameStatus.result ?? "", numstat.result ?? "");
 }

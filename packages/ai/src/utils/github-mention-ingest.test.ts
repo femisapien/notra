@@ -3,10 +3,14 @@ import { createHmac } from "node:crypto";
 
 const resolveGitHubMentionContext = mock();
 const processGitHubMention = mock();
+const closeContentPublicationForPullRequest = mock();
 
 mock.module("@notra/ai/utils/github-mention-process", () => ({
   resolveGitHubMentionContext,
   processGitHubMention,
+}));
+mock.module("@notra/ai/utils/content-publication", () => ({
+  closeContentPublicationForPullRequest,
 }));
 
 const { ingestGitHubAppMentionWebhook } =
@@ -45,6 +49,57 @@ describe("ingestGitHubAppMentionWebhook", () => {
     process.env.GITHUB_APP_WEBHOOK_SECRET = secret;
     resolveGitHubMentionContext.mockReset();
     processGitHubMention.mockReset();
+    closeContentPublicationForPullRequest.mockReset();
+  });
+
+  test("marks the publication merged when its pull request closes", async () => {
+    closeContentPublicationForPullRequest.mockResolvedValue(1);
+    const body = JSON.stringify({
+      action: "closed",
+      pull_request: {
+        number: 42,
+        title: "docs: add release",
+        html_url: "https://github.com/acme/app/pull/42",
+        merged: true,
+        head: { ref: "notra/changelog", sha: "abc" },
+        base: { ref: "main", sha: "def" },
+      },
+      repository: {
+        id: 99,
+        name: "app",
+        full_name: "acme/app",
+        default_branch: "main",
+        owner: { login: "acme" },
+      },
+    });
+    const result = await ingestGitHubAppMentionWebhook({
+      event: "pull_request",
+      signature: sign(body),
+      deliveryId: "pr-closed-1",
+      rawBody: body,
+    });
+    expect(result).toMatchObject({
+      httpStatus: 200,
+      body: { message: "publication_synced", updated: 1 },
+    });
+    expect(closeContentPublicationForPullRequest).toHaveBeenCalledWith({
+      owner: "acme",
+      repo: "app",
+      pullRequestNumber: 42,
+      merged: true,
+    });
+    expect(resolveGitHubMentionContext).not.toHaveBeenCalled();
+  });
+
+  test("rejects unsigned pull_request events", async () => {
+    const result = await ingestGitHubAppMentionWebhook({
+      event: "pull_request",
+      signature: "sha256=deadbeef",
+      deliveryId: "pr-bad-sig",
+      rawBody: "{}",
+    });
+    expect(result.httpStatus).toBe(401);
+    expect(closeContentPublicationForPullRequest).not.toHaveBeenCalled();
   });
 
   test("answers GitHub pings", async () => {
@@ -83,6 +138,57 @@ describe("ingestGitHubAppMentionWebhook", () => {
       rawBody: mentionPayload,
     });
     expect(result.httpStatus).toBe(401);
+  });
+
+  test("passes review thread mentions on with their line context", async () => {
+    const reviewPayload = JSON.stringify({
+      action: "created",
+      comment: {
+        id: 9,
+        body: "@notra shorten this line",
+        html_url: "https://github.com/acme/app/pull/42#discussion_r9",
+        path: "changelog/entry.mdx",
+        line: 12,
+        diff_hunk: "@@ -0,0 +1,12 @@\n+intro",
+        in_reply_to_id: 5,
+      },
+      pull_request: {
+        number: 42,
+        title: "docs: changelog",
+        html_url: "https://github.com/acme/app/pull/42",
+        head: { ref: "notra/changelog-abc", sha: "abc123" },
+        base: { ref: "main", sha: "def456" },
+      },
+      repository: {
+        id: 99,
+        name: "app",
+        full_name: "acme/app",
+        default_branch: "main",
+        owner: { login: "acme" },
+      },
+      sender: { id: 7, login: "alice", type: "User" },
+      installation: { id: 55 },
+    });
+    resolveGitHubMentionContext.mockResolvedValue({
+      status: "ignored",
+      reason: "unknown_installation",
+    });
+    const result = await ingestGitHubAppMentionWebhook({
+      event: "pull_request_review_comment",
+      signature: sign(reviewPayload),
+      deliveryId: "review-1",
+      rawBody: reviewPayload,
+    });
+    expect(result.httpStatus).toBe(200);
+    expect(resolveGitHubMentionContext).toHaveBeenCalledTimes(1);
+    const [{ payload }] = resolveGitHubMentionContext.mock.calls[0] as [
+      { payload: { comment: Record<string, unknown> } },
+    ];
+    expect(payload.comment).toMatchObject({
+      path: "changelog/entry.mdx",
+      line: 12,
+      in_reply_to_id: 5,
+    });
   });
 
   test("returns 200 without running for unauthorized mentions", async () => {

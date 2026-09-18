@@ -2,12 +2,16 @@ import {
   GITHUB_MENTION_APP_WEBHOOK_SECRET_ENV,
   GITHUB_MENTION_LOG_EVENTS,
 } from "@notra/ai/constants/github-mention";
-import { githubAppWebhookPayloadSchema } from "@notra/ai/schemas/github-mention";
+import {
+  type GitHubAppWebhookPayload,
+  githubAppWebhookPayloadSchema,
+} from "@notra/ai/schemas/github-mention";
 import type {
   GitHubMentionContext,
   GitHubMentionProcessResult,
   GitHubMentionWebhookLog,
 } from "@notra/ai/types/github-mention";
+import { closeContentPublicationForPullRequest } from "@notra/ai/utils/content-publication";
 import {
   buildAcceptedMentionWebhookLog,
   buildUnauthorizedMentionWebhookLog,
@@ -21,6 +25,12 @@ import { verifyGitHubWebhookSignature } from "@notra/ai/utils/github-webhook-sig
 import { redis } from "@notra/ai/utils/redis";
 
 const DELIVERY_TTL_SECONDS = 60 * 60 * 24;
+const HANDLED_EVENTS = new Set([
+  "issue_comment",
+  // Mentions in review threads under "Files changed".
+  "pull_request_review_comment",
+  "pull_request",
+]);
 const NOISY_IGNORE_REASONS = new Set([
   "not_mentioned",
   "bot_sender",
@@ -32,20 +42,40 @@ export function getGitHubAppWebhookSecret() {
   return process.env[GITHUB_MENTION_APP_WEBHOOK_SECRET_ENV]?.trim() ?? "";
 }
 
-async function isDeliveryProcessed(deliveryId: string) {
+/** Atomically claims a delivery so concurrent redeliveries run only once. */
+async function claimDelivery(deliveryId: string) {
   if (!(redis && deliveryId) || process.env.NODE_ENV === "development") {
-    return false;
+    return true;
   }
-  return (await redis.exists(`github-mention:delivery:${deliveryId}`)) === 1;
+  const claimed = await redis.set(
+    `github-mention:delivery:${deliveryId}`,
+    "1",
+    { nx: true, ex: DELIVERY_TTL_SECONDS }
+  );
+  return claimed === "OK";
 }
 
-async function markDeliveryProcessed(deliveryId: string) {
-  if (!(redis && deliveryId)) {
-    return;
+async function syncClosedPullRequestPublication(
+  payload: GitHubAppWebhookPayload
+) {
+  const pullRequest = payload.pull_request;
+  const repository = payload.repository;
+  if (payload.action !== "closed" || !(pullRequest && repository)) {
+    return {
+      httpStatus: 200,
+      body: { message: "ignored", event: "pull_request", ignored: true },
+    };
   }
-  await redis.set(`github-mention:delivery:${deliveryId}`, "1", {
-    ex: DELIVERY_TTL_SECONDS,
+  const updated = await closeContentPublicationForPullRequest({
+    owner: repository.owner.login,
+    repo: repository.name,
+    pullRequestNumber: pullRequest.number,
+    merged: Boolean(pullRequest.merged),
   });
+  return {
+    httpStatus: 200,
+    body: { message: "publication_synced", updated },
+  };
 }
 
 function rejectIngest(
@@ -94,7 +124,7 @@ export async function ingestGitHubAppMentionWebhook(params: {
     };
   }
 
-  if (params.event !== "issue_comment") {
+  if (!HANDLED_EVENTS.has(params.event)) {
     return {
       httpStatus: 200,
       body: { message: "ignored", event: params.event, ignored: true },
@@ -120,7 +150,7 @@ export async function ingestGitHubAppMentionWebhook(params: {
     );
   }
 
-  if (params.deliveryId && (await isDeliveryProcessed(params.deliveryId))) {
+  if (params.deliveryId && !(await claimDelivery(params.deliveryId))) {
     logGitHubMentionEvent(GITHUB_MENTION_LOG_EVENTS.ignored, {
       deliveryId: params.deliveryId,
       reason: "duplicate",
@@ -157,25 +187,27 @@ export async function ingestGitHubAppMentionWebhook(params: {
     );
   }
 
+  if (params.event === "pull_request") {
+    return await syncClosedPullRequestPublication(payload.data);
+  }
+
   const resolved = await resolveGitHubMentionContext({
     payload: payload.data,
     deliveryId: params.deliveryId,
   });
 
   if (resolved.status !== "ready") {
-    if (params.deliveryId) {
-      await markDeliveryProcessed(params.deliveryId);
-    }
     const comment = payload.data.comment;
-    const issue = payload.data.issue;
+    const issueNumber =
+      payload.data.issue?.number ?? payload.data.pull_request?.number;
     const unauthorizedLog =
       resolved.status === "unauthorized" &&
       resolved.logTarget &&
       comment &&
-      issue
+      issueNumber
         ? buildUnauthorizedMentionWebhookLog({
             target: resolved.logTarget,
-            issueNumber: issue.number,
+            issueNumber,
             senderLogin: payload.data.sender?.login ?? "unknown",
             commentUrl: comment.html_url,
             commentBody: comment.body,
@@ -192,7 +224,7 @@ export async function ingestGitHubAppMentionWebhook(params: {
           repository: resolved.logTarget
             ? `${resolved.logTarget.owner}/${resolved.logTarget.repo}`
             : null,
-          issueNumber: issue?.number ?? null,
+          issueNumber: issueNumber ?? null,
           senderLogin: payload.data.sender?.login ?? null,
         },
         "warn"
@@ -208,10 +240,6 @@ export async function ingestGitHubAppMentionWebhook(params: {
       body: { message: resolved.status, reason: resolved.reason },
       log: unauthorizedLog,
     };
-  }
-
-  if (params.deliveryId) {
-    await markDeliveryProcessed(params.deliveryId);
   }
 
   const acceptedLog = buildAcceptedMentionWebhookLog(resolved.context);

@@ -6,7 +6,7 @@ import {
   getGitHubMentionInstructions,
   getGitHubMentionPrompt,
 } from "@notra/ai/prompts/github-mention";
-import { withGatewayDefaults } from "@notra/ai/provider-options";
+import { withRouterDefaults } from "@notra/ai/provider-options";
 import {
   buildGitHubMentionTools,
   type GitHubMentionToolState,
@@ -16,6 +16,11 @@ import type {
   GitHubMentionContext,
   GitHubMentionOctokit,
 } from "@notra/ai/types/github-mention";
+import { buildGitHubMentionThread } from "@notra/ai/utils/github-mention";
+import {
+  listGitHubIssueComments,
+  listGitHubReviewComments,
+} from "@notra/ai/utils/github-pr-commit";
 import { stepCountIs, ToolLoopAgent } from "ai";
 
 export async function runGitHubMentionAgent(params: {
@@ -40,7 +45,7 @@ export async function runGitHubMentionAgent(params: {
     model: createModel(params.context.organizationId, AGENT_DEFAULT_MODEL, {
       disableMemory: true,
     }),
-    providerOptions: withGatewayDefaults(
+    providerOptions: withRouterDefaults(
       {
         anthropic: {
           thinking: { type: "adaptive" },
@@ -57,6 +62,26 @@ export async function runGitHubMentionAgent(params: {
     stopWhen: stepCountIs(GITHUB_MENTION_AGENT_MAX_STEPS),
   });
 
+  // Thread context is best effort: the mention still works without it. Notra's
+  // own replies often sit in review threads, so both comment kinds are merged.
+  const location = {
+    octokit: params.octokit,
+    owner: params.context.owner,
+    repo: params.context.repo,
+  };
+  const [issueComments, reviewComments] = await Promise.all([
+    listGitHubIssueComments({
+      ...location,
+      issueNumber: params.context.issueNumber,
+    }).catch(() => []),
+    params.context.pullRequest
+      ? listGitHubReviewComments({
+          ...location,
+          pullNumber: params.context.pullRequest.number,
+        }).catch(() => [])
+      : [],
+  ]);
+
   const result = await agent.generate({
     prompt: getGitHubMentionPrompt({
       commentBody: params.context.comment.body,
@@ -69,6 +94,14 @@ export async function runGitHubMentionAgent(params: {
       publicationPath: params.context.publication?.path ?? null,
       publicationTitle: params.context.publication?.title ?? null,
       markdown: params.context.publication?.markdown ?? null,
+      thread: buildGitHubMentionThread({
+        comments: [...issueComments, ...reviewComments],
+        current: {
+          id: params.context.comment.id,
+          kind: params.context.comment.review ? "review" : "issue",
+        },
+      }),
+      review: params.context.comment.review,
     }),
   });
 

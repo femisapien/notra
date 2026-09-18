@@ -15,7 +15,8 @@ const GITHUB_API_VERSION_HEADERS = {
 export async function commitFilesToPullRequest(
   params: CommitFilesToPullRequestParams
 ) {
-  if (params.files.length === 0) {
+  const deletions = params.deletions ?? [];
+  if (params.files.length === 0 && deletions.length === 0) {
     throw new Error("At least one file is required to commit");
   }
 
@@ -43,6 +44,7 @@ export async function commitFilesToPullRequest(
             path: file.path,
             contents: Buffer.from(file.contents).toString("base64"),
           })),
+          deletions: deletions.map((path) => ({ path })),
         },
       },
     }
@@ -77,6 +79,7 @@ export async function getPullRequestHead(params: {
     htmlUrl: data.html_url,
     headRef: data.head.ref,
     headSha: data.head.sha,
+    headRepoFullName: data.head.repo?.full_name ?? null,
     baseRef: data.base.ref,
     draft: Boolean(data.draft),
   };
@@ -105,6 +108,58 @@ export async function getRepositoryFileContents(params: {
   return Buffer.from(data.content, "base64").toString("utf8");
 }
 
+export async function listGitHubIssueComments(params: {
+  octokit: CommitFilesToPullRequestParams["octokit"];
+  owner: string;
+  repo: string;
+  issueNumber: number;
+}) {
+  const { data } = await params.octokit.request(
+    "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
+    {
+      owner: params.owner,
+      repo: params.repo,
+      issue_number: params.issueNumber,
+      per_page: 100,
+      headers: GITHUB_API_VERSION_HEADERS,
+    }
+  );
+  return data.map((comment) => ({
+    id: comment.id,
+    kind: "issue" as const,
+    createdAt: comment.created_at,
+    threadRootId: null,
+    authorLogin: comment.user?.login ?? "unknown",
+    authorIsBot: comment.user?.type === "Bot",
+    body: comment.body ?? "",
+  }));
+}
+
+/** Files changed between two commits, with GitHub's unified patch per file. */
+export async function getGitHubChangedFiles(params: {
+  octokit: CommitFilesToPullRequestParams["octokit"];
+  owner: string;
+  repo: string;
+  baseSha: string;
+  headSha: string;
+}) {
+  const { data } = await params.octokit.request(
+    "GET /repos/{owner}/{repo}/compare/{basehead}",
+    {
+      owner: params.owner,
+      repo: params.repo,
+      basehead: `${params.baseSha}...${params.headSha}`,
+      headers: GITHUB_API_VERSION_HEADERS,
+    }
+  );
+  return (data.files ?? []).map((file) => ({
+    path: file.filename,
+    additions: file.additions,
+    deletions: file.deletions,
+    patch: file.patch ?? null,
+  }));
+}
+
 export async function postGitHubIssueComment(params: {
   octokit: CommitFilesToPullRequestParams["octokit"];
   owner: string;
@@ -125,26 +180,135 @@ export async function postGitHubIssueComment(params: {
   return { id: data.id, htmlUrl: data.html_url };
 }
 
-export async function addGitHubIssueReaction(params: {
+type GitHubCommentKind = "issue" | "review";
+
+/** Issue comments and review comments live under different API roots. */
+function commentReactionsRoute(kind: GitHubCommentKind) {
+  return kind === "review"
+    ? ("/repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions" as const)
+    : ("/repos/{owner}/{repo}/issues/comments/{comment_id}/reactions" as const);
+}
+
+export async function addGitHubCommentReaction(params: {
   octokit: CommitFilesToPullRequestParams["octokit"];
   owner: string;
   repo: string;
-  issueNumber: number;
-  content: "eyes" | "+1";
+  commentId: number;
+  kind: GitHubCommentKind;
+  content: "eyes" | "+1" | "confused";
 }) {
-  await params.octokit.request(
-    "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions",
+  const { data } = await params.octokit.request(
+    `POST ${commentReactionsRoute(params.kind)}`,
     {
       owner: params.owner,
       repo: params.repo,
-      issue_number: params.issueNumber,
+      comment_id: params.commentId,
       content: params.content,
-      headers: {
-        ...GITHUB_API_VERSION_HEADERS,
-        Accept: "application/vnd.github+json",
-      },
+      headers: GITHUB_API_VERSION_HEADERS,
     }
   );
+  return { id: data.id };
+}
+
+export async function removeGitHubCommentReaction(params: {
+  octokit: CommitFilesToPullRequestParams["octokit"];
+  owner: string;
+  repo: string;
+  commentId: number;
+  kind: GitHubCommentKind;
+  reactionId: number;
+}) {
+  await params.octokit.request(
+    `DELETE ${commentReactionsRoute(params.kind)}/{reaction_id}`,
+    {
+      owner: params.owner,
+      repo: params.repo,
+      comment_id: params.commentId,
+      reaction_id: params.reactionId,
+      headers: GITHUB_API_VERSION_HEADERS,
+    }
+  );
+}
+
+export async function listGitHubReviewComments(params: {
+  octokit: CommitFilesToPullRequestParams["octokit"];
+  owner: string;
+  repo: string;
+  pullNumber: number;
+}) {
+  const { data } = await params.octokit.request(
+    "GET /repos/{owner}/{repo}/pulls/{pull_number}/comments",
+    {
+      owner: params.owner,
+      repo: params.repo,
+      pull_number: params.pullNumber,
+      per_page: 100,
+      headers: GITHUB_API_VERSION_HEADERS,
+    }
+  );
+  return data.map((comment) => ({
+    id: comment.id,
+    kind: "review" as const,
+    createdAt: comment.created_at,
+    threadRootId: comment.in_reply_to_id ?? comment.id,
+    authorLogin: comment.user?.login ?? "unknown",
+    authorIsBot: comment.user?.type === "Bot",
+    body: comment.body ?? "",
+  }));
+}
+
+/** Anchors a comment to lines of a file under "Files changed". */
+export async function postGitHubReviewComment(params: {
+  octokit: CommitFilesToPullRequestParams["octokit"];
+  owner: string;
+  repo: string;
+  pullNumber: number;
+  commitSha: string;
+  path: string;
+  startLine: number | null;
+  line: number;
+  body: string;
+}) {
+  const { data } = await params.octokit.request(
+    "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments",
+    {
+      owner: params.owner,
+      repo: params.repo,
+      pull_number: params.pullNumber,
+      commit_id: params.commitSha,
+      path: params.path,
+      side: "RIGHT",
+      line: params.line,
+      ...(params.startLine && params.startLine < params.line
+        ? { start_line: params.startLine, start_side: "RIGHT" as const }
+        : {}),
+      body: params.body,
+      headers: GITHUB_API_VERSION_HEADERS,
+    }
+  );
+  return { id: data.id, htmlUrl: data.html_url };
+}
+
+export async function replyToGitHubReviewThread(params: {
+  octokit: CommitFilesToPullRequestParams["octokit"];
+  owner: string;
+  repo: string;
+  pullNumber: number;
+  rootCommentId: number;
+  body: string;
+}) {
+  const { data } = await params.octokit.request(
+    "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies",
+    {
+      owner: params.owner,
+      repo: params.repo,
+      pull_number: params.pullNumber,
+      comment_id: params.rootCommentId,
+      body: params.body,
+      headers: GITHUB_API_VERSION_HEADERS,
+    }
+  );
+  return { id: data.id, htmlUrl: data.html_url };
 }
 
 function githubStatus(error: unknown) {

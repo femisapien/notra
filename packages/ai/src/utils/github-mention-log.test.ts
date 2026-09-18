@@ -17,11 +17,13 @@ const context: GitHubMentionContext = {
   integrationId: "int_1",
   owner: "acme",
   repo: "app",
+  defaultBranch: "main",
   issueNumber: 42,
   comment: {
     id: 1,
     body: "@notra shorten the intro",
     htmlUrl: "https://github.com/acme/app/pull/42#issuecomment-1",
+    review: null,
   },
   sender: { id: 7, login: "alice", type: "User" },
   pullRequest: {
@@ -31,6 +33,7 @@ const context: GitHubMentionContext = {
     htmlUrl: "https://github.com/acme/app/pull/42",
     headRef: "notra/changelog-abc",
     headSha: "abc123",
+    headRepoFullName: "acme/app",
     baseRef: "main",
     draft: true,
   },

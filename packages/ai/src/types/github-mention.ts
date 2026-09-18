@@ -18,10 +18,20 @@ export interface GitHubMentionRepository {
   owner: string;
 }
 
+/** Set when the mention was written in a review thread under "Files changed". */
+export interface GitHubMentionReviewThread {
+  path: string;
+  line: number | null;
+  diffHunk: string | null;
+  /** Replies must target the thread's first comment. */
+  rootCommentId: number;
+}
+
 export interface GitHubMentionComment {
   id: number;
   body: string;
   htmlUrl: string;
+  review: GitHubMentionReviewThread | null;
 }
 
 export interface GitHubMentionPullRequest {
@@ -31,6 +41,7 @@ export interface GitHubMentionPullRequest {
   htmlUrl: string;
   headRef: string;
   headSha: string;
+  headRepoFullName: string | null;
   baseRef: string;
   draft: boolean;
 }
@@ -72,12 +83,31 @@ export interface GitHubMentionContext {
   integrationId: string;
   owner: string;
   repo: string;
+  defaultBranch: string;
   issueNumber: number;
   comment: GitHubMentionComment;
   sender: GitHubMentionSender;
   pullRequest: GitHubMentionPullRequest | null;
   destination: GitHubMentionDestination;
   publication: GitHubMentionPublication | null;
+}
+
+export interface GitHubMentionThreadComment {
+  id: number;
+  kind: "issue" | "review";
+  createdAt: string;
+  /** Review comments only: the first comment of their thread. */
+  threadRootId: number | null;
+  authorLogin: string;
+  authorIsBot: boolean;
+  body: string;
+}
+
+export interface GitHubMentionChangedFile {
+  path: string;
+  additions: number;
+  deletions: number;
+  patch: string | null;
 }
 
 export interface GitHubMentionAgentResult {
@@ -173,4 +203,6 @@ export interface CommitFilesToPullRequestParams {
   expectedHeadOid: string;
   headline: string;
   files: GitHubMentionFileChange[];
+  /** Paths to remove in the same commit. */
+  deletions?: string[];
 }

@@ -42,3 +42,16 @@ export const GITHUB_MENTION_SEPARATE_PR_PATTERNS = [
   /\bnot (?:on|in) this pr\b/i,
   /\bseparate branch\b/i,
 ] as const;
+
+export const GITHUB_MENTION_REPLY_DIFF = {
+  /** Longer diffs collapse into a <details> block. */
+  inlineLineLimit: 24,
+  totalLineLimit: 120,
+  lineLengthLimit: 240,
+  fileLimit: 5,
+} as const;
+
+export const GITHUB_MENTION_THREAD_CONTEXT = {
+  commentLimit: 10,
+  commentLengthLimit: 1500,
+} as const;

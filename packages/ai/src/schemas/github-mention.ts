@@ -25,6 +25,11 @@ const commentSchema = z.object({
   body: z.string(),
   html_url: z.string(),
   user: senderSchema.optional(),
+  // Present on pull_request_review_comment events only.
+  path: z.string().optional(),
+  line: z.number().nullable().optional(),
+  diff_hunk: z.string().optional(),
+  in_reply_to_id: z.number().optional(),
 });
 
 const issuePullRequestSchema = z
@@ -45,6 +50,7 @@ const issueSchema = z.object({
 const pullRequestRefSchema = z.object({
   ref: z.string(),
   sha: z.string(),
+  repo: z.object({ full_name: z.string() }).nullable().optional(),
 });
 
 const pullRequestSchema = z.object({
@@ -53,6 +59,7 @@ const pullRequestSchema = z.object({
   body: z.string().nullable().optional(),
   html_url: z.string(),
   draft: z.boolean().optional(),
+  merged: z.boolean().nullable().optional(),
   head: pullRequestRefSchema,
   base: pullRequestRefSchema,
 });

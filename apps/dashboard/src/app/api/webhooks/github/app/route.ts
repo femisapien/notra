@@ -11,6 +11,9 @@ import { after, type NextRequest } from "next/server";
 import { checkLogRetention } from "@/lib/billing/check-log-retention";
 import { appendWebhookLog } from "@/lib/webhooks/logging";
 
+// The mention agent runs in after() and can use the repo sandbox (up to 180 s).
+export const maxDuration = 800;
+
 async function writeMentionWebhookLog(
   log: GitHubMentionWebhookLog,
   deliveryId: string | null
