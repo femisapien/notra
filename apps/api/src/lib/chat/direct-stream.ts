@@ -81,6 +81,10 @@ export async function createDirectStandaloneChatResponse({
     const { stream, routingDecision } = await orchestrateStandaloneChat(
       {
         organizationId,
+        // The authenticated API request authorizes native writes; there is no
+        // interactive approval response endpoint on this transport. External
+        // MCP tools retain their separate approval policy.
+        requireNativeToolApproval: false,
         messages: messages as never,
         context,
         maxSteps: 50,

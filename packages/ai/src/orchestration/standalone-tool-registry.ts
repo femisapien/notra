@@ -68,7 +68,13 @@ import type {
 import type { Tool } from "ai";
 
 /** Tools that write user-visible records and must pause for user approval. */
-export function getStandaloneApprovalToolNames(): Set<string> {
+export function getStandaloneApprovalToolNames(
+  requireNativeToolApproval = true
+): Set<string> {
+  if (!requireNativeToolApproval) {
+    return new Set<string>();
+  }
+
   const toolNames = new Set<string>(["createSkill"]);
   for (const contentType of contentTypeSchema.options) {
     if (contentType !== "image") {

@@ -72,6 +72,7 @@ export async function orchestrateStandaloneChat(
     useMarkup,
     projectId,
     surface = "chat",
+    requireNativeToolApproval = true,
   } = input;
 
   const log = deps?.log ?? inputLog;
@@ -154,7 +155,9 @@ export async function orchestrateStandaloneChat(
     withToolErrorPayloads(baseToolSet.tools)
   );
   const notraToolNames = Object.keys(tools);
-  const approvalToolNames = getStandaloneApprovalToolNames();
+  const approvalToolNames = getStandaloneApprovalToolNames(
+    requireNativeToolApproval
+  );
 
   const lazyMcpRuntime =
     !chatId || !hasMcp

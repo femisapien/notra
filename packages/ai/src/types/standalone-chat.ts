@@ -32,6 +32,8 @@ export interface StandaloneChatInput {
   telemetryMetadata?: TccMetadata;
   useMarkup?: boolean;
   surface?: ChatSurface;
+  /** API chats cannot answer interactive approvals for native skill/post writes. */
+  requireNativeToolApproval?: boolean;
 }
 
 export interface StandaloneChatDeps {
