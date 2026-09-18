@@ -11,6 +11,7 @@ describe("parseSandboxChanges", () => {
         "D\tdocs/old.md",
         "A\tdocs/logo.png",
         "A\t.github/workflows/pwn.yml",
+        "A\t.github/actions/setup/action.yml",
       ].join("\n"),
       ["3\t1\tdocs/changelog/release 2.4.md", "-\t-\tdocs/logo.png"].join("\n")
     );
@@ -22,6 +23,7 @@ describe("parseSandboxChanges", () => {
     expect(changes.skipped.map((entry) => entry.path)).toEqual([
       "docs/logo.png",
       ".github/workflows/pwn.yml",
+      ".github/actions/setup/action.yml",
     ]);
   });
 

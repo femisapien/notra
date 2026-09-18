@@ -121,6 +121,8 @@ export async function listGitHubIssueComments(params: {
       repo: params.repo,
       issue_number: params.issueNumber,
       per_page: 100,
+      sort: "created",
+      direction: "desc",
       headers: GITHUB_API_VERSION_HEADERS,
     }
   );
@@ -243,6 +245,8 @@ export async function listGitHubReviewComments(params: {
       repo: params.repo,
       pull_number: params.pullNumber,
       per_page: 100,
+      sort: "created",
+      direction: "desc",
       headers: GITHUB_API_VERSION_HEADERS,
     }
   );

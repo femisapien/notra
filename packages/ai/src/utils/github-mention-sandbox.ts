@@ -20,9 +20,8 @@ const SANDBOX_MODEL_ID = "vercel/anthropic/claude-sonnet-4.6";
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const SANDBOX_FILE_LIMIT = 25;
-// Workflow files need an extra App permission and are the obvious target for a
-// prompt injection, so the sandbox never commits them.
-const BLOCKED_PATH_PATTERN = /^\.github\/workflows\//;
+// Anything under `.github/` can change Actions, local actions, or App config.
+const BLOCKED_PATH_PATTERN = /^\.github\//;
 
 function shellQuote(value: string) {
   return `'${value.replace(/'/g, `'\\''`)}'`;
@@ -162,7 +161,7 @@ export async function runGitHubMentionSandbox(params: {
       prompt: [
         "You are editing a cloned GitHub pull request branch for Notra.",
         "Apply the requested change in the working tree. Do not run git commit, git push, or any other command that needs credentials; your edits are collected and committed for you.",
-        "Keep the change as small as the request allows. Follow the conventions of neighbouring files. Do not touch .github/workflows.",
+        "Keep the change as small as the request allows. Follow the conventions of neighbouring files. Do not touch .github.",
         publicationPath
           ? `The content Notra published in this pull request is ${publicationPath}.`
           : "",
@@ -280,7 +279,7 @@ export function parseSandboxChanges(nameStatus: string, numstat: string) {
     const status = line.slice(0, separator);
     const path = line.slice(separator + 1);
     if (BLOCKED_PATH_PATTERN.test(path)) {
-      skipped.push({ path, reason: "workflow files are not committed" });
+      skipped.push({ path, reason: ".github files are not committed" });
     } else if (status === "D") {
       deleted.push(path);
     } else if (binary.has(path)) {

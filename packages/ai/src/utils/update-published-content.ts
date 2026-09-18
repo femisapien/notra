@@ -3,6 +3,18 @@ import { updateContentPublicationHead } from "@notra/ai/utils/content-publicatio
 import { commitFilesToPullRequest } from "@notra/ai/utils/github-pr-commit";
 import { updatePostRecord } from "@notra/ai/utils/post-service";
 
+async function retryAfterCommit<T>(run: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await run();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
 export async function updatePublishedContentAndCommit(params: {
   octokit: GitHubMentionOctokit;
   organizationId: string;
@@ -30,19 +42,23 @@ export async function updatePublishedContentAndCommit(params: {
     headline: params.commitMessage,
     files: [{ path: params.path, contents: params.markdown }],
   });
-  await updatePostRecord({
-    organizationId: params.organizationId,
-    postId: params.postId,
-    markdown: params.markdown,
-    title: params.title,
-  });
-  if (params.recordPublicationHead ?? true) {
-    await updateContentPublicationHead({
-      publicationId: params.publicationId,
+  await retryAfterCommit(() =>
+    updatePostRecord({
       organizationId: params.organizationId,
-      headSha: commitSha,
-      branch: params.branch,
-    });
+      postId: params.postId,
+      markdown: params.markdown,
+      title: params.title,
+    })
+  );
+  if (params.recordPublicationHead ?? true) {
+    await retryAfterCommit(() =>
+      updateContentPublicationHead({
+        publicationId: params.publicationId,
+        organizationId: params.organizationId,
+        headSha: commitSha,
+        branch: params.branch,
+      })
+    );
   }
   return { commitSha, postId: params.postId, path: params.path };
 }
@@ -66,21 +82,25 @@ export async function syncPublishedPostAfterCommit(params: {
     return false;
   }
   if (params.recordPublicationHead) {
-    await updateContentPublicationHead({
-      publicationId: publication.id,
-      organizationId: params.organizationId,
-      headSha: params.commitSha,
-      branch: params.branch,
-    });
+    await retryAfterCommit(() =>
+      updateContentPublicationHead({
+        publicationId: publication.id,
+        organizationId: params.organizationId,
+        headSha: params.commitSha,
+        branch: params.branch,
+      })
+    );
   }
   const file = params.files.find((entry) => entry.path === publication.path);
   if (!file) {
     return false;
   }
-  await updatePostRecord({
-    organizationId: params.organizationId,
-    postId: publication.postId,
-    markdown: file.contents,
-  });
+  await retryAfterCommit(() =>
+    updatePostRecord({
+      organizationId: params.organizationId,
+      postId: publication.postId,
+      markdown: file.contents,
+    })
+  );
   return true;
 }

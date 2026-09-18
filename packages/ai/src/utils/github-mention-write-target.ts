@@ -42,18 +42,18 @@ export async function resolveGitHubMentionWriteTarget(params: {
     repo: context.repo,
     pullNumber: context.destination.pullRequestNumber,
   });
-  // Commits go through the base repository, so a fork head branch would be
-  // created or overwritten there instead of on the pull request.
-  if (
+  const headIsFork =
     head.headRepoFullName?.toLowerCase() !==
-    `${context.owner}/${context.repo}`.toLowerCase()
-  ) {
-    throw new Error(
-      "This pull request comes from a fork, so Notra cannot commit to it."
-    );
-  }
+    `${context.owner}/${context.repo}`.toLowerCase();
 
   if (context.destination.mode === "same_pull_request") {
+    // Commits go through the base repository, so a fork head branch would be
+    // created or overwritten there instead of on the pull request.
+    if (headIsFork) {
+      throw new Error(
+        "This pull request comes from a fork, so Notra cannot commit to it."
+      );
+    }
     if (head.headRef === context.defaultBranch) {
       throw new Error(
         `This pull request's head is the default branch (${context.defaultBranch}). Notra never commits to it; ask for a separate pull request instead.`

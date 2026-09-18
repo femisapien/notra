@@ -25,6 +25,10 @@ import { verifyGitHubWebhookSignature } from "@notra/ai/utils/github-webhook-sig
 import { redis } from "@notra/ai/utils/redis";
 
 const DELIVERY_TTL_SECONDS = 60 * 60 * 24;
+
+function deliveryLockKey(deliveryId: string) {
+  return `github-mention:delivery:${deliveryId}`;
+}
 const HANDLED_EVENTS = new Set([
   "issue_comment",
   // Mentions in review threads under "Files changed".
@@ -47,12 +51,19 @@ async function claimDelivery(deliveryId: string) {
   if (!(redis && deliveryId) || process.env.NODE_ENV === "development") {
     return true;
   }
-  const claimed = await redis.set(
-    `github-mention:delivery:${deliveryId}`,
-    "1",
-    { nx: true, ex: DELIVERY_TTL_SECONDS }
-  );
+  const claimed = await redis.set(deliveryLockKey(deliveryId), "1", {
+    nx: true,
+    ex: DELIVERY_TTL_SECONDS,
+  });
   return claimed === "OK";
+}
+
+/** Drop a claim that never reached a durable accept/ignore so GitHub can retry. */
+async function releaseDelivery(deliveryId: string | null) {
+  if (!(redis && deliveryId) || process.env.NODE_ENV === "development") {
+    return;
+  }
+  await redis.del(deliveryLockKey(deliveryId));
 }
 
 async function syncClosedPullRequestPublication(
@@ -165,6 +176,35 @@ export async function ingestGitHubAppMentionWebhook(params: {
     };
   }
 
+  try {
+    const result = await finishIngest({
+      event: params.event,
+      signature: params.signature,
+      deliveryId: params.deliveryId,
+      rawBody: params.rawBody,
+    });
+    if (result.httpStatus >= 500) {
+      await releaseDelivery(params.deliveryId);
+    }
+    return result;
+  } catch (error) {
+    await releaseDelivery(params.deliveryId);
+    throw error;
+  }
+}
+
+async function finishIngest(params: {
+  event: string;
+  signature: string | null;
+  deliveryId: string | null;
+  rawBody: string;
+}): Promise<{
+  httpStatus: number;
+  body: Record<string, unknown>;
+  run?: () => Promise<GitHubMentionProcessResult>;
+  context?: GitHubMentionContext;
+  log?: GitHubMentionWebhookLog;
+}> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(params.rawBody);

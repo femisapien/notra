@@ -1161,8 +1161,9 @@ export const contentRouter = {
           repositoryId: integration.id,
         });
         // The pull request already exists; losing the mention mapping must not
-        // report the publish as failed.
-        await recordContentPublication({
+        // report the publish as failed. Retry the mapping so a later mention
+        // can still find the post.
+        const publication = {
           organizationId: input.organizationId,
           postId: input.contentId,
           repositoryId: integration.id,
@@ -1172,14 +1173,22 @@ export const contentRouter = {
           branch: result.branchName,
           pullRequestNumber: result.pullRequestNumber,
           pullRequestUrl: result.pullRequestUrl,
-        }).catch((error) => {
-          console.error("Failed to record content publication", {
-            organizationId: input.organizationId,
-            contentId: input.contentId,
-            pullRequestUrl: result.pullRequestUrl,
-            error,
-          });
-        });
+        };
+        let recorded = false;
+        for (let attempt = 0; attempt < 3 && !recorded; attempt += 1) {
+          try {
+            await recordContentPublication(publication);
+            recorded = true;
+          } catch (error) {
+            console.error("Failed to record content publication", {
+              organizationId: input.organizationId,
+              contentId: input.contentId,
+              pullRequestUrl: result.pullRequestUrl,
+              attempt,
+              error,
+            });
+          }
+        }
         return result;
       } catch (error) {
         throw await toGitHubPublishOrpcError(error, {

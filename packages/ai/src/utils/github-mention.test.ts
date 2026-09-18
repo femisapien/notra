@@ -169,4 +169,55 @@ describe("buildGitHubMentionThread", () => {
       }
     }
   });
+
+  test("keeps only the current review thread", () => {
+    const thread = buildGitHubMentionThread({
+      current: { id: 12, kind: "review", threadRootId: 10 },
+      comments: [
+        {
+          id: 1,
+          kind: "issue",
+          createdAt: "2026-09-18T10:00:00Z",
+          threadRootId: null,
+          authorLogin: "alice",
+          authorIsBot: false,
+          body: "Please ship the changelog",
+        },
+        {
+          id: 8,
+          kind: "review",
+          createdAt: "2026-09-18T10:01:00Z",
+          threadRootId: 8,
+          authorLogin: "bob",
+          authorIsBot: false,
+          body: "Unrelated nit on another file",
+        },
+        {
+          id: 10,
+          kind: "review",
+          createdAt: "2026-09-18T10:02:00Z",
+          threadRootId: 10,
+          authorLogin: "alice",
+          authorIsBot: false,
+          body: "This heading is too long",
+        },
+        {
+          id: 12,
+          kind: "review",
+          createdAt: "2026-09-18T10:03:00Z",
+          threadRootId: 10,
+          authorLogin: "alice",
+          authorIsBot: false,
+          body: "@notra shorten it",
+        },
+      ],
+    });
+    expect(thread).toEqual([
+      { author: "@alice", body: "Please ship the changelog" },
+      {
+        author: "@alice, in a review thread",
+        body: "This heading is too long",
+      },
+    ]);
+  });
 });

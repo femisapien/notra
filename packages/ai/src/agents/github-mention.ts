@@ -99,6 +99,7 @@ export async function runGitHubMentionAgent(params: {
         current: {
           id: params.context.comment.id,
           kind: params.context.comment.review ? "review" : "issue",
+          threadRootId: params.context.comment.review?.rootCommentId,
         },
       }),
       review: params.context.comment.review,

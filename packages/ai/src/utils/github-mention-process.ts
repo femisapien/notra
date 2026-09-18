@@ -79,7 +79,13 @@ export async function resolveGitHubMentionContext(params: {
     return { status: "ignored", reason: "unknown_installation" };
   }
 
-  let resolved: GitHubMentionContext | null = null;
+  const candidates: Array<{
+    organizationId: string;
+    userId: string;
+    integration: NonNullable<
+      Awaited<ReturnType<typeof findGitHubIntegrationForMention>>
+    >;
+  }> = [];
   for (const organization of organizations) {
     const auth = await resolveGitHubMentionAuth({
       githubUserId: sender.id,
@@ -97,6 +103,20 @@ export async function resolveGitHubMentionContext(params: {
     if (!integration?.owner || !integration.repo) {
       continue;
     }
+    candidates.push({
+      organizationId: organization.organizationId,
+      userId: auth.userId,
+      integration,
+    });
+  }
+
+  if (candidates.length > 1) {
+    return { status: "ignored", reason: "ambiguous_organization" };
+  }
+
+  const match = candidates[0];
+  if (match) {
+    const { organizationId, userId, integration } = match;
 
     let pullRequest: GitHubMentionPullRequest | null = null;
     if (issue?.pull_request || params.payload.pull_request) {
@@ -115,7 +135,7 @@ export async function resolveGitHubMentionContext(params: {
         };
       } else {
         const token = await getGitHubPublishToken(integration.id, {
-          organizationId: organization.organizationId,
+          organizationId,
         });
         if (token) {
           pullRequest = await getPullRequestHead({
@@ -130,73 +150,72 @@ export async function resolveGitHubMentionContext(params: {
 
     const publication = pullRequest
       ? await findContentPublicationForPullRequest({
-          organizationId: organization.organizationId,
+          organizationId,
           owner: integration.owner,
           repo: integration.repo,
           pullRequestNumber: pullRequest.number,
         })
       : null;
 
-    resolved = {
-      deliveryId: params.deliveryId,
-      installationId: String(installation.id),
-      organizationId: organization.organizationId,
-      userId: auth.userId,
-      integrationId: integration.id,
-      owner: integration.owner,
-      repo: integration.repo,
-      defaultBranch: repository.default_branch,
-      issueNumber,
-      comment: {
-        id: comment.id,
-        body: comment.body,
-        htmlUrl: comment.html_url,
-        review: comment.path
-          ? {
-              path: comment.path,
-              line: comment.line ?? null,
-              diffHunk: comment.diff_hunk ?? null,
-              rootCommentId: comment.in_reply_to_id ?? comment.id,
-            }
-          : null,
-      },
-      sender: {
-        id: sender.id,
-        login: sender.login,
-        type: sender.type,
-      },
-      pullRequest,
-      destination: resolveGitHubMentionDestination({
-        commentBody: comment.body,
+    return {
+      status: "ready",
+      context: {
+        deliveryId: params.deliveryId,
+        installationId: String(installation.id),
+        organizationId,
+        userId,
+        integrationId: integration.id,
+        owner: integration.owner,
+        repo: integration.repo,
+        defaultBranch: repository.default_branch,
+        issueNumber,
+        comment: {
+          id: comment.id,
+          body: comment.body,
+          htmlUrl: comment.html_url,
+          review: comment.path
+            ? {
+                path: comment.path,
+                line: comment.line ?? null,
+                diffHunk: comment.diff_hunk ?? null,
+                rootCommentId: comment.in_reply_to_id ?? comment.id,
+              }
+            : null,
+        },
+        sender: {
+          id: sender.id,
+          login: sender.login,
+          type: sender.type,
+        },
         pullRequest,
-      }),
-      publication,
+        destination: resolveGitHubMentionDestination({
+          commentBody: comment.body,
+          pullRequest,
+        }),
+        publication,
+      },
     };
-    break;
   }
 
-  if (!resolved) {
-    let logTarget: GitHubMentionLogTarget | undefined;
-    for (const organization of organizations) {
-      const integration = await findGitHubIntegrationForMention({
+  let logTarget: GitHubMentionLogTarget | undefined;
+  for (const organization of organizations) {
+    const integration = await findGitHubIntegrationForMention({
+      organizationId: organization.organizationId,
+      githubRepositoryId: String(repository.id),
+      owner: repository.owner.login,
+      repo: repository.name,
+    });
+    if (integration?.owner && integration.repo) {
+      logTarget = {
         organizationId: organization.organizationId,
-        githubRepositoryId: String(repository.id),
-        owner: repository.owner.login,
-        repo: repository.name,
-      });
-      if (integration?.owner && integration.repo) {
-        logTarget = {
-          organizationId: organization.organizationId,
-          integrationId: integration.id,
-          owner: integration.owner,
-          repo: integration.repo,
-        };
-        break;
-      }
+        integrationId: integration.id,
+        owner: integration.owner,
+        repo: integration.repo,
+      };
+      break;
     }
-    return { status: "unauthorized", reason: "not_org_member", logTarget };
   }
-  return { status: "ready", context: resolved };
+  return { status: "unauthorized", reason: "not_org_member", logTarget };
 }
 
 /**

@@ -72,6 +72,45 @@ describe("resolveGitHubMentionWriteTarget", () => {
     ).rejects.toThrow("fork");
   });
 
+  test("opens a follow-up branch in the base repo for a fork pull request", async () => {
+    const octokit = {
+      request: async (route: string) => {
+        if (route === "GET /repos/{owner}/{repo}/pulls/{pull_number}") {
+          return {
+            data: {
+              number: 7,
+              title: "docs",
+              body: null,
+              html_url: "https://github.com/acme/app/pull/7",
+              head: {
+                ref: "fix-docs",
+                sha: "abc123",
+                repo: { full_name: "someone/app" },
+              },
+              base: { ref: "release" },
+              draft: false,
+            },
+          };
+        }
+        if (route === "POST /repos/{owner}/{repo}/git/refs") {
+          return { data: {} };
+        }
+        if (route === "GET /repos/{owner}/{repo}/git/ref/{ref}") {
+          return { data: { object: { sha: "abc123" } } };
+        }
+        throw new Error(route);
+      },
+    } as unknown as GitHubMentionOctokit;
+    const state = emptyState();
+    const target = await resolveGitHubMentionWriteTarget({
+      octokit,
+      context: context("new_pull_request"),
+      state,
+    });
+    expect(target.branch).toBe("notra/mention-7-1");
+    expect(state.writeBranch).toBe("notra/mention-7-1");
+  });
+
   test("targets the head branch of a same-repository pull request", async () => {
     const target = await resolveGitHubMentionWriteTarget({
       octokit: fakeOctokit({

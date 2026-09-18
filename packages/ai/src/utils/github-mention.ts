@@ -115,13 +115,20 @@ function stripReplyDecoration(body: string) {
  */
 export function buildGitHubMentionThread(params: {
   comments: readonly GitHubMentionThreadComment[];
-  current: { id: number; kind: "issue" | "review" };
+  current: { id: number; kind: "issue" | "review"; threadRootId?: number };
 }) {
   const appHandles = getGitHubMentionAppHandles();
   const thread: Array<{ author: string; body: string }> = [];
-  const ordered = [...params.comments].sort((a, b) =>
-    a.createdAt.localeCompare(b.createdAt)
-  );
+  const reviewRootId =
+    params.current.kind === "review" ? params.current.threadRootId : undefined;
+  const ordered = [...params.comments]
+    .filter(
+      (comment) =>
+        comment.kind !== "review" ||
+        reviewRootId == null ||
+        comment.threadRootId === reviewRootId
+    )
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   for (const comment of ordered) {
     if (
       comment.id === params.current.id &&

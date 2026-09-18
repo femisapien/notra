@@ -73,9 +73,9 @@ export function buildGitHubMentionTools(params: {
   state: GitHubMentionToolState;
 }): Record<string, Tool> {
   const { octokit, context, state } = params;
-  const inWriteOrder = createWriteQueue();
+  const replyOnly = context.destination.mode === "reply_only";
 
-  return {
+  const readTools: Record<string, Tool> = {
     viewPublishedPost: tool({
       description:
         "Reads the Notra post linked to this pull request, or a post by id in this organization.",
@@ -112,6 +112,16 @@ export function buildGitHubMentionTools(params: {
         return post;
       },
     }),
+  };
+
+  if (replyOnly) {
+    return readTools;
+  }
+
+  const inWriteOrder = createWriteQueue();
+
+  return {
+    ...readTools,
     getPullRequestFile: tool({
       description: "Reads a file from the mention pull request head branch.",
       inputSchema: z.object({
