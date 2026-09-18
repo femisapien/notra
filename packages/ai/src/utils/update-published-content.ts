@@ -61,7 +61,7 @@ export async function updatePublishedContentAndCommit(params: {
  * Keeps the Notra post in step when the published file was committed through
  * another path (plain file commit or the sandbox). The file's new contents
  * become the post, keeping the post's own image URLs. Returns whether the post
- * changed; the publication head is recorded either way.
+ * changed.
  */
 export async function syncPublishedPostAfterCommit(params: {
   organizationId: string;
@@ -80,6 +80,22 @@ export async function syncPublishedPostAfterCommit(params: {
   if (!publication) {
     return false;
   }
+  // Post first, head second: the recorded head is what tells the next mention
+  // that Notra is in step with the pull request. If the post write fails, the
+  // head stays behind and that mention starts from the file instead.
+  const file = params.files.find((entry) => entry.path === publication.path);
+  if (file) {
+    await retryWrite(() =>
+      updatePostRecord({
+        organizationId: params.organizationId,
+        postId: publication.postId,
+        markdown: carryOverImageTargets(
+          file.contents,
+          publication.markdown ?? ""
+        ),
+      })
+    );
+  }
   if (params.recordPublicationHead) {
     await retryWrite(() =>
       updateContentPublicationHead({
@@ -90,19 +106,5 @@ export async function syncPublishedPostAfterCommit(params: {
       })
     );
   }
-  const file = params.files.find((entry) => entry.path === publication.path);
-  if (!file) {
-    return false;
-  }
-  await retryWrite(() =>
-    updatePostRecord({
-      organizationId: params.organizationId,
-      postId: publication.postId,
-      markdown: carryOverImageTargets(
-        file.contents,
-        publication.markdown ?? ""
-      ),
-    })
-  );
-  return true;
+  return Boolean(file);
 }
