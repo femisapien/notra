@@ -1353,6 +1353,11 @@ export interface GeoModelCatalogEntry {
   default: boolean;
   /** Gateways that serve the model; OpenRouter-only models are pinned. */
   gateways: readonly GeoModelGateway[];
+  /**
+   * Superseded or niche model: still scannable for projects that track it,
+   * but not offered in the picker.
+   */
+  hidden?: boolean;
 }
 
 export interface GeoModelCatalog {
