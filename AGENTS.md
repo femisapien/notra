@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## Ponytail
+
+Codex, Claude Code, and OpenCode use Ponytail's native plugin; respect its current
+mode, including off. See CONTRIBUTING.md for setup. In Amp, for coding tasks,
+read and apply `.agents/skills/ponytail/SKILL.md` from the repository root,
+defaulting to full unless the user chooses another level or disables Ponytail.
+Explicit requirements and this repo's conventions take precedence. Companion
+`ponytail-*` skills are available on request.
+
 ## Cursor Cloud specific instructions
 
 This repo is a Bun + Turborepo monorepo (product: **Notra**, an AI content-generation
@@ -11,7 +20,14 @@ non-obvious, durable gotchas for working in the Cursor Cloud environment.
 - Runtime/package manager is **Bun `1.4.0`** (installed at `~/.bun`); tooling uses
   **Node `24.11.1`** (installed via `nvm`, set as the default alias). Both are baked
   into the VM snapshot and on `PATH` in a login shell. `bun install` is the startup
-  update script — do not run it manually unless deps changed.
+  update script — run it manually when dependencies changed or `node_modules`
+  or `.repos/effect` is missing (for example, in a fresh worktree).
+- If `.repos/effect` is missing, run `bun install` from the repo root before
+  working with Effect. The existing `prepare` script runs
+  `scripts/prepare-effect.sh` to clone the Effect source; do not add another
+  bootstrap script or ask the user to choose a checkout strategy. Verify that
+  `.repos/effect` exists afterward. The bootstrap intentionally skips Vercel,
+  CI, and production environments.
 - Quality gates (run from repo root): lint `bun run check`, types `bun run check-types`,
   build `bun run build` (use `--filter=dashboard` to scope). Husky `pre-commit` runs
   `bun format` + `bun knip`.
@@ -71,3 +87,7 @@ non-obvious, durable gotchas for working in the Cursor Cloud environment.
 - Email/password sign-up works without OAuth/email providers and does not require email
   verification. The `haveIBeenPwned` plugin rejects breached passwords, so use a strong
   unique password when signing up during tests.
+- Local-dev impersonation is opt-in: `DEV_AUTH_ENABLED=true` plus `DEV_AUTH_EMAIL`,
+  and only for loopback requests. `next dev` binds to `127.0.0.1` so a LAN
+  client cannot spoof `Host: localhost`. A missing WorkOS key in development no
+  longer auto-authenticates, and tunneled hosts never inherit a database user.

@@ -39,9 +39,16 @@ import {
   stampUserMessageAuthors,
 } from "@notra/ai/utils/chat";
 import { routeUsageProperties } from "@notra/ai/utils/route-usage";
+import { toAgentTokenUsage } from "@notra/ai/utils/token-usage";
 import { isProjectInOrganization } from "@notra/db/utils/projects";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
-import { InvalidToolInputError, NoSuchToolError, type UIMessage } from "ai";
+import {
+  createUIMessageStreamResponse,
+  InvalidToolInputError,
+  NoSuchToolError,
+  toUIMessageStream,
+  type UIMessage,
+} from "ai";
 import { nanoid } from "nanoid";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -303,6 +310,7 @@ export const POST = withEvlog(async function POST(
         telemetryMetadata,
         headers: request.headers,
         projectId: projectId ?? undefined,
+        surface: parseResult.data.surface,
       });
     }
 
@@ -319,6 +327,7 @@ export const POST = withEvlog(async function POST(
       thinkingLevel: parseResult.data.thinkingLevel,
       timezone: parseResult.data.timezone,
       projectId: projectId ?? undefined,
+      surface: parseResult.data.surface,
     };
 
     await startStandaloneChatRun(workflowPayload);
@@ -380,6 +389,7 @@ async function createDirectStandaloneChatResponse({
   telemetryMetadata,
   headers,
   projectId,
+  surface,
 }: {
   organizationId: string;
   userId: string;
@@ -399,6 +409,7 @@ async function createDirectStandaloneChatResponse({
   telemetryMetadata: TccMetadata;
   headers: Headers;
   projectId?: string;
+  surface?: ChatWorkflowPayload["surface"];
 }) {
   const autumnClient = autumn;
   const streamId = messages.at(-1)?.id;
@@ -461,6 +472,7 @@ async function createDirectStandaloneChatResponse({
         telemetryMetadata,
         useMarkup,
         projectId,
+        surface,
       },
       {
         preValidatedIntegrations: validatedIntegrations,
@@ -491,11 +503,11 @@ async function createDirectStandaloneChatResponse({
 
           const cost = calculateAiCreditCostCents(
             {
-              inputTokens: usage.inputTokens ?? 0,
-              outputTokens: usage.outputTokens ?? 0,
-              totalTokens: usage.totalTokens ?? 0,
-              cacheReadTokens: usage.inputTokenDetails?.cacheReadTokens ?? 0,
-              cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens ?? 0,
+              ...toAgentTokenUsage(usage),
+              // This usage sums every step, and prices can depend on how big
+              // each single request was, so bill the per-step cost.
+              maxPromptTokens: routeUsage?.maxPromptTokens,
+              tokenCostUsd: routeUsage?.tokenCostUsd,
             },
             modelId,
             useMarkup
@@ -548,11 +560,11 @@ async function createDirectStandaloneChatResponse({
       }
     );
 
-    return stream.toUIMessageStreamResponse({
+    const uiStream = toUIMessageStream({
+      stream: stream.stream,
       originalMessages: messages as never,
       generateMessageId: nanoid,
       sendReasoning: enableThinking !== false,
-      headers: { "X-Chat-Id": chatId },
       messageMetadata: ({ part }) => {
         const effectiveThinkingLevel =
           enableThinking === false
@@ -586,7 +598,7 @@ async function createDirectStandaloneChatResponse({
 
         return;
       },
-      onFinish: async ({ messages: responseMessages }) => {
+      onEnd: async ({ messages: responseMessages }) => {
         try {
           const saved = await replaceChatHistory(
             organizationId,
@@ -627,6 +639,11 @@ async function createDirectStandaloneChatResponse({
         }
         return "An error occurred while processing your request.";
       },
+    });
+
+    return createUIMessageStreamResponse({
+      headers: { "X-Chat-Id": chatId },
+      stream: uiStream,
     });
   };
 

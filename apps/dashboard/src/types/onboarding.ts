@@ -2,6 +2,7 @@ import type {
   GeoBrandSearchResult,
   GeoCompetitor,
   GeoDiscoveredPrompt,
+  GeoOnboardingStage,
   GeoWebsiteDiscovery,
 } from "@notra/geo-core/types/geo";
 import type { onboardingWorkspaceSchema } from "@notra/schemas/dashboard/onboarding/workspace";
@@ -11,8 +12,17 @@ export type OnboardingWorkspaceInput = z.infer<
   typeof onboardingWorkspaceSchema
 >;
 
+/** Response of `onboarding.companyLogo`, also the cached representation. */
+export interface CompanyLogoResult {
+  domain: string | null;
+  url: string | null;
+}
+
+export type OnboardingProgressHrefs = readonly (string | null)[];
+
 export interface PricingClientProps {
   slug: string;
+  progressHrefs?: OnboardingProgressHrefs;
 }
 
 export interface OnboardingExistingOrg {
@@ -28,6 +38,7 @@ export interface OnboardingExistingOrg {
 
 export interface WorkspaceFormProps {
   existingOrg?: OnboardingExistingOrg;
+  progressHrefs?: OnboardingProgressHrefs;
 }
 
 export interface OnboardingSplitLayoutProps {
@@ -36,6 +47,16 @@ export interface OnboardingSplitLayoutProps {
 
 export interface OnboardingProgressProps {
   current: number;
+  hrefs?: OnboardingProgressHrefs;
+}
+
+export interface OnboardingProgressHrefInput {
+  current: number;
+  hasOrganization: boolean;
+  hasBrand: boolean;
+  stage: GeoOnboardingStage | null;
+  projectId?: string;
+  replay?: boolean;
 }
 
 export interface VisibilityFormProps {
@@ -46,6 +67,7 @@ export interface VisibilityFormProps {
   nextHref: string;
   skipHref: string;
   inOnboardingFlow: boolean;
+  progressHrefs?: OnboardingProgressHrefs;
 }
 
 export interface VisibilityReviewProps {
@@ -64,6 +86,7 @@ export interface CompetitorsFormProps {
   companyName: string;
   nextHref: string;
   inOnboardingFlow: boolean;
+  progressHrefs?: OnboardingProgressHrefs;
 }
 
 export interface CompetitorBrandLogoProps {
@@ -82,6 +105,13 @@ export interface CompetitorChoiceRowProps {
   onToggle: () => void;
 }
 
+export interface PromptChoiceRowProps {
+  prompt: string;
+  selected: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}
+
 export type CompetitorsPickerProps = Omit<
   CompetitorsFormProps,
   "projectId" | "inOnboardingFlow" | "companyName"
@@ -92,7 +122,47 @@ export interface CompetitorSearchProps {
   ownDomain: string | null;
   selected: readonly GeoCompetitor[];
   disabled: boolean;
-  onAdd: (result: GeoBrandSearchResult) => void;
+  onAdd: (result: CompetitorSearchResult) => void;
+}
+
+export interface CompetitorSearchResult extends Omit<
+  GeoBrandSearchResult,
+  "domain"
+> {
+  domain: string | null;
+  source: "manual" | "search";
+}
+
+export interface CompetitorSearchItemsInput {
+  ownDomain: string | null;
+  query: string;
+  searchResults: readonly GeoBrandSearchResult[];
+  searching: boolean;
+  selected: readonly GeoCompetitor[];
+}
+
+export interface UseCompetitorSearchStateInput {
+  organizationId: string;
+  ownDomain: string | null;
+  selected: readonly GeoCompetitor[];
+}
+
+export interface CompetitorSearchContentProps {
+  items: readonly CompetitorSearchResult[];
+  onRetry: () => void;
+  searchError: boolean;
+  searchFetching: boolean;
+  searching: boolean;
+}
+
+export interface SearchRetryNoticeProps {
+  onRetry: () => void;
+  searchFetching: boolean;
+}
+
+export interface CompetitorSearchResultRowProps {
+  entry: CompetitorSearchResult;
+  searchUnavailable: boolean;
 }
 
 export interface VisibilityBrandDraft {
@@ -102,7 +172,10 @@ export interface VisibilityBrandDraft {
 }
 
 export interface OnboardingGeoPageProps {
-  searchParams: Promise<{ project?: string | string[] }>;
+  searchParams: Promise<{
+    project?: string | string[];
+    replay?: string | string[];
+  }>;
 }
 
 export interface OrgLogoFieldProps {

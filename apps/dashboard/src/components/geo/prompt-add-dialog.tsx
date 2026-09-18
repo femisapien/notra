@@ -64,7 +64,7 @@ export function PromptAddDialog({
   const [mode, setMode] = useState<PromptAddMode>("write");
   const [draft, setDraft] = useState("");
   const [url, setUrl] = useState("");
-  const { addPrompt } = useGeoPromptsDb(organizationId);
+  const { addPrompt } = useGeoPromptsDb(organizationId, { enabled: open });
   const generate = useGeoGenerateFromWebsite(organizationId);
   const { data: searchConsoleData } = useGscKeywords(organizationId, open);
   const searchConsoleKeywords = searchConsoleData?.keywords ?? [];
@@ -198,7 +198,7 @@ export function PromptAddDialog({
                         handleAdd();
                       }
                     }}
-                    placeholder="what tools should I use for automating changelogs"
+                    placeholder="best way to turn github activity into a changelog for a small team"
                     ref={promptRef}
                     rows={4}
                     value={draft}

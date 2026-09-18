@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { retryTransientDbError } from "@/lib/db/retry";
+import { getORPCRequestMemo } from "@/lib/orpc/context";
 import type {
   AuthenticatedUser,
   AuthSession,
@@ -40,9 +41,18 @@ export async function assertAuthenticatedWithDeps(
     "getServerSession"
   > = organizationAuthDependencies
 ) {
-  const { session, user } = (await deps.getServerSession({
-    headers,
-  })) as AuthSession;
+  const memo = getORPCRequestMemo(headers);
+  let lookup = memo?.sessionLookup;
+  if (!lookup) {
+    lookup = deps.getServerSession({ headers });
+    if (memo) {
+      memo.sessionLookup = lookup;
+      lookup.catch(() => {
+        memo.sessionLookup = undefined;
+      });
+    }
+  }
+  const { session, user } = (await lookup) as AuthSession;
 
   if (!(session && user)) {
     throw new ORPCError("UNAUTHORIZED", {
@@ -55,6 +65,30 @@ export async function assertAuthenticatedWithDeps(
 
 export async function assertAuthenticated(args: { headers: Headers }) {
   return assertAuthenticatedWithDeps(args);
+}
+
+/**
+ * Batched oRPC calls arrive as one HTTP request, so every procedure in the
+ * batch would otherwise repeat the same membership SELECT. The memo lives in a
+ * WeakMap keyed by that request's `Headers`, so it cannot outlive the request.
+ */
+async function findMembershipMemoized(
+  deps: Pick<OrganizationAuthDependencies, "findMembership">,
+  headers: Headers,
+  params: { organizationId: string; userId: string }
+) {
+  const memo = getORPCRequestMemo(headers);
+  if (!memo) {
+    return await deps.findMembership(params);
+  }
+
+  const cacheKey = `${params.userId}:${params.organizationId}`;
+  let lookup = memo.membershipByUserOrganization.get(cacheKey);
+  if (!lookup) {
+    lookup = deps.findMembership(params);
+    memo.membershipByUserOrganization.set(cacheKey, lookup);
+  }
+  return await lookup;
 }
 
 export async function assertOrganizationAccessWithDeps(
@@ -88,7 +122,7 @@ export async function assertOrganizationAccessWithDeps(
   const authenticatedUser =
     user ?? (await assertAuthenticatedWithDeps({ headers }, deps)).user;
 
-  const membership = await deps.findMembership({
+  const membership = await findMembershipMemoized(deps, headers, {
     userId: authenticatedUser.id,
     organizationId: safeOrganizationId.data,
   });

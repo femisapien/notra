@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 import { useGeoProjectScope } from "@/components/providers/geo-project-provider";
 import { toErrorMessage } from "@/utils/error-message";
+import { withoutPromptGap, withRestoredPromptGap } from "@/utils/geo-gaps";
 import { getConflictRevision } from "@/utils/orpc-errors";
 
 import { dashboardOrpc } from "../orpc/query";
@@ -49,11 +50,15 @@ export function useGeoWriterBrief(
       input: { organizationId, projectId, briefId: briefId ?? "" },
     }),
     enabled: !!organizationId && !!briefId,
-    refetchInterval: (query) =>
-      query.state.data?.status === "writing" ||
-      query.state.data?.status === "approved"
+    // Poll while the writer is running. New runs skip "approved" (draft/failed
+    // go straight to "writing"), but legacy rows can still sit in "approved".
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "writing" || status === "approved"
         ? GEO_WRITER_BRIEF_POLL_INTERVAL_MS
-        : false,
+        : false;
+    },
+    refetchIntervalInBackground: false,
     meta: { errorMessage: "Failed to load the brief" },
   });
 }
@@ -73,6 +78,52 @@ function useInvalidateWriterQueries(organizationId: string) {
       }),
     });
   };
+}
+
+export function useGeoPromptGapIgnore(organizationId: string) {
+  const { projectId } = useGeoProjectScope();
+  const queryClient = useQueryClient();
+  const gapsQueryKey = dashboardOrpc.geo.writerGaps.queryKey({
+    input: { organizationId, projectId },
+  });
+  return useMutation({
+    mutationFn: (input: { promptId: string; ignored: boolean }) =>
+      dashboardOrpc.geo.writerGapIgnore.call({
+        ...input,
+        organizationId,
+        projectId,
+      }),
+    onMutate: async ({ promptId, ignored }) => {
+      if (!ignored) {
+        return { removed: undefined };
+      }
+      await queryClient.cancelQueries({ queryKey: gapsQueryKey });
+      const current =
+        queryClient.getQueryData<GeoContentGapsResponse>(gapsQueryKey);
+      const removed = current?.promptGaps.find((row) => row.id === promptId);
+      if (current && removed) {
+        queryClient.setQueryData<GeoContentGapsResponse>(
+          gapsQueryKey,
+          withoutPromptGap(current, promptId)
+        );
+      }
+      return { removed };
+    },
+    onError: (error, _input, context) => {
+      // Restore only this row so concurrent ignores of other rows stay removed.
+      const removed = context?.removed;
+      if (removed) {
+        queryClient.setQueryData<GeoContentGapsResponse>(
+          gapsQueryKey,
+          (current) => current && withRestoredPromptGap(current, removed)
+        );
+      }
+      toast.error(toErrorMessage(error, "Failed to update the gap"));
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: gapsQueryKey });
+    },
+  });
 }
 
 export function useGeoWriterPlan(organizationId: string) {

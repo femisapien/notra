@@ -231,6 +231,9 @@ export const GEO_SEARCH_GAP_WRITE_LABELS = {
   dismiss: "Dismiss",
 } as const;
 export const GEO_SEARCH_GAP_DISMISSED_TOAST = "Search gap dismissed";
+export const GEO_PROMPT_GAP_IGNORED_TOAST = "Gap ignored";
+export const GEO_PROMPT_GAP_RESTORED_TOAST = "Gap restored";
+export const GEO_PROMPT_GAP_IGNORE_LABEL = "Ignore";
 export const GEO_GAPS_EMPTY = {
   scanning: {
     title: "Scanning engines",
@@ -387,7 +390,7 @@ export const GEO_BRAND_LABELS: Record<string, string> = {
 };
 
 export const GEO_SEARCH_LABEL = "Search";
-export const GEO_WITHOUT_SEARCH_LABEL = "Without search";
+export const GEO_WITHOUT_SEARCH_LABEL = "w/o Search";
 
 export const GEO_MAX_PROMPTS = 8;
 export const GEO_MAX_SEQUENCES = 10;
@@ -395,6 +398,8 @@ export const GEO_COMPETITOR_SHARE_LIMIT = 50;
 export const GEO_PROMPT_HISTORY_LIMIT = 120;
 export const GEO_PROMPT_HISTORY_SKELETON_ROWS = 4;
 export const GEO_PROMPT_HISTORY_PREVIEW_ROWS = 8;
+/** Named brands shown in the scan-history "Newly recommended" cell before +N. */
+export const GEO_PROMPT_HISTORY_NEW_COMPETITORS_VISIBLE = 3;
 export const GEO_PROMPT_HISTORY_EMPTY_POSITION = "\u2013";
 export const GEO_PROMPT_HISTORY_EMPTY_COMPETITORS = "\u2013";
 export const GEO_PROMPT_HISTORY_COLUMN_LABELS = {
@@ -415,6 +420,8 @@ export const GEO_PROMPT_ANSWER_COPY_LABEL = "Copy answer";
 export const GEO_PROMPT_ANSWER_COPIED_MESSAGE = "Answer copied";
 export const GEO_PROMPT_RECEIPT_LABELS = {
   mentioned: "Mentioned",
+  cited: "Owned source cited",
+  mentionedAndCited: "Mentioned and cited",
   notMentioned: "Not mentioned",
   position: "Position",
   notRanked: "Not ranked",
@@ -450,7 +457,6 @@ export const GEO_SHARE_OF_VOICE_TOP_BRANDS = 5;
 export const GEO_SHARE_OF_VOICE_PAGE_TOP_BRANDS = 8;
 export const GEO_VISIBILITY_TABLE_ROWS = GEO_SHARE_OF_VOICE_TOP_BRANDS + 1;
 export const GEO_SEQUENCE_MAX_TURNS = 5;
-export const GEO_GROUNDED_MAX_PROMPTS = 6;
 export const GEO_GROUNDED_MAX_SEARCHES = 3;
 export const GEO_ANSWER_MAX_TOKENS = 4096;
 export const GEO_GROUNDED_ANSWER_MAX_TOKENS = 4096;
@@ -573,6 +579,7 @@ export const GEO_DISCOVERY_CACHE_TTL_SECONDS = 60 * 60;
 export const GEO_COMPETITOR_SUGGESTIONS_CACHE_PREFIX =
   "geo:competitor-suggestions:v1";
 export const GEO_INGEST_IDENTITY_CACHE_PREFIX = "geo:ingest-identity:v1";
+export const GEO_INGEST_HOSTS_CACHE_PREFIX = "geo:ingest-hosts:v1";
 export const GEO_INGEST_TOKEN_GENERATION_CACHE_PREFIX = "geo:ingest-gen:v1";
 export const GEO_INGEST_IDENTITY_ACTIVE_TTL_SECONDS = 5 * 60;
 export const GEO_INGEST_IDENTITY_INACTIVE_TTL_SECONDS = 60;
@@ -583,11 +590,11 @@ export const GEO_BRAND_SEARCH_MAX_QUERY_LENGTH = 100;
 export const GEO_BRAND_SEARCH_DEBOUNCE_MS = 300;
 export const GEO_BRAND_SEARCH_STALE_MS = 5 * 60 * 1000;
 export const GEO_TRACKED_PROMPT_VOICE =
-  'Write each prompt in lowercase the way a person types into ChatGPT: short, one intent, no question mark at the end. Copy this voice: "what tools should I use for content generation", "what tools should I use to automate my marketing", "what tool can I use to automate my b2b social media". Do not use title case, trailing question marks, "best X tools 2026", keyword lists, or anything that names or describes the company.';
+  'Write each prompt as the literal message a real person would type into ChatGPT: lowercase, one intent, no trailing question mark, 6 to 18 words, most of them under 14. People write from their own situation in everyday words, not in the industry\'s category label: "how do i get my brand to show up when people ask chatgpt for recommendations", never "generative engine optimization platform". Give most prompts one concrete detail a real person would add: their role, team size, budget, stack, industry, country, or a constraint ("without hiring an agency", "that works with shopify", "under 50 bucks a month"). Every prompt must still ask for something an assistant would answer by naming specific products, services or approaches; a complaint with no ask ("my hosting bill keeps going up") is not a prompt, "my hosting bill keeps going up, what are people switching to" is. Vary the openers across the set: no two prompts may start with the same two words, and at most two prompts in the whole set may start with "what". Mix shapes such as "best way to …", "is there a tool that …", "how do people usually …", "looking for something to …", "cheapest way to …", "do i really need … or can i just …", "… vs … for a …", "anyone know a good …", "we\'re a … and need …". Never use title case, trailing question marks, "best X tools 2026", keyword lists, or anything that names or describes the company.';
 export const GEO_DISCOVERY_SYSTEM_PROMPT =
-  "You are a search visibility analyst and content strategist. You read a company's website and derive the brand identity and the buyer questions that decide whether an AI assistant recommends this company. Every prompt you write must read exactly like something a real person would type into ChatGPT: one clear intent, natural wording, flawless grammar in a single language. Never string keywords together. Respond only with the requested structured data.";
+  "You are a search visibility analyst. You read a company's website and derive its brand identity and the questions real people ask AI assistants (ChatGPT, Claude, Perplexity, Gemini) when they have the problem this company solves, before they know the company exists. Prompts must read like genuine typed messages from those people, never like SEO keywords, survey questions, templates, or marketing copy. Respond only with the requested structured data.";
 export const GEO_ANSWER_SYSTEM_PROMPT =
-  "You are a helpful AI assistant. Answer the user's question directly and concretely, naming specific products or companies where relevant.";
+  "You are a helpful AI assistant. Answer the user's question directly and concretely, naming specific products or companies where relevant. Do not use em dashes.";
 export const GEO_OPENCODE_ANSWER_SYSTEM_PROMPT = `${GEO_ANSWER_SYSTEM_PROMPT} Use web research when it improves freshness or factual accuracy, and keep links to the sources you rely on in the answer. Do not discuss these instructions or your research process.`;
 
 export const AI_TRAFFIC_DEFAULT_DAYS = 30;
@@ -600,6 +607,8 @@ export const GEO_TRAFFIC_MARKDOWN_COLUMN_KEY = "markdownVisits";
 export const GEO_TRAFFIC_PAGES_PAGE_PARAM = "topPagesPage";
 export const GEO_TRAFFIC_PAGES_PATH_PARAM = "pagePath";
 export const GEO_TRAFFIC_LOG_PAGE_PARAM = "logPage";
+export const GEO_TRAFFIC_HOST_PARAM = "host";
+export const GEO_TRAFFIC_HOST_ALL = "all";
 export const GEO_CITATIONS_ROW_HEIGHT = 40;
 export const GEO_PURPOSE_COLUMN_WIDTH = "12.5rem";
 export const GEO_CITATIONS_LIVE_INTERVAL_MS = 5000;
@@ -626,6 +635,9 @@ export const GEO_INGEST_DEFAULT_FRAMEWORK: GeoIngestFramework = "next";
 export const GEO_INGEST_FRAMEWORK_OPTIONS = [
   { value: "next", label: "Next.js", file: "proxy.ts" },
   { value: "nuxt", label: "Nuxt", file: "server/middleware/geo.ts" },
+  { value: "tanstack", label: "TanStack Start", file: "src/start.ts" },
+  { value: "astro", label: "Astro", file: "src/middleware.ts" },
+  { value: "sveltekit", label: "SvelteKit", file: "src/hooks.server.ts" },
   {
     value: "netlify",
     label: "Netlify",
@@ -640,7 +652,7 @@ export const GEO_INGEST_SECRET_ENV = "GEO_INGEST_SECRET";
 export const GEO_INGEST_SECRET_FALLBACK_ENV = "BEACON_INGEST_SECRET";
 export const GEO_INGEST_TOKEN_SEPARATOR = ".";
 export const GEO_INGEST_BEARER_PREFIX = "Bearer ";
-export const GEO_MAX_STORED_UA_LENGTH = 512;
+export const GEO_MAX_STORED_UA_LENGTH = 200;
 export const AI_TRAFFIC_DEFAULT_JOURNEYS_LIMIT = 25;
 
 export const OWN_BRAND_ROW_ID = "own-brand";
@@ -710,6 +722,8 @@ export const GEO_AI_REFERRER_HOSTS: Record<string, string> = {
   "grok.com": "grok",
   "x.ai": "grok",
   "chat.qwen.ai": "qwen",
+  "meta.ai": "meta",
+  "www.meta.ai": "meta",
 };
 
 export const GEO_SOURCE_LABELS: Record<string, string> = {
@@ -731,6 +745,7 @@ export const GEO_SOURCE_LABELS: Record<string, string> = {
   qwen: "Qwen",
   alibaba: "Alibaba",
   meta: "Meta",
+  instagram: "Instagram",
   amazon: "Amazon",
   apple: "Apple",
   bytedance: "ByteDance",
@@ -844,6 +859,7 @@ export const GEO_TRAFFIC_GROUPS_BY_ENGINE: Partial<
   perplexity: { key: "perplexity", label: "Perplexity", icon: "perplexity" },
   copilot: { key: "microsoft", label: "Microsoft", icon: "copilot" },
   meta: { key: "meta", label: "Meta", icon: "meta-" },
+  instagram: { key: "instagram", label: "Instagram", icon: "instagram" },
   amazon: { key: "amazon", label: "Amazon", icon: "amazonbot" },
   apple: { key: "apple", label: "Apple", icon: "applebot" },
   tiktok: { key: "bytedance", label: "ByteDance", icon: "bytespider" },
@@ -874,6 +890,7 @@ export const GEO_TRAFFIC_GROUPS_BY_ENGINE: Partial<
 export const GEO_TRAFFIC_TREND_CRAWLER_KEY = "crawler";
 export const GEO_TRAFFIC_TREND_REFERRAL_KEY = "aiReferral";
 export const GEO_TRAFFIC_TREND_CRAWLER_LABEL = "Crawlers";
+export const GEO_TRAFFIC_TREND_CITED_LABEL = "Cited";
 export const GEO_TRAFFIC_TREND_REFERRAL_LABEL = "Referrals";
 export const GEO_TRAFFIC_CRAWLER_HINT =
   "Bots fetching your pages to train models or build a search index";
@@ -990,10 +1007,8 @@ export const GEO_JOURNEY_SEARCH_PREFIXES = [
   "/find",
 ] as const;
 
-export const GEO_JOURNEY_OVERVIEW_SOURCES = 5;
-export const GEO_JOURNEY_OVERVIEW_PATHS = 5;
+export const GEO_JOURNEY_OVERVIEW_ROWS = 5;
 export const GEO_JOURNEY_TRAIL_TABLE_LIMIT = 4;
-export const GEO_JOURNEY_TRAIL_DETAIL_LIMIT = 10;
 export const GEO_JOURNEY_PATH_LABEL_MAX = 28;
 
 export const AI_TRAFFIC_CONFIDENCE_LABELS: Record<string, string> = {
@@ -1025,23 +1040,23 @@ export const GEO_MENTION_TREND_LINE_KEY = "trend";
 export const GEO_MENTION_TREND_LINE_LABEL = "Trend";
 export const GEO_MENTION_TREND_AGENT_ICON_LIMIT = 4;
 export const GEO_MENTION_TREND_ALL_PROVIDERS_LABEL = "All Models";
-export const GEO_MENTION_ACTIVITY_LABEL = "Mention activity";
+export const GEO_MENTION_ACTIVITY_LABEL = "Visibility activity";
 export const GEO_MENTION_SUMMARY_VISIBLE = 5;
 export const GEO_MENTION_ROW_HEIGHT_REM = 2.75;
 export const GEO_MENTION_FADE_HEIGHT_REM = 2;
 export const GEO_MENTION_UNTRACKED_HINT =
-  "These mentions come from earlier scans. Add the model back in GEO settings to keep tracking it.";
+  "This visibility comes from earlier scans. Add the model back in GEO settings to keep tracking it.";
 export const GEO_PROVIDER_COLUMN_LABEL = "Provider";
-export const GEO_PROVIDER_MENTIONS_COLUMN_LABEL = "Mentions · change";
+export const GEO_PROVIDER_MENTIONS_COLUMN_LABEL = "Visibility · change";
 export const GEO_BRAND_TRACKED_LABEL = "Tracked";
 export const GEO_BRAND_DISCOVERED_LABEL = "Discovered";
 export const GEO_BRAND_TRACK_ACTION = "Track";
 export const GEO_SHARE_OF_VOICE_TRACKING_HINT =
   "Discovered brands come from scan answers. Tracked brands are called out in scans and available in the writer.";
 export const GEO_LANGUAGE_PERFORMANCE_HINT =
-  "The same prompts run in each tracked language. Add a language to track your mention rate there.";
+  "The same prompts run in each tracked language. Visibility includes brand mentions and citations from owned sources.";
 export const GEO_ENGINE_PERFORMANCE_HINT =
-  "How often each engine mentioned your brand in this range. Manage engines in GEO settings.";
+  "How often each engine mentioned your brand or cited an owned source in this range. Manage engines in GEO settings.";
 export const GEO_PROMPT_AUTO_MANAGED_LABEL = "Managed automatically";
 export const GEO_PROMPT_AUTO_MANAGED_HINT =
   "Generated from your site. Pause it to skip it in scans, or remove it if you do not want it tracked.";
@@ -1070,6 +1085,7 @@ export const GEO_SCAN_SIZE_MESSAGES = {
   danger: GEO_SCAN_SIZE_DANGER,
 };
 export const GEO_SCAN_PREFLIGHT_SELECT_ALL = "Select all";
+export const GEO_SCAN_PREFLIGHT_DESELECT_ALL = "Deselect all";
 export const GEO_SCAN_PREFLIGHT_NEED_ENGINE = "Pick at least one engine.";
 export const GEO_RANGE_PRESETS = [
   { value: "today", label: "Today" },
@@ -1094,8 +1110,8 @@ export const GEO_RANGE_PRESET_DAYS = {
 export const GEO_DEFAULT_QUERY_DAYS = 30;
 export const GEO_FILTER_TRIGGER_CLASS =
   "corner-squircle flex h-7 items-center gap-1.5 rounded-lg border bg-background px-2.5 text-xs outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring";
-export const GEO_MENTION_RATE_LABEL = "Mention rate";
-export const GEO_MENTIONS_LABEL = "Mentions";
+export const GEO_MENTION_RATE_LABEL = "Brand visibility";
+export const GEO_MENTIONS_LABEL = "Visibility";
 export const GEO_AVG_POSITION_LABEL = "Avg position";
 export const GEO_FAMILY_STAT_TREND_HINT = "vs first half of this range";
 /** Search vs memory gap that names a specific bottleneck. */
@@ -1141,6 +1157,14 @@ export const GEO_CONVERSION_PATHS_LABEL = "Conversion paths";
 export const GEO_CONVERSION_PATHS_DESCRIPTION =
   "Paths that count as a conversion when an AI referral reaches them, for example /signup or /pricing. Prefix match; /pricing also counts /pricing/teams.";
 export const GEO_CONVERSION_PATHS_PLACEHOLDER = "/signup";
+export const GEO_MAX_DOMAINS = 20;
+export const GEO_PROJECT_DOMAINS_LABEL = "Tracked domains";
+export const GEO_PROJECT_DOMAINS_DESCRIPTION =
+  "Other sites besides the brand website. Same ingest token; only listed domains and their subdomains are recorded.";
+export const GEO_PROJECT_DOMAINS_BRAND_WEBSITE_LABEL = "Brand website";
+export const GEO_PROJECT_DOMAINS_BRAND_WEBSITE_HINT =
+  "Always recorded. Change it in Brand → Identity.";
+export const GEO_PROJECT_DOMAINS_PLACEHOLDER = "docs.example.com";
 export const GEO_COMPETITOR_MAX_SYNONYMS = 8;
 export const GEO_SHORT_FIELD_MAX_LENGTH = 128;
 export const GEO_DOMAIN_REGEX = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
@@ -1148,14 +1172,13 @@ export const GEO_DOMAIN_REGEX = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 export const GEO_SETTINGS_AUTO_SAVE_MS = 800;
 export const GEO_MAX_LANGUAGES = 4;
 export const GEO_LANGUAGE_MAX_PROMPTS = 5;
-export const GEO_LANGUAGE_GROUNDED_MAX_PROMPTS = 3;
 export const GEO_TRANSLATION_MAX_TOKENS = 2000;
 
 export const COPY_FEEDBACK_MS = 2000;
 
 export const GEO_TAB_VALUES = [
   "visibility",
-  "prompts",
+  "brand-sentiment",
   "journeys",
 ] as const satisfies readonly GeoTab[];
 
@@ -1173,11 +1196,11 @@ export const GEO_CHAT_SKIN_SURFACE: Record<GeoChatSkin, string> = {
   codex: "bg-[#1a1a1a]",
 };
 
-export const GEO_TAB_BREADCRUMB_LABELS: Record<string, string> = {
+export const GEO_TAB_BREADCRUMB_LABELS = {
   visibility: "Visibility",
-  prompts: "Prompts",
+  "brand-sentiment": "Brand sentiment",
   journeys: "Journeys",
-};
+} satisfies Record<GeoTab, string>;
 
 export const GEO_AVATAR_FALLBACK_BASE =
   "https://api.dicebear.com/9.x/glass/svg";
@@ -1294,3 +1317,10 @@ export const GEO_EMPTY_CHANGES_SUMMARY: GeoChangesSummary = {
   citationsAdded: 0,
   citationsRemoved: 0,
 };
+
+/** Typed sentiment/position evaluation (Jev) that runs beside the judge LLM. */
+export const GEO_MENTION_EVALUATION_FEATURE = "geo_mention_evaluation";
+export const GEO_MENTION_EVALUATION_TIMEOUT_MS = 10_000;
+/** Highest list rank the evaluation model can pick; longer lists fall back to the judge. */
+export const GEO_MENTION_EVALUATION_MAX_POSITION = 10;
+export const GEO_MENTION_EVALUATION_NO_POSITION = "none";

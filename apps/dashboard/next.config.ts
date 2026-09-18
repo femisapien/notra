@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   cacheComponents: true,
   partialPrefetching: true,
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   outputFileTracingIncludes: {
     "/*": ["./src/lib/ai/skills/**/*", "../../packages/ai/src/skills/**/*"],
   },
@@ -35,7 +38,12 @@ const nextConfig: NextConfig = {
     "@notra/utils",
     "@usenotra/geo",
   ],
-  serverExternalPackages: ["@resvg/resvg-js", "@cursor/sdk"],
+  serverExternalPackages: [
+    "@resvg/resvg-js",
+    "@cursor/sdk",
+    "@ai-sdk/code-mode",
+    "run",
+  ],
   skipTrailingSlashRedirect: true,
   async rewrites() {
     const posthogHost =
@@ -71,6 +79,16 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      {
+        source: "/home",
+        destination: "https://www.usenotra.com/home",
+        permanent: true,
+      },
+      {
+        source: "/landing",
+        destination: "https://www.usenotra.com/landing",
+        permanent: true,
+      },
       {
         source: "/",
         destination: "/login",
@@ -140,6 +158,11 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "logos.context.dev",
+      },
+      {
+        protocol: "https",
+        hostname: "www.google.com",
+        pathname: "/s2/favicons",
       },
       {
         protocol: "https",

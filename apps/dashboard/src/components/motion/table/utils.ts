@@ -49,6 +49,19 @@ export function readSortValue<T>(
   return (row as Record<string, string | number>)[column.key] ?? "";
 }
 
+/** Slice `rows` to the current page; unpaged when `pageSize` is unset. */
+export function pageRows<T>(
+  rows: TableRow<T>[],
+  page: number,
+  pageSize?: number
+): TableRow<T>[] {
+  if (pageSize == null) {
+    return rows;
+  }
+  const pageStart = Math.max(0, page - 1) * pageSize;
+  return rows.slice(pageStart, pageStart + pageSize);
+}
+
 /** After column sort, move matching rows to the front without pinning them sticky. */
 export function pinRowsFirst<T>(
   rows: readonly TableRow<T>[],
@@ -102,6 +115,28 @@ export function headerMinWidth(
     return `max(${minColumnWidth}px, calc(${column.header.length + HEADER_CH_BUFFER}ch + ${chromePx}px))`;
   }
   return `${minColumnWidth}px`;
+}
+
+/** Sum of column floors so `table-layout: fixed` cannot crush titles. */
+export function tableMinWidthCss<T>(
+  columns: readonly Pick<TableColumn<T>, "header" | "sortable" | "minWidth">[],
+  minColumnWidth: number,
+  extraFixedWidths: readonly string[] = [],
+  extraChromePx = 0
+): string {
+  const parts = [
+    ...extraFixedWidths,
+    ...columns.map((column) =>
+      headerMinWidth(column, minColumnWidth, extraChromePx)
+    ),
+  ];
+  if (parts.length === 0) {
+    return "0px";
+  }
+  if (parts.length === 1) {
+    return parts[0] ?? "0px";
+  }
+  return `calc(${parts.join(" + ")})`;
 }
 
 export function colWidthStyle(

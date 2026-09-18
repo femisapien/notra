@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import type {
   BrandSettings,
+  BrandSettingsQueryOptions,
   BrandSettingsResponse,
   ProgressResponse,
 } from "@/types/hooks/brand-analysis";
@@ -17,17 +18,23 @@ import { QUERY_KEYS } from "@/utils/query-keys";
 
 import { dashboardOrpc } from "../orpc/query";
 
+const ANALYSIS_POLL_INTERVAL_MS = 1000;
+const INITIAL_POLL_INTERVAL_MS = 2000;
+
 const IDLE_PROGRESS: ProgressResponse["progress"] = {
   status: "idle",
   currentStep: 0,
   totalSteps: 3,
 };
 
-export function useBrandSettings(organizationId: string) {
+export function useBrandSettings(
+  organizationId: string,
+  options?: BrandSettingsQueryOptions
+) {
   return useQuery<BrandSettingsResponse>(
     dashboardOrpc.brand.voices.list.queryOptions({
       input: { organizationId },
-      enabled: !!organizationId,
+      enabled: !!organizationId && (options?.enabled ?? true),
     })
   );
 }
@@ -70,8 +77,10 @@ export function useBrandAnalysisProgress(
     enabled: !!organizationId,
     refetchInterval: (query) => {
       const progress = query.state.data?.progress;
+      // No data yet (still loading, or the last request failed): keep polling
+      // so a single transient failure cannot freeze the progress UI.
       if (!progress) {
-        return 2000;
+        return INITIAL_POLL_INTERVAL_MS;
       }
 
       if (progress.status === "completed" || progress.status === "failed") {
@@ -79,11 +88,12 @@ export function useBrandAnalysisProgress(
       }
 
       if (progress.status === "idle") {
-        return shouldForcePoll() ? 1000 : false;
+        return shouldForcePoll() ? ANALYSIS_POLL_INTERVAL_MS : false;
       }
 
-      return 1000;
+      return ANALYSIS_POLL_INTERVAL_MS;
     },
+    refetchIntervalInBackground: false,
   });
 
   const progress = query.data?.progress ?? IDLE_PROGRESS;

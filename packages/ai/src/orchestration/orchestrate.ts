@@ -1,6 +1,6 @@
 import { createModel } from "@notra/ai/model";
 import { getContentEditorChatPrompt } from "@notra/ai/prompts/content-editor";
-import { withGatewayDefaults } from "@notra/ai/provider-options";
+import { withRouterDefaults } from "@notra/ai/provider-options";
 import type {
   OrchestrateDeps,
   OrchestrateInput,
@@ -8,10 +8,10 @@ import type {
 } from "@notra/ai/types/orchestration";
 import { normalizeMarkdownFileAttachments } from "@notra/ai/utils/message-attachments";
 import { summarizeRouteUsage } from "@notra/ai/utils/route-usage";
-import { buildExperimentalTelemetry } from "@notra/ai/utils/tcc";
+import { buildTelemetryOptions } from "@notra/ai/utils/tcc";
 import {
   convertToModelMessages,
-  stepCountIs,
+  isStepCount,
   streamText,
   type UIMessage,
 } from "ai";
@@ -123,13 +123,13 @@ export async function orchestrateChat(
 
   const stream = streamText({
     model: modelWithMemory,
-    system: systemPrompt,
+    instructions: systemPrompt,
     messages: await convertToModelMessages(messagesForModel, {
       ignoreIncompleteToolCalls: true,
     }),
     tools,
-    stopWhen: stepCountIs(maxSteps),
-    providerOptions: withGatewayDefaults(
+    stopWhen: isStepCount(maxSteps),
+    providerOptions: withRouterDefaults(
       getThinkingProviderOptions(
         routingDecision.model,
         true,
@@ -139,12 +139,12 @@ export async function orchestrateChat(
         modelId: routingDecision.model,
       }
     ),
-    experimental_telemetry: buildExperimentalTelemetry(telemetryMetadata),
-    async onFinish({ totalUsage, steps }) {
+    ...buildTelemetryOptions(telemetryMetadata),
+    async onEnd({ usage, steps }) {
       await deps?.onUsage?.(
-        totalUsage,
+        usage,
         routingDecision.model,
-        await summarizeRouteUsage(steps)
+        await summarizeRouteUsage(steps, routingDecision.model)
       );
     },
     onError({ error }) {

@@ -14,23 +14,24 @@ import {
 } from "@notra/ui/components/ui/sidebar";
 import { cn } from "@notra/ui/lib/utils";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
 import type { DashboardSidebarProps } from "@/types/components/sidebar-resize-handle";
 
 import { ChatHistoryNav } from "./chat-history-nav";
+import {
+  DeferredSidebarStatus,
+  DeferredSidebarUpgrade,
+} from "./deferred-sidebar-status";
 import { NavBrandIdentity } from "./nav-brand-identity";
 import { NavMain } from "./nav-main";
 import { NavUtility } from "./nav-utility";
 import { OrgSelector } from "./org-selector";
 import { SidebarLabel } from "./sidebar-label";
-import { SidebarOnboarding } from "./sidebar-onboarding";
 import { SidebarProjectSwitcher } from "./sidebar-project-switcher";
 import { SidebarResizeHandle } from "./sidebar-resize-handle";
 import { SidebarSwap } from "./sidebar-swap";
-import { SidebarTrialExpired } from "./sidebar-trial-expired";
-import { SidebarUpgrade } from "./sidebar-upgrade";
 
 function SidebarBackButton({ onBack }: { onBack: () => void }) {
   return (
@@ -70,6 +71,26 @@ export function DashboardSidebar({
   const section = pathnameSegments[1];
   const panelId = section === "chat" || section === "brand" ? section : "main";
   const isSubpage = panelId !== "main";
+
+  const [hasMoreNavigation, setHasMoreNavigation] = useState(false);
+  const scrollEndRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const node = scrollEndRef.current;
+    if (!node) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry) {
+          setHasMoreNavigation(!entry.isIntersecting);
+        }
+      },
+      { root: node.parentElement }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const hasVisitedMainRef = useRef(false);
   const previousNavigationKeyRef = useRef(navigationKey);
@@ -141,11 +162,20 @@ export function DashboardSidebar({
         />
         <div className="mt-auto">
           <NavUtility slug={slug} />
-          <SidebarTrialExpired />
-          <SidebarOnboarding />
-          <SidebarUpgrade />
+          <DeferredSidebarStatus />
         </div>
+        <div aria-hidden className="h-px shrink-0" ref={scrollEndRef} />
       </SidebarContent>
+      <div className="relative shrink-0">
+        {hasMoreNavigation && (
+          <div
+            aria-hidden
+            className="from-sidebar pointer-events-none absolute inset-x-0 bottom-full z-10 h-8 bg-linear-to-t to-transparent group-data-[collapsible=icon]:hidden"
+            data-sidebar="scroll-fade"
+          />
+        )}
+        <DeferredSidebarUpgrade />
+      </div>
       <SidebarFooter>
         <OrgSelector />
       </SidebarFooter>

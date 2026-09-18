@@ -1,5 +1,4 @@
 import { createRoute } from "@hono/zod-openapi";
-import { agentFeedback } from "@notra/db/schema";
 import {
   feedbackOrganizationParamsSchema,
   feedbackParamsSchema,
@@ -10,7 +9,8 @@ import {
   submitFeedbackResponseSchema,
   updateFeedbackRequestSchema,
 } from "@notra/schemas/api/feedback";
-import { and, count, desc, eq } from "drizzle-orm";
+import type { Context } from "hono";
+import type { z } from "zod";
 
 import { API_FEEDBACK_VIA } from "../constants/analytics";
 import {
@@ -19,12 +19,21 @@ import {
   FEEDBACK_PROJECT_NOT_FOUND_ERROR,
 } from "../constants/feedback";
 import { ORGANIZATION_SCOPED_API_KEY_ERROR } from "../constants/skills";
+import {
+  getFeedback as getFeedbackProgram,
+  listFeedback as listFeedbackProgram,
+  resolveOrganizationIdBySlug,
+  submitFeedback as submitFeedbackProgram,
+  updateFeedback as updateFeedbackProgram,
+} from "../programs/feedback";
+import type { SubmitFeedbackProgramSuccess } from "../types/feedback";
 import { trackFeedbackReceived } from "../utils/analytics";
 import { getOrganizationId } from "../utils/auth";
 import {
-  findOrganizationIdBySlug,
+  getIngestProjectId,
+  respondToFeedbackFailure,
+  runFeedbackProgram,
   serializeFeedback,
-  submitFeedback,
 } from "../utils/feedback";
 import { createOpenApiApp } from "../utils/openapi-app";
 import { errorResponse, rateLimitResponse } from "../utils/openapi-responses";
@@ -173,6 +182,50 @@ const updateFeedbackRoute = createRoute({
   },
 });
 
+async function handleSubmitFeedbackAccepted(
+  c: Context,
+  organizationId: string,
+  via: (typeof API_FEEDBACK_VIA)[keyof typeof API_FEEDBACK_VIA],
+  success: SubmitFeedbackProgramSuccess
+) {
+  const feedback = serializeFeedback(success.feedback);
+
+  trackFeedbackReceived(c, {
+    organizationId,
+    feedback,
+    deduplicated: success.deduplicated,
+    via,
+  });
+
+  return c.json({ feedback, deduplicated: success.deduplicated }, 202);
+}
+
+async function submitFeedbackHandler(
+  c: Context,
+  organizationId: string,
+  via: (typeof API_FEEDBACK_VIA)[keyof typeof API_FEEDBACK_VIA],
+  body: z.infer<typeof submitFeedbackRequestSchema>
+) {
+  const result = await runFeedbackProgram(
+    submitFeedbackProgram({
+      db: c.get("db"),
+      organizationId,
+      body,
+      ingestProjectId: getIngestProjectId(c),
+      userAgent: c.req.header("user-agent") ?? null,
+    })
+  );
+  if (result._tag === "Failure") {
+    const response = respondToFeedbackFailure(c, result.failure);
+    if (response) {
+      return response;
+    }
+    throw result.failure;
+  }
+
+  return handleSubmitFeedbackAccepted(c, organizationId, via, result.success);
+}
+
 feedbackRoutes.openapi(submitOrganizationFeedbackRoute, async (c) => {
   const ipLimited = await enforceRatelimit(c, ratelimit.feedbackIngestIp, "ip");
   if (ipLimited) {
@@ -180,10 +233,21 @@ feedbackRoutes.openapi(submitOrganizationFeedbackRoute, async (c) => {
   }
 
   const { organizationSlug } = c.req.valid("param");
-  const organizationId = await findOrganizationIdBySlug(c, organizationSlug);
-  if (!organizationId) {
-    return c.json({ error: FEEDBACK_ORGANIZATION_NOT_FOUND_ERROR }, 404);
+  const organizationResult = await runFeedbackProgram(
+    resolveOrganizationIdBySlug({
+      db: c.get("db"),
+      slug: organizationSlug,
+    })
+  );
+  if (organizationResult._tag === "Failure") {
+    const response = respondToFeedbackFailure(c, organizationResult.failure);
+    if (response) {
+      return response;
+    }
+    throw organizationResult.failure;
   }
+
+  const organizationId = organizationResult.success;
 
   const organizationLimited = await enforceRatelimitForKey(
     c,
@@ -194,24 +258,11 @@ feedbackRoutes.openapi(submitOrganizationFeedbackRoute, async (c) => {
     return organizationLimited;
   }
 
-  const outcome = await submitFeedback(c, organizationId, c.req.valid("json"));
-  if (outcome.kind === "project_not_found") {
-    return c.json({ error: FEEDBACK_PROJECT_NOT_FOUND_ERROR }, 404);
-  }
-  if (outcome.kind === "not_found") {
-    return c.json({ error: FEEDBACK_NOT_FOUND_ERROR }, 404);
-  }
-
-  trackFeedbackReceived(c, {
+  return submitFeedbackHandler(
+    c,
     organizationId,
-    feedback: outcome.feedback,
-    deduplicated: outcome.deduplicated,
-    via: API_FEEDBACK_VIA.PUBLIC_SLUG,
-  });
-
-  return c.json(
-    { feedback: outcome.feedback, deduplicated: outcome.deduplicated },
-    202
+    API_FEEDBACK_VIA.PUBLIC_SLUG,
+    c.req.valid("json")
   );
 });
 
@@ -226,24 +277,11 @@ feedbackRoutes.openapi(submitFeedbackRoute, async (c) => {
     return rateLimited;
   }
 
-  const outcome = await submitFeedback(c, organizationId, c.req.valid("json"));
-  if (outcome.kind === "project_not_found") {
-    return c.json({ error: FEEDBACK_PROJECT_NOT_FOUND_ERROR }, 404);
-  }
-  if (outcome.kind === "not_found") {
-    return c.json({ error: FEEDBACK_NOT_FOUND_ERROR }, 404);
-  }
-
-  trackFeedbackReceived(c, {
+  return submitFeedbackHandler(
+    c,
     organizationId,
-    feedback: outcome.feedback,
-    deduplicated: outcome.deduplicated,
-    via: API_FEEDBACK_VIA.TOKEN,
-  });
-
-  return c.json(
-    { feedback: outcome.feedback, deduplicated: outcome.deduplicated },
-    202
+    API_FEEDBACK_VIA.TOKEN,
+    c.req.valid("json")
   );
 });
 
@@ -253,45 +291,24 @@ feedbackRoutes.openapi(listFeedbackRoute, async (c) => {
     return c.json({ error: ORGANIZATION_SCOPED_API_KEY_ERROR }, 403);
   }
 
-  const query = c.req.valid("query");
-  const conditions = [eq(agentFeedback.organizationId, organizationId)];
-  if (query.status) {
-    conditions.push(eq(agentFeedback.status, query.status));
+  const result = await runFeedbackProgram(
+    listFeedbackProgram({
+      db: c.get("db"),
+      organizationId,
+      query: c.req.valid("query"),
+    })
+  );
+  // listFeedback only fails on database errors; domain 404s are not produced here.
+  if (result._tag === "Failure") {
+    throw result.failure;
   }
-  if (query.kind) {
-    conditions.push(eq(agentFeedback.kind, query.kind));
-  }
-  if (query.projectId) {
-    conditions.push(eq(agentFeedback.projectId, query.projectId));
-  }
-  const where = and(...conditions);
 
-  const db = c.get("db");
-  const [[totals], rows] = await Promise.all([
-    db.select({ total: count() }).from(agentFeedback).where(where),
-    db
-      .select()
-      .from(agentFeedback)
-      .where(where)
-      .orderBy(desc(agentFeedback.createdAt))
-      .limit(query.limit)
-      .offset((query.page - 1) * query.limit),
-  ]);
-
-  const totalItems = totals?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalItems / query.limit));
+  const { feedback, pagination } = result.success;
 
   return c.json(
     {
-      feedback: rows.map(serializeFeedback),
-      pagination: {
-        limit: query.limit,
-        currentPage: query.page,
-        nextPage: query.page < totalPages ? query.page + 1 : null,
-        previousPage: query.page > 1 ? query.page - 1 : null,
-        totalPages,
-        totalItems,
-      },
+      feedback: feedback.map(serializeFeedback),
+      pagination,
     },
     200
   );
@@ -304,18 +321,22 @@ feedbackRoutes.openapi(getFeedbackRoute, async (c) => {
   }
 
   const { feedbackId } = c.req.valid("param");
-  const row = await c.get("db").query.agentFeedback.findFirst({
-    where: and(
-      eq(agentFeedback.organizationId, organizationId),
-      eq(agentFeedback.id, feedbackId)
-    ),
-  });
-
-  if (!row) {
-    return c.json({ error: FEEDBACK_NOT_FOUND_ERROR }, 404);
+  const result = await runFeedbackProgram(
+    getFeedbackProgram({
+      db: c.get("db"),
+      organizationId,
+      feedbackId,
+    })
+  );
+  if (result._tag === "Failure") {
+    const response = respondToFeedbackFailure(c, result.failure);
+    if (response) {
+      return response;
+    }
+    throw result.failure;
   }
 
-  return c.json({ feedback: serializeFeedback(row) }, 200);
+  return c.json({ feedback: serializeFeedback(result.success) }, 200);
 });
 
 feedbackRoutes.openapi(updateFeedbackRoute, async (c) => {
@@ -325,26 +346,21 @@ feedbackRoutes.openapi(updateFeedbackRoute, async (c) => {
   }
 
   const { feedbackId } = c.req.valid("param");
-  const body = c.req.valid("json");
-
-  const [updated] = await c
-    .get("db")
-    .update(agentFeedback)
-    .set({
-      status: body.status,
-      resolvedAt: body.status === "resolved" ? new Date() : null,
+  const result = await runFeedbackProgram(
+    updateFeedbackProgram({
+      db: c.get("db"),
+      organizationId,
+      feedbackId,
+      body: c.req.valid("json"),
     })
-    .where(
-      and(
-        eq(agentFeedback.organizationId, organizationId),
-        eq(agentFeedback.id, feedbackId)
-      )
-    )
-    .returning();
-
-  if (!updated) {
-    return c.json({ error: FEEDBACK_NOT_FOUND_ERROR }, 404);
+  );
+  if (result._tag === "Failure") {
+    const response = respondToFeedbackFailure(c, result.failure);
+    if (response) {
+      return response;
+    }
+    throw result.failure;
   }
 
-  return c.json({ feedback: serializeFeedback(updated) }, 200);
+  return c.json({ feedback: serializeFeedback(result.success) }, 200);
 });

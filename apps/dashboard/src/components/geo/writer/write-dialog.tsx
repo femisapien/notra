@@ -68,7 +68,7 @@ import {
 import { trackEvent } from "@/lib/analytics/posthog-client";
 import { useBrandSettings } from "@/lib/hooks/use-brand-analysis";
 import { useSitemaps } from "@/lib/hooks/use-brand-sitemaps";
-import { useGeoCompetitors, useGeoPrompts } from "@/lib/hooks/use-geo";
+import { useGeoCompetitorsDb, useGeoPromptsDb } from "@/lib/hooks/use-geo-db";
 import { useGeoWriterPlan } from "@/lib/hooks/use-geo-writer";
 import type {
   WriteDialogProps,
@@ -124,7 +124,7 @@ export function WriteDialog({
         key={`${session}:${initial?.sourceKind ?? "manual"}:${initial?.sourceId ?? ""}`}
         onOpenChange={onOpenChange}
         open={open}
-        organizationId={open ? organizationId : ""}
+        organizationId={organizationId}
         organizationSlug={organizationSlug}
       />
     </ResponsiveDialog>
@@ -211,20 +211,18 @@ function WriteDialogForm({
   );
 
   const planMutation = useGeoWriterPlan(organizationId);
-  const { data: brandData } = useBrandSettings(organizationId);
-  const { data: competitorData } = useGeoCompetitors(organizationId);
-  const { data: promptsData } = useGeoPrompts(organizationId);
-  const sitemapQuery = useSitemaps(organizationId, brandVoiceId ?? "");
+  const { data: brandData } = useBrandSettings(organizationId, {
+    enabled: open,
+  });
+  const { competitors } = useGeoCompetitorsDb(organizationId, {
+    enabled: open,
+  });
+  const { prompts } = useGeoPromptsDb(organizationId, { enabled: open });
+  const sitemapQuery = useSitemaps(organizationId, brandVoiceId ?? "", {
+    enabled: open,
+  });
 
   const voices = useMemo(() => brandData?.voices ?? [], [brandData?.voices]);
-  const competitors = useMemo(
-    () => competitorData?.competitors ?? [],
-    [competitorData?.competitors]
-  );
-  const prompts = useMemo(
-    () => promptsData?.prompts ?? [],
-    [promptsData?.prompts]
-  );
   const sitemaps = useMemo(
     () => sitemapQuery.data?.sitemaps ?? [],
     [sitemapQuery.data?.sitemaps]

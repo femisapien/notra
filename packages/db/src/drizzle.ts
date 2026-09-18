@@ -1,3 +1,4 @@
+import { attachDatabasePool } from "@vercel/functions";
 import { upstashCache } from "drizzle-orm/cache/upstash";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 
@@ -16,17 +17,25 @@ export function createDb(databaseUrl: string): NodePgDatabase<typeof schema> {
     return cached;
   }
 
-  const client = drizzle(databaseUrl, {
+  const client = drizzle({
+    connection: { connectionString: databaseUrl },
     cache:
       upstashUrl && upstashToken
         ? upstashCache({
             url: upstashUrl,
             token: upstashToken,
-            global: true,
+            // Opt-in only: with `global: true` a cache miss paid 2 Upstash HTTP
+            // round trips (HGET, then a write-back pipeline of HSET + HEXPIRE +
+            // SADD) for a 1 s TTL. Query hashing is local, not a Redis RT.
+            // Expensive, slowly changing queries opt in via `.$withCache(...)`.
+            global: false,
           })
         : undefined,
     schema,
   });
+  // Fluid compute suspends idle instances; this closes idle clients first so a
+  // resumed instance does not hand out connections the server already dropped.
+  attachDatabasePool(client.$client);
   dbByUrl.set(databaseUrl, client);
   return client;
 }

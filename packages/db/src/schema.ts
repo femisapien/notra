@@ -24,6 +24,7 @@ import {
   BLOG_POST_SUBTYPES,
   CONTENT_PUBLICATION_STATUSES,
 } from "./constants/content";
+import { GEO_PERSONA_MEMORY_KINDS } from "./constants/geo-personas";
 import { GEO_PROSPECT_REPORT_STATUSES } from "./constants/geo-prospect-reports";
 import {
   GEO_CONTENT_BRIEF_STATUSES,
@@ -35,8 +36,18 @@ import type {
   AgentReadinessScoreBreakdown,
 } from "./types/agent-readiness";
 import type { GeoCheckGrounding } from "./types/geo-checks";
+import type {
+  GeoPersonaProfile,
+  GeoPersonaSnapshot,
+} from "./types/geo-personas";
 import type { GeoProspectReportJson } from "./types/geo-prospect-report";
-import type { GeoScanPlanSnapshot } from "./types/geo-scan";
+import {
+  GEO_SCAN_EVENT_STATUSES,
+  GEO_SCAN_EVENT_STEPS,
+  type GeoScanPlanSnapshot,
+  type GeoScanPlanSummary,
+  type GeoScanUsageByRole,
+} from "./types/geo-scan";
 import type { GeoContentBriefJson } from "./types/geo-writer";
 import type { GoogleSearchConsoleQuery } from "./types/google-search-console";
 
@@ -134,7 +145,7 @@ export const chatSessions = pgTable(
         table.externalChannelId
       )
       .where(
-        sql`${table.externalChannelSource} IN ('discord', 'slack', 'github') AND ${table.externalChannelId} IS NOT NULL AND ${table.deletedAt} IS NULL`
+        sql`${table.externalChannelSource} IN ('discord', 'slack') AND ${table.externalChannelId} IS NOT NULL AND ${table.deletedAt} IS NULL`
       ),
   ]
 );
@@ -255,8 +266,10 @@ export const organizations = pgTable(
       .notNull(),
     onboardingAgentStartedAt: timestamp("onboarding_agent_started_at"),
     workosOrgId: text("workos_org_id").unique(),
-  },
-  (table) => [uniqueIndex("organizations_slug_uidx").on(table.slug)]
+  }
+  // No extra indexes: `slug` already carries a unique constraint
+  // (`organizations_slug_unique`) that Postgres backs with a unique index, so a
+  // second identical index would only double index maintenance on every write.
 );
 
 export const members = pgTable(
@@ -275,6 +288,12 @@ export const members = pgTable(
   (table) => [
     index("members_organizationId_idx").on(table.organizationId),
     index("members_userId_idx").on(table.userId),
+    // Serves the membership lookup that runs on every authenticated request and
+    // enforces one membership row per (organization, user).
+    uniqueIndex("members_organizationId_userId_uidx").on(
+      table.organizationId,
+      table.userId
+    ),
   ]
 );
 
@@ -1228,6 +1247,12 @@ export const brandSitemapPages = pgTable(
       table.sitemapId,
       table.category
     ),
+    // The gaps program takes the top pages by word count per crawled sitemap.
+    index("brandSitemapPages_sitemap_category_wordCount_idx").on(
+      table.sitemapId,
+      table.category,
+      table.wordCount.desc().nullsLast()
+    ),
     uniqueIndex("brandSitemapPages_sitemap_url_uidx").on(
       table.sitemapId,
       table.url
@@ -1431,11 +1456,19 @@ export const geoSettings = pgTable(
       .array()
       .notNull()
       .default(sql`ARRAY[]::text[]`),
+    domains: text("domains")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     languages: text("languages").array(),
     // null = track the default engine set; otherwise a subset of GEO_ENGINES.
     engines: text("engines").array(),
     // Pro feature: ask every model host for zero data retention.
     enforceZdr: boolean("enforce_zdr").notNull().default(true),
+    // Hidden setting: also run every search-capable model without web search.
+    trackWithoutSearch: boolean("track_without_search")
+      .notNull()
+      .default(false),
     // Engines without a ZDR host the user explicitly approved anyway.
     nonZdrApprovedEngines: text("non_zdr_approved_engines")
       .array()
@@ -1449,8 +1482,14 @@ export const geoSettings = pgTable(
       .array()
       .notNull()
       .default(sql`ARRAY[]::text[]`),
+    // Prompt gaps the user ignored; hidden from Content Gaps and the planner.
+    ignoredGapPromptIds: text("ignored_gap_prompt_ids")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     enabled: boolean("enabled").notNull().default(true),
     scanIntervalHours: integer("scan_interval_hours").notNull().default(24),
+    sentimentAttemptedAt: timestamp("sentiment_attempted_at"),
     nextScanAt: timestamp("next_scan_at"),
     // Cron-sweep lease: while set and in the future the row is off limits to
     // other sweeps. Kept separate from `next_scan_at` so a retried tick never
@@ -1496,6 +1535,12 @@ export const geoPrompts = pgTable(
   (table) => [
     index("geoPrompts_organizationId_idx").on(table.organizationId),
     index("geoPrompts_projectId_idx").on(table.projectId),
+    // The prompt list and the gaps program both read a project's prompts in
+    // `created_at desc` order, which currently costs a heap sort.
+    index("geoPrompts_projectId_createdAt_idx").on(
+      table.projectId,
+      table.createdAt.desc()
+    ),
   ]
 );
 
@@ -1524,6 +1569,63 @@ export const geoPromptSequences = pgTable(
   (table) => [
     index("geoPromptSequences_organizationId_idx").on(table.organizationId),
     index("geoPromptSequences_projectId_idx").on(table.projectId),
+  ]
+);
+
+export const geoPersonas = pgTable(
+  "geo_personas",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    role: text("role").notNull(),
+    company: text("company").notNull(),
+    summary: text("summary").notNull(),
+    searchStyle: text("search_style").notNull(),
+    profile: jsonb("profile").$type<GeoPersonaProfile>().notNull(),
+    conversationPrompts: text("conversation_prompts")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
+    enabled: boolean("enabled").notNull().default(true),
+    archivedAt: timestamp("archived_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("geoPersonas_organizationId_idx").on(table.organizationId),
+    index("geoPersonas_projectId_idx").on(table.projectId),
+  ]
+);
+
+export const geoPersonaMemories = pgTable(
+  "geo_persona_memories",
+  {
+    id: text("id").primaryKey(),
+    personaId: text("persona_id")
+      .notNull()
+      .references(() => geoPersonas.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: GEO_PERSONA_MEMORY_KINDS }).notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("geoPersonaMemories_personaId_idx").on(table.personaId),
+    index("geoPersonaMemories_projectId_idx").on(table.projectId),
   ]
 );
 
@@ -1634,9 +1736,28 @@ export const geoScans = pgTable(
       .notNull()
       .default("running"),
     plan: jsonb("plan").$type<GeoScanPlanSnapshot>(),
+    planSummary: jsonb("plan_summary").$type<GeoScanPlanSummary>(),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    failedStage: text("failed_stage", {
+      enum: ["handoff", "execution", "stale"],
+    }),
+    retryable: boolean("retryable"),
     startedAt: timestamp("started_at").defaultNow().notNull(),
     finishedAt: timestamp("finished_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    runId: text("run_id"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    cacheReadTokens: integer("cache_read_tokens"),
+    cacheWriteTokens: integer("cache_write_tokens"),
+    reasoningTokens: integer("reasoning_tokens"),
+    totalUsd: real("total_usd"),
+    checksTotal: integer("checks_total"),
+    checksFailed: integer("checks_failed"),
+    mentions: integer("mentions"),
+    durationMs: integer("duration_ms"),
+    usageByRole: jsonb("usage_by_role").$type<GeoScanUsageByRole>(),
   },
   (table) => [
     index("geoScans_organizationId_idx").on(table.organizationId),
@@ -1663,10 +1784,17 @@ export const geoMentionChecks = pgTable(
     engine: text("engine").notNull(),
     promptId: text("prompt_id").notNull(),
     sequenceId: text("sequence_id"),
+    // Set on turns played by a simulated buyer persona; null for tracked
+    // prompts and hand-written conversations.
+    personaId: text("persona_id").references(() => geoPersonas.id, {
+      onDelete: "cascade",
+    }),
+    personaSnapshot: jsonb("persona_snapshot").$type<GeoPersonaSnapshot>(),
     turn: integer("turn").notNull().default(0),
     prompt: text("prompt").notNull(),
     answer: text("answer").notNull(),
     mentioned: boolean("mentioned").notNull(),
+    ownedSourceCited: boolean("owned_source_cited").notNull().default(false),
     position: integer("position"),
     sentiment: text("sentiment"),
     competitors: text("competitors")
@@ -1690,10 +1818,17 @@ export const geoMentionChecks = pgTable(
     // Whether the engine call ran with zero data retention enforced. Null on
     // rows written before the column existed or when the route did not say.
     zdrEnforced: boolean("zdr_enforced"),
+    durationMs: integer("duration_ms"),
+    costUsd: real("cost_usd"),
+    judgeTokens: integer("judge_tokens"),
     capturedAt: timestamp("captured_at").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
+    check(
+      "geoMentionChecks_personaSnapshot_check",
+      sql`${table.personaId} IS NULL OR ${table.personaSnapshot} IS NOT NULL`
+    ),
     index("geoMentionChecks_organizationId_capturedAt_idx").on(
       table.organizationId,
       table.capturedAt
@@ -1708,13 +1843,75 @@ export const geoMentionChecks = pgTable(
       table.promptId,
       table.capturedAt
     ),
+    // Covering index for the GEO analytics window: the aggregate procedures
+    // (overview, timeseries, competitor/language share) read only these columns,
+    // while the table averages ~900 B/row because of answer/grounding/excerpt.
+    // drizzle-orm 0.45 has no `INCLUDE` support, so the payload columns are
+    // trailing key columns instead of index-only payload.
+    index("geoMentionChecks_project_captured_cover_idx").on(
+      table.projectId,
+      table.capturedAt,
+      table.organizationId,
+      table.language,
+      table.engine,
+      table.promptId,
+      table.mentioned,
+      table.ownedSourceCited,
+      table.position,
+      table.sentiment,
+      table.sequenceId
+    ),
+    // Matches the `distinct on (prompt_id, engine) ... order by captured_at desc`
+    // shape used by promptResultSummaries/promptResults/competitorDetail/gaps;
+    // the existing projectEnginePrompt index has the leading columns swapped.
+    index("geoMentionChecks_project_prompt_engine_captured_idx").on(
+      table.projectId,
+      table.promptId,
+      table.engine,
+      table.capturedAt.desc()
+    ),
+    // sequenceResults orders by exactly this tuple; `sequence_id` appears in no
+    // other index.
+    index("geoMentionChecks_sequence_turn_engine_captured_idx")
+      .on(table.sequenceId, table.turn, table.engine, table.capturedAt.desc())
+      .where(sql`${table.sequenceId} IS NOT NULL`),
     index("geoMentionChecks_scanId_idx").on(table.scanId),
+    index("geoMentionChecks_personaId_capturedAt_idx").on(
+      table.personaId,
+      table.capturedAt
+    ),
     uniqueIndex("geoMentionChecks_scanEnginePromptTurnLanguage_uidx").on(
       table.scanId,
       table.engine,
       table.promptId,
       table.turn,
       table.language
+    ),
+  ]
+);
+
+export const geoScanEvents = pgTable(
+  "geo_scan_events",
+  {
+    id: text("id").primaryKey(),
+    scanId: text("scan_id")
+      .notNull()
+      .references(() => geoScans.id, { onDelete: "cascade" }),
+    runId: text("run_id").notNull(),
+    step: text("step", { enum: GEO_SCAN_EVENT_STEPS }).notNull(),
+    status: text("status", { enum: GEO_SCAN_EVENT_STATUSES }).notNull(),
+    startedAt: timestamp("started_at").notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    engine: text("engine"),
+    taskKey: text("task_key"),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    usage: jsonb("usage").$type<GeoScanUsageByRole | null>(),
+  },
+  (table) => [
+    index("geoScanEvents_scanId_startedAt_idx").on(
+      table.scanId,
+      table.startedAt
     ),
   ]
 );
@@ -1912,6 +2109,15 @@ export const geoContentBriefs = pgTable(
       table.projectId,
       table.status
     ),
+    // Serves the `distinct on (source_kind, source_id) ... order by updated_at
+    // desc` read in the gaps program; the partial unique index below excludes
+    // published/archived briefs and so cannot serve it.
+    index("geoContentBriefs_project_source_updated_idx").on(
+      table.projectId,
+      table.sourceKind,
+      table.sourceId,
+      table.updatedAt.desc()
+    ),
     uniqueIndex("geoContentBriefs_open_source_uidx")
       .on(table.projectId, table.sourceKind, table.sourceId)
       .where(
@@ -2033,6 +2239,23 @@ export const posts = pgTable(
       table.id
     ),
     index("posts_collection_id_idx").on(table.collectionId),
+    // content.metrics.get aggregates a year of posts by (created_at, status);
+    // posts_org_createdAt_id_idx lacks `status` and forces a heap fetch per row.
+    index("posts_org_createdAt_status_idx").on(
+      table.organizationId,
+      table.createdAt,
+      table.status
+    ),
+    // Adoption analytics looks up the org's first published post.
+    index("posts_org_published_createdAt_idx")
+      .on(table.organizationId, table.createdAt)
+      .where(sql`${table.status} = 'published'`),
+    // The gaps program reads the newest posts of one content type per org.
+    index("posts_org_content_type_updated_at_idx").on(
+      table.organizationId,
+      table.contentType,
+      table.updatedAt.desc()
+    ),
   ]
 );
 
@@ -2697,6 +2920,8 @@ export const organizationsRelations = relations(
     geoShelfSources: many(geoShelfSources),
     geoScans: many(geoScans),
     geoMentionChecks: many(geoMentionChecks),
+    geoPersonas: many(geoPersonas),
+    geoPersonaMemories: many(geoPersonaMemories),
     connectedSocialAccounts: many(connectedSocialAccounts),
     postCollections: many(postCollections),
     posts: many(posts),
@@ -3092,6 +3317,8 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   geoShelfSources: many(geoShelfSources),
   geoScans: many(geoScans),
   geoMentionChecks: many(geoMentionChecks),
+  geoPersonas: many(geoPersonas),
+  geoPersonaMemories: many(geoPersonaMemories),
   agentFeedback: many(agentFeedback),
 }));
 
@@ -3180,6 +3407,14 @@ export const geoScansRelations = relations(geoScans, ({ one, many }) => ({
     references: [projects.id],
   }),
   checks: many(geoMentionChecks),
+  events: many(geoScanEvents),
+}));
+
+export const geoScanEventsRelations = relations(geoScanEvents, ({ one }) => ({
+  scan: one(geoScans, {
+    fields: [geoScanEvents.scanId],
+    references: [geoScans.id],
+  }),
 }));
 
 export const geoMentionChecksRelations = relations(
@@ -3196,6 +3431,41 @@ export const geoMentionChecksRelations = relations(
     scan: one(geoScans, {
       fields: [geoMentionChecks.scanId],
       references: [geoScans.id],
+    }),
+    persona: one(geoPersonas, {
+      fields: [geoMentionChecks.personaId],
+      references: [geoPersonas.id],
+    }),
+  })
+);
+
+export const geoPersonasRelations = relations(geoPersonas, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [geoPersonas.organizationId],
+    references: [organizations.id],
+  }),
+  project: one(projects, {
+    fields: [geoPersonas.projectId],
+    references: [projects.id],
+  }),
+  memories: many(geoPersonaMemories),
+  mentionChecks: many(geoMentionChecks),
+}));
+
+export const geoPersonaMemoriesRelations = relations(
+  geoPersonaMemories,
+  ({ one }) => ({
+    persona: one(geoPersonas, {
+      fields: [geoPersonaMemories.personaId],
+      references: [geoPersonas.id],
+    }),
+    organization: one(organizations, {
+      fields: [geoPersonaMemories.organizationId],
+      references: [organizations.id],
+    }),
+    project: one(projects, {
+      fields: [geoPersonaMemories.projectId],
+      references: [projects.id],
     }),
   })
 );

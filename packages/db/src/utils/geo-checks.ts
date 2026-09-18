@@ -4,15 +4,18 @@ import {
   eq,
   gte,
   inArray,
+  ilike,
   isNull,
   lt,
+  or,
   type SQL,
   sql,
 } from "drizzle-orm";
 
+import { GEO_CHECK_AGGREGATE_CACHE } from "../constants/geo-check-cache";
 import { GEO_CHECK_ENGLISH_LANGUAGES } from "../constants/geo-checks";
 import { db } from "../drizzle";
-import { geoMentionChecks, geoScans } from "../schema";
+import { geoMentionChecks, geoScans, geoSettings } from "../schema";
 import type {
   GeoCheckCompetitorPromptRow,
   GeoCheckCompetitorShareRow,
@@ -20,6 +23,7 @@ import type {
   GeoCheckCompetitorShareTrendRow,
   GeoCheckCompetitorTimeseriesRow,
   GeoCheckFilterOptions,
+  GeoCheckInsertSummary,
   GeoCheckLanguageShareRow,
   GeoCheckLanguageShareTrendRow,
   GeoCheckOverviewRow,
@@ -27,6 +31,7 @@ import type {
   GeoCheckPromptHistoryRow,
   GeoCheckPromptResultRow,
   GeoCheckPromptSummaryRow,
+  GeoCheckPromptSummaryQuery,
   GeoCheckScanComparison,
   GeoCheckScanComparisonInput,
   GeoCheckScanComparisonRow,
@@ -37,7 +42,168 @@ import type {
   GeoCheckWindowInput,
   GeoCheckWrite,
 } from "../types/geo-checks";
+import type {
+  GeoSentimentCursor,
+  GeoSentimentRow,
+} from "../types/geo-sentiment";
 import { parseGeoCheckGrounding } from "./geo-grounding";
+
+export async function queryGeoCheckSentiment(
+  scope: GeoCheckScope,
+  window: GeoCheckWindow | undefined
+): Promise<GeoSentimentRow[]> {
+  // captured_at is timestamp without time zone; writers persist UTC wall time.
+  const day = sql<string>`to_char(${geoMentionChecks.capturedAt}, 'YYYY-MM-DD')`;
+  const rows = await db
+    .select({
+      day,
+      engine: geoMentionChecks.engine,
+      totalChecks: sql<number>`count(*)::int`,
+      mentions: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned})::int`,
+      positive: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned} and ${geoMentionChecks.sentiment} = 'positive')::int`,
+      neutral: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned} and ${geoMentionChecks.sentiment} = 'neutral')::int`,
+      negative: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned} and ${geoMentionChecks.sentiment} = 'negative')::int`,
+      lastCheckedAt: sql<string>`to_char(max(${geoMentionChecks.capturedAt}), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`,
+    })
+    .from(geoMentionChecks)
+    .where(
+      and(
+        mentionFilters(scope, window, {
+          sequences: "single",
+          englishOnly: true,
+        }),
+        eq(geoMentionChecks.turn, 0)
+      )
+    )
+    .groupBy(day, geoMentionChecks.engine)
+    .orderBy(day, geoMentionChecks.engine);
+  return rows;
+}
+
+export function queryGeoSentimentBrand(scope: GeoCheckScope) {
+  return db.query.geoSettings.findFirst({
+    columns: { companyName: true },
+    where: and(
+      eq(geoSettings.projectId, scope.projectId ?? ""),
+      eq(geoSettings.organizationId, scope.organizationId)
+    ),
+  });
+}
+
+export async function queryGeoCheckSentimentEvidence(
+  scope: GeoCheckScope,
+  window: GeoCheckWindow | undefined,
+  limit: number,
+  cursor?: GeoSentimentCursor
+) {
+  return db
+    .select({
+      id: geoMentionChecks.id,
+      scanId: geoMentionChecks.scanId,
+      promptId: geoMentionChecks.promptId,
+      prompt: geoMentionChecks.prompt,
+      engine: geoMentionChecks.engine,
+      language: geoMentionChecks.language,
+      capturedAt: geoMentionChecks.capturedAt,
+      answer: geoMentionChecks.answer,
+      excerpt: geoMentionChecks.excerpt,
+    })
+    .from(geoMentionChecks)
+    .where(
+      and(
+        mentionFilters(scope, window, {
+          sequences: "single",
+          englishOnly: true,
+        }),
+        eq(geoMentionChecks.mentioned, true),
+        eq(geoMentionChecks.sentiment, "negative"),
+        eq(geoMentionChecks.turn, 0),
+        cursor
+          ? eq(
+              geoMentionChecks.projectId,
+              cursor.projectId ?? scope.projectId ?? ""
+            )
+          : undefined,
+        cursor
+          ? or(
+              lt(geoMentionChecks.capturedAt, new Date(cursor.capturedAt)),
+              and(
+                eq(geoMentionChecks.capturedAt, new Date(cursor.capturedAt)),
+                lt(geoMentionChecks.id, cursor.id)
+              )
+            )
+          : undefined
+      )
+    )
+    .orderBy(desc(geoMentionChecks.capturedAt), desc(geoMentionChecks.id))
+    .limit(limit);
+}
+
+export async function queryGeoSentimentAnalysisSnapshot(
+  scope: GeoCheckScope,
+  window: GeoCheckWindow
+) {
+  const [row] = await db
+    .select({
+      fingerprint: sql<string>`md5(coalesce(string_agg(md5(jsonb_build_array(${geoMentionChecks.id}, ${geoMentionChecks.answer}, ${geoMentionChecks.prompt}, ${geoMentionChecks.sentiment}, ${geoMentionChecks.engine}, ${geoMentionChecks.capturedAt})::text), '' order by ${geoMentionChecks.id}), ''))`,
+      eligible: sql<number>`count(*)::int`,
+      latestCapturedAt: sql<
+        string | null
+      >`to_char(max(${geoMentionChecks.capturedAt}), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`,
+    })
+    .from(geoMentionChecks)
+    .where(
+      and(
+        mentionFilters(scope, window, {
+          sequences: "single",
+          englishOnly: true,
+        }),
+        eq(geoMentionChecks.turn, 0),
+        eq(geoMentionChecks.mentioned, true),
+        inArray(geoMentionChecks.sentiment, ["positive", "negative"])
+      )
+    );
+  if (!row) {
+    throw new Error("Sentiment snapshot returned no aggregate");
+  }
+  return row;
+}
+
+export async function queryGeoSentimentAnalysisSample(
+  scope: GeoCheckScope,
+  window: GeoCheckWindow,
+  limitPerPolarity: number,
+  answerChars: number
+) {
+  const groups = await Promise.all(
+    ["positive", "negative"].map((sentiment) =>
+      db
+        .select({
+          id: geoMentionChecks.id,
+          sentiment: geoMentionChecks.sentiment,
+          answer: sql<string>`left(${geoMentionChecks.answer}, ${answerChars})`,
+          prompt: sql<string>`left(${geoMentionChecks.prompt}, 500)`,
+          engine: geoMentionChecks.engine,
+          capturedAt: sql<string>`to_char(${geoMentionChecks.capturedAt}, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`,
+        })
+        .from(geoMentionChecks)
+        .where(
+          and(
+            mentionFilters(scope, window, {
+              sequences: "single",
+              englishOnly: true,
+            }),
+            eq(geoMentionChecks.turn, 0),
+            eq(geoMentionChecks.mentioned, true),
+            eq(geoMentionChecks.sentiment, sentiment)
+          )
+        )
+        .orderBy(sql`md5(${geoMentionChecks.id})`, geoMentionChecks.id)
+        .limit(limitPerPolarity)
+    )
+  );
+  return groups.flat();
+}
 
 const CHECK_INSERT_CHUNK = 250;
 
@@ -95,7 +261,10 @@ export function toGeoCheckWindow(
   if (input.days === undefined) {
     return;
   }
+  // Anchored to the start of the UTC day, like the `from`/`to` branch: a
+  // millisecond-precise `now` would make every request a distinct cache key.
   const from = new Date();
+  from.setUTCHours(0, 0, 0, 0);
   from.setUTCDate(from.getUTCDate() - input.days);
   return { from };
 }
@@ -113,6 +282,14 @@ function capturedWithin(window: GeoCheckWindow | undefined): SQL[] {
   }
   return parts;
 }
+
+/**
+ * Persona conversations are stored as mention checks under synthetic prompt
+ * IDs. They have their own page and must not leak into the competitor and
+ * language aggregates, which reason about tracked prompts.
+ */
+const withoutPersonaRows = isNull(geoMentionChecks.personaId);
+const withoutPersonaRowsSql = sql`and ${geoMentionChecks.personaId} is null`;
 
 function mentionOptionFilters(options?: GeoCheckFilterOptions): SQL[] {
   const parts: SQL[] = [];
@@ -135,6 +312,7 @@ function mentionFilters(
   return and(
     scopeWhere(scope),
     ...capturedWithin(window),
+    withoutPersonaRows,
     ...mentionOptionFilters(options)
   ) as SQL;
 }
@@ -142,11 +320,19 @@ function mentionFilters(
 export async function insertGeoMentionChecks(
   rows: GeoCheckWrite[]
 ): Promise<number> {
+  const summary = await insertGeoMentionChecksWithSummary(rows);
+  return summary.checks;
+}
+
+export async function insertGeoMentionChecksWithSummary(
+  rows: GeoCheckWrite[]
+): Promise<GeoCheckInsertSummary> {
   if (rows.length === 0) {
-    return 0;
+    return { checks: 0, mentions: 0 };
   }
 
-  let written = 0;
+  let checks = 0;
+  let mentions = 0;
   for (let index = 0; index < rows.length; index += CHECK_INSERT_CHUNK) {
     const chunk = rows.slice(index, index + CHECK_INSERT_CHUNK).map((row) => ({
       id: row.id ?? crypto.randomUUID(),
@@ -156,10 +342,13 @@ export async function insertGeoMentionChecks(
       engine: row.engine,
       promptId: row.promptId,
       sequenceId: row.sequenceId ?? null,
+      personaId: row.personaId ?? null,
+      personaSnapshot: row.personaSnapshot ?? null,
       turn: row.turn ?? 0,
       prompt: row.prompt,
       answer: row.answer,
       mentioned: row.mentioned,
+      ownedSourceCited: row.ownedSourceCited,
       position: row.position,
       sentiment: row.sentiment,
       competitors: row.competitors,
@@ -172,6 +361,9 @@ export async function insertGeoMentionChecks(
       outputTokens: row.outputTokens,
       reasoningTokens: row.reasoningTokens,
       zdrEnforced: row.zdrEnforced ?? null,
+      durationMs: row.durationMs ?? null,
+      costUsd: row.costUsd ?? null,
+      judgeTokens: row.judgeTokens ?? null,
       capturedAt: row.capturedAt,
     }));
     const inserted = await db
@@ -186,10 +378,11 @@ export async function insertGeoMentionChecks(
           geoMentionChecks.language,
         ],
       })
-      .returning({ id: geoMentionChecks.id });
-    written += inserted.length;
+      .returning({ mentioned: geoMentionChecks.mentioned });
+    checks += inserted.length;
+    mentions += inserted.filter((row) => row.mentioned).length;
   }
-  return written;
+  return { checks, mentions };
 }
 
 export async function queryGeoCheckOverview(
@@ -202,18 +395,22 @@ export async function queryGeoCheckOverview(
       checks: sql<number>`count(*)::int`,
       mentions: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned})::int`,
       mentionRate: sql<number>`round(count(*) filter (where ${geoMentionChecks.mentioned})::numeric / nullif(count(*), 0), 3)::float8`,
+      citations: sql<number>`count(*) filter (where ${geoMentionChecks.ownedSourceCited})::int`,
+      visibility: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::int`,
+      visibilityRate: sql<number>`round(count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::numeric / nullif(count(*), 0), 3)::float8`,
       avgPosition: sql<
         number | null
       >`round(avg(${geoMentionChecks.position}) filter (where ${geoMentionChecks.mentioned} and ${geoMentionChecks.position} is not null), 1)::float8`,
       lastCheckedAt: sql<Date>`max(${geoMentionChecks.capturedAt})`,
     })
     .from(geoMentionChecks)
+    .$withCache(GEO_CHECK_AGGREGATE_CACHE)
     .where(
       mentionFilters(scope, window, { sequences: "single", englishOnly: true })
     )
     .groupBy(geoMentionChecks.engine)
     .orderBy(
-      sql`count(*) filter (where ${geoMentionChecks.mentioned})::numeric / nullif(count(*), 0) desc`
+      sql`count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::numeric / nullif(count(*), 0) desc`
     );
 
   return rows.map((row) => ({
@@ -221,6 +418,9 @@ export async function queryGeoCheckOverview(
     checks: toNumber(row.checks),
     mentions: toNumber(row.mentions),
     mentionRate: toNumber(row.mentionRate),
+    citations: toNumber(row.citations),
+    visibility: toNumber(row.visibility),
+    visibilityRate: toNumber(row.visibilityRate),
     avgPosition: toNullableNumber(row.avgPosition),
     lastCheckedAt: toDate(row.lastCheckedAt),
   }));
@@ -237,11 +437,14 @@ export async function queryGeoCheckTimeseries(
       engine: geoMentionChecks.engine,
       checks: sql<number>`count(*)::int`,
       mentions: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned})::int`,
+      citations: sql<number>`count(*) filter (where ${geoMentionChecks.ownedSourceCited})::int`,
+      visibility: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::int`,
       avgPosition: sql<
         number | null
       >`round(avg(${geoMentionChecks.position}) filter (where ${geoMentionChecks.mentioned} and ${geoMentionChecks.position} is not null), 1)::float8`,
     })
     .from(geoMentionChecks)
+    .$withCache(GEO_CHECK_AGGREGATE_CACHE)
     .where(
       mentionFilters(scope, window, {
         ...options,
@@ -259,6 +462,8 @@ export async function queryGeoCheckTimeseries(
     engine: row.engine,
     checks: toNumber(row.checks),
     mentions: toNumber(row.mentions),
+    citations: toNumber(row.citations),
+    visibility: toNumber(row.visibility),
     avgPosition: toNullableNumber(row.avgPosition),
   }));
 }
@@ -269,6 +474,7 @@ const promptResultColumns = {
   prompt: geoMentionChecks.prompt,
   answer: geoMentionChecks.answer,
   mentioned: geoMentionChecks.mentioned,
+  ownedSourceCited: geoMentionChecks.ownedSourceCited,
   position: geoMentionChecks.position,
   sentiment: geoMentionChecks.sentiment,
   competitors: geoMentionChecks.competitors,
@@ -344,7 +550,8 @@ export async function queryGeoCheckPromptResults(
  */
 export async function queryGeoCheckById(
   checkId: string,
-  organizationId: string
+  organizationId: string,
+  projectId?: string
 ): Promise<GeoCheckPromptResultRow | null> {
   const [row] = await db
     .select(promptResultColumns)
@@ -352,7 +559,8 @@ export async function queryGeoCheckById(
     .where(
       and(
         eq(geoMentionChecks.id, checkId),
-        eq(geoMentionChecks.organizationId, organizationId)
+        eq(geoMentionChecks.organizationId, organizationId),
+        projectId ? eq(geoMentionChecks.projectId, projectId) : undefined
       )
     )
     .limit(1);
@@ -362,7 +570,8 @@ export async function queryGeoCheckById(
 
 export async function queryGeoCheckPromptSummaries(
   scope: GeoCheckScope,
-  window: GeoCheckWindow | undefined
+  window: GeoCheckWindow | undefined,
+  query?: GeoCheckPromptSummaryQuery
 ): Promise<GeoCheckPromptSummaryRow[]> {
   // Deliberately omits answer/grounding/sources/token counts: the list only
   // needs mention state, and those columns dominate the payload size.
@@ -373,12 +582,14 @@ export async function queryGeoCheckPromptSummaries(
       engine: geoMentionChecks.engine,
       prompt: geoMentionChecks.prompt,
       mentioned: geoMentionChecks.mentioned,
+      ownedSourceCited: geoMentionChecks.ownedSourceCited,
       position: geoMentionChecks.position,
       sentiment: geoMentionChecks.sentiment,
       competitors: geoMentionChecks.competitors,
       lastCheckedAt: geoMentionChecks.capturedAt,
     })
     .from(geoMentionChecks)
+    .$withCache(GEO_CHECK_AGGREGATE_CACHE)
     .where(
       mentionFilters(scope, window, { sequences: "single", englishOnly: true })
     )
@@ -389,10 +600,24 @@ export async function queryGeoCheckPromptSummaries(
     )
     .as("latest_geo_prompt_summaries");
 
-  return await db
+  const rows = db
     .select()
     .from(latest)
+    .where(
+      and(
+        query?.engine ? eq(latest.engine, query.engine) : undefined,
+        query?.mentioned === undefined
+          ? undefined
+          : eq(latest.mentioned, query.mentioned),
+        query?.query
+          ? ilike(latest.prompt, `%${query.query.replace(/[\\%_]/g, "\\$&")}%`)
+          : undefined
+      )
+    )
     .orderBy(desc(latest.lastCheckedAt), latest.promptId, latest.engine);
+  return query
+    ? await rows.limit(query.limit + 1).offset(query.offset)
+    : await rows;
 }
 
 export async function queryGeoCheckPromptHistory(
@@ -403,19 +628,18 @@ export async function queryGeoCheckPromptHistory(
     return [];
   }
 
+  // Mention state only: the answer, excerpt, grounding and sources of an older
+  // check are loaded on demand through `queryGeoCheckById`.
   const rowsQuery = db
     .select({
       id: geoMentionChecks.id,
       scanId: geoMentionChecks.scanId,
       engine: geoMentionChecks.engine,
       mentioned: geoMentionChecks.mentioned,
+      ownedSourceCited: geoMentionChecks.ownedSourceCited,
       position: geoMentionChecks.position,
       sentiment: geoMentionChecks.sentiment,
       competitors: geoMentionChecks.competitors,
-      answer: geoMentionChecks.answer,
-      excerpt: geoMentionChecks.excerpt,
-      grounding: geoMentionChecks.grounding,
-      sources: geoMentionChecks.sources,
       language: geoMentionChecks.language,
       capturedAt: geoMentionChecks.capturedAt,
     })
@@ -432,23 +656,7 @@ export async function queryGeoCheckPromptHistory(
       )
     )
     .orderBy(desc(geoMentionChecks.capturedAt));
-  const rows = await (query.scanId ? rowsQuery : rowsQuery.limit(query.limit));
-
-  return rows.map((row) => ({
-    id: row.id,
-    scanId: row.scanId,
-    engine: row.engine,
-    mentioned: row.mentioned,
-    position: row.position,
-    sentiment: row.sentiment,
-    competitors: row.competitors,
-    answer: row.answer,
-    excerpt: row.excerpt,
-    grounding: parseGeoCheckGrounding(row.grounding),
-    sources: row.sources,
-    language: row.language,
-    capturedAt: row.capturedAt,
-  }));
+  return await (query.scanId ? rowsQuery : rowsQuery.limit(query.limit));
 }
 
 export async function queryGeoCheckCompetitorShare(
@@ -474,6 +682,7 @@ export async function queryGeoCheckCompetitorShare(
     where ${geoMentionChecks.organizationId} = ${scope.organizationId}
       ${projectFilter}
       ${windowFilter}
+      ${withoutPersonaRowsSql}
       ${optionFilter}
     group by brand
     order by mentions desc
@@ -511,6 +720,7 @@ export async function queryGeoCheckCompetitorShareTimeseries(
     where ${geoMentionChecks.organizationId} = ${scope.organizationId}
       ${projectFilter}
       ${windowFilter}
+      ${withoutPersonaRowsSql}
     group by brand, (${geoMentionChecks.capturedAt})::date
     order by day asc
   `);
@@ -551,6 +761,7 @@ export async function queryGeoCheckCompetitorShareTrends(
       where ${geoMentionChecks.organizationId} = ${scope.organizationId}
         ${projectFilter}
         ${windowFilter}
+        ${withoutPersonaRowsSql}
       group by day, brand
     ), brands as (
       select brand
@@ -593,7 +804,11 @@ export async function queryGeoCheckCompetitorTimeseries(
   brand: string,
   window: GeoCheckWindow | undefined
 ): Promise<GeoCheckCompetitorTimeseriesRow[]> {
-  const filters = [scopeWhere(scope), ...capturedWithin(window)];
+  const filters = [
+    scopeWhere(scope),
+    withoutPersonaRows,
+    ...capturedWithin(window),
+  ];
 
   const rows = await db
     .select({
@@ -602,6 +817,7 @@ export async function queryGeoCheckCompetitorTimeseries(
       checks: sql<number>`count(*)::int`,
     })
     .from(geoMentionChecks)
+    .$withCache(GEO_CHECK_AGGREGATE_CACHE)
     .where(and(...filters))
     .groupBy(sql`(${geoMentionChecks.capturedAt})::date`)
     .orderBy(sql`(${geoMentionChecks.capturedAt})::date asc`);
@@ -620,6 +836,7 @@ export async function queryGeoCheckCompetitorPrompts(
 ): Promise<GeoCheckCompetitorPromptRow[]> {
   const filters = [
     scopeWhere(scope),
+    withoutPersonaRows,
     sql`${geoMentionChecks.competitors} @> array[${brand}]::text[]`,
     ...capturedWithin(window),
   ];
@@ -634,6 +851,7 @@ export async function queryGeoCheckCompetitorPrompts(
       capturedAt: geoMentionChecks.capturedAt,
     })
     .from(geoMentionChecks)
+    .$withCache(GEO_CHECK_AGGREGATE_CACHE)
     .where(and(...filters))
     .orderBy(
       geoMentionChecks.promptId,
@@ -659,7 +877,11 @@ export async function queryGeoCheckLanguageShare(
   scope: GeoCheckScope,
   window: GeoCheckWindow | undefined
 ): Promise<GeoCheckLanguageShareRow[]> {
-  const filters = [scopeWhere(scope), ...capturedWithin(window)];
+  const filters = [
+    scopeWhere(scope),
+    withoutPersonaRows,
+    ...capturedWithin(window),
+  ];
 
   const rows = await db
     .select({
@@ -667,18 +889,22 @@ export async function queryGeoCheckLanguageShare(
       checks: sql<number>`count(*)::int`,
       mentions: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned})::int`,
       mentionRate: sql<number>`round(count(*) filter (where ${geoMentionChecks.mentioned})::numeric / nullif(count(*), 0), 3)::float8`,
+      citations: sql<number>`count(*) filter (where ${geoMentionChecks.ownedSourceCited})::int`,
+      visibility: sql<number>`count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::int`,
+      visibilityRate: sql<number>`round(count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::numeric / nullif(count(*), 0), 3)::float8`,
       avgPosition: sql<
         number | null
       >`round(avg(${geoMentionChecks.position}) filter (where ${geoMentionChecks.mentioned} and ${geoMentionChecks.position} is not null), 1)::float8`,
       lastCheckedAt: sql<Date>`max(${geoMentionChecks.capturedAt})`,
     })
     .from(geoMentionChecks)
+    .$withCache(GEO_CHECK_AGGREGATE_CACHE)
     .where(and(...filters))
     .groupBy(
       sql`case when ${geoMentionChecks.language} = '' then 'English' else ${geoMentionChecks.language} end`
     )
     .orderBy(
-      sql`count(*) filter (where ${geoMentionChecks.mentioned})::numeric / nullif(count(*), 0) desc`
+      sql`count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::numeric / nullif(count(*), 0) desc`
     );
 
   return rows.map((row) => ({
@@ -686,6 +912,9 @@ export async function queryGeoCheckLanguageShare(
     checks: toNumber(row.checks),
     mentions: toNumber(row.mentions),
     mentionRate: toNumber(row.mentionRate),
+    citations: toNumber(row.citations),
+    visibility: toNumber(row.visibility),
+    visibilityRate: toNumber(row.visibilityRate),
     avgPosition: toNullableNumber(row.avgPosition),
     lastCheckedAt: toDate(row.lastCheckedAt),
   }));
@@ -695,7 +924,11 @@ export async function queryGeoCheckLanguageShareTrends(
   scope: GeoCheckScope,
   window: GeoCheckWindow | undefined
 ): Promise<GeoCheckLanguageShareTrendRow[]> {
-  const filters = [scopeWhere(scope), ...capturedWithin(window)];
+  const filters = [
+    scopeWhere(scope),
+    withoutPersonaRows,
+    ...capturedWithin(window),
+  ];
   const language = sql<string>`case when ${geoMentionChecks.language} = '' then 'English' else ${geoMentionChecks.language} end`;
   const day = sql<string>`(${geoMentionChecks.capturedAt})::date`;
 
@@ -704,8 +937,10 @@ export async function queryGeoCheckLanguageShareTrends(
       day,
       language,
       mentionRate: sql<number>`round(count(*) filter (where ${geoMentionChecks.mentioned})::numeric / nullif(count(*), 0), 3)::float8`,
+      visibilityRate: sql<number>`round(count(*) filter (where ${geoMentionChecks.mentioned} or ${geoMentionChecks.ownedSourceCited})::numeric / nullif(count(*), 0), 3)::float8`,
     })
     .from(geoMentionChecks)
+    .$withCache(GEO_CHECK_AGGREGATE_CACHE)
     .where(and(...filters))
     .groupBy(day, language)
     .orderBy(day, language);
@@ -714,6 +949,7 @@ export async function queryGeoCheckLanguageShareTrends(
     day: toDay(row.day),
     language: row.language,
     mentionRate: toNumber(row.mentionRate),
+    visibilityRate: toNumber(row.visibilityRate),
   }));
 }
 
@@ -743,6 +979,7 @@ export async function queryGeoCheckSequenceResults(
         prompt: geoMentionChecks.prompt,
         answer: geoMentionChecks.answer,
         mentioned: geoMentionChecks.mentioned,
+        ownedSourceCited: geoMentionChecks.ownedSourceCited,
         position: geoMentionChecks.position,
         sentiment: geoMentionChecks.sentiment,
         excerpt: geoMentionChecks.excerpt,
@@ -776,6 +1013,7 @@ export async function queryGeoCheckSequenceResults(
         prompt: row.prompt,
         answer: row.answer,
         mentioned: row.mentioned,
+        ownedSourceCited: row.ownedSourceCited,
         position: row.position,
         sentiment: row.sentiment,
         excerpt: row.excerpt,
@@ -844,7 +1082,22 @@ export async function queryGeoScanComparison(
       mentioned: geoMentionChecks.mentioned,
       position: geoMentionChecks.position,
       competitors: geoMentionChecks.competitors,
-      grounding: geoMentionChecks.grounding,
+      // The diff only reads source domains. Search queries and titles make up
+      // most of the column, so only url + domain of each source leave Postgres
+      // (url is still needed: the parser drops sources without a valid URL).
+      grounding: sql<unknown>`jsonb_build_object('sources', (
+        select coalesce(
+          jsonb_agg(jsonb_build_object('url', source->'url', 'domain', source->'domain')),
+          '[]'::jsonb
+        )
+        from jsonb_array_elements(
+          case
+            when jsonb_typeof(${geoMentionChecks.grounding}->'sources') = 'array'
+            then ${geoMentionChecks.grounding}->'sources'
+            else '[]'::jsonb
+          end
+        ) as source
+      ))`,
       capturedAt: geoMentionChecks.capturedAt,
     })
     .from(geoMentionChecks)

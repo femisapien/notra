@@ -7,15 +7,23 @@ import {
   loadGeoPromptResults,
   loadGeoTimeseries,
 } from "@notra/geo-core/geo/programs";
+import {
+  loadGeoPromptResultDetail,
+  loadGeoPromptResultSummaries,
+} from "@notra/geo-core/geo/prompt-results";
 import { geoWindow } from "@notra/geo-core/geo/window";
 import { projectParamsSchema } from "@notra/schemas/api/geo-params";
 import {
   competitorDetailParamsSchema,
   geoWindowQuerySchema,
+  promptResultDetailParamsSchema,
+  promptResultSummaryQuerySchema,
   visibilityCompetitorDetailResponseSchema,
   visibilityCompetitorShareResponseSchema,
   visibilityLanguageShareResponseSchema,
   visibilityOverviewResponseSchema,
+  visibilityPromptResultDetailResponseSchema,
+  visibilityPromptResultSummariesResponseSchema,
   visibilityPromptResultsResponseSchema,
   visibilityTimeseriesResponseSchema,
 } from "@notra/schemas/api/geo-visibility";
@@ -24,8 +32,14 @@ import {
   GEO_COMMON_ERROR_RESPONSES,
   GEO_OPENAPI_TAG,
 } from "../constants/geo-openapi";
-import { geoErrorResponse } from "../utils/geo";
-import { runGeoEffect } from "../utils/geo-effect";
+import { runGeoEffect } from "../runtime/geo";
+import { attachGeoOrganization, geoErrorResponse } from "../utils/geo";
+import {
+  normalizeLanguageShareResponse,
+  normalizeOverviewResponse,
+  normalizePromptResultsResponse,
+  normalizeTimeseriesResponse,
+} from "../utils/geo-visibility";
 import { createOpenApiApp } from "../utils/openapi-app";
 
 /**
@@ -99,6 +113,53 @@ const promptResultsRoute = createRoute({
       description: "Prompt results fetched successfully",
       content: {
         "application/json": { schema: visibilityPromptResultsResponseSchema },
+      },
+    },
+    ...commonErrors,
+  },
+});
+
+const promptResultSummariesRoute = createRoute({
+  method: "get",
+  path: "/projects/{projectId}/geo/visibility/prompt-results/summaries",
+  tags: [GEO_TAG],
+  operationId: "listGeoPromptResultSummaries",
+  summary: "List compact prompt result summaries",
+  description:
+    "A filtered, paginated projection of the latest answer per prompt and engine. Full answer text and sources are omitted; use checkId with the detail endpoint.",
+  request: {
+    params: projectParamsSchema,
+    query: promptResultSummaryQuerySchema,
+  },
+  responses: {
+    200: {
+      description: "Prompt result summaries fetched successfully",
+      content: {
+        "application/json": {
+          schema: visibilityPromptResultSummariesResponseSchema,
+        },
+      },
+    },
+    ...commonErrors,
+  },
+});
+
+const promptResultDetailRoute = createRoute({
+  method: "get",
+  path: "/projects/{projectId}/geo/visibility/prompt-results/{checkId}",
+  tags: [GEO_TAG],
+  operationId: "getGeoPromptResultDetail",
+  summary: "Get one full prompt result",
+  description:
+    "Loads the answer, grounding sources and token metadata for one checkId returned by the summaries or prompt-history endpoints.",
+  request: { params: promptResultDetailParamsSchema },
+  responses: {
+    200: {
+      description: "Prompt result fetched successfully",
+      content: {
+        "application/json": {
+          schema: visibilityPromptResultDetailResponseSchema,
+        },
       },
     },
     ...commonErrors,
@@ -182,7 +243,13 @@ geoVisibilityRoutes.openapi(overviewRoute, async (c) => {
     return geoErrorResponse(c, outcome.failure);
   }
 
-  return c.json({ ...outcome.value, organization: base.organization }, 200);
+  return c.json(
+    attachGeoOrganization(
+      base.organization,
+      normalizeOverviewResponse(outcome.value)
+    ),
+    200
+  );
 });
 
 geoVisibilityRoutes.openapi(timeseriesRoute, async (c) => {
@@ -199,7 +266,13 @@ geoVisibilityRoutes.openapi(timeseriesRoute, async (c) => {
     return geoErrorResponse(c, outcome.failure);
   }
 
-  return c.json({ ...outcome.value, organization: base.organization }, 200);
+  return c.json(
+    attachGeoOrganization(
+      base.organization,
+      normalizeTimeseriesResponse(outcome.value)
+    ),
+    200
+  );
 });
 
 geoVisibilityRoutes.openapi(promptResultsRoute, async (c) => {
@@ -216,26 +289,75 @@ geoVisibilityRoutes.openapi(promptResultsRoute, async (c) => {
     return geoErrorResponse(c, outcome.failure);
   }
 
-  const results = outcome.value.results.map((result) => ({
-    promptId: result.promptId,
-    engine: result.engine,
-    prompt: result.prompt,
-    answer: result.answer,
-    mentioned: result.mentioned,
-    position: result.position,
-    sentiment: result.sentiment,
-    competitors: result.competitors,
-    excerpt: result.excerpt,
-    searchQueries: result.searchQueries,
-    sources: result.sources,
-    lastCheckedAt: result.lastCheckedAt,
-  }));
   return c.json(
-    {
+    attachGeoOrganization(
+      base.organization,
+      normalizePromptResultsResponse(outcome.value)
+    ),
+    200
+  );
+});
+
+geoVisibilityRoutes.openapi(promptResultSummariesRoute, async (c) => {
+  const base = c.get("geo");
+  const { projectId } = c.req.valid("param");
+  const query = c.req.valid("query");
+  const outcome = await runGeoEffect(
+    "promptResultSummaries",
+    loadGeoPromptResultSummaries(
+      { organizationId: base.organizationId, projectId },
+      geoWindow(query),
+      {
+        offset: query.cursor ?? 0,
+        limit: query.limit,
+        engine: query.engine,
+        mentioned: query.mentioned,
+        query: query.query,
+      }
+    )
+  );
+  if (!outcome.ok) {
+    return geoErrorResponse(c, outcome.failure);
+  }
+
+  return c.json(
+    attachGeoOrganization(base.organization, {
       configured: outcome.value.configured,
-      results,
-      organization: base.organization,
-    },
+      results: outcome.value.results.map((result) => ({
+        ...result,
+        ownedSourceCited: result.ownedSourceCited ?? false,
+      })),
+      nextCursor: outcome.value.nextCursor ?? null,
+    }),
+    200
+  );
+});
+
+geoVisibilityRoutes.openapi(promptResultDetailRoute, async (c) => {
+  const base = c.get("geo");
+  const { projectId, checkId } = c.req.valid("param");
+  const outcome = await runGeoEffect(
+    "promptResultDetail",
+    loadGeoPromptResultDetail({
+      organizationId: base.organizationId,
+      projectId,
+      checkId,
+    })
+  );
+  if (!outcome.ok) {
+    return geoErrorResponse(c, outcome.failure);
+  }
+  if (!outcome.value.result) {
+    return c.json({ error: "Prompt result not found" }, 404);
+  }
+
+  return c.json(
+    attachGeoOrganization(base.organization, {
+      result: {
+        ...outcome.value.result,
+        ownedSourceCited: outcome.value.result.ownedSourceCited ?? false,
+      },
+    }),
     200
   );
 });
@@ -254,7 +376,7 @@ geoVisibilityRoutes.openapi(competitorShareRoute, async (c) => {
     return geoErrorResponse(c, outcome.failure);
   }
 
-  return c.json({ ...outcome.value, organization: base.organization }, 200);
+  return c.json(attachGeoOrganization(base.organization, outcome.value), 200);
 });
 
 geoVisibilityRoutes.openapi(languageShareRoute, async (c) => {
@@ -271,7 +393,13 @@ geoVisibilityRoutes.openapi(languageShareRoute, async (c) => {
     return geoErrorResponse(c, outcome.failure);
   }
 
-  return c.json({ ...outcome.value, organization: base.organization }, 200);
+  return c.json(
+    attachGeoOrganization(
+      base.organization,
+      normalizeLanguageShareResponse(outcome.value)
+    ),
+    200
+  );
 });
 
 geoVisibilityRoutes.openapi(competitorDetailRoute, async (c) => {
@@ -289,5 +417,5 @@ geoVisibilityRoutes.openapi(competitorDetailRoute, async (c) => {
     return geoErrorResponse(c, outcome.failure);
   }
 
-  return c.json({ ...outcome.value, organization: base.organization }, 200);
+  return c.json(attachGeoOrganization(base.organization, outcome.value), 200);
 });

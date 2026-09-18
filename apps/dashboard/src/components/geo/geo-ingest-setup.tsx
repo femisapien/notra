@@ -105,8 +105,8 @@ export function GeoIngestSetup({ setup, className }: GeoIngestSetupPanelProps) {
         <section className="space-y-2">
           <h3 className="text-sm font-medium">Set your token</h3>
           <p className="text-muted-foreground text-xs">
-            Add this as {GEO_INGEST_TOKEN_ENV} in your site's environment
-            variables.
+            Add this as {GEO_INGEST_TOKEN_ENV} on every domain this project
+            tracks.
           </p>
           <ApiKeyRevealField value={token} />
         </section>
@@ -119,7 +119,10 @@ export function GeoIngestSetup({ setup, className }: GeoIngestSetupPanelProps) {
             onValueChange={(value) => setFramework(value as GeoIngestFramework)}
             value={framework}
           >
-            <TabsList aria-label="Framework">
+            <TabsList
+              aria-label="Framework"
+              className="h-auto min-h-8 flex-wrap justify-end"
+            >
               {GEO_INGEST_FRAMEWORK_OPTIONS.map((option) => (
                 <TabsTrigger
                   className="px-2 text-xs"

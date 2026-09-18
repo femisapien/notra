@@ -2,7 +2,7 @@
 // beui.dev/components/motion/table
 
 import { useReducedMotion } from "motion/react";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
 import { useTableViewport } from "@/lib/hooks/use-table-viewport";
 import { cn } from "@/lib/utils";
@@ -11,13 +11,26 @@ import { RowHandle } from "./row-handle";
 import { TableBody } from "./table-body";
 import { TableColumnGroup } from "./table-column-group";
 import { TableHeader } from "./table-header";
-import { TableFooterSurface, TableHeaderSurface } from "./table-surfaces";
+import {
+  TableFooterSurface,
+  TableHeaderSurface,
+  TableScrollFade,
+} from "./table-surfaces";
 import type { HeaderCellRefs, TableProps } from "./types";
+import { useActiveColumn } from "./use-active-column";
+import { useActiveRow } from "./use-active-row";
 import { useColumnReorder } from "./use-column-reorder";
 import { useColumnResize } from "./use-column-resize";
 import { useColumnSort } from "./use-column-sort";
 import { useRowSelection } from "./use-row-selection";
-import { DEFAULT_MIN_COLUMN_WIDTH, pinRowsFirst } from "./utils";
+import {
+  CHECKBOX_WIDTH,
+  DEFAULT_MIN_COLUMN_WIDTH,
+  pageRows,
+  pinRowsFirst,
+  REORDER_HANDLE_PX,
+  tableMinWidthCss,
+} from "./utils";
 
 export type { SortState, TableColumn, TableProps } from "./types";
 
@@ -32,6 +45,7 @@ export function Table<T>({
   sort: sortProp,
   defaultSort = null,
   onSortChange,
+  manualSort = false,
   resizable = false,
   minColumnWidth = DEFAULT_MIN_COLUMN_WIDTH,
   onColumnResize,
@@ -64,6 +78,7 @@ export function Table<T>({
   flushTop = false,
   flushBottom = false,
   overlapTop = false,
+  scrollFade = false,
   className,
 }: TableProps<T>) {
   const reduce = useReducedMotion();
@@ -88,6 +103,7 @@ export function Table<T>({
     sort: sortProp,
     defaultSort,
     onSortChange,
+    manualSort,
   });
   const { widths, startResize, moveResize, endResize } = useColumnResize({
     orderedColumns,
@@ -103,11 +119,7 @@ export function Table<T>({
       onSelectionChange,
     });
   const displayRows = pinRowsFirst(sortedRows, isRowPinned);
-  const pageStart = Math.max(0, page - 1) * (pageSize ?? 0);
-  const pagedRows =
-    pageSize == null
-      ? displayRows
-      : displayRows.slice(pageStart, pageStart + pageSize);
+  const pagedRows = pageRows(displayRows, page, pageSize);
 
   const {
     headerScrollRef,
@@ -121,6 +133,7 @@ export function Table<T>({
     scrolls,
     paddingTop,
     paddingBottom,
+    atEnd,
   } = useTableViewport({
     rows: pagedRows,
     rowHeight,
@@ -151,46 +164,17 @@ export function Table<T>({
     "border-collapse",
     sized ? "w-max min-w-full" : "w-full"
   );
-
-  const [activeColumn, setActiveColumn] = useState<string | null>(null);
-  // Let the pointer cross the gap to the portal handle before deactivating.
-  const deactivateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activateColumn = (key: string) => {
-    if (deactivateTimer.current) {
-      clearTimeout(deactivateTimer.current);
-    }
-    deactivateTimer.current = null;
-    setActiveColumn(key);
-  };
-  const deactivateColumn = () => {
-    if (deactivateTimer.current) {
-      clearTimeout(deactivateTimer.current);
-    }
-    deactivateTimer.current = setTimeout(() => setActiveColumn(null), 100);
-  };
-  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
-  const [activeRowEl, setActiveRowEl] = useState<HTMLTableRowElement | null>(
-    null
+  const minTableWidth = tableMinWidthCss(
+    orderedColumns,
+    minColumnWidth,
+    selectable ? [CHECKBOX_WIDTH] : [],
+    reorderable ? REORDER_HANDLE_PX : 0
   );
-  const [activeRow, setActiveRow] = useState<{
-    id: string;
-    index: number;
-  } | null>(null);
-  const rowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activateRow = (id: string, index: number) => {
-    if (rowTimer.current) {
-      clearTimeout(rowTimer.current);
-    }
-    rowTimer.current = null;
-    setActiveRowEl(rowRefs.current[id] ?? null);
-    setActiveRow({ id, index });
-  };
-  const deactivateRow = () => {
-    if (rowTimer.current) {
-      clearTimeout(rowTimer.current);
-    }
-    rowTimer.current = setTimeout(() => setActiveRow(null), 100);
-  };
+  const tableStyle = { tableLayout: "fixed" as const, minWidth: minTableWidth };
+
+  const { activeColumn, activateColumn, deactivateColumn } = useActiveColumn();
+  const { activeRow, activeRowEl, rowRefs, activateRow, deactivateRow } =
+    useActiveRow();
   const columnMenuProps = hasColumnMenu
     ? {
         activeColumn,
@@ -215,7 +199,7 @@ export function Table<T>({
           ref={headerScrollRef}
           style={headerStyle}
         >
-          <table className={tableClassName} style={{ tableLayout: "fixed" }}>
+          <table className={tableClassName} style={tableStyle}>
             {columnGroup}
             <TableHeader
               {...columnMenuProps}
@@ -251,13 +235,13 @@ export function Table<T>({
         className={cn(
           "scrollbar-floating border-border bg-background relative -mt-5 box-content rounded-2xl border outline-none",
           isEmpty ? "overflow-hidden" : overflowClass,
-          flushBottom && !footer && "rounded-b-none"
+          flushBottom && !footer && "rounded-b-none border-b-0"
         )}
         onScroll={handleScroll}
         ref={scrollRef}
         style={bodyStyle}
       >
-        <table className={tableClassName} style={{ tableLayout: "fixed" }}>
+        <table className={tableClassName} style={tableStyle}>
           {columnGroup}
           <TableBody
             columns={orderedColumns}
@@ -286,6 +270,7 @@ export function Table<T>({
             rowRefs={rowRefs}
           />
         </table>
+        <TableScrollFade atEnd={atEnd} scrollFade={scrollFade} />
       </div>
       <TableFooterSurface footer={footer} flushBottom={flushBottom} />
       {hasRowMenu && activeRow ? (

@@ -2,7 +2,7 @@ import { AGENT_DEFAULT_MODEL } from "@notra/ai/constants/models";
 import { assertRouteHasCredits } from "@notra/ai/gateway";
 import { createModel } from "@notra/ai/model";
 import { getUserPrompt } from "@notra/ai/prompts/user";
-import { withGatewayDefaults } from "@notra/ai/provider-options";
+import { withRouterDefaults } from "@notra/ai/provider-options";
 import {
   createGetBrandReferencesTool,
   createSearchBrandReferencesTool,
@@ -26,8 +26,9 @@ import type {
   PostToolsResult,
 } from "@notra/ai/types/post-tools";
 import { summarizeRouteUsage } from "@notra/ai/utils/route-usage";
-import { buildExperimentalTelemetry } from "@notra/ai/utils/tcc";
-import { stepCountIs, ToolLoopAgent } from "ai";
+import { buildTelemetryOptions } from "@notra/ai/utils/tcc";
+import { toAgentTokenUsage } from "@notra/ai/utils/token-usage";
+import { isStepCount, ToolLoopAgent } from "ai";
 
 export class ContentGenerationSkippedError extends Error {
   constructor(message: string) {
@@ -152,7 +153,7 @@ export async function runBackgroundGen(
 
   const agent = new ToolLoopAgent({
     model,
-    providerOptions: withGatewayDefaults(
+    providerOptions: withRouterDefaults(
       {
         anthropic: {
           thinking: { type: "adaptive" },
@@ -185,8 +186,8 @@ export async function runBackgroundGen(
       fail: createFailTool(postToolsResult),
     },
     instructions,
-    stopWhen: stepCountIs(50),
-    experimental_telemetry: buildExperimentalTelemetry(telemetryMetadata),
+    stopWhen: isStepCount(50),
+    ...buildTelemetryOptions(telemetryMetadata),
   });
 
   const result = await agent.generate({ prompt });
@@ -217,15 +218,9 @@ export async function runBackgroundGen(
     title: primaryPost.title,
     posts: postToolsResult.posts,
     usage: {
-      inputTokens: result.totalUsage.inputTokens ?? 0,
-      outputTokens: result.totalUsage.outputTokens ?? 0,
-      totalTokens: result.totalUsage.totalTokens ?? 0,
-      cacheReadTokens:
-        result.totalUsage.inputTokenDetails?.cacheReadTokens ?? 0,
-      cacheWriteTokens:
-        result.totalUsage.inputTokenDetails?.cacheWriteTokens ?? 0,
+      ...toAgentTokenUsage(result.usage),
       route: routeUsage.route,
-      raw: result.totalUsage,
+      raw: result.usage,
     },
   };
 }

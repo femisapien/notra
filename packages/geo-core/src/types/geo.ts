@@ -10,6 +10,8 @@ import type {
   GeoCheckSourceItem,
   GeoCheckWrite,
 } from "@notra/db/types/geo-checks";
+import type { GeoPersonaSnapshotV2 } from "@notra/db/types/geo-personas";
+import type { GeoScanUsageByRole } from "@notra/db/types/geo-scan";
 import type { GeoContentBriefStatus } from "@notra/db/types/geo-writer";
 import type { FinishReason, LanguageModel, ToolSet } from "ai";
 
@@ -48,7 +50,7 @@ export interface GeoScopeInput {
 }
 
 export interface GeoScanStartInput extends GeoScopeInput {
-  /** This-run subset of tracked engines. Omitted runs every tracked engine. */
+  /** This-run engine selection from the catalog. Omitted runs every tracked engine. */
   engines?: readonly string[];
 }
 
@@ -65,12 +67,15 @@ export interface GeoSettings {
   aliases: string[];
   competitors: string[];
   conversionPaths: string[];
+  domains: string[];
   languages: string[];
   engines: string[];
   /** ZDR add-on: request zero data retention from every model host. */
   enforceZdr: boolean;
   /** Models without a ZDR host the user approved to run anyway. */
   nonZdrApprovedEngines: string[];
+  /** Also scan search-capable models without web search (hidden setting). */
+  trackWithoutSearch: boolean;
   pausedAutoPromptIds: string[];
   removedAutoPromptIds: string[];
   enabled: boolean;
@@ -95,10 +100,12 @@ export interface GeoSettingsRow {
   aliases: string[];
   competitors: string[];
   conversionPaths: string[];
+  domains: string[];
   languages: string[] | null;
   engines: string[] | null;
   enforceZdr: boolean;
   nonZdrApprovedEngines: string[];
+  trackWithoutSearch: boolean;
   pausedAutoPromptIds: string[];
   removedAutoPromptIds: string[];
   enabled: boolean;
@@ -115,6 +122,9 @@ export interface GeoOverviewEngine {
   checks: number;
   mentions: number;
   mentionRate: number;
+  citations?: number;
+  visibility?: number;
+  visibilityRate?: number;
   avgPosition: number | null;
   lastCheckedAt: string;
 }
@@ -129,6 +139,8 @@ export interface GeoTimeseriesPoint {
   engine: string;
   checks: number;
   mentions: number;
+  citations?: number;
+  visibility?: number;
   avgPosition?: number | null;
 }
 
@@ -139,6 +151,7 @@ export type GeoStatDeltaTone = "up" | "down" | "flat";
 export interface EngineFamilyStatTrends {
   ratePts: number | null;
   mentionDelta: number | null;
+  visibilityDelta: number | null;
   positionDelta: number | null;
 }
 
@@ -173,11 +186,15 @@ export interface GeoGroundedAnswer extends GeoEngineAnswer {
 export interface GeoCheckOutcome {
   row: GeoCheckWrite | null;
   usage: AgentTokenUsage;
+  engineUsage?: AgentTokenUsage;
+  judgeUsage?: AgentTokenUsage;
 }
 
 export interface GeoSequenceCheckOutcome {
   rows: GeoCheckWrite[];
   usage: AgentTokenUsage;
+  engineUsage?: AgentTokenUsage;
+  judgeUsage?: AgentTokenUsage;
   droppedTurns: number;
 }
 
@@ -195,7 +212,8 @@ export type GeoScanSkipReason =
   | "superseded"
   | "already_running"
   | "scoped_prompts_missing"
-  | "scoped_engines_missing";
+  | "scoped_engines_missing"
+  | "no_search_engines";
 
 export interface GeoErrorFields {
   errorName: string;
@@ -251,12 +269,37 @@ export interface GeoAnswerSource {
   domain: string;
 }
 
+export type GeoAnswerMentionKind = "own" | "competitor";
+
+export interface GeoAnswerMentionTerm {
+  phrase: string;
+  kind: GeoAnswerMentionKind;
+}
+
+export interface GeoAnswerMentionSpan {
+  start: number;
+  end: number;
+  kind: GeoAnswerMentionKind;
+  phrase: string;
+}
+
+export interface GeoAnswerMentionInput {
+  companyName?: string | null;
+  aliases?: readonly string[];
+  mentionedCompetitors?: readonly string[];
+  trackedCompetitors?: readonly {
+    name: string;
+    synonyms?: readonly string[];
+  }[];
+}
+
 export interface GeoPromptResult {
   promptId: string;
   engine: string;
   prompt: string;
   answer: string;
   mentioned: boolean;
+  ownedSourceCited?: boolean;
   position: number | null;
   sentiment: string | null;
   competitors: string[];
@@ -276,8 +319,7 @@ export interface GeoPromptResultsResponse {
   results: GeoPromptResult[];
 }
 
-export interface GeoPromptResultDetailInput {
-  organizationId: string;
+export interface GeoPromptResultDetailInput extends GeoScopeInput {
   checkId: string;
 }
 
@@ -291,6 +333,7 @@ export type GeoPromptResultSummary = Pick<
   | "engine"
   | "prompt"
   | "mentioned"
+  | "ownedSourceCited"
   | "position"
   | "sentiment"
   | "competitors"
@@ -300,6 +343,15 @@ export type GeoPromptResultSummary = Pick<
 export interface GeoPromptResultSummariesResponse {
   configured: boolean;
   results: GeoPromptResultSummary[];
+  nextCursor?: string | null;
+}
+
+export interface GeoPromptResultSummaryQuery {
+  offset: number;
+  limit: number;
+  engine?: string;
+  mentioned?: boolean;
+  query?: string;
 }
 
 export interface GeoPromptResultDetailResponse {
@@ -314,6 +366,11 @@ export interface GeoPromptHistoryInput extends GeoScopeInput {
 export interface GeoPromptRescanInput extends GeoScopeInput {
   promptId: string;
   engines?: readonly string[];
+}
+
+export interface GeoPromptGapIgnoreInput extends GeoScopeInput {
+  promptId: string;
+  ignored: boolean;
 }
 
 export interface GeoRescanForPostInput {
@@ -333,13 +390,10 @@ export interface GeoPromptHistoryCheck {
   scanId: string;
   engine: string;
   mentioned: boolean;
+  ownedSourceCited?: boolean;
   position: number | null;
   sentiment: string | null;
   competitors: string[];
-  answer: string;
-  excerpt: string;
-  searchQueries: string[];
-  sources: GeoAnswerSource[];
   language: string;
   capturedAt: string;
 }
@@ -377,10 +431,12 @@ export interface GeoSettingsUpsertInput {
   aliases: string[];
   competitors: string[];
   conversionPaths?: string[];
+  domains?: string[];
   languages: string[];
   engines: string[];
   enforceZdr: boolean;
   nonZdrApprovedEngines: string[];
+  trackWithoutSearch?: boolean;
   pausedAutoPromptIds?: string[];
   removedAutoPromptIds?: string[];
   enabled: boolean;
@@ -528,6 +584,7 @@ export interface GeoSequenceTurnResult {
   prompt: string;
   answer: string;
   mentioned: boolean;
+  ownedSourceCited?: boolean;
   position: number | null;
   sentiment: string | null;
   excerpt: string;
@@ -574,6 +631,15 @@ export interface GeoScanPlannedSequence {
   zdr: GeoZdrMode;
 }
 
+export interface GeoScanPlannedPersona {
+  personaId: string;
+  prompts: string[];
+  snapshot: GeoPersonaSnapshotV2;
+  engine: string;
+  groundedKey: string;
+  zdr: GeoZdrMode;
+}
+
 export interface GeoScanProjectContext {
   organizationId: string;
   projectId: string;
@@ -581,6 +647,10 @@ export interface GeoScanProjectContext {
   runId: string;
   companyName: string;
   aliases: string[];
+  /** Canonical brand website used to recognize citations from owned subdomains. */
+  websiteUrl?: string | null;
+  /** Additional project domains whose citations count as owned sources. */
+  domains?: string[];
   gate: ContentBillingReservation;
   startedAtMs: number;
   /** Partial prompt scans do not cover a scheduled project scan. Optional for persisted older plans. */
@@ -593,9 +663,12 @@ export interface GeoScanProjectPlan {
   claimedAt: string;
   tasks: GeoScanPlannedTask[];
   sequences: GeoScanPlannedSequence[];
+  personas: GeoScanPlannedPersona[];
   promptCount: number;
   languages: string[];
   engines: string[];
+  /** Translate-call usage (judge role) from prepare. */
+  usage?: AgentTokenUsage;
 }
 
 export type GeoScanProjectPlanResult =
@@ -607,6 +680,15 @@ export interface GeoScanBatchOutcome {
   mentions: number;
   dropped: number;
   usage: AgentTokenUsage;
+  engineUsage?: AgentTokenUsage;
+  judgeUsage?: AgentTokenUsage;
+}
+
+export interface GeoScanFailureMetadata {
+  readonly errorCode: string;
+  readonly errorMessage: string;
+  readonly failedStage: "handoff" | "execution" | "stale";
+  readonly retryable: boolean | null;
 }
 
 export interface GeoScanProjectTotals {
@@ -614,6 +696,23 @@ export interface GeoScanProjectTotals {
   mentions: number;
   dropped: number;
   usage: AgentTokenUsage;
+  engineUsage?: AgentTokenUsage;
+  judgeUsage?: AgentTokenUsage;
+}
+
+export interface GeoScanFinishTotals {
+  runId: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  reasoningTokens: number;
+  totalUsd: number;
+  checksTotal: number;
+  checksFailed: number;
+  mentions: number;
+  durationMs: number;
+  usageByRole: GeoScanUsageByRole;
 }
 
 export interface GeoScanProgramOptions {
@@ -623,7 +722,7 @@ export interface GeoScanProgramOptions {
   /** Explicit project subset for a retry pass; overrides `projectId` scoping. */
   projectIds?: readonly string[];
   promptIds?: readonly string[];
-  /** This-run subset of tracked engines. Omitted runs every tracked engine. */
+  /** This-run engine selection from the catalog. Omitted runs every tracked engine. */
   engines?: readonly string[];
 }
 
@@ -651,6 +750,7 @@ export interface GeoScanZdrPolicyFields {
   projectId: string;
   scanId?: string;
   sequenceId?: string;
+  personaId?: string;
 }
 
 /** Per-project ZDR inputs needed to decide how an engine may run. */
@@ -675,6 +775,8 @@ export interface GeoCheckContext {
   capturedAt: Date;
   companyName: string;
   aliases: string[];
+  websiteUrl?: string | null;
+  domains?: string[];
 }
 
 export interface GeoSequenceDefinition {
@@ -700,6 +802,7 @@ export interface MentionTrend {
 
 export interface FamilyDayBucket {
   mentions: number;
+  visibility: number;
   checks: number;
   positionWeighted: number;
   positionWeight: number;
@@ -815,6 +918,25 @@ export interface GeoJudgeResult {
   sentiment: "positive" | "neutral" | "negative" | null;
   competitors: string[];
   excerpt: string;
+  usage?: GeoModelTokenUsage;
+}
+
+export type GeoMentionSentiment = NonNullable<GeoJudgeResult["sentiment"]>;
+
+/** Sentiment and list position from the typed evaluation model. */
+export interface GeoMentionEvaluation {
+  sentiment: GeoMentionSentiment;
+  position: number | null;
+  /** Model confidence per field (0–1), when reported. */
+  confidence: { sentiment?: number; position?: number };
+}
+
+export interface GeoMentionEvaluationInput {
+  organizationId: string;
+  companyName: string;
+  aliases: readonly string[];
+  prompt: string;
+  answer: string;
 }
 
 export type GeoVisitorType = "crawler" | "ai_referral" | "human" | "unknown";
@@ -976,6 +1098,7 @@ export interface AiTrafficResponse {
 }
 
 export interface GeoTrafficPage {
+  host: string;
   path: string;
   source: string;
   visitorType: GeoVisitorType;
@@ -989,7 +1112,13 @@ export interface GeoTrafficPagesResponse {
   pages: GeoTrafficPage[];
 }
 
-export type GeoIngestFramework = "next" | "nuxt" | "netlify";
+export type GeoIngestFramework =
+  | "next"
+  | "nuxt"
+  | "netlify"
+  | "tanstack"
+  | "astro"
+  | "sveltekit";
 
 export type GeoIngestPackageManager = "bun" | "pnpm" | "yarn" | "npm";
 
@@ -1031,6 +1160,12 @@ export interface GeoEngineFamily {
 }
 
 export interface GeoEngineFamilyTotals {
+  visible: number;
+  checks: number;
+  rate: number;
+}
+
+export interface GeoEngineFamilyMentionTotals {
   mentions: number;
   checks: number;
   rate: number;
@@ -1039,7 +1174,7 @@ export interface GeoEngineFamilyTotals {
 export interface MentionProviderRow {
   family: GeoEngineFamily;
   totals: GeoEngineFamilyTotals;
-  mentionDelta: number | null;
+  visibilityDelta: number | null;
   tracked: boolean;
 }
 
@@ -1048,6 +1183,9 @@ export interface GeoLanguageSharePoint {
   checks: number;
   mentions: number;
   mentionRate: number;
+  citations?: number;
+  visibility?: number;
+  visibilityRate?: number;
   avgPosition: number | null;
   trend?: GeoSparklinePoint[];
 }
@@ -1080,7 +1218,7 @@ export interface GeoPromptSummary {
   results: GeoPromptResultSummary[];
 }
 
-export type GeoTab = "visibility" | "prompts" | "journeys";
+export type GeoTab = "visibility" | "brand-sentiment" | "journeys";
 
 export type GeoRangePreset =
   | "today"
@@ -1113,6 +1251,7 @@ export type EngineIconKey =
   | "mistral"
   | "deepseek"
   | "meta"
+  | "instagram"
   | "grok"
   | "qwen"
   | "copilot"
@@ -1214,6 +1353,11 @@ export interface GeoModelCatalogEntry {
   default: boolean;
   /** Gateways that serve the model; OpenRouter-only models are pinned. */
   gateways: readonly GeoModelGateway[];
+  /**
+   * Superseded or niche model: still scannable for projects that track it,
+   * but not offered in the picker.
+   */
+  hidden?: boolean;
 }
 
 export interface GeoModelCatalog {
@@ -1232,6 +1376,7 @@ export interface GeoScanSizeInput {
   promptCount: number;
   engines: readonly string[];
   languages: readonly string[];
+  trackWithoutSearch?: boolean;
   catalog: GeoResolvedModelCatalog;
   sequences: readonly Pick<
     GeoPromptSequence,

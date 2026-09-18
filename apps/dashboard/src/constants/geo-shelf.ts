@@ -4,26 +4,28 @@ import {
   GEO_SHELF_OWNERSHIPS,
   GEO_SHELF_PLACEMENT_STATUSES,
   GEO_SHELF_PRIORITIES,
+  GEO_SHELF_SHELF_FILTERS,
   GEO_SHELF_SOURCE_KINDS,
+  GEO_SHELF_TICKET_FILTERS,
   GEO_SHELF_TITLE_MAX_LENGTH,
   GEO_SHELF_URL_MAX_LENGTH,
 } from "@notra/schemas/constants/dashboard/geo-shelf";
 
-export const GEO_SHELF_SHELF_FILTERS = [
-  "all",
-  "opportunities",
-  "on_shelf",
-  "unknown",
-] as const;
-
-export const GEO_SHELF_TICKET_FILTERS = [
-  "any",
-  "open",
-  "in_progress",
-  "mine",
-  "unassigned",
-  "closed",
-] as const;
+/** The table is virtualized, so a page only bounds the payload per request. */
+export const GEO_SHELF_PAGE_SIZE = 100;
+export const GEO_SHELF_SEARCH_DEBOUNCE_MS = 250;
+export const GEO_SHELF_DEFAULT_SORT = {
+  key: "citations",
+  direction: "desc",
+} as const;
+export const GEO_SHELF_EMPTY_BOARD_COUNTS = {
+  untracked: 0,
+  open: 0,
+  in_progress: 0,
+  won: 0,
+  lost: 0,
+  dismissed: 0,
+} as const;
 
 export const GEO_SHELF_VIEWS = ["table", "board"] as const;
 
@@ -186,7 +188,7 @@ export const GEO_SHELF_TABLE_HEIGHT = 560;
 /** `title` flexes; other columns size to their header/content so the row fits. */
 export const GEO_SHELF_TABLE_COLUMN = {
   title: { width: "1fr", minWidth: "10rem" },
-  citations: { width: "8rem" },
+  citations: { width: "10rem" },
   own: { width: "9rem" },
   competitors: { width: "7.5rem" },
   ticket: { width: "7rem" },

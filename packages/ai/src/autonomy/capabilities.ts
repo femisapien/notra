@@ -41,7 +41,7 @@ import {
   buildIrisImageReviewPrompt,
   buildIrisSocialPostPrompt,
 } from "@notra/ai/prompts/iris-content";
-import { withGatewayDefaults } from "@notra/ai/provider-options";
+import { withRouterDefaults } from "@notra/ai/provider-options";
 import {
   type IrisSocialPlatform,
   irisAnalyticsReadTaskParamsSchema,
@@ -102,7 +102,6 @@ const CHANGELOG_MAX_OUTPUT_TOKENS = 3000;
 const BLOG_POST_MAX_OUTPUT_TOKENS = 4000;
 const SOCIAL_POST_MAX_OUTPUT_TOKENS = 800;
 const IMAGE_REVIEW_MAX_OUTPUT_TOKENS = 700;
-const CONTENT_TEMPERATURE = 0.6;
 const ISO_DATE_LENGTH = 10;
 
 export const IRIS_CONTENT_MODEL_ID = AGENT_DEFAULT_MODEL;
@@ -205,13 +204,12 @@ const generateIrisText = Effect.fn("iris.capabilities.generateText")(
           model: gateway(IRIS_CONTENT_MODEL_ID, {
             organizationId: params.input.organizationId,
           }),
-          system: buildIrisContentSystemPrompt({
+          instructions: buildIrisContentSystemPrompt({
             objective: params.input.mandate.objective,
           }),
           prompt: params.prompt,
-          temperature: CONTENT_TEMPERATURE,
           maxOutputTokens: params.maxOutputTokens,
-          providerOptions: withGatewayDefaults(undefined, {
+          providerOptions: withRouterDefaults(undefined, {
             modelId: IRIS_CONTENT_MODEL_ID,
           }),
         }),
@@ -480,7 +478,7 @@ const reviewIrisImage = Effect.fn("iris.capabilities.reviewImage")(
             },
           ],
           maxOutputTokens: IMAGE_REVIEW_MAX_OUTPUT_TOKENS,
-          providerOptions: withGatewayDefaults(undefined, {
+          providerOptions: withRouterDefaults(undefined, {
             modelId: IMAGE_REVIEW_MODEL_ID,
           }),
         }),

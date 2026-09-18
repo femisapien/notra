@@ -1,3 +1,4 @@
+import { createTimeoutFetch } from "@notra/utils/timeout-fetch";
 import {
   type InferParams,
   type IngestResult,
@@ -10,9 +11,6 @@ import type { AnalyticsCacheScope } from "../types/cache";
 import type {
   AccountLeaderboardParams,
   AccountLeaderboardRow,
-  AiTrafficLogRow,
-  AiTrafficOverviewRow,
-  AiTrafficTimeseriesRow,
   EngagementTimeseriesParams,
   EngagementTimeseriesRow,
   FollowerGrowthParams,
@@ -35,8 +33,6 @@ import type {
   TopPostsRow,
 } from "../types/tinybird-endpoints";
 import {
-  type AiTrafficEventRow,
-  aiTrafficEvents,
   type GeoTrafficEventRow,
   geoTrafficEvents,
   type SocialAccountRow,
@@ -50,11 +46,6 @@ import {
   socialPostStats,
   socialPosts,
 } from "./datasources";
-import {
-  aiTrafficLog,
-  aiTrafficOverview,
-  aiTrafficTimeseries,
-} from "./pipes/ai-traffic";
 import {
   geoJourneyDetail,
   geoTrafficJourneys,
@@ -74,12 +65,19 @@ import {
   topPosts,
 } from "./pipes/social";
 
+/**
+ * Analytics queries sit on the request path, so a stalled Tinybird must fail
+ * instead of holding the request open. The SDK's own default is 30s.
+ */
+const TINYBIRD_REQUEST_TIMEOUT_MS = 10_000;
+
 export function isTinybirdConfigured(): boolean {
   return Boolean(process.env.TINYBIRD_TOKEN);
 }
 
-function createTinybirdClient() {
+function createTinybirdClient(fetch?: typeof globalThis.fetch) {
   return new Tinybird({
+    fetch,
     token: process.env.TINYBIRD_TOKEN,
     baseUrl:
       process.env.TINYBIRD_BASE_URL ??
@@ -92,7 +90,6 @@ function createTinybirdClient() {
       socialPosts,
       socialPostStats,
       socialPostSources,
-      aiTrafficEvents,
       geoTrafficEvents,
     },
     pipes: {
@@ -104,9 +101,6 @@ function createTinybirdClient() {
       notraAdoption,
       postMetricsLookup,
       accountLeaderboard,
-      aiTrafficOverview,
-      aiTrafficTimeseries,
-      aiTrafficLog,
       geoTrafficOverview,
       geoTrafficTimeseries,
       geoTrafficPages,
@@ -117,16 +111,29 @@ function createTinybirdClient() {
   });
 }
 
-let cachedClient: ReturnType<typeof createTinybirdClient> | null = null;
+let cachedQueryClient: ReturnType<typeof createTinybirdClient> | null = null;
+let cachedMutationClient: ReturnType<typeof createTinybirdClient> | null = null;
 
-function getTinybirdClient() {
+function getTinybirdQueryClient() {
   if (!isTinybirdConfigured()) {
     return null;
   }
-  if (!cachedClient) {
-    cachedClient = createTinybirdClient();
+  if (!cachedQueryClient) {
+    cachedQueryClient = createTinybirdClient(
+      createTimeoutFetch(TINYBIRD_REQUEST_TIMEOUT_MS)
+    );
   }
-  return cachedClient;
+  return cachedQueryClient;
+}
+
+function getTinybirdMutationClient() {
+  if (!isTinybirdConfigured()) {
+    return null;
+  }
+  if (!cachedMutationClient) {
+    cachedMutationClient = createTinybirdClient();
+  }
+  return cachedMutationClient;
 }
 
 async function ingestRows<TRow>(
@@ -134,11 +141,11 @@ async function ingestRows<TRow>(
   scope: AnalyticsCacheScope,
   organizationIds: ReadonlyArray<string | null>,
   ingest: (
-    client: NonNullable<ReturnType<typeof getTinybirdClient>>,
+    client: NonNullable<ReturnType<typeof getTinybirdMutationClient>>,
     batch: TRow[]
   ) => Promise<IngestResult>
 ): Promise<IngestResult | null> {
-  const client = getTinybirdClient();
+  const client = getTinybirdMutationClient();
   if (!client || rows.length === 0) {
     return null;
   }
@@ -153,10 +160,10 @@ function cachedPipeQuery<TParams extends Record<string, unknown>, TRow>(
   params: TParams,
   organizationId: string | null,
   query: (
-    client: NonNullable<ReturnType<typeof getTinybirdClient>>
+    client: NonNullable<ReturnType<typeof getTinybirdQueryClient>>
   ) => Promise<QueryResult<TRow>>
 ): Promise<QueryResult<TRow> | null> {
-  const client = getTinybirdClient();
+  const client = getTinybirdQueryClient();
   if (!client) {
     return Promise.resolve(null);
   }
@@ -221,17 +228,6 @@ export function ingestSocialPostSources(
     "social",
     rows.map((row) => row.organization_id),
     (client, batch) => client.socialPostSources.ingestBatch(batch)
-  );
-}
-
-export function ingestAiTrafficEvents(
-  rows: AiTrafficEventRow[]
-): Promise<IngestResult | null> {
-  return ingestRows(
-    rows,
-    "traffic",
-    rows.map((row) => row.organization_id),
-    (client, batch) => client.aiTrafficEvents.ingestBatch(batch)
   );
 }
 
@@ -347,45 +343,6 @@ export function queryPostMetricsLookup(params: {
         organization_id: params.organization_id,
         post_ids: [params.post_ids.join(",")],
       })
-  );
-}
-
-export function queryAiTrafficOverview(params: {
-  organization_id: string;
-  days?: number;
-}): Promise<QueryResult<AiTrafficOverviewRow> | null> {
-  return cachedPipeQuery(
-    "traffic",
-    "ai_traffic_overview",
-    params,
-    params.organization_id,
-    (client) => client.aiTrafficOverview.query(params)
-  );
-}
-
-export function queryAiTrafficTimeseries(params: {
-  organization_id: string;
-  days?: number;
-}): Promise<QueryResult<AiTrafficTimeseriesRow> | null> {
-  return cachedPipeQuery(
-    "traffic",
-    "ai_traffic_timeseries",
-    params,
-    params.organization_id,
-    (client) => client.aiTrafficTimeseries.query(params)
-  );
-}
-
-export function queryAiTrafficLog(params: {
-  organization_id: string;
-  limit?: number;
-}): Promise<QueryResult<AiTrafficLogRow> | null> {
-  return cachedPipeQuery(
-    "traffic",
-    "ai_traffic_log",
-    params,
-    params.organization_id,
-    (client) => client.aiTrafficLog.query(params)
   );
 }
 

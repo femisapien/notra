@@ -1,3 +1,5 @@
+import type { GeoPersonaSnapshot } from "./geo-personas";
+
 export interface GeoCheckScope {
   organizationId: string;
   projectId: string | null;
@@ -32,10 +34,13 @@ export interface GeoCheckWrite {
   engine: string;
   promptId: string;
   sequenceId?: string | null;
+  personaId?: string | null;
+  personaSnapshot?: GeoPersonaSnapshot | null;
   turn?: number;
   prompt: string;
   answer: string;
   mentioned: boolean;
+  ownedSourceCited: boolean;
   position: number | null;
   sentiment: string | null;
   competitors: string[];
@@ -48,7 +53,15 @@ export interface GeoCheckWrite {
   outputTokens: number | null;
   reasoningTokens: number | null;
   zdrEnforced?: boolean | null;
+  durationMs?: number | null;
+  costUsd?: number | null;
+  judgeTokens?: number | null;
   capturedAt: Date;
+}
+
+export interface GeoCheckInsertSummary {
+  checks: number;
+  mentions: number;
 }
 
 export interface GeoCheckOverviewRow {
@@ -56,6 +69,9 @@ export interface GeoCheckOverviewRow {
   checks: number;
   mentions: number;
   mentionRate: number;
+  citations: number;
+  visibility: number;
+  visibilityRate: number;
   avgPosition: number | null;
   lastCheckedAt: Date;
 }
@@ -65,6 +81,8 @@ export interface GeoCheckTimeseriesRow {
   engine: string;
   checks: number;
   mentions: number;
+  citations: number;
+  visibility: number;
   avgPosition: number | null;
 }
 
@@ -74,6 +92,7 @@ export interface GeoCheckPromptResultRow {
   prompt: string;
   answer: string;
   mentioned: boolean;
+  ownedSourceCited: boolean;
   position: number | null;
   sentiment: string | null;
   competitors: string[];
@@ -100,24 +119,30 @@ export type GeoCheckPromptSummaryRow = Pick<
   | "engine"
   | "prompt"
   | "mentioned"
+  | "ownedSourceCited"
   | "position"
   | "sentiment"
   | "competitors"
   | "lastCheckedAt"
 > & { checkId: string };
 
+export interface GeoCheckPromptSummaryQuery {
+  offset: number;
+  limit: number;
+  engine?: string;
+  mentioned?: boolean;
+  query?: string;
+}
+
 export interface GeoCheckPromptHistoryRow {
   id: string;
   scanId: string;
   engine: string;
   mentioned: boolean;
+  ownedSourceCited: boolean;
   position: number | null;
   sentiment: string | null;
   competitors: string[];
-  answer: string;
-  excerpt: string;
-  grounding: GeoCheckGrounding;
-  sources: GeoCheckSourceItem[];
   language: string;
   capturedAt: Date;
 }
@@ -159,6 +184,9 @@ export interface GeoCheckLanguageShareRow {
   checks: number;
   mentions: number;
   mentionRate: number;
+  citations: number;
+  visibility: number;
+  visibilityRate: number;
   avgPosition: number | null;
   lastCheckedAt: Date;
 }
@@ -167,6 +195,7 @@ export interface GeoCheckLanguageShareTrendRow {
   day: string;
   language: string;
   mentionRate: number;
+  visibilityRate: number;
 }
 
 export interface GeoCheckWindow {
@@ -187,6 +216,7 @@ export interface GeoCheckSequenceResultRow {
   prompt: string;
   answer: string;
   mentioned: boolean;
+  ownedSourceCited: boolean;
   position: number | null;
   sentiment: string | null;
   excerpt: string;

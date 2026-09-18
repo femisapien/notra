@@ -41,7 +41,11 @@ import {
   createViewPostTool,
   getCreatePostToolName,
 } from "@notra/ai/tools/post";
-import { getSkillByName, listAvailableSkills } from "@notra/ai/tools/skills";
+import {
+  createCreateSkillTool,
+  getSkillByName,
+  listAvailableSkills,
+} from "@notra/ai/tools/skills";
 import {
   createFetchWebpageTool,
   createUnavailableFetchWebpageTool,
@@ -62,6 +66,17 @@ import type {
   ValidatedIntegration,
 } from "@notra/ai/types/orchestration";
 import type { Tool } from "ai";
+
+/** Tools that write user-visible records and must pause for user approval. */
+export function getStandaloneApprovalToolNames(): Set<string> {
+  const toolNames = new Set<string>(["createSkill"]);
+  for (const contentType of contentTypeSchema.options) {
+    if (contentType !== "image") {
+      toolNames.add(getCreatePostToolName(contentType));
+    }
+  }
+  return toolNames;
+}
 
 export function buildStandaloneToolSet(
   params: BuildStandaloneToolSetParams,
@@ -87,7 +102,6 @@ export function buildStandaloneToolSet(
       {
         organizationId,
         contentType,
-        needsApproval: true,
         chatId,
         sourceMetadata: chatId ? { chatId } : undefined,
       },
@@ -152,8 +166,9 @@ export function buildStandaloneToolSet(
 
   tools.listAvailableSkills = listAvailableSkills({ organizationId });
   tools.getSkillByName = getSkillByName({ organizationId });
+  tools.createSkill = createCreateSkillTool({ organizationId });
   descriptions.push(
-    "**Skills**: Access knowledge and writing guidelines using listAvailableSkills and getSkillByName"
+    "**Skills**: Access knowledge and writing guidelines using listAvailableSkills and getSkillByName. Create a new reusable writing skill with createSkill when the user explicitly asks for one or a clearly new, recurring writing need appears."
   );
   const hasContextDev = isWebSearchAvailable();
   tools[FETCH_WEBPAGE_TOOL_NAME] = hasContextDev

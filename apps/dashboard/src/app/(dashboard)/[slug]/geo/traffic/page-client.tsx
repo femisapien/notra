@@ -2,6 +2,10 @@
 
 import { GEO_TRAFFIC_REVEAL_MS } from "@notra/geo-core/constants/geo";
 import { isTrafficPagePending } from "@notra/geo-core/utils/ai-traffic";
+import {
+  ingestAllowedHosts,
+  unionTrafficHosts,
+} from "@notra/geo-core/utils/geo-project-domains";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
 import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
@@ -16,10 +20,7 @@ import { TrafficEmpty } from "@/components/geo/traffic-empty";
 import { TrafficPagesCard } from "@/components/geo/traffic-pages-card";
 import { InstrumentReveal } from "@/components/instrument/instrument-reveal";
 import { PageContainer } from "@/components/layout/container";
-import {
-  GeoProjectProvider,
-  useGeoProjectScope,
-} from "@/components/providers/geo-project-provider";
+import { useGeoProjectScope } from "@/components/providers/geo-project-provider";
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
 import {
   EMPTY_STATE_TABLE_COLUMNS,
@@ -32,25 +33,17 @@ import {
   useGeoSettings,
   useGeoTrafficPages,
 } from "@/lib/hooks/use-geo";
-import { useGeoProjectQueryState } from "@/lib/hooks/use-geo-project-query";
+import { useGeoActiveProject } from "@/lib/hooks/use-geo-active-project";
 import { useGeoRange } from "@/lib/hooks/use-geo-range";
+import { useGeoTrafficHostQuery } from "@/lib/hooks/use-geo-traffic-host";
 import type { GeoPageClientProps } from "@/types/geo";
+import { trafficHostsFromPages } from "@/utils/ai-traffic-pages";
 import { withGeoProject } from "@/utils/geo-paths";
 import { geoSettingsPath } from "@/utils/settings-path";
 
 import { GeoTrafficSkeleton } from "./skeleton";
 
 export default function PageClient({ organizationSlug }: GeoPageClientProps) {
-  const [projectParam] = useGeoProjectQueryState();
-
-  return (
-    <GeoProjectProvider projectId={projectParam ?? undefined}>
-      <TrafficPageContent organizationSlug={organizationSlug} />
-    </GeoProjectProvider>
-  );
-}
-
-function TrafficPageContent({ organizationSlug }: GeoPageClientProps) {
   const { projectId } = useGeoProjectScope();
   const { getOrganization, activeOrganization } = useOrganizationsContext();
   const orgFromList = getOrganization(organizationSlug);
@@ -59,8 +52,10 @@ function TrafficPageContent({ organizationSlug }: GeoPageClientProps) {
       ? activeOrganization
       : orgFromList;
   const organizationId = organization?.id ?? "";
+  const { domain: brandDomain } = useGeoActiveProject(organizationId);
 
   const geoRange = useGeoRange();
+  const [hostQuery] = useGeoTrafficHostQuery();
   const { data: settingsData, isPending: isSettingsPending } =
     useGeoSettings(organizationId);
   const { data: traffic, isPending: isTrafficPending } = useAiTraffic(
@@ -69,9 +64,15 @@ function TrafficPageContent({ organizationSlug }: GeoPageClientProps) {
   );
   const { data: ingestSetup, isPending: isIngestPending } =
     useGeoIngestSetup(organizationId);
+  const inventoryPages = useGeoTrafficPages(organizationId, geoRange.query);
   const { data: trafficPages, isPending: isPagesPending } = useGeoTrafficPages(
     organizationId,
-    geoRange.query
+    geoRange.query,
+    hostQuery
+  );
+  const knownHosts = unionTrafficHosts(
+    ingestAllowedHosts(brandDomain, settingsData?.settings?.domains),
+    trafficHostsFromPages(inventoryPages.data?.pages ?? [])
   );
 
   const settings = settingsData?.settings ?? null;
@@ -124,7 +125,7 @@ function TrafficPageContent({ organizationSlug }: GeoPageClientProps) {
   if (!settings) {
     return (
       <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
-        <div className="w-full space-y-6 px-4 lg:px-6">
+        <div className="w-full min-w-0 space-y-6 px-4 lg:px-6">
           <header className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight">AI Traffic</h1>
             <p className="text-muted-foreground text-sm">
@@ -149,8 +150,10 @@ function TrafficPageContent({ organizationSlug }: GeoPageClientProps) {
 
   const header = (
     <header className="flex flex-wrap items-start justify-between gap-3">
-      <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">AI Traffic</h1>
+      <div className="min-w-0 space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          AI Traffic
+        </h1>
         <p className="text-muted-foreground text-sm">
           AI crawlers and referrals visiting your site
         </p>
@@ -162,7 +165,7 @@ function TrafficPageContent({ organizationSlug }: GeoPageClientProps) {
   if (isEmptyTraffic) {
     return (
       <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
-        <div className="flex w-full flex-col gap-6 px-4 lg:px-6">
+        <div className="flex w-full min-w-0 flex-col gap-6 px-4 lg:px-6">
           {header}
           <InstrumentReveal active={revealActive} order={0}>
             <TrafficEmpty setup={ingestSetup} />
@@ -188,6 +191,7 @@ function TrafficPageContent({ organizationSlug }: GeoPageClientProps) {
           </InstrumentReveal>
           <InstrumentReveal active={revealActive} order={1}>
             <TrafficPagesCard
+              hosts={knownHosts}
               isPending={isPagesPending}
               pages={trafficPages?.pages ?? []}
             />

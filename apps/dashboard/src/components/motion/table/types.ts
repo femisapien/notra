@@ -43,6 +43,8 @@ export interface TableProps<T> {
   sort?: SortState | null;
   defaultSort?: SortState | null;
   onSortChange?: (sort: SortState | null) => void;
+  /** Rows already arrive sorted (for example by the server); header clicks only report the sort. */
+  manualSort?: boolean;
   /** Allow dragging the right edge of a header to resize that column. */
   resizable?: boolean;
   /** Minimum column width in px when resizing. */
@@ -104,6 +106,8 @@ export interface TableProps<T> {
   flushBottom?: boolean;
   /** Pad the header band so the table can tuck 20px under the rounded bottom of a surface above it. */
   overlapTop?: boolean;
+  /** Fade the bottom edge while more rows can be scrolled into view. */
+  scrollFade?: boolean;
   className?: string;
 }
 

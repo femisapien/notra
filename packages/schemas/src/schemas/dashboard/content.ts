@@ -15,13 +15,12 @@ import { BLOG_POST_SUBTYPES } from "@notra/db/constants/content";
 // biome-ignore lint/performance/noNamespaceImport: Zod recommended way to import
 import * as z from "zod";
 
-import {
-  GITHUB_CONTENT_PATH_MAX_LENGTH,
-  GITHUB_PATH_INVALID_CHARACTERS_REGEX,
-  GITHUB_PUBLISH_CONTENT_TYPES,
-} from "../../constants/dashboard/github";
+import { GITHUB_PUBLISH_CONTENT_TYPES } from "../../constants/dashboard/github";
+import { createPostFieldsSchema, postSlugSchema } from "../shared/post";
 import {
   LOOKBACK_WINDOWS,
+  repositoryContentFilePathSchema,
+  repositoryRelativePathSchema,
   SUPPORTED_AUTOMATION_OUTPUT_TYPES,
 } from "./integrations";
 
@@ -89,6 +88,11 @@ export const contentSchema = z.object({
 
 export type ContentResponse = z.infer<typeof contentSchema>;
 
+/**
+ * List item for `content.list`. Bodies are not shipped: `content` is only set
+ * for image posts (it holds the image URL) and `markdown` is a leading excerpt
+ * for text posts. Use `content.get` for the full post.
+ */
 export const postSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -96,8 +100,6 @@ export const postSchema = z.object({
   content: z.string(),
   htmlUrl: z.string().nullable(),
   markdown: z.string().nullable(),
-  rawHtml: z.string().nullable(),
-  recommendations: z.string().nullable(),
   contentType: contentTypeSchema,
   contentSubtype: z.enum(BLOG_POST_SUBTYPES).nullable(),
   status: postStatusSchema,
@@ -322,12 +324,10 @@ export const chatRequestSchema = z.object({
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
-const slugFieldSchema = z.string().slugify().min(1).max(POST_SLUG_MAX_LENGTH);
-
 export const updateContentSchema = z
   .object({
     title: z.string().trim().min(1).max(POST_TITLE_MAX_LENGTH).optional(),
-    slug: slugFieldSchema.nullable().optional(),
+    slug: postSlugSchema.nullable().optional(),
     markdown: z.string().max(POST_MARKDOWN_MAX_LENGTH).optional(),
     status: postStatusSchema.optional(),
   })
@@ -344,28 +344,13 @@ export const updateContentSchema = z
 
 export type UpdateContentInput = z.infer<typeof updateContentSchema>;
 
-const githubMarkdownPathSchema = z
-  .string()
-  .trim()
-  .min(1, "File path is required")
-  .max(GITHUB_CONTENT_PATH_MAX_LENGTH - ".md".length, "File path is too long")
-  .refine((path) => !path.startsWith("/"), "Enter a repository-relative path")
-  .refine((path) => !path.endsWith("/"), "File path must include a file name")
-  .refine((path) => !path.includes("\\"), "Use forward slashes in file paths")
-  .refine(
-    (path) => !GITHUB_PATH_INVALID_CHARACTERS_REGEX.test(path),
-    "File path contains invalid characters"
-  )
-  .refine(
-    (path) =>
-      path
-        .split("/")
-        .every((segment) => segment && segment !== "." && segment !== ".."),
-    "File path contains an invalid segment"
-  )
-  .transform((path) =>
-    path.toLowerCase().endsWith(".md") ? path : `${path}.md`
-  );
+export const createPostInputSchema = contentOrganizationIdInputSchema
+  .extend(contentProjectIdInputSchema.shape)
+  .extend(createPostFieldsSchema.shape);
+
+const githubMarkdownPathSchema = repositoryRelativePathSchema
+  .transform((path) => (/\.(?:md|mdx)$/i.test(path) ? path : `${path}.md`))
+  .pipe(repositoryContentFilePathSchema);
 
 export const publishContentToGitHubSchema = z.object({
   contentType: z.enum(GITHUB_PUBLISH_CONTENT_TYPES).default("changelog"),

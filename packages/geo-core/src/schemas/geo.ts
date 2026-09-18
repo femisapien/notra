@@ -28,6 +28,7 @@ import {
   GEO_MAX_ALIASES,
   GEO_MAX_COMPETITORS,
   GEO_MAX_CONVERSION_PATHS,
+  GEO_MAX_DOMAINS,
   GEO_MAX_ENGINES,
   GEO_MAX_LANGUAGES,
   GEO_MAX_PROMPTS,
@@ -43,7 +44,9 @@ import {
   GEO_WRITER_TOPIC_MAX_LENGTH,
   GEO_WRITER_TOPIC_MIN_LENGTH,
 } from "../constants/geo";
+import { MAX_JUDGE_COMPETITORS } from "../constants/geo-conversations";
 import { GEO_CSV_IMPORT_MAX_ROWS } from "../constants/geo-import";
+import { normalizeProjectDomain } from "../utils/geo-project-domains";
 import { normalizePromptTags } from "../utils/geo-prompt-tags";
 import {
   geoCompetitorDomainSchema,
@@ -54,7 +57,6 @@ import { publicWebsiteUrlSchema } from "./url";
 
 const GEO_SUPPORTED_LANGUAGE_SET = new Set<string>(SUPPORTED_LANGUAGES);
 const MAX_GEO_TRAFFIC_LOG_FILTER_VALUES = 3;
-const MAX_JUDGE_COMPETITORS = 15;
 const MAX_EXCERPT_LENGTH = 300;
 const MAX_DAYS = 365;
 const GEO_DAY_STRING_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -139,6 +141,14 @@ export const geoConversionPathSchema = string()
     message: "Conversion paths must start with /",
   });
 
+export const geoProjectDomainSchema = string()
+  .trim()
+  .min(1)
+  .max(GEO_SHORT_FIELD_MAX_LENGTH)
+  .refine((value) => normalizeProjectDomain(value) !== null, {
+    message: "Enter a domain like example.com",
+  });
+
 export const geoSettingsUpsertInputSchema = geoOrganizationInputSchema.extend({
   companyName: string().min(1),
   aliases: array(string().min(1)).max(GEO_MAX_ALIASES),
@@ -146,6 +156,7 @@ export const geoSettingsUpsertInputSchema = geoOrganizationInputSchema.extend({
   conversionPaths: array(geoConversionPathSchema)
     .max(GEO_MAX_CONVERSION_PATHS)
     .optional(),
+  domains: array(geoProjectDomainSchema).max(GEO_MAX_DOMAINS).optional(),
   languages: array(string().min(1))
     .min(1)
     .max(GEO_MAX_LANGUAGES)
@@ -163,6 +174,7 @@ export const geoSettingsUpsertInputSchema = geoOrganizationInputSchema.extend({
   nonZdrApprovedEngines: array(
     string().min(1).max(GEO_SHORT_FIELD_MAX_LENGTH)
   ).max(GEO_MAX_ENGINES),
+  trackWithoutSearch: boolean().optional(),
   pausedAutoPromptIds: array(string().min(1).max(GEO_SHORT_FIELD_MAX_LENGTH))
     .max(GEO_MAX_PROMPTS)
     .optional(),
@@ -275,6 +287,11 @@ export const geoPromptRescanInputSchema = geoOrganizationInputSchema.extend({
     .min(1)
     .max(GEO_MAX_ENGINES)
     .optional(),
+});
+
+export const geoPromptGapIgnoreInputSchema = geoOrganizationInputSchema.extend({
+  promptId: string().min(1).max(GEO_SHORT_FIELD_MAX_LENGTH),
+  ignored: boolean(),
 });
 
 export const geoTimeseriesInputSchema = geoOrganizationInputSchema.extend({
@@ -440,6 +457,7 @@ export const geoTrafficLogInputSchema = geoOrganizationInputSchema.extend({
   )
     .max(MAX_GEO_TRAFFIC_LOG_FILTER_VALUES)
     .optional(),
+  host: string().trim().max(GEO_SHORT_FIELD_MAX_LENGTH).optional(),
 });
 
 export const geoRequestPayloadSchema = object({
@@ -481,6 +499,7 @@ export const geoTrafficPagesInputSchema = geoOrganizationInputSchema.extend({
   ...geoWindowFields,
   limit: number().int().min(1).max(MAX_AI_TRAFFIC_PAGES_LIMIT).optional(),
   visitorType: enumType(["crawler", "ai_referral"]).optional(),
+  host: string().trim().max(GEO_SHORT_FIELD_MAX_LENGTH).optional(),
 });
 
 export const geoWriterPlanInputSchema = geoOrganizationInputSchema.extend({

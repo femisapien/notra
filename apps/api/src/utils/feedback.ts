@@ -1,18 +1,21 @@
-import { classifyAgentFeedback } from "@notra/ai/jobs/feedback-classifier";
-import { agentFeedback, organizations, projects } from "@notra/db/schema";
-import { and, eq } from "drizzle-orm";
+import { Effect } from "effect";
 import type { Context } from "hono";
-import { nanoid } from "nanoid";
 
+import {
+  FEEDBACK_NOT_FOUND_ERROR,
+  FEEDBACK_ORGANIZATION_NOT_FOUND_ERROR,
+  FEEDBACK_PROJECT_NOT_FOUND_ERROR,
+} from "../constants/feedback";
+import type { FeedbackDatabaseError } from "../errors/feedback";
 import { isIngestAuth } from "../types/auth";
 import type {
   AgentFeedbackRow,
+  FeedbackDomainError,
   SerializedAgentFeedback,
-  SubmitFeedbackBody,
-  SubmitFeedbackOutcome,
 } from "../types/feedback";
 
 const PUBLIC_FEEDBACK_INGEST_PATH_REGEX = /^\/v1\/feedback\/[^/]+\/?$/;
+const FEEDBACK_API_PATH_REGEX = /^\/v1\/feedback(?:\/|$)/;
 
 export function serializeFeedback(
   row: AgentFeedbackRow
@@ -25,9 +28,13 @@ export function serializeFeedback(
   };
 }
 
-function getIngestProjectId(c: Context): string | null | undefined {
+export function getIngestProjectId(c: Context): string | undefined {
   const auth = c.get("auth");
-  return auth && isIngestAuth(auth) ? auth.projectId : undefined;
+  if (!auth || !isIngestAuth(auth)) {
+    return undefined;
+  }
+  // Unbound org-scoped ingest tokens use null; fall back to body.projectId.
+  return auth.projectId ?? undefined;
 }
 
 export function isPublicFeedbackIngestRequest(
@@ -37,112 +44,40 @@ export function isPublicFeedbackIngestRequest(
   return method === "POST" && PUBLIC_FEEDBACK_INGEST_PATH_REGEX.test(pathname);
 }
 
-export async function findOrganizationIdBySlug(
-  c: Context,
-  slug: string
-): Promise<string | null> {
-  const organization = await c.get("db").query.organizations.findFirst({
-    columns: { id: true },
-    where: eq(organizations.slug, slug.toLowerCase()),
-  });
-  return organization?.id ?? null;
+/**
+ * Any request aimed at the feedback resource — public slug ingest included.
+ * The subscription gate skips the whole resource because feedback is free.
+ */
+export function isFeedbackApiRequest(pathname: string): boolean {
+  return FEEDBACK_API_PATH_REGEX.test(pathname);
 }
 
-async function projectExists(
-  c: Context,
-  organizationId: string,
-  projectId: string
-): Promise<boolean> {
-  const project = await c.get("db").query.projects.findFirst({
-    columns: { id: true },
-    where: and(
-      eq(projects.id, projectId),
-      eq(projects.organizationId, organizationId)
-    ),
-  });
-  return project !== undefined;
+/** Leave unexpected database errors to Hono's central error handler. */
+export function runFeedbackProgram<A, E extends FeedbackDomainError>(
+  program: Effect.Effect<A, E | FeedbackDatabaseError>
+) {
+  return Effect.runPromise(
+    Effect.result(
+      program.pipe(
+        Effect.catchTag("FeedbackDatabaseError", (failure) =>
+          Effect.die(failure.cause)
+        )
+      )
+    )
+  );
 }
 
-export async function submitFeedback(
+export function respondToFeedbackFailure(
   c: Context,
-  organizationId: string,
-  body: SubmitFeedbackBody
-): Promise<SubmitFeedbackOutcome> {
-  const tokenProjectId = getIngestProjectId(c);
-  const projectId =
-    tokenProjectId === undefined ? (body.projectId ?? null) : tokenProjectId;
-
-  if (
-    tokenProjectId === undefined &&
-    projectId &&
-    !(await projectExists(c, organizationId, projectId))
-  ) {
-    return { kind: "project_not_found" };
+  failure: FeedbackDomainError
+) {
+  if (failure._tag === "FeedbackOrganizationNotFoundError") {
+    return c.json({ error: FEEDBACK_ORGANIZATION_NOT_FOUND_ERROR }, 404);
   }
-
-  const feedbackId = nanoid();
-  const needsClassification = !(body.kind && body.sentiment && body.title);
-  const classification = needsClassification
-    ? await classifyAgentFeedback({
-        organizationId,
-        feedbackId,
-        message: body.message,
-        title: body.title,
-        contextUrl: body.contextUrl,
-        agentClient: body.agentClient,
-      })
-    : null;
-
-  const db = c.get("db");
-  const [created] = await db
-    .insert(agentFeedback)
-    .values({
-      id: feedbackId,
-      organizationId,
-      projectId,
-      source: body.source,
-      kind: body.kind ?? classification?.kind ?? "other",
-      sentiment: body.sentiment ?? classification?.sentiment ?? null,
-      title: body.title ?? classification?.title ?? null,
-      message: body.message,
-      agentClient: body.agentClient ?? null,
-      agentModel: body.agentModel ?? null,
-      toolVersion: body.toolVersion ?? null,
-      userAgent: body.userAgent ?? c.req.header("user-agent") ?? null,
-      contextUrl: body.contextUrl ?? null,
-      externalId: body.externalId ?? null,
-      idempotencyKey: body.idempotencyKey ?? null,
-      metadata: body.metadata ?? null,
-    })
-    .onConflictDoNothing({
-      target: [agentFeedback.organizationId, agentFeedback.idempotencyKey],
-    })
-    .returning();
-
-  if (created) {
-    return {
-      kind: "accepted",
-      feedback: serializeFeedback(created),
-      deduplicated: false,
-    };
+  if (failure._tag === "FeedbackProjectNotFoundError") {
+    return c.json({ error: FEEDBACK_PROJECT_NOT_FOUND_ERROR }, 404);
   }
-
-  const existing = body.idempotencyKey
-    ? await db.query.agentFeedback.findFirst({
-        where: and(
-          eq(agentFeedback.organizationId, organizationId),
-          eq(agentFeedback.idempotencyKey, body.idempotencyKey)
-        ),
-      })
-    : undefined;
-
-  if (!existing) {
-    return { kind: "not_found" };
+  if (failure._tag === "FeedbackNotFoundError") {
+    return c.json({ error: FEEDBACK_NOT_FOUND_ERROR }, 404);
   }
-
-  return {
-    kind: "accepted",
-    feedback: serializeFeedback(existing),
-    deduplicated: true,
-  };
 }

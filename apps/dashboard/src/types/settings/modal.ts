@@ -3,20 +3,29 @@ import type { ReactNode } from "react";
 
 export type SettingsSectionId =
   | "account"
+  | "appearance"
   | "general"
   | "members"
   | "notifications"
   | "attachments"
+  | "integrations"
   | "billing"
   | "usage"
+  | "usage-alerts"
   | "credits"
   | "logs"
+  | "dev"
   | "geo"
   | "geo-brand"
   | "geo-languages"
   | "geo-models";
 
-export type SettingsNavGroupId = "account" | "organization" | "geo";
+export type StandardSettingsSectionId = Exclude<
+  SettingsSectionId,
+  "geo" | "geo-brand" | "geo-languages" | "geo-models"
+>;
+
+export type SettingsNavGroupId = "account" | "organization" | "geo" | "dev";
 
 export interface SettingsNavItem {
   id: SettingsSectionId;

@@ -4,6 +4,7 @@ import {
   GEO_CONVERSION_PATH_MAX_LENGTH,
   GEO_MAX_ALIASES,
   GEO_MAX_CONVERSION_PATHS,
+  GEO_MAX_DOMAINS,
   GEO_MAX_ENGINES,
   GEO_MAX_LANGUAGES,
   GEO_MAX_PROMPTS,
@@ -13,6 +14,7 @@ import {
   GEO_SCAN_MIN_INTERVAL_HOURS,
   GEO_SHORT_FIELD_MAX_LENGTH,
 } from "@notra/geo-core/constants/geo";
+import { normalizeProjectDomain } from "@notra/geo-core/utils/geo-project-domains";
 
 import { organizationResponseSchema } from "./content";
 import { createGeoShortTextSchema } from "./geo-fields";
@@ -25,11 +27,13 @@ const settingsSchema = z
     companyName: z.string(),
     aliases: z.array(z.string()),
     conversionPaths: z.array(z.string()),
+    domains: z.array(z.string()),
     competitors: z.array(z.string()),
     languages: z.array(z.string()),
     engines: z.array(z.string()),
     enforceZdr: z.boolean(),
     nonZdrApprovedEngines: z.array(z.string()),
+    trackWithoutSearch: z.boolean(),
     pausedAutoPromptIds: z.array(z.string()),
     removedAutoPromptIds: z.array(z.string()),
     enabled: z.boolean(),
@@ -73,6 +77,19 @@ export const patchSettingsRequestSchema = z
         description:
           "Paths that count as a conversion when an AI referral reaches them. Prefix match. Omit to keep the stored list.",
       }),
+    domains: z
+      .array(
+        createGeoShortTextSchema().refine(
+          (value) => normalizeProjectDomain(value) !== null,
+          { message: "Enter a domain like example.com" }
+        )
+      )
+      .max(GEO_MAX_DOMAINS)
+      .optional()
+      .openapi({
+        description:
+          "Additional hostnames that send AI traffic to this project, besides the brand website. Subdomains of a listed domain are included. Omit to keep the stored list.",
+      }),
     languages: z
       .array(createGeoShortTextSchema())
       .min(1)
@@ -82,6 +99,10 @@ export const patchSettingsRequestSchema = z
     nonZdrApprovedEngines: z
       .array(createGeoShortTextSchema())
       .max(GEO_MAX_ENGINES),
+    trackWithoutSearch: z.boolean().optional().openapi({
+      description:
+        "Also scan search-capable models without web search. Omit to keep the stored value (default false).",
+    }),
     pausedAutoPromptIds: z
       .array(createGeoShortTextSchema())
       .max(GEO_MAX_PROMPTS)

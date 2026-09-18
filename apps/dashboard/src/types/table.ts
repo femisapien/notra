@@ -25,6 +25,7 @@ export interface TablePaginationState {
 export interface TablePaginationProps extends TablePaginationState {
   itemLabel?: string;
   className?: string;
+  showPageNumbers?: boolean;
 }
 
 export interface TableSkeletonProps {
@@ -45,6 +46,13 @@ export type TableFooterSurfaceProps = Pick<
   TableProps<unknown>,
   "footer" | "flushBottom"
 >;
+
+export interface TableScrollFadeProps extends Pick<
+  TableProps<unknown>,
+  "scrollFade"
+> {
+  atEnd: boolean;
+}
 
 export interface TableColumnGroupProps<T> {
   columns: TableColumn<T>[];
