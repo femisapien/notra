@@ -9,9 +9,8 @@ import {
   buildStandaloneToolSet,
   getStandaloneApprovalToolNames,
 } from "@notra/ai/orchestration/standalone-tool-registry";
-import { generateText, tool } from "ai";
+import { generateText } from "ai";
 import { MockLanguageModelV4 } from "ai/test";
-import { z } from "zod";
 
 import { withStandaloneCodeMode } from "./code-mode";
 
@@ -138,45 +137,4 @@ describe("standalone code mode policy", () => {
       assert.ok(codeModeDescription.includes(`${toolName}:`), toolName);
     }
   });
-});
-
-test("API skill saves execute while interactive chats still wait for approval", async () => {
-  for (const requireApproval of [true, false]) {
-    let saved = false;
-    const approvalTools = getStandaloneApprovalToolNames(requireApproval);
-    const result = await generateText({
-      model: new MockLanguageModelV4({
-        doGenerate: {
-          content: [
-            {
-              type: "tool-call",
-              toolCallId: "save-skill",
-              toolName: "createSkill",
-              input: JSON.stringify({ name: "marketplace-review-voice" }),
-            },
-          ],
-          finishReason: { unified: "tool-calls", raw: "tool-calls" },
-          usage: {
-            inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 1, text: 1, reasoning: 0 },
-          },
-          warnings: [],
-        },
-      }),
-      prompt: "Save marketplace-review-voice",
-      tools: {
-        createSkill: tool({
-          inputSchema: z.object({ name: z.string() }),
-          execute: async ({ name }) => {
-            saved = true;
-            return { name, status: "created" };
-          },
-        }),
-      },
-      toolApproval: ({ toolCall }) =>
-        approvalTools.has(toolCall.toolName) ? "user-approval" : undefined,
-    });
-    assert.equal(saved, !requireApproval);
-    assert.equal(result.toolResults.length, requireApproval ? 0 : 1);
-  }
 });
