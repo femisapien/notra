@@ -25,6 +25,16 @@ const nextConfig: NextConfig = {
   },
   turbopack: {
     root: path.resolve(__dirname, "../.."),
+    ...(process.env.NODE_ENV === "production"
+      ? {
+          resolveAlias: {
+            "@ai-sdk/devtools": path.resolve(
+              __dirname,
+              "src/lib/stubs/ai-sdk-devtools.ts"
+            ),
+          },
+        }
+      : {}),
   },
   transpilePackages: [
     "@notra/db",
@@ -42,6 +52,7 @@ const nextConfig: NextConfig = {
     "@resvg/resvg-js",
     "@cursor/sdk",
     "@ai-sdk/code-mode",
+    "@ai-sdk/devtools",
     "run",
   ],
   skipTrailingSlashRedirect: true,

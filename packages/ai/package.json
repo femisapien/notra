@@ -2,6 +2,12 @@
   "name": "@notra/ai",
   "version": "0.0.1",
   "private": true,
+  "imports": {
+    "#model-devtools": {
+      "development": "./src/model.devtools.ts",
+      "default": "./src/model.devtools.stub.ts"
+    }
+  },
   "exports": {
     "./gateway": "./src/gateway.ts",
     "./model": "./src/model.ts",

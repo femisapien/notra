@@ -6,15 +6,13 @@ import {
 import type { GatewayArgs, GatewayResult } from "@notra/ai/types/gateway";
 import type { SupermemoryOptions } from "@notra/ai/types/model";
 import { withSupermemory } from "@supermemory/tools/ai-sdk";
-import { type LanguageModelMiddleware, wrapLanguageModel } from "ai";
+
+import { wrapModelWithDevTools } from "#model-devtools";
 
 export interface CreateModelOptions {
   supermemory?: Omit<SupermemoryOptions, "mode" | "addMemory">;
   disableMemory?: boolean;
 }
-
-type DevToolsMiddleware =
-  (typeof import("@ai-sdk/devtools"))["devToolsMiddleware"];
 
 export function createModel(
   organizationId: string | undefined,
@@ -53,42 +51,5 @@ function wrapModelForDevTools(model: GatewayResult): GatewayResult {
     return model;
   }
 
-  return wrapLanguageModel({
-    model,
-    middleware: createLazyDevToolsMiddleware(),
-  }) as GatewayResult;
-}
-
-function createLazyDevToolsMiddleware(): LanguageModelMiddleware {
-  let middlewarePromise: Promise<LanguageModelMiddleware> | undefined;
-
-  const getMiddleware = async () => {
-    middlewarePromise ??= import("@ai-sdk/devtools").then(
-      ({ devToolsMiddleware }: { devToolsMiddleware: DevToolsMiddleware }) =>
-        devToolsMiddleware()
-    );
-    return middlewarePromise;
-  };
-
-  return {
-    specificationVersion: "v4",
-    async transformParams(options) {
-      const middleware = await getMiddleware();
-      return middleware.transformParams
-        ? middleware.transformParams(options)
-        : options.params;
-    },
-    async wrapGenerate(options) {
-      const middleware = await getMiddleware();
-      return middleware.wrapGenerate
-        ? middleware.wrapGenerate(options)
-        : options.doGenerate();
-    },
-    async wrapStream(options) {
-      const middleware = await getMiddleware();
-      return middleware.wrapStream
-        ? middleware.wrapStream(options)
-        : options.doStream();
-    },
-  };
+  return wrapModelWithDevTools(model);
 }

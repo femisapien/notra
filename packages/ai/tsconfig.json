@@ -6,7 +6,8 @@
     "moduleResolution": "Bundler",
     "baseUrl": ".",
     "paths": {
-      "@notra/ai/*": ["./src/*"]
+      "@notra/ai/*": ["./src/*"],
+      "#model-devtools": ["./src/model.devtools.ts"]
     },
     "strictNullChecks": true,
     "types": ["node", "bun-types/test"]
