@@ -486,7 +486,7 @@ export const GEO_MODELS_PER_PROVIDER = 10;
  * consumer assistant runs.
  */
 export const GEO_MODEL_HIDDEN_ID_PATTERN =
-  /(-nano|-lite|-thinking|-reasoning|-multi-agent|-\d{4})$|^openai\/.+-pro$|codex|-code\b|gemma|llama|grok-build/;
+  /(-nano|-lite|-thinking|-reasoning|-multi-agent|-\d{4}(?:\d{4})?)$|^openai\/.+-pro$|codex|-code\b|gemma|llama|grok-build/;
 /** Version numbers stripped to group a model with its older releases. */
 export const GEO_MODEL_VERSION_PATTERN = /\d+(?:\.\d+)*/g;
 export const GEO_MODEL_EXCLUDED_TAGS: ReadonlySet<string> = new Set([
