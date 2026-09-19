@@ -32,6 +32,7 @@ export const GITHUB_MENTION_LOG_EVENTS = {
   completed: "github.mention.completed",
   sandboxStarted: "github.mention.sandbox.started",
   sandboxCompleted: "github.mention.sandbox.completed",
+  changeBlocked: "github.mention.change.blocked",
 } as const;
 
 export const GITHUB_MENTION_SEPARATE_PR_PATTERNS = [
@@ -70,3 +71,49 @@ export const GITHUB_MENTION_WRITABLE_EXTENSIONS = {
 /** Data files that configure builds, deploys, or dependencies. */
 export const GITHUB_MENTION_PROTECTED_DATA_FILE_PATTERN =
   /^(?:package(?:-lock)?|composer|deno|bun|tsconfig(?:\..+)?|jsconfig|vercel|turbo|nx|lerna|netlify|wrangler|fly|render|railway|firebase|app|biome|renovate|action|serverless|cloudbuild|codecov|cargo|pyproject|pnpm-(?:workspace|lock)|(?:docker-)?compose(?:\..+)?|(?:azure|bitbucket)-pipelines|buildspec|skaffold|chart|values)\.(?:jsonc?|ya?ml|toml)$/i;
+
+/** Markup that a site build renders, so new active content in it can execute. */
+export const GITHUB_MENTION_MARKUP_EXTENSIONS = ["md", "mdx", "markdown"];
+
+/**
+ * Content a mention may keep but never add: it runs at build time (MDX module
+ * code) or in the reader's browser. `mdxOnly` rules would flag prose elsewhere.
+ */
+export const GITHUB_MENTION_ACTIVE_CONTENT_RULES = [
+  {
+    reason: "adds an MDX import or export",
+    pattern: /^\s*(?:import|export)\s/,
+    mdxOnly: true,
+  },
+  {
+    reason: "adds a script tag",
+    pattern: /<script(?:[\s>/]|$)/i,
+    mdxOnly: false,
+  },
+  {
+    reason: "adds an embedded frame or object",
+    pattern: /<(?:iframe|object|embed)(?:[\s>/]|$)/i,
+    mdxOnly: false,
+  },
+  {
+    reason: "adds a javascript: URL",
+    pattern: /javascript\s*:/i,
+    mdxOnly: false,
+  },
+  {
+    reason: "adds an inline event handler",
+    pattern: /(?:^|\s)on[a-z]+\s*=\s*["'{]/i,
+    mdxOnly: false,
+  },
+] as const;
+
+/**
+ * Whose earlier comments reach the agent as thread context. On a public
+ * repository anyone can comment, and "yes, do that" must never resolve to a
+ * stranger's suggestion.
+ */
+export const GITHUB_MENTION_TRUSTED_AUTHOR_ASSOCIATIONS = [
+  "OWNER",
+  "MEMBER",
+  "COLLABORATOR",
+];

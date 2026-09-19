@@ -5,6 +5,7 @@ import type {
   GitHubMentionOctokit,
 } from "@notra/ai/types/github-mention";
 import { findOpenContentPublicationForPost } from "@notra/ai/utils/content-publication";
+import { reviewGitHubMentionChange } from "@notra/ai/utils/github-mention-change-review";
 import { partitionGitHubMentionPaths } from "@notra/ai/utils/github-mention-path-policy";
 import { carryOverImageTargets } from "@notra/ai/utils/github-mention-published-file";
 import { runGitHubMentionSandbox } from "@notra/ai/utils/github-mention-sandbox";
@@ -28,6 +29,9 @@ import { type Tool, tool } from "ai";
 import { and, eq } from "drizzle-orm";
 // biome-ignore lint/performance/noNamespaceImport: Zod recommended way to import
 import * as z from "zod";
+
+const ACTIVE_CONTENT_BLOCKED_MESSAGE =
+  "Nothing was committed. Mentions cannot add imports, exports, expressions, scripts, embeds, or event handlers to content; tell the commenter this needs a regular commit.";
 
 export interface GitHubMentionToolState extends GitHubMentionWriteState {
   committed: boolean;
@@ -184,15 +188,28 @@ export function buildGitHubMentionTools(params: {
             context,
             state,
           });
+          const fileContents = carryOverImageTargets(
+            markdown,
+            state.publishedFile ?? markdown
+          );
+          const review = await reviewGitHubMentionChange({
+            octokit,
+            context,
+            branch: target.branch,
+            files: [{ path: publication.path, contents: fileContents }],
+          });
+          if (review.blocked.length > 0) {
+            return {
+              error: ACTIVE_CONTENT_BLOCKED_MESSAGE,
+              blocked: review.blocked,
+            };
+          }
           const result = await updatePublishedContentAndCommit({
             octokit,
             organizationId: context.organizationId,
             postId: publication.postId,
             markdown,
-            fileContents: carryOverImageTargets(
-              markdown,
-              state.publishedFile ?? markdown
-            ),
+            fileContents,
             title,
             owner: context.owner,
             repo: context.repo,
@@ -250,6 +267,18 @@ export function buildGitHubMentionTools(params: {
             context,
             state,
           });
+          const review = await reviewGitHubMentionChange({
+            octokit,
+            context,
+            branch: target.branch,
+            files,
+          });
+          if (review.blocked.length > 0) {
+            return {
+              error: ACTIVE_CONTENT_BLOCKED_MESSAGE,
+              blocked: review.blocked,
+            };
+          }
           const commitSha = await commitFilesToPullRequest({
             octokit,
             owner: context.owner,

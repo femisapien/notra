@@ -7,6 +7,7 @@ import type {
   GitHubMentionContext,
   GitHubMentionOctokit,
 } from "@notra/ai/types/github-mention";
+import { reviewGitHubMentionChange } from "@notra/ai/utils/github-mention-change-review";
 import { logGitHubMentionEvent } from "@notra/ai/utils/github-mention-log";
 import { getGitHubMentionPathBlockReason } from "@notra/ai/utils/github-mention-path-policy";
 import { commitFilesToPullRequest } from "@notra/ai/utils/github-pr-commit";
@@ -181,10 +182,23 @@ export async function runGitHubMentionSandbox(params: {
         contents: await box.files.read(path),
       }))
     );
-    const files = reads.filter(
+    const readable = reads.filter(
       (file): file is { path: string; contents: string } =>
         typeof file.contents === "string"
     );
+    // Same gate as the direct commit tools: a file that gains active content
+    // is reported under skipped instead of committed.
+    const review = await reviewGitHubMentionChange({
+      octokit: params.octokit,
+      context: params.context,
+      branch: params.branch,
+      files: readable,
+    });
+    const blockedPaths = new Set(review.blocked.map((finding) => finding.path));
+    const files = readable.filter((file) => !blockedPaths.has(file.path));
+    for (const finding of review.blocked) {
+      changes.skipped.push({ path: finding.path, reason: finding.reason });
+    }
     const deletions = changes.deleted;
     if (files.length === 0 && deletions.length === 0) {
       logGitHubMentionEvent(GITHUB_MENTION_LOG_EVENTS.sandboxCompleted, {

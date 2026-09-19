@@ -100,6 +100,8 @@ export interface GitHubMentionThreadComment {
   threadRootId: number | null;
   authorLogin: string;
   authorIsBot: boolean;
+  /** Owner, organization member, or collaborator of the repository. */
+  authorIsTrusted: boolean;
   body: string;
 }
 

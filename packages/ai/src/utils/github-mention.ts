@@ -111,8 +111,9 @@ function stripReplyDecoration(body: string) {
 
 /**
  * The conversation before the mention, so "yes, do that" has something to
- * refer to. Keeps people and Notra itself, drops other bots (review bots are
- * long and irrelevant), and strips the diff and footer from Notra's replies.
+ * refer to. Keeps repository members and Notra itself, drops other bots (review
+ * bots are long and irrelevant) and outside commenters, and strips the diff and
+ * footer from Notra's replies.
  */
 export function buildGitHubMentionThread(params: {
   comments: readonly GitHubMentionThreadComment[];
@@ -149,7 +150,9 @@ export function buildGitHubMentionThread(params: {
       continue;
     }
     const isNotra = isNotraComment(comment);
-    if (comment.authorIsBot && !isNotra) {
+    // Other bots are noise, and people without a role on the repository are
+    // not part of the conversation the commenter is steering.
+    if (!isNotra && (comment.authorIsBot || !comment.authorIsTrusted)) {
       continue;
     }
     const body = (

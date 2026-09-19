@@ -2,6 +2,7 @@ import { GITHUB_API_VERSION_HEADER } from "@notra/ai/constants/autonomy-poll";
 import {
   GITHUB_CREATE_COMMIT_ON_BRANCH_MUTATION,
   GITHUB_MENTION_FILE_CONTENT_MAX_BYTES,
+  GITHUB_MENTION_TRUSTED_AUTHOR_ASSOCIATIONS,
 } from "@notra/ai/constants/github-mention";
 import type {
   CommitFilesToPullRequestParams,
@@ -108,6 +109,9 @@ export async function getRepositoryFileContents(params: {
   return Buffer.from(data.content, "base64").toString("utf8");
 }
 
+const TRUSTED_AUTHOR_ASSOCIATIONS = new Set<string>(
+  GITHUB_MENTION_TRUSTED_AUTHOR_ASSOCIATIONS
+);
 const LAST_PAGE_LINK_PATTERN = /[?&]page=(\d+)[^>]*>;\s*rel="last"/;
 
 /**
@@ -149,6 +153,9 @@ export async function listGitHubIssueComments(params: {
     threadRootId: null,
     authorLogin: comment.user?.login ?? "unknown",
     authorIsBot: comment.user?.type === "Bot",
+    authorIsTrusted: TRUSTED_AUTHOR_ASSOCIATIONS.has(
+      comment.author_association
+    ),
     body: comment.body ?? "",
   }));
 }
@@ -273,6 +280,9 @@ export async function listGitHubReviewComments(params: {
     threadRootId: comment.in_reply_to_id ?? comment.id,
     authorLogin: comment.user?.login ?? "unknown",
     authorIsBot: comment.user?.type === "Bot",
+    authorIsTrusted: TRUSTED_AUTHOR_ASSOCIATIONS.has(
+      comment.author_association
+    ),
     body: comment.body ?? "",
   }));
 }
