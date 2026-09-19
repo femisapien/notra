@@ -1,4 +1,5 @@
 import {
+  GITHUB_MENTION_ACTIVE_CONTENT_BLOCKED_MESSAGE,
   GITHUB_MENTION_LOG_EVENTS,
   GITHUB_MENTION_SANDBOX_TIMEOUT_MS,
 } from "@notra/ai/constants/github-mention";
@@ -188,26 +189,28 @@ export async function runGitHubMentionSandbox(params: {
       (file): file is { path: string; contents: string } =>
         typeof file.contents === "string"
     );
-    // Same gate as the direct commit tools: a file that gains active content
-    // is reported under skipped instead of committed.
+    // Same gate as the direct commit tools, and like them all or nothing. A
+    // partial commit could land the deletion half of a rename whose new path
+    // was blocked, and the content would be gone.
     const review = await reviewGitHubMentionChange({
       octokit: params.octokit,
       context: params.context,
       branch: params.branch,
       files: readable,
     });
-    const blockedPaths = new Set(review.blocked.map((finding) => finding.path));
-    const files = readable.filter((file) => !blockedPaths.has(file.path));
+    const isBlocked = review.blocked.length > 0;
     for (const finding of review.blocked) {
       changes.skipped.push({ path: finding.path, reason: finding.reason });
     }
-    const deletions = changes.deleted;
+    const files = isBlocked ? [] : readable;
+    const deletions = isBlocked ? [] : changes.deleted;
     if (files.length === 0 && deletions.length === 0) {
       logGitHubMentionEvent(GITHUB_MENTION_LOG_EVENTS.sandboxCompleted, {
         organizationId: params.context.organizationId,
         deliveryId: params.context.deliveryId,
         commitSha: null,
         files: [],
+        skipped: changes.skipped,
         durationMs: Date.now() - startedAt,
       });
       return {
@@ -217,6 +220,9 @@ export async function runGitHubMentionSandbox(params: {
         deleted: [],
         skipped: changes.skipped,
         postUpdated: false,
+        ...(isBlocked && {
+          error: GITHUB_MENTION_ACTIVE_CONTENT_BLOCKED_MESSAGE,
+        }),
       };
     }
     const commitSha = await commitFilesToPullRequest({

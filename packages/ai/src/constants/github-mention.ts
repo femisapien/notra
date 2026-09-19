@@ -107,6 +107,10 @@ export const GITHUB_MENTION_ACTIVE_CONTENT_RULES = [
   },
 ] as const;
 
+/** Tool result when a change adds active content; the agent relays it. */
+export const GITHUB_MENTION_ACTIVE_CONTENT_BLOCKED_MESSAGE =
+  "Nothing was committed. Mentions cannot add imports, exports, expressions, scripts, embeds, or event handlers to content; tell the commenter this needs a regular commit.";
+
 /**
  * Whose earlier comments reach the agent as thread context. On a public
  * repository anyone can comment, and "yes, do that" must never resolve to a

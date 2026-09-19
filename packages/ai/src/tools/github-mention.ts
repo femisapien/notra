@@ -1,4 +1,7 @@
-import { GITHUB_MENTION_FILE_CONTENT_MAX_BYTES } from "@notra/ai/constants/github-mention";
+import {
+  GITHUB_MENTION_ACTIVE_CONTENT_BLOCKED_MESSAGE,
+  GITHUB_MENTION_FILE_CONTENT_MAX_BYTES,
+} from "@notra/ai/constants/github-mention";
 import type {
   GitHubMentionContext,
   GitHubMentionFileChange,
@@ -29,9 +32,6 @@ import { type Tool, tool } from "ai";
 import { and, eq } from "drizzle-orm";
 // biome-ignore lint/performance/noNamespaceImport: Zod recommended way to import
 import * as z from "zod";
-
-const ACTIVE_CONTENT_BLOCKED_MESSAGE =
-  "Nothing was committed. Mentions cannot add imports, exports, expressions, scripts, embeds, or event handlers to content; tell the commenter this needs a regular commit.";
 
 export interface GitHubMentionToolState extends GitHubMentionWriteState {
   committed: boolean;
@@ -200,7 +200,7 @@ export function buildGitHubMentionTools(params: {
           });
           if (review.blocked.length > 0) {
             return {
-              error: ACTIVE_CONTENT_BLOCKED_MESSAGE,
+              error: GITHUB_MENTION_ACTIVE_CONTENT_BLOCKED_MESSAGE,
               blocked: review.blocked,
             };
           }
@@ -275,7 +275,7 @@ export function buildGitHubMentionTools(params: {
           });
           if (review.blocked.length > 0) {
             return {
-              error: ACTIVE_CONTENT_BLOCKED_MESSAGE,
+              error: GITHUB_MENTION_ACTIVE_CONTENT_BLOCKED_MESSAGE,
               blocked: review.blocked,
             };
           }
