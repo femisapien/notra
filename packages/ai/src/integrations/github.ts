@@ -253,6 +253,7 @@ export async function getGitHubAppInstallationPublishAccess(
     return {
       contents: data.permissions?.contents,
       pullRequests: data.permissions?.pull_requests,
+      settingsUrl: data.html_url,
     };
   } catch {
     return null;

@@ -156,6 +156,8 @@ export interface GitHubMentionAgentResult {
   commitSha: string | null;
   pullRequestUrl: string | null;
   proposals: GitHubMentionProposal[];
+  /** GitHub refused a tool call because the App lacks a permission. */
+  permissionDenied: boolean;
 }
 
 export interface GitHubMentionProcessResult {

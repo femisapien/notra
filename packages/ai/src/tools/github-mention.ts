@@ -12,6 +12,7 @@ import type {
 import { findOpenContentPublicationForPost } from "@notra/ai/utils/content-publication";
 import { reviewGitHubMentionChange } from "@notra/ai/utils/github-mention-change-review";
 import { partitionGitHubMentionPaths } from "@notra/ai/utils/github-mention-path-policy";
+import { isGitHubPermissionError } from "@notra/ai/utils/github-mention-permissions";
 import { carryOverImageTargets } from "@notra/ai/utils/github-mention-published-file";
 import { runGitHubMentionSandbox } from "@notra/ai/utils/github-mention-sandbox";
 import {
@@ -37,7 +38,7 @@ import {
 } from "@notra/ai/utils/update-published-content";
 import { db } from "@notra/db/drizzle";
 import { posts } from "@notra/db/schema";
-import { type Tool, tool } from "ai";
+import { type Tool, type ToolExecutionOptions, tool } from "ai";
 import { and, eq } from "drizzle-orm";
 // biome-ignore lint/performance/noNamespaceImport: Zod recommended way to import
 import * as z from "zod";
@@ -50,6 +51,8 @@ export interface GitHubMentionToolState extends GitHubMentionWriteState {
   publishedFile: string | null;
   /** Edits the agent proposed instead of committing, one per file. */
   proposals: GitHubMentionProposal[];
+  /** GitHub refused a call for lack of permission. Retrying cannot fix that. */
+  permissionDenied: boolean;
 }
 
 async function recordWrite(
@@ -86,6 +89,41 @@ function createWriteQueue() {
     tail = run.catch(() => undefined);
     return run;
   };
+}
+
+/**
+ * A missing App permission fails the same way on every attempt. Instead of
+ * letting the model retry, the run is flagged and ends with a fixed reply.
+ */
+function stopOnPermissionError(
+  tools: Record<string, Tool>,
+  state: GitHubMentionToolState
+): Record<string, Tool> {
+  return Object.fromEntries(
+    Object.entries(tools).map(([name, mentionTool]) => [
+      name,
+      {
+        ...mentionTool,
+        execute: async (
+          input: unknown,
+          options: ToolExecutionOptions<unknown>
+        ) => {
+          try {
+            return await mentionTool.execute?.(input, options);
+          } catch (error) {
+            if (!isGitHubPermissionError(error)) {
+              throw error;
+            }
+            state.permissionDenied = true;
+            return {
+              error:
+                "GitHub refused this call: the GitHub App lacks the permission. Do not retry.",
+            };
+          }
+        },
+      },
+    ])
+  );
 }
 
 export function buildGitHubMentionTools(params: {
@@ -136,12 +174,12 @@ export function buildGitHubMentionTools(params: {
   };
 
   if (replyOnly) {
-    return readTools;
+    return stopOnPermissionError(readTools, state);
   }
 
   const inWriteOrder = createWriteQueue();
 
-  return {
+  const tools: Record<string, Tool> = {
     ...readTools,
     getPullRequestFile: tool({
       description: "Reads a file from the mention pull request head branch.",
@@ -538,4 +576,5 @@ export function buildGitHubMentionTools(params: {
       },
     }),
   };
+  return stopOnPermissionError(tools, state);
 }

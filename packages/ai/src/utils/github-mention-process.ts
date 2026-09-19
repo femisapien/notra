@@ -3,6 +3,10 @@ import {
   GITHUB_MENTION_COMMENT_MAX_LENGTH,
   GITHUB_MENTION_LOG_EVENTS,
 } from "@notra/ai/constants/github-mention";
+import {
+  getGitHubAppInstallationPublishAccess,
+  isGitHubAppConfigured,
+} from "@notra/ai/integrations/github";
 import { getGitHubPublishToken } from "@notra/ai/integrations/github-publish-auth";
 import type { GitHubAppWebhookPayload } from "@notra/ai/schemas/github-mention";
 import type {
@@ -26,6 +30,11 @@ import {
 } from "@notra/ai/utils/github-mention-auth";
 import { resolveGitHubMentionDestination } from "@notra/ai/utils/github-mention-destination";
 import { logGitHubMentionEvent } from "@notra/ai/utils/github-mention-log";
+import {
+  buildGitHubMentionPermissionReply,
+  findMissingGitHubMentionPermissions,
+  isGitHubPermissionError,
+} from "@notra/ai/utils/github-mention-permissions";
 import {
   buildGitHubMentionProposalFallbackReply,
   buildGitHubMentionProposalReply,
@@ -441,14 +450,20 @@ export async function processGitHubMention(
   const commentKind = context.comment.review ? "review" : "issue";
   // Eyes on the comment while working, swapped for a thumbs up (or a confused
   // face) once the mention is handled. Reactions are cosmetic, so never fail on them.
-  const workingReaction = await addGitHubCommentReaction({
-    octokit,
-    owner: context.owner,
-    repo: context.repo,
-    commentId: context.comment.id,
-    kind: commentKind,
-    content: "eyes",
-  }).catch(() => null);
+  const [workingReaction, access] = await Promise.all([
+    addGitHubCommentReaction({
+      octokit,
+      owner: context.owner,
+      repo: context.repo,
+      commentId: context.comment.id,
+      kind: commentKind,
+      content: "eyes",
+    }).catch(() => null),
+    // Without the GitHub App the token is a personal one with its own scopes.
+    isGitHubAppConfigured()
+      ? getGitHubAppInstallationPublishAccess(context.installationId)
+      : null,
+  ]);
   const finishReaction = async (content: "+1" | "confused") => {
     await addGitHubCommentReaction({
       octokit,
@@ -470,6 +485,57 @@ export async function processGitHubMention(
     }
   };
 
+  // A missing permission fails the same way every time, so the run stops with
+  // an explanation instead of a retry. If even the reply is refused, the
+  // webhook log in the dashboard still carries the reason.
+  const refuseForPermission = async (
+    missing: readonly string[]
+  ): Promise<GitHubMentionProcessResult> => {
+    const reply = buildGitHubMentionPermissionReply({
+      missing,
+      settingsUrl: access?.settingsUrl ?? null,
+    });
+    await postGitHubMentionReply({
+      octokit,
+      context,
+      body: reply,
+      commitSha: null,
+      changedFiles: [],
+    }).catch(() => undefined);
+    await finishReaction("confused");
+    logGitHubMentionEvent(
+      GITHUB_MENTION_LOG_EVENTS.completed,
+      {
+        organizationId: context.organizationId,
+        integrationId: context.integrationId,
+        deliveryId: context.deliveryId,
+        repository: `${context.owner}/${context.repo}`,
+        issueNumber: context.issueNumber,
+        mentionStatus: "failed",
+        reason: "missing_github_permission",
+        missing,
+        durationMs: Date.now() - startedAt,
+      },
+      "warn"
+    );
+    return {
+      status: "failed",
+      reason:
+        missing.length > 0
+          ? `The GitHub App is missing a permission: ${missing.join(", ")}`
+          : "GitHub refused the request, the GitHub App lacks a permission",
+      reply,
+    };
+  };
+
+  const missingPermissions = findMissingGitHubMentionPermissions({
+    access,
+    mode: context.destination.mode,
+  });
+  if (missingPermissions.length > 0) {
+    return await refuseForPermission(missingPermissions);
+  }
+
   // Set once the agent returns. A failure after a commit (the reply could not
   // be posted) must not read as a failed run: the delivery claim would be
   // released and a redelivery would commit the same change again.
@@ -484,6 +550,9 @@ export async function processGitHubMention(
         commitSha: agentResult.commitSha,
         pullRequestUrl: agentResult.pullRequestUrl,
       };
+    }
+    if (agentResult.permissionDenied && !agentResult.committed) {
+      return await refuseForPermission([]);
     }
     if (agentResult.proposals.length > 0) {
       const reply = await postGitHubMentionProposal({
@@ -604,6 +673,9 @@ export async function processGitHubMention(
         "warn"
       );
       return { status: "committed", reason: "reply_failed", ...written };
+    }
+    if (isGitHubPermissionError(error)) {
+      return await refuseForPermission([]);
     }
     await postGitHubIssueComment({
       octokit,

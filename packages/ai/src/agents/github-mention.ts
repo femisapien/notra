@@ -46,6 +46,7 @@ export async function runGitHubMentionAgent(params: {
     writePullRequestUrl: null,
     publishedFile: await readPublishedFile(params),
     proposals: [],
+    permissionDenied: false,
   };
   const editable = resolveEditableMarkdown({
     postMarkdown: params.context.publication?.markdown ?? null,
@@ -72,7 +73,10 @@ export async function runGitHubMentionAgent(params: {
       state,
     }),
     instructions: getGitHubMentionInstructions(),
-    stopWhen: stepCountIs(GITHUB_MENTION_AGENT_MAX_STEPS),
+    stopWhen: [
+      stepCountIs(GITHUB_MENTION_AGENT_MAX_STEPS),
+      () => state.permissionDenied,
+    ],
   });
 
   // Thread and voice context are best effort: the mention still works without
@@ -145,5 +149,6 @@ export async function runGitHubMentionAgent(params: {
     pullRequestUrl: state.pullRequestUrl,
     // A commit moved the head, so suggestions made before it point nowhere.
     proposals: state.committed ? [] : state.proposals,
+    permissionDenied: state.permissionDenied,
   };
 }

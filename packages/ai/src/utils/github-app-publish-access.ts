@@ -1,6 +1,8 @@
 export interface GitHubAppPublishAccess {
   contents?: string;
   pullRequests?: string;
+  /** The installation's settings page on GitHub. */
+  settingsUrl?: string;
 }
 
 export function githubAppInstallationCanPublishContent(
