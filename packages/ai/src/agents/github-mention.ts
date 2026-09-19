@@ -93,33 +93,43 @@ export async function runGitHubMentionAgent(params: {
       : [],
   ]);
 
-  const result = await agent.generate({
-    prompt: getGitHubMentionPrompt({
-      commentBody: params.context.comment.body,
-      senderLogin: params.context.sender.login,
-      owner: params.context.owner,
-      repo: params.context.repo,
-      issueNumber: params.context.issueNumber,
-      pullRequestTitle: params.context.pullRequest?.title ?? null,
-      destinationMode: params.context.destination.mode,
-      publicationPath: params.context.publication?.path ?? null,
-      publicationTitle: params.context.publication?.title ?? null,
-      markdown: editable.markdown,
-      markdownFromPullRequest: editable.fromPullRequest,
-      thread: buildGitHubMentionThread({
-        comments: [...issueComments, ...reviewComments],
-        current: {
-          id: params.context.comment.id,
-          kind: params.context.comment.review ? "review" : "issue",
-          threadRootId: params.context.comment.review?.rootCommentId,
-        },
-      }),
-      review: params.context.comment.review,
+  const prompt = getGitHubMentionPrompt({
+    commentBody: params.context.comment.body,
+    senderLogin: params.context.sender.login,
+    owner: params.context.owner,
+    repo: params.context.repo,
+    issueNumber: params.context.issueNumber,
+    pullRequestTitle: params.context.pullRequest?.title ?? null,
+    destinationMode: params.context.destination.mode,
+    publicationPath: params.context.publication?.path ?? null,
+    publicationTitle: params.context.publication?.title ?? null,
+    markdown: editable.markdown,
+    markdownFromPullRequest: editable.fromPullRequest,
+    thread: buildGitHubMentionThread({
+      comments: [...issueComments, ...reviewComments],
+      current: {
+        id: params.context.comment.id,
+        kind: params.context.comment.review ? "review" : "issue",
+        threadRootId: params.context.comment.review?.rootCommentId,
+      },
     }),
+    review: params.context.comment.review,
   });
 
+  // A run that dies after its commit still reports the commit. Throwing here
+  // would mark the mention as failed and let a redelivery commit it again.
+  let reply = "";
+  try {
+    const result = await agent.generate({ prompt });
+    reply = result.text.trim();
+  } catch (error) {
+    if (!state.committed) {
+      throw error;
+    }
+  }
+
   return {
-    reply: result.text.trim(),
+    reply,
     committed: state.committed,
     commitSha: state.commitSha,
     pullRequestUrl: state.pullRequestUrl,

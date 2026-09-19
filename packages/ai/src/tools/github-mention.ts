@@ -46,14 +46,16 @@ async function recordWrite(
   commitSha: string,
   target: { branch: string; pullRequestUrl: string }
 ) {
+  // The commit already landed, so mark it before anything else can throw: a
+  // run that wrote must never look retryable.
+  params.state.committed = true;
+  params.state.commitSha = commitSha;
   const followUp = await ensureFollowUpPullRequest({
     octokit: params.octokit,
     context: params.context,
     state: params.state,
     branch: target.branch,
   });
-  params.state.committed = true;
-  params.state.commitSha = commitSha;
   params.state.pullRequestUrl = followUp?.htmlUrl ?? target.pullRequestUrl;
 }
 

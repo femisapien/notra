@@ -356,8 +356,21 @@ export async function processGitHubMention(
     }
   };
 
+  // Set once the agent returns. A failure after a commit (the reply could not
+  // be posted) must not read as a failed run: the delivery claim would be
+  // released and a redelivery would commit the same change again.
+  let written: {
+    commitSha: string | null;
+    pullRequestUrl: string | null;
+  } | null = null;
   try {
     const agentResult = await runGitHubMentionAgent({ octokit, context });
+    if (agentResult.committed) {
+      written = {
+        commitSha: agentResult.commitSha,
+        pullRequestUrl: agentResult.pullRequestUrl,
+      };
+    }
     const baseSha = context.pullRequest?.headSha ?? null;
     // The diff is decoration: a failed compare must not lose the reply.
     const changedFiles =
@@ -419,6 +432,34 @@ export async function processGitHubMention(
     return result;
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
+    if (written) {
+      await postGitHubIssueComment({
+        octokit,
+        owner: context.owner,
+        repo: context.repo,
+        issueNumber: context.issueNumber,
+        body: "I pushed the change, but could not post the full reply. Take a look at the latest commit and tell me if you want it worded differently.",
+      }).catch(() => undefined);
+      await finishReaction("+1");
+      logGitHubMentionEvent(
+        GITHUB_MENTION_LOG_EVENTS.completed,
+        {
+          organizationId: context.organizationId,
+          integrationId: context.integrationId,
+          deliveryId: context.deliveryId,
+          repository: `${context.owner}/${context.repo}`,
+          issueNumber: context.issueNumber,
+          mentionStatus: "committed",
+          reason: "reply_failed",
+          error: reason,
+          commitSha: written.commitSha,
+          pullRequestUrl: written.pullRequestUrl,
+          durationMs: Date.now() - startedAt,
+        },
+        "warn"
+      );
+      return { status: "committed", reason: "reply_failed", ...written };
+    }
     await postGitHubIssueComment({
       octokit,
       owner: context.owner,

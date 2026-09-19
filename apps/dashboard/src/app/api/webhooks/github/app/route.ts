@@ -1,6 +1,10 @@
 import { GITHUB_MENTION_LOG_EVENTS } from "@notra/ai/constants/github-mention";
 import { flushLogs, withEvlog } from "@notra/ai/evlog";
-import type { GitHubMentionWebhookLog } from "@notra/ai/types/github-mention";
+import type {
+  GitHubMentionContext,
+  GitHubMentionProcessResult,
+  GitHubMentionWebhookLog,
+} from "@notra/ai/types/github-mention";
 import {
   ingestGitHubAppMentionWebhook,
   releaseGitHubMentionDelivery,
@@ -21,19 +25,59 @@ async function writeMentionWebhookLog(
   log: GitHubMentionWebhookLog,
   deliveryId: string | null
 ) {
-  const retentionDays = await checkLogRetention(log.organizationId);
-  await appendWebhookLog({
-    organizationId: log.organizationId,
-    integrationId: log.integrationId,
-    integrationType: "github",
-    title: log.title,
-    status: log.status,
-    statusCode: log.statusCode,
-    errorMessage: log.errorMessage,
-    payload: log.payload,
-    referenceId: deliveryId,
-    retentionDays,
-  });
+  // The Logs page entry is secondary: losing it must not drop the mention or
+  // reopen a delivery that already ran.
+  try {
+    const retentionDays = await checkLogRetention(log.organizationId);
+    await appendWebhookLog({
+      organizationId: log.organizationId,
+      integrationId: log.integrationId,
+      integrationType: "github",
+      title: log.title,
+      status: log.status,
+      statusCode: log.statusCode,
+      errorMessage: log.errorMessage,
+      payload: log.payload,
+      referenceId: deliveryId,
+      retentionDays,
+    });
+  } catch (error) {
+    logGitHubMentionEvent(
+      GITHUB_MENTION_LOG_EVENTS.ingestRejected,
+      {
+        deliveryId,
+        reason: "webhook_log_failed",
+        error: error instanceof Error ? error.message : String(error),
+      },
+      "error"
+    );
+  }
+}
+
+async function runMention(
+  run: () => Promise<GitHubMentionProcessResult>,
+  context: GitHubMentionContext,
+  deliveryId: string | null
+): Promise<GitHubMentionProcessResult> {
+  try {
+    return await run();
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    logGitHubMentionEvent(
+      GITHUB_MENTION_LOG_EVENTS.completed,
+      {
+        organizationId: context.organizationId,
+        integrationId: context.integrationId,
+        deliveryId,
+        repository: `${context.owner}/${context.repo}`,
+        issueNumber: context.issueNumber,
+        mentionStatus: "failed",
+        reason,
+      },
+      "error"
+    );
+    return { status: "failed", reason };
+  }
 }
 
 export const POST = withEvlog(async (request: NextRequest) => {
@@ -47,59 +91,24 @@ export const POST = withEvlog(async (request: NextRequest) => {
   });
 
   if (result.log) {
-    // The Logs page entry is secondary: losing it must not drop the mention.
-    await writeMentionWebhookLog(result.log, deliveryId).catch((error) => {
-      logGitHubMentionEvent(
-        GITHUB_MENTION_LOG_EVENTS.ingestRejected,
-        {
-          deliveryId,
-          reason: "webhook_log_failed",
-          error: error instanceof Error ? error.message : String(error),
-        },
-        "error"
-      );
-    });
+    await writeMentionWebhookLog(result.log, deliveryId);
   }
 
   if (result.run && result.context) {
-    const context = result.context;
+    const { run, context } = result;
     after(async () => {
       const startedAt = Date.now();
       try {
-        const processed = await result.run?.();
-        if (processed?.status === "failed") {
-          await releaseGitHubMentionDelivery(deliveryId);
+        const processed = await runMention(run, context, deliveryId);
+        // Only a run that wrote nothing may be redelivered. Everything after
+        // this point is bookkeeping and must not reopen the delivery.
+        if (processed.status === "failed") {
+          await releaseGitHubMentionDelivery(deliveryId).catch(() => undefined);
         }
-        if (processed) {
-          await writeMentionWebhookLog(
-            buildMentionResultWebhookLog({
-              context,
-              result: processed,
-              durationMs: Date.now() - startedAt,
-            }),
-            deliveryId
-          );
-        }
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
-        await releaseGitHubMentionDelivery(deliveryId).catch(() => undefined);
-        logGitHubMentionEvent(
-          GITHUB_MENTION_LOG_EVENTS.completed,
-          {
-            organizationId: context.organizationId,
-            integrationId: context.integrationId,
-            deliveryId,
-            repository: `${context.owner}/${context.repo}`,
-            issueNumber: context.issueNumber,
-            mentionStatus: "failed",
-            reason,
-          },
-          "error"
-        );
         await writeMentionWebhookLog(
           buildMentionResultWebhookLog({
             context,
-            result: { status: "failed", reason },
+            result: processed,
             durationMs: Date.now() - startedAt,
           }),
           deliveryId
