@@ -1322,3 +1322,7 @@ export const GEO_MENTION_EVALUATION_TIMEOUT_MS = 10_000;
 /** Highest list rank the evaluation model can pick; longer lists fall back to the judge. */
 export const GEO_MENTION_EVALUATION_MAX_POSITION = 10;
 export const GEO_MENTION_EVALUATION_NO_POSITION = "none";
+
+export const GEO_ADHOC_SCAN_MAX_ENGINES = 5;
+/** A one-off scan finishes in minutes; past this the runner that held it is gone. */
+export const GEO_ADHOC_SCAN_STALE_MS = 15 * 60 * 1000;
