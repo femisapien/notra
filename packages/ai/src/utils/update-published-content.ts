@@ -1,7 +1,10 @@
 import type { GitHubMentionOctokit } from "@notra/ai/types/github-mention";
 import { updateContentPublicationHead } from "@notra/ai/utils/content-publication";
 import { carryOverImageTargets } from "@notra/ai/utils/github-mention-published-file";
-import { commitFilesToPullRequest } from "@notra/ai/utils/github-pr-commit";
+import {
+  commitFilesToPullRequest,
+  getRepositoryFileContents,
+} from "@notra/ai/utils/github-pr-commit";
 import { updatePostRecord } from "@notra/ai/utils/post-service";
 import { retryWrite } from "@notra/ai/utils/retry-write";
 
@@ -22,6 +25,7 @@ export async function updatePublishedContentAndCommit(params: {
   commitMessage: string;
   /** False when committing to a follow-up branch that is not the publication's pull request. */
   recordPublicationHead?: boolean;
+  onCommitted?: (sha: string) => void;
 }) {
   // Commit first: a rejected commit (stale head, protected branch) must not
   // leave the Notra post ahead of the pull request.
@@ -36,6 +40,7 @@ export async function updatePublishedContentAndCommit(params: {
       { path: params.path, contents: params.fileContents ?? params.markdown },
     ],
   });
+  params.onCommitted?.(commitSha);
   await retryWrite(() =>
     updatePostRecord({
       organizationId: params.organizationId,
@@ -60,15 +65,19 @@ export async function updatePublishedContentAndCommit(params: {
 /**
  * Keeps the Notra post in step when the published file was committed through
  * another path (plain file commit or the sandbox). The file's new contents
- * become the post, keeping the post's own image URLs. Returns whether the post
+ * become the post, restoring known image URLs from the recorded revision. Returns whether the post
  * changed.
  */
 export async function syncPublishedPostAfterCommit(params: {
+  octokit: GitHubMentionOctokit;
   organizationId: string;
   publication: {
     id: string;
     postId: string;
     path: string;
+    owner: string;
+    repo: string;
+    headSha: string | null;
     markdown?: string | null;
   } | null;
   files: ReadonlyArray<{ path: string; contents: string }>;
@@ -84,18 +93,33 @@ export async function syncPublishedPostAfterCommit(params: {
   // that Notra is in step with the pull request. If the post write fails, the
   // head stays behind and that mention starts from the file instead.
   const file = params.files.find((entry) => entry.path === publication.path);
-  if (file) {
-    await retryWrite(() =>
-      updatePostRecord({
-        organizationId: params.organizationId,
-        postId: publication.postId,
-        markdown: carryOverImageTargets(
-          file.contents,
-          publication.markdown ?? ""
-        ),
-      })
-    );
+  if (!file) {
+    return false;
   }
+  const recordedFile = publication.headSha
+    ? await getRepositoryFileContents({
+        octokit: params.octokit,
+        owner: publication.owner,
+        repo: publication.repo,
+        path: publication.path,
+        ref: publication.headSha,
+      })
+    : null;
+  const markdown =
+    recordedFile === null
+      ? file.contents
+      : carryOverImageTargets(
+          file.contents,
+          recordedFile,
+          publication.markdown ?? ""
+        );
+  await retryWrite(() =>
+    updatePostRecord({
+      organizationId: params.organizationId,
+      postId: publication.postId,
+      markdown,
+    })
+  );
   if (params.recordPublicationHead) {
     await retryWrite(() =>
       updateContentPublicationHead({
@@ -106,5 +130,5 @@ export async function syncPublishedPostAfterCommit(params: {
       })
     );
   }
-  return Boolean(file);
+  return true;
 }

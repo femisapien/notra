@@ -72,10 +72,10 @@ describe("resolveGitHubMentionWriteTarget", () => {
         context: context("same_pull_request"),
         state: emptyState(),
       })
-    ).rejects.toThrow("fork");
+    ).rejects.toThrow("Fork");
   });
 
-  test("opens a follow-up branch in the base repo for a fork pull request", async () => {
+  test("rejects fork follow-ups before creating a branch", async () => {
     const octokit = {
       request: async (route: string) => {
         if (route === "GET /repos/{owner}/{repo}/pulls/{pull_number}") {
@@ -96,7 +96,7 @@ describe("resolveGitHubMentionWriteTarget", () => {
           };
         }
         if (route === "POST /repos/{owner}/{repo}/git/refs") {
-          return { data: {} };
+          throw new Error("Must not create a fork follow-up branch");
         }
         if (route === "GET /repos/{owner}/{repo}/git/ref/{ref}") {
           return { data: { object: { sha: "abc123" } } };
@@ -105,13 +105,31 @@ describe("resolveGitHubMentionWriteTarget", () => {
       },
     } as unknown as GitHubMentionOctokit;
     const state = emptyState();
+    await expect(
+      resolveGitHubMentionWriteTarget({
+        octokit,
+        context: context("new_pull_request"),
+        state,
+      })
+    ).rejects.toThrow("Fork");
+    expect(state.writeBranch).toBeNull();
+  });
+
+  test("keeps the revision read by the agent even when the remote head moves", async () => {
+    const initial = context("same_pull_request");
+    initial.destination.headSha = "read-before-manual-push";
     const target = await resolveGitHubMentionWriteTarget({
-      octokit,
-      context: context("new_pull_request"),
-      state,
+      octokit: fakeOctokit({ ref: "docs", repoFullName: "acme/app" }),
+      context: initial,
+      state: emptyState(),
     });
-    expect(target.branch).toBe("notra/mention-7-1");
-    expect(state.writeBranch).toBe("notra/mention-7-1");
+    expect(target.expectedHeadOid).toBe("read-before-manual-push");
+    const subsequent = await resolveGitHubMentionWriteTarget({
+      octokit: fakeOctokit({ ref: "docs", repoFullName: "acme/app" }),
+      context: initial,
+      state: { ...emptyState(), commitSha: "this-runs-commit" },
+    });
+    expect(subsequent.expectedHeadOid).toBe("this-runs-commit");
   });
 
   test("targets the head branch of a same-repository pull request", async () => {

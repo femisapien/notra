@@ -14,29 +14,41 @@ function imageTargets(markdown: string) {
   );
 }
 
-/**
- * Publishing can rewrite image URLs to files committed next to the content, so
- * the file on the pull request and the Notra post differ only in their image
- * targets. When text moves from one side to the other, this keeps the targets
- * of the side being written. Images are matched by position, and only when both
- * sides have the same number of them; otherwise the text is left untouched.
- */
-export function carryOverImageTargets(next: string, reference: string) {
-  const referenceTargets = imageTargets(reference);
+/** Translate image identities using two versions known to be synchronized. */
+export function carryOverImageTargets(
+  next: string,
+  originalSource: string,
+  repositoryMarkdown: string
+) {
+  const sourceTargets = imageTargets(originalSource);
+  const repositoryTargets = imageTargets(repositoryMarkdown);
   if (
-    referenceTargets.length === 0 ||
-    referenceTargets.length !== imageTargets(next).length
+    sourceTargets.length === 0 ||
+    sourceTargets.length !== repositoryTargets.length
   ) {
     return next;
   }
-  let index = 0;
+  const targets = new Map<string, string | null>();
+  for (const [index, sourceTarget] of sourceTargets.entries()) {
+    const repositoryTarget = repositoryTargets[index];
+    if (
+      !repositoryTarget ||
+      ABSOLUTE_URL_PATTERN.test(sourceTarget) ===
+        ABSOLUTE_URL_PATTERN.test(repositoryTarget)
+    ) {
+      continue;
+    }
+    const existing = targets.get(sourceTarget);
+    targets.set(
+      sourceTarget,
+      existing === undefined || existing === repositoryTarget
+        ? repositoryTarget
+        : null
+    );
+  }
   return next.replace(MARKDOWN_IMAGE_PATTERN, (match, prefix, target) => {
-    const referenceTarget = referenceTargets[index] ?? target;
-    index += 1;
-    const onlyOneIsAbsolute =
-      ABSOLUTE_URL_PATTERN.test(target) !==
-      ABSOLUTE_URL_PATTERN.test(referenceTarget);
-    return onlyOneIsAbsolute ? `${prefix}${referenceTarget}` : match;
+    const repositoryTarget = targets.get(target);
+    return repositoryTarget ? `${prefix}${repositoryTarget}` : match;
   });
 }
 
@@ -87,9 +99,9 @@ export function resolveEditableMarkdown(params: {
   if (!(headMoved && params.publishedFile !== null)) {
     return { markdown: params.postMarkdown, fromPullRequest: false };
   }
-  const markdown = carryOverImageTargets(
-    params.publishedFile,
-    params.postMarkdown ?? ""
-  );
+  // The changed file is not an original source-to-repository mapping. Keep its
+  // repository targets rather than guessing by image position and corrupting
+  // replacements or reorders.
+  const markdown = params.publishedFile;
   return { markdown, fromPullRequest: markdown !== params.postMarkdown };
 }

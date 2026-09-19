@@ -36,12 +36,9 @@ export const GITHUB_MENTION_LOG_EVENTS = {
 } as const;
 
 export const GITHUB_MENTION_SEPARATE_PR_PATTERNS = [
-  /\bopen (?:a |an )?(?:new |separate |own |different )(?:draft )?pr\b/i,
-  /\b(?:new|separate|own|different) pull request\b/i,
-  /\b(?:new|separate|own|different) pr\b/i,
-  /\bdon'?t (?:commit|push|change) (?:on |to |in )?(?:this |the )pr\b/i,
-  /\bnot (?:on|in) this pr\b/i,
-  /\bseparate branch\b/i,
+  /\b(?:open|create|start) (?:a |an )?(?:new |separate |own |different )(?:draft )?(?:pr|pull request)\b/gi,
+  /\buse (?:a |an )?(?:new|separate|own|different) (?:pr|pull request|branch)\b/gi,
+  /\b(?:put|move|send) (?:this|these|the changes?) (?:in|to|as) (?:a |an )?(?:new|separate|own|different) (?:pr|pull request|branch)\b/gi,
 ] as const;
 
 export const GITHUB_MENTION_REPLY_DIFF = {

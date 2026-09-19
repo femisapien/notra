@@ -235,6 +235,15 @@ async function finishIngest(params: {
     return await syncClosedPullRequestPublication(payload.data);
   }
 
+  // GitHub sends PR conversation comments as issue_comment too. Only those
+  // have issue.pull_request; ordinary issues must never start an agent run.
+  if (params.event === "issue_comment" && !payload.data.issue?.pull_request) {
+    return {
+      httpStatus: 200,
+      body: { message: "ignored", reason: "not_pull_request" },
+    };
+  }
+
   const resolved = await resolveGitHubMentionContext({
     payload: payload.data,
     deliveryId: params.deliveryId,

@@ -32,6 +32,38 @@ describe("findNewActiveContent", () => {
     ).toEqual(["adds an MDX import or export", "adds an MDX import or export"]);
   });
 
+  test("changed multiline export initializers are blocked", () => {
+    expect(
+      reasons(
+        "docs/release.mdx",
+        'export const metadata = {\n  title: "Release",\n};\n\n# Release',
+        "export const metadata = {\n  title: process.env.GITHUB_TOKEN,\n};\n\n# Release"
+      )
+    ).toContain("adds an MDX import or export");
+  });
+
+  test("module continuations and template contents cannot hide behind unchanged lines", () => {
+    for (const [previous, next] of [
+      [
+        'export const label =\n  "safe"\n\n# Page',
+        "export const label =\n  globalThis.fetch(process.env.SECRET)\n\n# Page",
+      ],
+      [
+        'export const label = "safe"\n\n# Page',
+        'export const label = "safe"\n  + globalThis.fetch(process.env.SECRET)\n\n# Page',
+      ],
+      [
+        "export const label = `safe`;\n\n# Page",
+        // oxlint-disable-next-line no-template-curly-in-string -- This is MDX source, not test interpolation.
+        "export const label = `${process.env.SECRET}`;\n\n# Page",
+      ],
+    ]) {
+      expect(reasons("page.mdx", previous ?? null, next ?? "")).toContain(
+        "adds an MDX import or export"
+      );
+    }
+  });
+
   test("import at the start of a Markdown sentence is prose", () => {
     expect(
       reasons("docs/guide.md", "# Guide", "# Guide\n\nimport duties rose.")

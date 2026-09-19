@@ -14,6 +14,7 @@ export interface GitHubMentionWriteState {
   writeBranch: string | null;
   writePullNumber: number | null;
   writePullRequestUrl: string | null;
+  commitSha?: string | null;
 }
 
 function followUpBranchName(context: GitHubMentionContext) {
@@ -46,14 +47,15 @@ export async function resolveGitHubMentionWriteTarget(params: {
     head.headRepoFullName?.toLowerCase() !==
     `${context.owner}/${context.repo}`.toLowerCase();
 
+  if (headIsFork) {
+    throw new Error("Fork pull requests are not supported for content writes.");
+  }
+  const expectedHeadOid = state.commitSha ?? context.destination.headSha;
+  if (!expectedHeadOid) {
+    throw new Error("Cannot write without the revision read by the agent.");
+  }
+
   if (context.destination.mode === "same_pull_request") {
-    // Commits go through the base repository, so a fork head branch would be
-    // created or overwritten there instead of on the pull request.
-    if (headIsFork) {
-      throw new Error(
-        "This pull request comes from a fork, so Notra cannot commit to it."
-      );
-    }
     if (head.headRef === context.defaultBranch) {
       throw new Error(
         `This pull request's head is the default branch (${context.defaultBranch}). Notra never commits to it; ask for a separate pull request instead.`
@@ -61,7 +63,7 @@ export async function resolveGitHubMentionWriteTarget(params: {
     }
     return {
       branch: head.headRef,
-      expectedHeadOid: head.headSha,
+      expectedHeadOid,
       pullNumber: head.number,
       pullRequestUrl: head.htmlUrl,
     };
@@ -74,17 +76,22 @@ export async function resolveGitHubMentionWriteTarget(params: {
       owner: context.owner,
       repo: context.repo,
       branch,
-      sha: head.headSha,
+      sha: expectedHeadOid,
     });
     state.writeBranch = branch;
   }
 
-  const expectedHeadOid = await getGitHubBranchHeadSha({
+  const actualHeadOid = await getGitHubBranchHeadSha({
     octokit,
     owner: context.owner,
     repo: context.repo,
     branch,
   });
+  if (actualHeadOid !== expectedHeadOid) {
+    throw new Error(
+      "The follow-up branch changed; read it again before editing."
+    );
+  }
 
   return {
     branch,

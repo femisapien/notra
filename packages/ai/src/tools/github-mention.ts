@@ -148,7 +148,7 @@ export function buildGitHubMentionTools(params: {
           owner: context.owner,
           repo: context.repo,
           path,
-          ref: target.branch,
+          ref: target.expectedHeadOid,
         });
         if (
           Buffer.byteLength(contents, "utf8") >
@@ -188,10 +188,31 @@ export function buildGitHubMentionTools(params: {
             context,
             state,
           });
-          const fileContents = carryOverImageTargets(
-            markdown,
-            state.publishedFile ?? markdown
-          );
+          const recordedFile = publication.headSha
+            ? await getRepositoryFileContents({
+                octokit,
+                owner: context.owner,
+                repo: context.repo,
+                path: publication.path,
+                ref: publication.headSha,
+              })
+            : null;
+          const fileContents =
+            recordedFile === null
+              ? markdown
+              : carryOverImageTargets(
+                  markdown,
+                  publication.markdown ?? "",
+                  recordedFile
+                );
+          const postMarkdown =
+            recordedFile === null
+              ? markdown
+              : carryOverImageTargets(
+                  fileContents,
+                  recordedFile,
+                  publication.markdown ?? ""
+                );
           const review = await reviewGitHubMentionChange({
             octokit,
             context,
@@ -208,7 +229,7 @@ export function buildGitHubMentionTools(params: {
             octokit,
             organizationId: context.organizationId,
             postId: publication.postId,
-            markdown,
+            markdown: postMarkdown,
             fileContents,
             title,
             owner: context.owner,
@@ -217,6 +238,11 @@ export function buildGitHubMentionTools(params: {
             expectedHeadOid: target.expectedHeadOid,
             path: publication.path,
             publicationId: publication.id,
+            onCommitted: (sha) => {
+              state.committed = true;
+              state.commitSha = sha;
+              state.pullRequestUrl = target.pullRequestUrl;
+            },
             recordPublicationHead:
               context.destination.mode === "same_pull_request",
             commitMessage:
@@ -288,7 +314,11 @@ export function buildGitHubMentionTools(params: {
             headline,
             files: files as GitHubMentionFileChange[],
           });
+          state.committed = true;
+          state.commitSha = commitSha;
+          state.pullRequestUrl = target.pullRequestUrl;
           const postUpdated = await syncPublishedPostAfterCommit({
+            octokit,
             organizationId: context.organizationId,
             publication: context.publication,
             files,
@@ -325,6 +355,12 @@ export function buildGitHubMentionTools(params: {
             context,
             instruction,
             branch: target.branch,
+            expectedHeadOid: target.expectedHeadOid,
+            onCommitted: (sha) => {
+              state.committed = true;
+              state.commitSha = sha;
+              state.pullRequestUrl = target.pullRequestUrl;
+            },
           });
           if (!result.available) {
             return { error: result.error };

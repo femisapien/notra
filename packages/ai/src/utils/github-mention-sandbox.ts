@@ -105,6 +105,8 @@ export async function runGitHubMentionSandbox(params: {
   context: GitHubMentionContext;
   instruction: string;
   branch: string;
+  expectedHeadOid: string;
+  onCommitted: (sha: string) => void;
 }) {
   const boxApiKey = process.env.UPSTASH_BOX_API_KEY;
   const agentApiKey = process.env.AI_GATEWAY_API_KEY;
@@ -159,6 +161,11 @@ export async function runGitHubMentionSandbox(params: {
       branch: params.branch,
       token,
     });
+    if (baseSha !== params.expectedHeadOid) {
+      throw new Error(
+        "The branch changed since the mention was read; retry with fresh context."
+      );
+    }
     const publicationPath = params.context.publication?.path;
     const stream = await box.agent.stream({
       prompt: [
@@ -179,6 +186,12 @@ export async function runGitHubMentionSandbox(params: {
       void chunk;
     }
     const changes = await listChangedSandboxFiles(box, baseSha);
+    if (publicationPath && changes.deleted.includes(publicationPath)) {
+      changes.skipped.push({
+        path: publicationPath,
+        reason: "Deleting a linked publication is not supported",
+      });
+    }
     const reads = await Promise.all(
       changes.written.map(async (path) => ({
         path,
@@ -198,7 +211,10 @@ export async function runGitHubMentionSandbox(params: {
       branch: params.branch,
       files: readable,
     });
-    const isBlocked = review.blocked.length > 0;
+    const isBlocked =
+      review.blocked.length > 0 ||
+      changes.skipped.length > 0 ||
+      readable.length !== reads.length;
     for (const finding of review.blocked) {
       changes.skipped.push({ path: finding.path, reason: finding.reason });
     }
@@ -236,7 +252,9 @@ export async function runGitHubMentionSandbox(params: {
       files,
       deletions,
     });
+    params.onCommitted(commitSha);
     const postUpdated = await syncPublishedPostAfterCommit({
+      octokit: params.octokit,
       organizationId: params.context.organizationId,
       publication: params.context.publication,
       files,
@@ -323,8 +341,10 @@ export function parseSandboxChanges(nameStatus: string, numstat: string) {
     [...written, ...deleted].slice(0, SANDBOX_FILE_LIMIT)
   );
   return {
-    written: written.filter((path) => allowed.has(path)),
-    deleted: deleted.filter((path) => allowed.has(path)),
+    written:
+      skipped.length > 0 ? [] : written.filter((path) => allowed.has(path)),
+    deleted:
+      skipped.length > 0 ? [] : deleted.filter((path) => allowed.has(path)),
     skipped,
   };
 }

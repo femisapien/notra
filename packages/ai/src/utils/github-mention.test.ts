@@ -103,8 +103,19 @@ describe("wantsSeparatePullRequest", () => {
     expect(wantsSeparatePullRequest("please use a separate pull request")).toBe(
       true
     );
-    expect(wantsSeparatePullRequest("don't commit on this PR")).toBe(true);
+    expect(wantsSeparatePullRequest("don't commit on this PR")).toBe(false);
     expect(wantsSeparatePullRequest("@notra shorten the intro")).toBe(false);
+  });
+
+  test("requires an unquoted, positive request", () => {
+    expect(wantsSeparatePullRequest("do not open a new PR")).toBe(false);
+    expect(
+      wantsSeparatePullRequest("> please use a separate pull request")
+    ).toBe(false);
+    expect(wantsSeparatePullRequest("`open a new PR` is an example")).toBe(
+      false
+    );
+    expect(wantsSeparatePullRequest("```text\nopen a new PR\n```")).toBe(false);
   });
 });
 

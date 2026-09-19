@@ -11,27 +11,47 @@ const FILE = "# Release\n\n![Chart](../images/release/a.png)\n\nOld intro.";
 describe("carryOverImageTargets", () => {
   test("keeps the repository paths when post text is committed", () => {
     expect(
-      carryOverImageTargets(POST.replace("Old intro.", "New intro."), FILE)
+      carryOverImageTargets(
+        POST.replace("Old intro.", "New intro."),
+        POST,
+        FILE
+      )
     ).toBe(FILE.replace("Old intro.", "New intro."));
   });
 
-  test("keeps the post URLs when a committed file becomes the post", () => {
+  test("maps reordered images by source identity, not position", () => {
+    const source = "![A](https://cdn/a.png)\n![B](https://cdn/b.png)";
+    const repository = "![A](./a.png)\n![B](./b.png)";
     expect(
-      carryOverImageTargets(FILE.replace("Old intro.", "New intro."), POST)
-    ).toBe(POST.replace("Old intro.", "New intro."));
+      carryOverImageTargets(
+        "![B](https://cdn/b.png)\n![A](https://cdn/a.png)",
+        source,
+        repository
+      )
+    ).toBe("![B](./b.png)\n![A](./a.png)");
   });
 
-  test("leaves the text alone when the images no longer line up", () => {
-    const withExtraImage = `${FILE}\n\n![New](./new.png)`;
-    expect(carryOverImageTargets(withExtraImage, POST)).toBe(withExtraImage);
-    expect(carryOverImageTargets("No images here.", POST)).toBe(
+  test("does not undo an image replacement", () => {
+    expect(
+      carryOverImageTargets(
+        POST.replace("a.png", "replacement.png"),
+        POST,
+        FILE
+      )
+    ).toBe(POST.replace("a.png", "replacement.png"));
+  });
+
+  test("leaves repository markdown and unknown mappings alone", () => {
+    expect(carryOverImageTargets(FILE, POST, FILE)).toBe(FILE);
+    expect(carryOverImageTargets(POST, POST, "No images here.")).toBe(POST);
+    expect(carryOverImageTargets("No images here.", POST, FILE)).toBe(
       "No images here."
     );
   });
 
   test("does not swap one absolute URL for another", () => {
     const edited = POST.replace("a.png", "b.png");
-    expect(carryOverImageTargets(edited, POST)).toBe(edited);
+    expect(carryOverImageTargets(edited, POST, POST)).toBe(edited);
   });
 });
 
@@ -47,7 +67,7 @@ describe("resolveEditableMarkdown", () => {
     ).toEqual({ markdown: POST, fromPullRequest: false });
   });
 
-  test("uses the file once the head moved, with the post's image URLs", () => {
+  test("uses the file once the head moved, retaining repository image paths", () => {
     expect(
       resolveEditableMarkdown({
         postMarkdown: POST,
@@ -56,12 +76,12 @@ describe("resolveEditableMarkdown", () => {
         pullRequestHeadSha: "bbb",
       })
     ).toEqual({
-      markdown: POST.replace("Old", "Hand-edited"),
+      markdown: FILE.replace("Old", "Hand-edited"),
       fromPullRequest: true,
     });
   });
 
-  test("a moved head with an unchanged file is not a divergence", () => {
+  test("a moved head with repository image paths is a divergence", () => {
     expect(
       resolveEditableMarkdown({
         postMarkdown: POST,
@@ -69,7 +89,7 @@ describe("resolveEditableMarkdown", () => {
         recordedHeadSha: "aaa",
         pullRequestHeadSha: "bbb",
       })
-    ).toEqual({ markdown: POST, fromPullRequest: false });
+    ).toEqual({ markdown: FILE, fromPullRequest: true });
   });
 
   test("falls back to the post when the file could not be read", () => {

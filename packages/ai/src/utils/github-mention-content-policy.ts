@@ -9,6 +9,8 @@ const INLINE_CODE_PATTERN = /`[^`\n]*`/g;
 const FINDING_SNIPPET_LENGTH = 120;
 const INLINE_CODE_PLACEHOLDER = "`";
 const MDX_EXPRESSION_REASON = "adds an MDX expression";
+const MDX_MODULE_REASON = "adds an MDX import or export";
+const MDX_MODULE_START_PATTERN = /^\s*(?:import|export)\s/;
 // What is left of a literal-only expression once strings, comments, and
 // object keys are removed: `{600}`, `{"a"}`, `{{ color: "red" }}`, `{[1, 2]}`.
 const EXPRESSION_STRING_PATTERN = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g;
@@ -31,7 +33,7 @@ function extensionOf(path: string) {
 }
 
 /** Lines a renderer treats as markup. Code samples are shown, never run. */
-function renderedLines(markdown: string) {
+function renderedLines(markdown: string, preserveCode = false) {
   const lines: string[] = [];
   let openFence: string | null = null;
   for (const raw of markdown.split("\n")) {
@@ -42,7 +44,9 @@ function renderedLines(markdown: string) {
       openFence = null;
     } else if (!openFence) {
       lines.push(
-        raw.replace(INLINE_CODE_PATTERN, INLINE_CODE_PLACEHOLDER).trim()
+        preserveCode
+          ? raw
+          : raw.replace(INLINE_CODE_PATTERN, INLINE_CODE_PLACEHOLDER).trim()
       );
     }
   }
@@ -92,6 +96,27 @@ function isLiteralExpression(body: string) {
   return LITERAL_REMAINDER_PATTERN.test(remainder);
 }
 
+/** Only standalone imports can be safely isolated without an MDX parser.
+ * Other module code freezes the file: guessing its boundary permits executable
+ * continuations, comments, and template literals to bypass the content gate.
+ */
+function mdxModules(markdown: string) {
+  const modules: string[] = [];
+  for (const line of renderedLines(markdown, true)) {
+    if (!MDX_MODULE_START_PATTERN.test(line)) {
+      continue;
+    }
+    modules.push(
+      /^\s*import\s+(?:[\w$*{},\s]+\s+from\s+)?(?:"[^"\\]*"|'[^'\\]*');\s*$/.test(
+        line
+      )
+        ? line
+        : markdown
+    );
+  }
+  return modules;
+}
+
 /**
  * Active content a change adds to a Markdown or MDX file: MDX module code and
  * expressions run at build time, scripts and handlers in the reader's browser.
@@ -118,6 +143,7 @@ export function findNewActiveContent(params: {
     }
     const rule = GITHUB_MENTION_ACTIVE_CONTENT_RULES.find(
       (candidate) =>
+        candidate.reason !== MDX_MODULE_REASON &&
         (!candidate.mdxOnly || extension === "mdx") &&
         candidate.pattern.test(line)
     );
@@ -130,6 +156,16 @@ export function findNewActiveContent(params: {
     }
   }
   if (extension === "mdx") {
+    const knownModules = new Set(mdxModules(params.previous ?? ""));
+    for (const statement of new Set(mdxModules(params.next))) {
+      if (!knownModules.has(statement)) {
+        findings.push({
+          path: params.path,
+          reason: MDX_MODULE_REASON,
+          line: statement.slice(0, FINDING_SNIPPET_LENGTH),
+        });
+      }
+    }
     // Expressions run when the page renders: `{process.env.KEY}` would print
     // a secret into the built site. Literals and comments are just markup.
     const knownExpressions = new Set(mdxExpressions(previousLines));

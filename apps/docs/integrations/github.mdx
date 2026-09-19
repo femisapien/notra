@@ -33,7 +33,7 @@ The GitHub App asks for:
 
 * Read access to repository metadata, branches, and releases
 * Write access to Contents and Pull requests, so Notra can open a draft pull request with the generated Markdown
-* Write access to Issues, so Notra can reply when you mention it on a pull request
+* Write access to Issues, so Notra can add and remove status reactions on PR conversation comments through GitHub's issue-comment API. Mentions on ordinary issues are ignored.
 * Webhook events for the repositories you choose
 * Access only to the repositories you grant during installation
 
@@ -96,25 +96,25 @@ Every delivery is written to the organization's webhook log (**Settings**, then 
 
 ## Mention Notra on pull requests
 
-Mention Notra in a pull request or issue comment, for example `@notra shorten the intro`. You do not need the exact App name: `@notra`, `@notra-ai`, and `@notrabot` all work. Notra reacts to your comment with 👀 while it works and swaps that for 👍 when it is done. The reply and any commits come from the App's bot account.
+Mention Notra in a pull request comment, for example `@notra shorten the intro`. Mentions on ordinary issues are ignored without a reply or reaction. You do not need the exact App name: `@notra`, `@notra-ai`, and `@notrabot` all work. Notra reacts to your PR comment with 👀 while it works and swaps that for 👍 when it is done. The reply and any commits come from the App's bot account.
 
 After a change, Notra replies right at the lines it edited under **Files changed**, with a before and after of the text and a link to the commit. You can also mention Notra in a review comment on specific lines, or reply inside its thread ("shorter please"); it reads the earlier comments, so you do not have to repeat yourself.
 
 * **Questions** get an answer in the thread. Nothing is committed.
-* **Change requests** on a pull request Notra published update the Notra post first, then commit the file onto that pull request.
+* **Change requests** on a pull request Notra published commit the file onto that pull request, then synchronize the Notra post.
 * **Separate pull request**: say so in the comment ("open a separate PR") and Notra commits to a new branch and opens a draft pull request stacked on the one you commented on.
 
 Notra only acts on comments from members of your Notra organization whose login is linked to the commenting GitHub account. Other mentions are ignored and logged as skipped. Mentions inside code, quotes, or email addresses do not count.
 
-Notra never commits to the repository's default branch or to pull requests from forks. On those, ask for a separate pull request instead.
+Notra never commits to the repository's default branch. Ask for a separate pull request instead. Fork pull requests support answers only, including when a separate pull request is requested.
 
 Mentions edit content, not code. Notra commits Markdown, MDX, and text files, plus the JSON, YAML, TOML, or CSV data that sits next to them, such as a docs navigation file. Code, scripts, dot files and folders like `.github`, and build or tool configuration such as `package.json` or `vercel.json` are never committed, whatever the comment asks for. If you ask for one of those, Notra tells you it needs a regular commit.
 
-The same goes for active content inside Markdown and MDX. A mention can reword a page that already has imports or embeds, but it cannot add new `import` or `export` lines, MDX expressions such as `{props.value}` (plain literals like `width={600}` are fine), `<script>` tags, iframes, `javascript:` links, or inline event handlers. Code samples in fenced blocks are fine.
+The same goes for active content inside Markdown and MDX. A mention can reword a page with unchanged standalone imports, but files containing exports or complex imports require a regular commit. It cannot add new `import` or `export` lines, MDX expressions such as `{props.value}` (plain literals like `width={600}` are fine), `<script>` tags, iframes, `javascript:` links, or inline event handlers. Code samples in fenced blocks are fine. If any sandbox change is blocked, the entire patch is rejected. Deleting a linked publication is not supported.
 
 If someone pushed to the pull request after Notra's last commit, Notra continues from the file on the pull request, so edits made by hand are kept and flow back into the Notra post with the next change.
 
-Mentions arrive through the GitHub App, not the per-repository webhook above. The App must be subscribed to the **Issue comment**, **Pull request review comment**, and **Pull request** events; closing or merging a pull request Notra published marks that publication as closed so the post can be published again.
+Mentions arrive through the GitHub App, not the per-repository webhook above. The App must be subscribed to the **Issue comment**, **Pull request review comment**, and **Pull request** events. GitHub uses **Issue comment** for ordinary PR conversation comments too, so this subscription is required even though Notra ignores issues. Closing or merging a pull request Notra published marks that publication as closed so the post can be published again.
 
 ## Legacy: personal access token
 

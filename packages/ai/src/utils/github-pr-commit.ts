@@ -4,6 +4,7 @@ import {
   GITHUB_MENTION_FILE_CONTENT_MAX_BYTES,
   GITHUB_MENTION_TRUSTED_AUTHOR_ASSOCIATIONS,
 } from "@notra/ai/constants/github-mention";
+import { getGitHubAppBotLogin } from "@notra/ai/integrations/github";
 import type {
   CommitFilesToPullRequestParams,
   GitHubCreateCommitOnBranchResult,
@@ -12,6 +13,40 @@ import type {
 const GITHUB_API_VERSION_HEADERS = {
   "X-GitHub-Api-Version": GITHUB_API_VERSION_HEADER,
 } as const;
+
+async function getTrustedParentCommitBody(
+  params: CommitFilesToPullRequestParams
+) {
+  const publisherLogin =
+    getGitHubAppBotLogin() ??
+    (await params.octokit
+      .request("GET /user")
+      .then(({ data }) => data.login)
+      .catch(() => null));
+  if (!publisherLogin) {
+    return undefined;
+  }
+  const { data: commit } = await params.octokit.request(
+    "GET /repos/{owner}/{repo}/commits/{ref}",
+    {
+      owner: params.owner,
+      repo: params.repo,
+      ref: params.expectedHeadOid,
+      headers: GITHUB_API_VERSION_HEADERS,
+    }
+  );
+  if (
+    commit.author?.login !== publisherLogin ||
+    commit.commit.verification?.verified !== true
+  ) {
+    return undefined;
+  }
+  const body = commit.commit.message
+    .split(/\r?\n\r?\n/)
+    .slice(1)
+    .join("\n\n");
+  return body || undefined;
+}
 
 export async function commitFilesToPullRequest(
   params: CommitFilesToPullRequestParams
@@ -30,6 +65,8 @@ export async function commitFilesToPullRequest(
     }
   }
 
+  const parentBody = await getTrustedParentCommitBody(params);
+
   const result = await params.octokit.graphql<GitHubCreateCommitOnBranchResult>(
     GITHUB_CREATE_COMMIT_ON_BRANCH_MUTATION,
     {
@@ -38,7 +75,10 @@ export async function commitFilesToPullRequest(
           repositoryNameWithOwner: `${params.owner}/${params.repo}`,
           branchName: params.branch,
         },
-        message: { headline: params.headline },
+        message: {
+          headline: params.headline,
+          ...(parentBody ? { body: parentBody } : {}),
+        },
         expectedHeadOid: params.expectedHeadOid,
         fileChanges: {
           additions: params.files.map((file) => ({

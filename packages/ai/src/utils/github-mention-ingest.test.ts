@@ -5,6 +5,10 @@ const resolveGitHubMentionContext = mock();
 const processGitHubMention = mock();
 const closeContentPublicationForPullRequest = mock();
 
+mock.module("@notra/ai/utils/redis", () => ({
+  redis: { set: async () => "OK", del: async () => 1 },
+}));
+
 mock.module("@notra/ai/utils/github-mention-process", () => ({
   resolveGitHubMentionContext,
   processGitHubMention,
@@ -138,6 +142,25 @@ describe("ingestGitHubAppMentionWebhook", () => {
       rawBody: mentionPayload,
     });
     expect(result.httpStatus).toBe(401);
+  });
+
+  test("ignores ordinary issue mentions before resolving context or starting work", async () => {
+    const body = JSON.stringify({
+      ...JSON.parse(mentionPayload),
+      issue: { number: 42 },
+    });
+    const result = await ingestGitHubAppMentionWebhook({
+      event: "issue_comment",
+      signature: sign(body),
+      deliveryId: "ordinary-issue",
+      rawBody: body,
+    });
+    expect(result).toEqual({
+      httpStatus: 200,
+      body: { message: "ignored", reason: "not_pull_request" },
+    });
+    expect(resolveGitHubMentionContext).not.toHaveBeenCalled();
+    expect(processGitHubMention).not.toHaveBeenCalled();
   });
 
   test("passes review thread mentions on with their line context", async () => {

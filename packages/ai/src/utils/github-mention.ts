@@ -90,8 +90,15 @@ export function isGitHubBotSender(sender: { login: string; type?: string }) {
 }
 
 export function wantsSeparatePullRequest(body: string) {
+  const text = stripNonMentionText(body);
   return GITHUB_MENTION_SEPARATE_PR_PATTERNS.some((pattern) =>
-    pattern.test(body)
+    [...text.matchAll(pattern)].some((match) => {
+      const prefix = text.slice(
+        Math.max(0, (match.index ?? 0) - 20),
+        match.index
+      );
+      return !/\b(?:do not|don't|never)\s*$/i.test(prefix);
+    })
   );
 }
 

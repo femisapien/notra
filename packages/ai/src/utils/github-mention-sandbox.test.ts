@@ -17,11 +17,8 @@ describe("parseSandboxChanges", () => {
       ].join("\n"),
       ["3\t1\tdocs/changelog/release 2.4.md", "-\t-\tdocs/logo.png"].join("\n")
     );
-    expect(changes.written).toEqual([
-      "docs/changelog/release 2.4.md",
-      "docs/changelog/index.md",
-    ]);
-    expect(changes.deleted).toEqual(["docs/old.md"]);
+    expect(changes.written).toEqual([]);
+    expect(changes.deleted).toEqual([]);
     expect(changes.skipped.map((entry) => entry.path)).toEqual([
       "docs/logo.png",
       ".github/workflows/pwn.yml",
@@ -34,7 +31,26 @@ describe("parseSandboxChanges", () => {
   test("caps the number of committed files", () => {
     const lines = Array.from({ length: 30 }, (_, i) => `A\tdocs/${i}.md`);
     const changes = parseSandboxChanges(lines.join("\n"), "");
-    expect(changes.written).toHaveLength(25);
+    expect(changes.written).toHaveLength(0);
     expect(changes.skipped).toHaveLength(5);
+  });
+
+  test("rejects the deletion half of a rename to a blocked path", () => {
+    expect(
+      parseSandboxChanges("D\tdocs/page.md\nA\tdocs/page.html", "")
+    ).toMatchObject({
+      written: [],
+      deleted: [],
+    });
+  });
+
+  test("keeps complete allowed patches including spaces and deletions", () => {
+    expect(
+      parseSandboxChanges("M\tdocs/new page.md\nD\tdocs/old.md", "")
+    ).toEqual({
+      written: ["docs/new page.md"],
+      deleted: ["docs/old.md"],
+      skipped: [],
+    });
   });
 });
