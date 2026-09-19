@@ -2,6 +2,7 @@ import {
   GITHUB_MENTION_LOG_EVENTS,
   GITHUB_MENTION_SANDBOX_TIMEOUT_MS,
 } from "@notra/ai/constants/github-mention";
+import { AGENT_DEFAULT_MODEL } from "@notra/ai/constants/models";
 import { getGitHubCloneTokenForOrganization } from "@notra/ai/integrations/github";
 import type {
   GitHubMentionContext,
@@ -16,9 +17,10 @@ import type { BoxConfig, Runtime, VercelModel } from "@upstash/box";
 import { Agent, Box } from "@upstash/box";
 
 const REPO_CLONE_TOKEN_PATH = "/tmp/notra-github-token";
-// Box routes by prefix: without `vercel/` the gateway key is sent to Anthropic
-// directly and every run fails with "invalid x-api-key".
-const SANDBOX_MODEL_ID = "vercel/anthropic/claude-sonnet-4.6";
+// Same model as the mention agent. Box routes by prefix: without `vercel/` the
+// gateway key is sent to Anthropic directly and every run fails with "invalid
+// x-api-key". The SDK's model type lags behind the gateway, hence the cast below.
+const SANDBOX_MODEL_ID = `vercel/${AGENT_DEFAULT_MODEL}`;
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const SANDBOX_FILE_LIMIT = 25;
