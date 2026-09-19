@@ -516,6 +516,44 @@ const runGeoCheck = Effect.fn("geo.runCheck")(function* (
   return outcome;
 });
 
+/**
+ * One check with the scan's failure policy: a timed-out answer or judge call
+ * is retried once, an empty answer is dropped with its usage kept, and any
+ * other failure is logged and skipped. Scheduled batches and one-off scans
+ * share this so both produce identical rows.
+ */
+export const runGeoCheckAttempt = (
+  context: GeoCheckContext,
+  task: GeoCheckTask
+) => {
+  const fields = checkFailureFields(context, task);
+  return withGeoTiming(runGeoCheck(context, task), {
+    ...fields,
+    event: "geo.check.attempt.completed",
+  }).pipe(
+    Effect.tapError((error) =>
+      (error._tag === "GeoScanError" || error._tag === "GeoJudgeError") &&
+      error.timedOut === true
+        ? geoLogWarn({
+            ...fields,
+            event: "geo.check.timeout",
+            detail: error.message,
+          })
+        : Effect.void
+    ),
+    Effect.retry({
+      times: 1,
+      while: (error) =>
+        (error._tag === "GeoScanError" || error._tag === "GeoJudgeError") &&
+        error.timedOut === true,
+    }),
+    Effect.catchTag("GeoEmptyAnswerError", (error) =>
+      Effect.sync(() => droppedCheckOutcome(fields, error))
+    ),
+    geoSkip("check failed", fields)
+  );
+};
+
 export function parseGeoClaimToken(
   claimedAt: string
 ): Effect.Effect<Date, GeoScanError> {
@@ -1202,36 +1240,10 @@ export const runGeoScanTaskBatch = Effect.fn("geo.runScanTaskBatch")(function* (
 
   const results = yield* Effect.forEach(
     tasks,
-    (task) => {
-      const fields = checkFailureFields(checkContext, task);
-      return updateGeoScanTaskStatus(context, task, "running").pipe(
+    (task) =>
+      updateGeoScanTaskStatus(context, task, "running").pipe(
         Effect.andThen(
-          withGeoTiming(runGeoCheck(checkContext, task), {
-            ...fields,
-            event: "geo.check.attempt.completed",
-          }).pipe(
-            Effect.tapError((error) =>
-              (error._tag === "GeoScanError" ||
-                error._tag === "GeoJudgeError") &&
-              error.timedOut === true
-                ? geoLogWarn({
-                    ...fields,
-                    event: "geo.check.timeout",
-                    detail: error.message,
-                  })
-                : Effect.void
-            ),
-            Effect.retry({
-              times: 1,
-              while: (error) =>
-                (error._tag === "GeoScanError" ||
-                  error._tag === "GeoJudgeError") &&
-                error.timedOut === true,
-            }),
-            Effect.catchTag("GeoEmptyAnswerError", (error) =>
-              Effect.sync(() => droppedCheckOutcome(fields, error))
-            ),
-            geoSkip("check failed", fields),
+          runGeoCheckAttempt(checkContext, task).pipe(
             Effect.tap((result) =>
               result?.row
                 ? Effect.void
@@ -1239,8 +1251,7 @@ export const runGeoScanTaskBatch = Effect.fn("geo.runScanTaskBatch")(function* (
             )
           )
         )
-      );
-    },
+      ),
     { concurrency: GEO_SCAN_CONCURRENCY }
   );
   const persistedRows = results.map((result) => result?.row ?? null);
