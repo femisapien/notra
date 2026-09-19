@@ -121,10 +121,24 @@ function stripReplyDecoration(body: string) {
 }
 
 /**
+ * Review bots wrap prompts for coding agents and long analysis in <details>,
+ * and hide metadata in HTML comments. Only the finding itself is context.
+ */
+function stripBotDecoration(body: string) {
+  let text = removeHtmlComments(body);
+  for (const pattern of REPLY_DECORATION_PATTERNS) {
+    text = text.replace(pattern, "");
+  }
+  return text.replace(/\n{3,}/g, "\n\n");
+}
+
+/**
  * The conversation before the mention, so "yes, do that" has something to
- * refer to. Keeps repository members and Notra itself, drops other bots (review
- * bots are long and irrelevant) and outside commenters, and strips the diff and
- * footer from Notra's replies.
+ * refer to. Keeps repository members and Notra itself, drops outside commenters
+ * and other bots (review bots are long and irrelevant), and strips the diff and
+ * footer from Notra's replies. One exception: a mention written in a review
+ * thread keeps that thread's bot comments, because "@notra fix this" under a
+ * Greptile finding is about the finding.
  */
 export function buildGitHubMentionThread(params: {
   comments: readonly GitHubMentionThreadComment[];
@@ -133,7 +147,13 @@ export function buildGitHubMentionThread(params: {
   const appHandles = new Set(getGitHubMentionAppHandles());
   const isNotraComment = (comment: GitHubMentionThreadComment) =>
     comment.authorIsBot && appHandles.has(normalizeHandle(comment.authorLogin));
+  const isBotInMentionThread = (comment: GitHubMentionThreadComment) =>
+    comment.authorIsBot &&
+    comment.kind === "review" &&
+    params.current.kind === "review" &&
+    comment.threadRootId === params.current.threadRootId;
   const thread: Array<{ author: string; body: string }> = [];
+  let mentionThreadRoot: { author: string; body: string } | null = null;
   // A review mention only needs its own thread. An issue mention also needs the
   // threads Notra replied in (its inline replies live there), but not every
   // unrelated review discussion on a busy pull request.
@@ -161,26 +181,52 @@ export function buildGitHubMentionThread(params: {
       continue;
     }
     const isNotra = isNotraComment(comment);
+    const isReviewBot = !isNotra && isBotInMentionThread(comment);
     // Other bots are noise, and people without a role on the repository are
     // not part of the conversation the commenter is steering.
-    if (!isNotra && (comment.authorIsBot || !comment.authorIsTrusted)) {
+    if (
+      !(isNotra || isReviewBot) &&
+      (comment.authorIsBot || !comment.authorIsTrusted)
+    ) {
       continue;
     }
-    const body = (
-      isNotra ? stripReplyDecoration(comment.body) : comment.body
-    ).trim();
+    let body = comment.body;
+    if (isNotra) {
+      body = stripReplyDecoration(body);
+    } else if (isReviewBot) {
+      body = stripBotDecoration(body);
+    }
+    body = body.trim();
     if (!body) {
       continue;
     }
-    const author = isNotra ? "Notra (you)" : `@${comment.authorLogin}`;
-    thread.push({
+    let author = `@${comment.authorLogin}`;
+    if (isNotra) {
+      author = "Notra (you)";
+    } else if (isReviewBot) {
+      author = `${author} (review bot)`;
+    }
+    const entry = {
       author:
         comment.kind === "review" ? `${author}, in a review thread` : author,
       body:
         body.length > GITHUB_MENTION_THREAD_CONTEXT.commentLengthLimit
           ? `${body.slice(0, GITHUB_MENTION_THREAD_CONTEXT.commentLengthLimit)}…`
           : body,
-    });
+    };
+    if (
+      comment.id === params.current.threadRootId &&
+      comment.kind === "review"
+    ) {
+      mentionThreadRoot = entry;
+    }
+    thread.push(entry);
   }
-  return thread.slice(-GITHUB_MENTION_THREAD_CONTEXT.commentLimit);
+  const recent = thread.slice(-GITHUB_MENTION_THREAD_CONTEXT.commentLimit);
+  // The comment a review thread started with is what every reply is about, so
+  // a long thread must not push it out.
+  if (mentionThreadRoot && !recent.includes(mentionThreadRoot)) {
+    return [mentionThreadRoot, ...recent.slice(1)];
+  }
+  return recent;
 }

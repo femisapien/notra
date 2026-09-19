@@ -110,6 +110,8 @@ After a commit, Notra replies right at the lines it edited under **Files changed
 
 Notra only acts on comments from members of your Notra organization whose login is linked to the commenting GitHub account. Other mentions are ignored and logged as skipped. Mentions inside code, quotes, or email addresses do not count.
 
+Comments written by bots never start Notra, so a review from Greptile or CodeRabbit is left alone. To have Notra act on such a finding, reply inside the bot's review thread and mention Notra ("@notra fix this"). Notra reads the finding you replied to and follows your instruction.
+
 If the GitHub App is missing a permission, Notra does not retry. It replies once with the permission that is missing and a link to the installation settings, and the mention shows up as failed in the webhook log. Mention Notra again after an owner has approved the permissions.
 
 Notra never commits to the repository's default branch. Ask for a separate pull request instead. Fork pull requests support answers only, including when a separate pull request is requested.

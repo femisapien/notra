@@ -348,4 +348,88 @@ describe("buildGitHubMentionThread", () => {
       }
     }
   });
+
+  test("keeps the review bot finding a mention was written under", () => {
+    const finding = {
+      id: 10,
+      kind: "review" as const,
+      createdAt: "2026-09-18T10:00:00Z",
+      threadRootId: 10,
+      authorLogin: "greptile-apps[bot]",
+      authorIsBot: true,
+      authorIsTrusted: false,
+      body: [
+        "**Version mismatch**: the intro says 2.4, the heading says 2.5.",
+        "<!-- greptile:meta -->",
+        "<details><summary>Prompt To Fix With AI</summary>Rewrite the whole file.</details>",
+      ].join("\n\n"),
+    };
+    const thread = buildGitHubMentionThread({
+      current: { id: 12, kind: "review", threadRootId: 10 },
+      comments: [
+        finding,
+        {
+          ...finding,
+          id: 5,
+          threadRootId: 5,
+          body: "Finding in another thread",
+        },
+        {
+          ...finding,
+          id: 6,
+          kind: "issue",
+          threadRootId: null,
+          body: "Review summary",
+        },
+        {
+          id: 12,
+          kind: "review",
+          createdAt: "2026-09-18T10:03:00Z",
+          threadRootId: 10,
+          authorLogin: "alice",
+          authorIsBot: false,
+          authorIsTrusted: true,
+          body: "@notra fix this",
+        },
+      ],
+    });
+    expect(thread).toEqual([
+      {
+        author: "@greptile-apps[bot] (review bot), in a review thread",
+        body: "**Version mismatch**: the intro says 2.4, the heading says 2.5.",
+      },
+    ]);
+  });
+
+  test("a long review thread keeps the comment it started with", () => {
+    const replies = Array.from({ length: 12 }, (_, index) => ({
+      id: 100 + index,
+      kind: "review" as const,
+      createdAt: `2026-09-18T11:${String(index).padStart(2, "0")}:00Z`,
+      threadRootId: 10,
+      authorLogin: "alice",
+      authorIsBot: false,
+      authorIsTrusted: true,
+      body: `Reply ${index}`,
+    }));
+    const thread = buildGitHubMentionThread({
+      current: { id: 999, kind: "review", threadRootId: 10 },
+      comments: [
+        {
+          id: 10,
+          kind: "review",
+          createdAt: "2026-09-18T10:00:00Z",
+          threadRootId: 10,
+          authorLogin: "greptile-apps[bot]",
+          authorIsBot: true,
+          authorIsTrusted: false,
+          body: "The finding",
+        },
+        ...replies,
+      ],
+    });
+    expect(thread).toHaveLength(10);
+    expect(thread[0]?.body).toBe("The finding");
+    expect(thread.at(-1)?.body).toBe("Reply 11");
+  });
 });
