@@ -1,11 +1,13 @@
 import {
   GITHUB_MENTION_ACTIVE_CONTENT_BLOCKED_MESSAGE,
   GITHUB_MENTION_FILE_CONTENT_MAX_BYTES,
+  GITHUB_MENTION_SUGGESTION,
 } from "@notra/ai/constants/github-mention";
 import type {
   GitHubMentionContext,
   GitHubMentionFileChange,
   GitHubMentionOctokit,
+  GitHubMentionProposal,
 } from "@notra/ai/types/github-mention";
 import { findOpenContentPublicationForPost } from "@notra/ai/utils/content-publication";
 import { reviewGitHubMentionChange } from "@notra/ai/utils/github-mention-change-review";
@@ -13,12 +15,19 @@ import { partitionGitHubMentionPaths } from "@notra/ai/utils/github-mention-path
 import { carryOverImageTargets } from "@notra/ai/utils/github-mention-published-file";
 import { runGitHubMentionSandbox } from "@notra/ai/utils/github-mention-sandbox";
 import {
+  buildGitHubMentionSuggestions,
+  commentableLinesFromPatch,
+  isGitHubMentionSuggestionCommentable,
+} from "@notra/ai/utils/github-mention-suggestion";
+import {
   type GitHubMentionWriteState,
   ensureFollowUpPullRequest,
   resolveGitHubMentionWriteTarget,
 } from "@notra/ai/utils/github-mention-write-target";
 import {
   commitFilesToPullRequest,
+  getGitHubPullRequestFilePatch,
+  getPullRequestHead,
   getRepositoryFileContents,
 } from "@notra/ai/utils/github-pr-commit";
 import { updatePostRecord } from "@notra/ai/utils/post-service";
@@ -39,6 +48,8 @@ export interface GitHubMentionToolState extends GitHubMentionWriteState {
   pullRequestUrl: string | null;
   /** The published file on the pull request head, read once before the run. */
   publishedFile: string | null;
+  /** Edits the agent proposed instead of committing, one per file. */
+  proposals: GitHubMentionProposal[];
 }
 
 async function recordWrite(
@@ -159,6 +170,132 @@ export function buildGitHubMentionTools(params: {
         return { path, contents };
       },
     }),
+    ...(context.destination.mode === "same_pull_request"
+      ? {
+          suggestContentChange: tool({
+            description:
+              "Proposes an edit without committing: the reviewer sees it as a GitHub suggestion on the changed lines and applies it with one click. Pass the full new contents of the file. Only works for a content file that is part of this pull request.",
+            inputSchema: z.object({
+              path: z
+                .string()
+                .optional()
+                .describe(
+                  "Repository-relative file path. Defaults to the published file."
+                ),
+              contents: z
+                .string()
+                .describe("The whole file as it should read afterwards"),
+            }),
+            execute: ({ path, contents }) =>
+              inWriteOrder(async () => {
+                const pullNumber = context.destination.pullRequestNumber;
+                const targetPath = path ?? context.publication?.path;
+                if (!(pullNumber && targetPath)) {
+                  return {
+                    error:
+                      "No published file is linked to this pull request. Pass the path of the file to suggest a change for.",
+                  };
+                }
+                const { blocked } = partitionGitHubMentionPaths([targetPath]);
+                if (blocked.length > 0) {
+                  return {
+                    error:
+                      "Nothing was suggested. Mentions only edit content files; tell the commenter this needs a regular commit.",
+                    blocked,
+                  };
+                }
+                const head = await getPullRequestHead({
+                  octokit,
+                  owner: context.owner,
+                  repo: context.repo,
+                  pullNumber,
+                });
+                const location = {
+                  octokit,
+                  owner: context.owner,
+                  repo: context.repo,
+                };
+                const [previous, patch] = await Promise.all([
+                  getRepositoryFileContents({
+                    ...location,
+                    path: targetPath,
+                    ref: head.headSha,
+                  }),
+                  getGitHubPullRequestFilePatch({
+                    ...location,
+                    pullNumber,
+                    path: targetPath,
+                  }),
+                ]);
+                const next =
+                  targetPath === context.publication?.path &&
+                  context.publication.headSha === head.headSha
+                    ? carryOverImageTargets(
+                        contents,
+                        context.publication.markdown ?? "",
+                        previous
+                      )
+                    : contents;
+                const review = await reviewGitHubMentionChange({
+                  octokit,
+                  context,
+                  branch: head.headSha,
+                  files: [{ path: targetPath, contents: next }],
+                });
+                if (review.blocked.length > 0) {
+                  return {
+                    error: GITHUB_MENTION_ACTIVE_CONTENT_BLOCKED_MESSAGE,
+                    blocked: review.blocked,
+                  };
+                }
+                const suggestions = buildGitHubMentionSuggestions({
+                  path: targetPath,
+                  previous,
+                  next,
+                });
+                if (suggestions.length === 0) {
+                  return {
+                    error: "These contents match the file, nothing to suggest.",
+                  };
+                }
+                if (
+                  suggestions.length > GITHUB_MENTION_SUGGESTION.maxSuggestions
+                ) {
+                  return {
+                    error:
+                      "This touches too many separate places to review as suggestions. Narrow it down, or commit it if the commenter asked for the change itself.",
+                  };
+                }
+                const commentable = commentableLinesFromPatch(patch);
+                const isCommentable = suggestions.every((suggestion) =>
+                  isGitHubMentionSuggestionCommentable(suggestion, commentable)
+                );
+                if (!isCommentable) {
+                  return {
+                    error:
+                      "These lines are not part of this pull request's diff, so GitHub cannot show a suggestion on them. Commit the change if the commenter asked for it, otherwise describe it in your reply.",
+                  };
+                }
+                state.proposals = [
+                  ...state.proposals.filter(
+                    (proposal) => proposal.path !== targetPath
+                  ),
+                  {
+                    path: targetPath,
+                    commitSha: head.headSha,
+                    previous,
+                    suggestions,
+                  },
+                ];
+                return {
+                  suggested: true,
+                  path: targetPath,
+                  suggestions: suggestions.length,
+                };
+              }),
+          }),
+        }
+      : {}),
     updatePublishedContent: tool({
       description:
         "Updates the Notra post linked to this pull request and commits the file onto the mention pull request. Do not use this for questions.",

@@ -22,6 +22,10 @@ export interface GitHubMentionRepository {
 export interface GitHubMentionReviewThread {
   path: string;
   line: number | null;
+  /** First line of a multi-line comment. */
+  startLine: number | null;
+  /** Commit the line numbers refer to. */
+  commitSha: string | null;
   diffHunk: string | null;
   /** Replies must target the thread's first comment. */
   rootCommentId: number;
@@ -92,6 +96,18 @@ export interface GitHubMentionContext {
   publication: GitHubMentionPublication | null;
 }
 
+/** Brand voice fields the mention agent writes in. */
+export interface GitHubMentionVoice {
+  name: string;
+  companyName: string | null;
+  companyDescription: string | null;
+  toneProfile: string | null;
+  customTone: string | null;
+  customInstructions: string | null;
+  audience: string | null;
+  language: string | null;
+}
+
 export interface GitHubMentionThreadComment {
   id: number;
   kind: "issue" | "review";
@@ -112,11 +128,34 @@ export interface GitHubMentionChangedFile {
   patch: string | null;
 }
 
+/** Lines of the file on the pull request head, 1-based and inclusive. */
+export interface GitHubMentionLineRange {
+  startLine: number;
+  line: number;
+}
+
+/** A proposed edit: `previousLines` on the head would become `replacement`. */
+export interface GitHubMentionSuggestion extends GitHubMentionLineRange {
+  path: string;
+  previousLines: string[];
+  replacement: string[];
+}
+
+/** What the agent proposed instead of committing, against one head commit. */
+export interface GitHubMentionProposal {
+  path: string;
+  /** Head the line numbers refer to. */
+  commitSha: string;
+  previous: string;
+  suggestions: GitHubMentionSuggestion[];
+}
+
 export interface GitHubMentionAgentResult {
   reply: string;
   committed: boolean;
   commitSha: string | null;
   pullRequestUrl: string | null;
+  proposals: GitHubMentionProposal[];
 }
 
 export interface GitHubMentionProcessResult {
@@ -125,6 +164,7 @@ export interface GitHubMentionProcessResult {
     | "unauthorized"
     | "accepted"
     | "replied"
+    | "suggested"
     | "committed"
     | "failed";
   reason?: string;

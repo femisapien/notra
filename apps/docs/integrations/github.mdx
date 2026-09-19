@@ -98,7 +98,11 @@ Every delivery is written to the organization's webhook log (**Settings**, then 
 
 Mention Notra in a pull request comment, for example `@notra shorten the intro`. Mentions on ordinary issues are ignored without a reply or reaction. You do not need the exact App name: `@notra`, `@notra-ai`, and `@notrabot` all work. Notra reacts to your PR comment with 👀 while it works and swaps that for 👍 when it is done. The reply and any commits come from the App's bot account.
 
-After a change, Notra replies right at the lines it edited under **Files changed**, with a before and after of the text and a link to the commit. You can also mention Notra in a review comment on specific lines, or reply inside its thread ("shorter please"); it reads the earlier comments, so you do not have to repeat yourself.
+When your comment is about how something reads ("the intro feels heavy", "show me a punchier opening"), Notra does not commit. It answers with a GitHub suggestion on the lines in question, and you apply it with **Commit suggestion**, or reply "shorter please" to get another take. Nothing on the branch changes until you accept one. Notra commits directly when you tell it to ("apply it", "go ahead"), for plain corrections such as a typo or a wrong number, and for changes a suggestion cannot express, like edits across several files.
+
+Notra writes in the brand voice the post was created with, and it reads the pull request description, so an edit from a comment sounds like the rest of the post.
+
+After a commit, Notra replies right at the lines it edited under **Files changed**, with a before and after of the text and a link to the commit. You can also mention Notra in a review comment on specific lines, or reply inside its thread ("shorter please"); it reads the earlier comments, so you do not have to repeat yourself.
 
 * **Questions** get an answer in the thread. Nothing is committed.
 * **Change requests** on a pull request Notra published commit the file onto that pull request, then synchronize the Notra post.

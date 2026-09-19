@@ -28,6 +28,8 @@ const commentSchema = z.object({
   // Present on pull_request_review_comment events only.
   path: z.string().optional(),
   line: z.number().nullable().optional(),
+  start_line: z.number().nullable().optional(),
+  commit_id: z.string().optional(),
   diff_hunk: z.string().optional(),
   in_reply_to_id: z.number().optional(),
 });

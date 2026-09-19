@@ -1,5 +1,13 @@
 import { GITHUB_MENTION_REPLY_DIFF } from "@notra/ai/constants/github-mention";
-import type { GitHubMentionChangedFile } from "@notra/ai/types/github-mention";
+import type {
+  GitHubMentionChangedFile,
+  GitHubMentionProposal,
+  GitHubMentionSuggestion,
+} from "@notra/ai/types/github-mention";
+import {
+  formatGitHubMentionSuggestionBlock,
+  formatGitHubMentionSuggestionDiff,
+} from "@notra/ai/utils/github-mention-suggestion";
 
 const SHORT_SHA_LENGTH = 7;
 const PULL_REQUEST_NUMBER_PATTERN = /\/pull\/(\d+)/;
@@ -198,6 +206,66 @@ export function buildGitHubMentionReply(params: {
       files: params.files,
       followUpPullRequestUrl: params.followUpPullRequestUrl,
     }),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function proposalFooter(
+  proposals: readonly GitHubMentionProposal[],
+  howToApply: string
+) {
+  const [first] = proposals;
+  const where =
+    proposals.length === 1 && first
+      ? `\`${first.path}\``
+      : `${proposals.length} files`;
+  return `<sub>Suggestion · ${where} · ${howToApply} · mention me again to keep iterating</sub>`;
+}
+
+/**
+ * Reply for a proposed edit. `inline` puts the suggestion into the reply
+ * itself (a review thread on exactly those lines); without it the suggestions
+ * travel as separate review comments and this is the text above them.
+ */
+export function buildGitHubMentionProposalReply(params: {
+  text: string;
+  proposals: readonly GitHubMentionProposal[];
+  inline: GitHubMentionSuggestion | null;
+}) {
+  const { summary, followUpQuestion } = splitFollowUpQuestion(params.text);
+  return [
+    summary,
+    params.inline
+      ? formatGitHubMentionSuggestionBlock(params.inline.replacement)
+      : "",
+    followUpQuestion,
+    proposalFooter(params.proposals, "commit it from the suggestion to apply"),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/** Same proposal as plain diffs, for when GitHub refuses the suggestion comments. */
+export function buildGitHubMentionProposalFallbackReply(params: {
+  text: string;
+  proposals: readonly GitHubMentionProposal[];
+}) {
+  const { summary, followUpQuestion } = splitFollowUpQuestion(params.text);
+  const blocks = params.proposals.flatMap((proposal) =>
+    proposal.suggestions.map(
+      (suggestion) =>
+        `${params.proposals.length > 1 ? `\`${proposal.path}\`\n` : ""}${formatGitHubMentionSuggestionDiff(suggestion)}`
+    )
+  );
+  return [
+    summary,
+    ...blocks,
+    followUpQuestion,
+    proposalFooter(
+      params.proposals,
+      "tell me to apply it and I will commit it"
+    ),
   ]
     .filter(Boolean)
     .join("\n\n");

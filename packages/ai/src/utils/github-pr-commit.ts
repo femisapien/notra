@@ -359,6 +359,75 @@ export async function postGitHubReviewComment(params: {
   return { id: data.id, htmlUrl: data.html_url };
 }
 
+const PULL_REQUEST_FILES_PAGE_LIMIT = 3;
+
+/** The pull request's diff of one file; null when the file is not part of it. */
+export async function getGitHubPullRequestFilePatch(params: {
+  octokit: CommitFilesToPullRequestParams["octokit"];
+  owner: string;
+  repo: string;
+  pullNumber: number;
+  path: string;
+}) {
+  for (let page = 1; page <= PULL_REQUEST_FILES_PAGE_LIMIT; page++) {
+    const { data } = await params.octokit.request(
+      "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
+      {
+        owner: params.owner,
+        repo: params.repo,
+        pull_number: params.pullNumber,
+        per_page: 100,
+        page,
+        headers: GITHUB_API_VERSION_HEADERS,
+      }
+    );
+    const file = data.find((candidate) => candidate.filename === params.path);
+    if (file || data.length < 100) {
+      return file?.patch ?? null;
+    }
+  }
+  return null;
+}
+
+/** One review whose comments each carry a suggestion for their lines. */
+export async function postGitHubSuggestionReview(params: {
+  octokit: CommitFilesToPullRequestParams["octokit"];
+  owner: string;
+  repo: string;
+  pullNumber: number;
+  commitSha: string;
+  body: string;
+  comments: ReadonlyArray<{
+    path: string;
+    startLine: number;
+    line: number;
+    body: string;
+  }>;
+}) {
+  const { data } = await params.octokit.request(
+    "POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews",
+    {
+      owner: params.owner,
+      repo: params.repo,
+      pull_number: params.pullNumber,
+      commit_id: params.commitSha,
+      event: "COMMENT",
+      body: params.body,
+      comments: params.comments.map((comment) => ({
+        path: comment.path,
+        side: "RIGHT",
+        line: comment.line,
+        ...(comment.startLine < comment.line
+          ? { start_line: comment.startLine, start_side: "RIGHT" }
+          : {}),
+        body: comment.body,
+      })),
+      headers: GITHUB_API_VERSION_HEADERS,
+    }
+  );
+  return { id: data.id, htmlUrl: data.html_url };
+}
+
 export async function replyToGitHubReviewThread(params: {
   octokit: CommitFilesToPullRequestParams["octokit"];
   owner: string;

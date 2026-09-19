@@ -10,6 +10,7 @@ import type {
   GitHubMentionContext,
   GitHubMentionLogTarget,
   GitHubMentionProcessResult,
+  GitHubMentionProposal,
   GitHubMentionPullRequest,
   GitHubMentionResolveResult,
 } from "@notra/ai/types/github-mention";
@@ -26,15 +27,22 @@ import {
 import { resolveGitHubMentionDestination } from "@notra/ai/utils/github-mention-destination";
 import { logGitHubMentionEvent } from "@notra/ai/utils/github-mention-log";
 import {
+  buildGitHubMentionProposalFallbackReply,
+  buildGitHubMentionProposalReply,
   buildGitHubMentionReply,
   findGitHubMentionReplyAnchor,
 } from "@notra/ai/utils/github-mention-reply";
+import {
+  fitGitHubMentionSuggestionsToRange,
+  formatGitHubMentionSuggestionBlock,
+} from "@notra/ai/utils/github-mention-suggestion";
 import {
   addGitHubCommentReaction,
   getGitHubChangedFiles,
   getPullRequestHead,
   postGitHubIssueComment,
   postGitHubReviewComment,
+  postGitHubSuggestionReview,
   removeGitHubCommentReaction,
   replyToGitHubReviewThread,
 } from "@notra/ai/utils/github-pr-commit";
@@ -177,6 +185,8 @@ export async function resolveGitHubMentionContext(params: {
             ? {
                 path: comment.path,
                 line: comment.line ?? null,
+                startLine: comment.start_line ?? null,
+                commitSha: comment.commit_id ?? null,
                 diffHunk: comment.diff_hunk ?? null,
                 rootCommentId: comment.in_reply_to_id ?? comment.id,
               }
@@ -283,6 +293,110 @@ async function postGitHubMentionReply(params: {
   });
 }
 
+/**
+ * The suggestion for the review thread the mention was written in, when the
+ * whole proposal sits on that thread's lines and they still read the same.
+ */
+function fitProposalToReviewThread(
+  context: GitHubMentionContext,
+  proposals: readonly GitHubMentionProposal[]
+) {
+  const review = context.comment.review;
+  const [proposal] = proposals;
+  if (
+    !(review?.line && proposal) ||
+    proposals.length > 1 ||
+    proposal.path !== review.path ||
+    proposal.commitSha !== review.commitSha
+  ) {
+    return null;
+  }
+  // The hunk ends on the commented line. If the file reads differently there,
+  // the thread's numbers are stale and a suggestion would replace other text.
+  const commentedLine = review.diffHunk?.split("\n").at(-1)?.slice(1);
+  if (commentedLine !== proposal.previous.split("\n")[review.line - 1]) {
+    return null;
+  }
+  return fitGitHubMentionSuggestionsToRange({
+    suggestions: proposal.suggestions,
+    previous: proposal.previous,
+    range: { startLine: review.startLine ?? review.line, line: review.line },
+  });
+}
+
+/**
+ * Posts a proposed edit as GitHub suggestions: inside the review thread when
+ * it fits there, otherwise as one review with a comment per changed region.
+ * If GitHub refuses them, the same proposal goes out as a plain diff.
+ */
+async function postGitHubMentionProposal(params: {
+  octokit: ReturnType<typeof createOctokit>;
+  context: GitHubMentionContext;
+  text: string;
+  proposals: readonly GitHubMentionProposal[];
+}) {
+  const { octokit, context, text, proposals } = params;
+  const pullNumber = context.pullRequest?.number;
+  const commitSha = proposals[0]?.commitSha;
+  try {
+    const inline = fitProposalToReviewThread(context, proposals);
+    const body = clipComment(
+      buildGitHubMentionProposalReply({ text, proposals, inline })
+    );
+    if (inline && context.comment.review && pullNumber) {
+      await replyToGitHubReviewThread({
+        octokit,
+        owner: context.owner,
+        repo: context.repo,
+        pullNumber,
+        rootCommentId: context.comment.review.rootCommentId,
+        body,
+      });
+      return body;
+    }
+    if (pullNumber && commitSha) {
+      await postGitHubSuggestionReview({
+        octokit,
+        owner: context.owner,
+        repo: context.repo,
+        pullNumber,
+        commitSha,
+        body,
+        comments: proposals.flatMap((proposal) =>
+          proposal.suggestions.map((suggestion) => ({
+            path: suggestion.path,
+            startLine: suggestion.startLine,
+            line: suggestion.line,
+            body: formatGitHubMentionSuggestionBlock(suggestion.replacement),
+          }))
+        ),
+      });
+      return body;
+    }
+  } catch (error) {
+    logGitHubMentionEvent(
+      GITHUB_MENTION_LOG_EVENTS.ignored,
+      {
+        deliveryId: context.deliveryId,
+        reason: "suggestion_failed",
+        error: error instanceof Error ? error.message : String(error),
+      },
+      "warn"
+    );
+  }
+  const body = clipComment(
+    buildGitHubMentionProposalFallbackReply({ text, proposals })
+  );
+  await postGitHubMentionReply({
+    octokit,
+    context,
+    body,
+    commitSha: null,
+    changedFiles: [],
+  });
+  return body;
+}
+
 export async function processGitHubMention(
   context: GitHubMentionContext
 ): Promise<GitHubMentionProcessResult> {
@@ -368,6 +482,37 @@ export async function processGitHubMention(
     if (agentResult.committed) {
       written = {
         commitSha: agentResult.commitSha,
+        pullRequestUrl: agentResult.pullRequestUrl,
+      };
+    }
+    if (agentResult.proposals.length > 0) {
+      const reply = await postGitHubMentionProposal({
+        octokit,
+        context,
+        text:
+          agentResult.reply ||
+          "Here is how I would change it. Commit the suggestion if it works for you, or tell me what to adjust.",
+        proposals: agentResult.proposals,
+      });
+      await finishReaction("+1");
+      logGitHubMentionEvent(GITHUB_MENTION_LOG_EVENTS.completed, {
+        organizationId: context.organizationId,
+        integrationId: context.integrationId,
+        deliveryId: context.deliveryId,
+        repository: `${context.owner}/${context.repo}`,
+        issueNumber: context.issueNumber,
+        mentionStatus: "suggested",
+        suggestions: agentResult.proposals.reduce(
+          (sum, proposal) => sum + proposal.suggestions.length,
+          0
+        ),
+        pullRequestUrl: agentResult.pullRequestUrl,
+        durationMs: Date.now() - startedAt,
+      });
+      return {
+        status: "suggested",
+        reply,
+        commitSha: null,
         pullRequestUrl: agentResult.pullRequestUrl,
       };
     }

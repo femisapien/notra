@@ -104,12 +104,16 @@ export function wantsSeparatePullRequest(body: string) {
 
 const REPLY_DECORATION_PATTERNS = [
   /<details>[\s\S]*?<\/details>/g,
-  /(`{3,})diff\n[\s\S]*?\n\1/g,
   /<sub>[\s\S]*?<\/sub>/g,
 ] as const;
+const REPLY_DIFF_PATTERN = /(`{3,})diff\n[\s\S]*?\n\1/g;
+const COMMITTED_REPLY_FOOTER_PATTERN =
+  /<sub>[\s\S]*?github\.com\/[^/\s]+\/[^/\s]+\/commit\/[a-f\d]+[\s\S]*?<\/sub>/i;
 
 function stripReplyDecoration(body: string) {
-  let text = body;
+  let text = COMMITTED_REPLY_FOOTER_PATTERN.test(body)
+    ? body.replace(REPLY_DIFF_PATTERN, "")
+    : body;
   for (const pattern of REPLY_DECORATION_PATTERNS) {
     text = text.replace(pattern, "");
   }

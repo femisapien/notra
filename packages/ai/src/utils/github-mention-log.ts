@@ -113,6 +113,8 @@ export function buildMentionResultWebhookLog(params: {
     statusCode = 500;
   } else if (params.result.status === "committed") {
     title = `Updated ${issue} from @notra mention`;
+  } else if (params.result.status === "suggested") {
+    title = `Suggested a change on ${issue} from @notra mention`;
   }
   return {
     organizationId: params.context.organizationId,

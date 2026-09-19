@@ -21,6 +21,7 @@ import {
   readPublishedFile,
   resolveEditableMarkdown,
 } from "@notra/ai/utils/github-mention-published-file";
+import { loadGitHubMentionVoice } from "@notra/ai/utils/github-mention-voice";
 import {
   listGitHubIssueComments,
   listGitHubReviewComments,
@@ -44,6 +45,7 @@ export async function runGitHubMentionAgent(params: {
     writePullNumber: null,
     writePullRequestUrl: null,
     publishedFile: await readPublishedFile(params),
+    proposals: [],
   };
   const editable = resolveEditableMarkdown({
     postMarkdown: params.context.publication?.markdown ?? null,
@@ -73,14 +75,15 @@ export async function runGitHubMentionAgent(params: {
     stopWhen: stepCountIs(GITHUB_MENTION_AGENT_MAX_STEPS),
   });
 
-  // Thread context is best effort: the mention still works without it. Notra's
-  // own replies often sit in review threads, so both comment kinds are merged.
+  // Thread and voice context are best effort: the mention still works without
+  // them. Notra's own replies often sit in review threads, so both comment
+  // kinds are merged.
   const location = {
     octokit: params.octokit,
     owner: params.context.owner,
     repo: params.context.repo,
   };
-  const [issueComments, reviewComments] = await Promise.all([
+  const [issueComments, reviewComments, voice] = await Promise.all([
     listGitHubIssueComments({
       ...location,
       issueNumber: params.context.issueNumber,
@@ -91,6 +94,10 @@ export async function runGitHubMentionAgent(params: {
           pullNumber: params.context.pullRequest.number,
         }).catch(() => [])
       : [],
+    loadGitHubMentionVoice({
+      organizationId: params.context.organizationId,
+      postId: params.context.publication?.postId ?? null,
+    }).catch(() => null),
   ]);
 
   const prompt = getGitHubMentionPrompt({
@@ -100,6 +107,9 @@ export async function runGitHubMentionAgent(params: {
     repo: params.context.repo,
     issueNumber: params.context.issueNumber,
     pullRequestTitle: params.context.pullRequest?.title ?? null,
+    pullRequestBody: params.context.pullRequest?.body ?? null,
+    contentType: params.context.publication?.contentType ?? null,
+    voice,
     destinationMode: params.context.destination.mode,
     publicationPath: params.context.publication?.path ?? null,
     publicationTitle: params.context.publication?.title ?? null,
@@ -133,5 +143,7 @@ export async function runGitHubMentionAgent(params: {
     committed: state.committed,
     commitSha: state.commitSha,
     pullRequestUrl: state.pullRequestUrl,
+    // A commit moved the head, so suggestions made before it point nowhere.
+    proposals: state.committed ? [] : state.proposals,
   };
 }

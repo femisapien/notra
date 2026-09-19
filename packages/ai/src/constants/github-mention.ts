@@ -49,6 +49,20 @@ export const GITHUB_MENTION_REPLY_DIFF = {
   fileLimit: 5,
 } as const;
 
+export const GITHUB_MENTION_SUGGESTION = {
+  /** Changed regions this many unchanged lines apart become one suggestion. */
+  mergeGap: 1,
+  /** More separate regions than this read better as a commit. */
+  maxSuggestions: 8,
+  /** Line pairs the diff compares before it treats the middle as one rewrite. */
+  diffCellLimit: 1_000_000,
+} as const;
+
+export const GITHUB_MENTION_PROMPT_CONTEXT = {
+  pullRequestBodyLimit: 2000,
+  voiceFieldLimit: 1500,
+} as const;
+
 export const GITHUB_MENTION_THREAD_CONTEXT = {
   commentLimit: 10,
   commentLengthLimit: 1500,

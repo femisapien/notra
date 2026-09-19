@@ -165,7 +165,7 @@ describe("buildGitHubMentionThread", () => {
             authorLogin: "notra-ai[bot]",
             authorIsBot: true,
             authorIsTrusted: false,
-            body: "Cut the intro.\n\n```diff\n-a\n+b\n```\n\nWant me to tighten Fixed too?\n\n<sub>abc</sub>",
+            body: "Cut the intro.\n\n```diff\n-a\n+b\n```\n\nWant me to tighten Fixed too?\n\n<sub>[`abc1234`](https://github.com/acme/app/commit/abc1234)</sub>",
           },
           {
             id: 4,
@@ -193,6 +193,40 @@ describe("buildGitHubMentionThread", () => {
         process.env.GITHUB_APP_SLUG = previous;
       }
     }
+  });
+
+  test("keeps proposed fallback diffs in thread context", () => {
+    const thread = buildGitHubMentionThread({
+      current: { id: 2, kind: "issue" },
+      comments: [
+        {
+          id: 1,
+          kind: "issue",
+          createdAt: "2026-09-18T10:00:00Z",
+          threadRootId: null,
+          authorLogin: `${getGitHubMentionAppHandles()[0]}[bot]`,
+          authorIsBot: true,
+          authorIsTrusted: false,
+          body: "Proposed edit.\n\n```diff\n-old\n+new\n```\n\n<sub>Suggestion · `docs/a.md` · tell me to apply it</sub>",
+        },
+        {
+          id: 2,
+          kind: "issue",
+          createdAt: "2026-09-18T10:01:00Z",
+          threadRootId: null,
+          authorLogin: "alice",
+          authorIsBot: false,
+          authorIsTrusted: true,
+          body: "@notra apply it",
+        },
+      ],
+    });
+    expect(thread).toEqual([
+      {
+        author: "Notra (you)",
+        body: "Proposed edit.\n\n```diff\n-old\n+new\n```",
+      },
+    ]);
   });
 
   test("keeps only the current review thread", () => {

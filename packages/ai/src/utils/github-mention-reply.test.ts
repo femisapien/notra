@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import {
   buildGitHubMentionDiffSection,
+  buildGitHubMentionProposalFallbackReply,
+  buildGitHubMentionProposalReply,
   findGitHubMentionReplyAnchor,
   buildGitHubMentionReply,
 } from "./github-mention-reply";
@@ -141,5 +143,57 @@ describe("findGitHubMentionReplyAnchor", () => {
     expect(
       findGitHubMentionReplyAnchor([{ ...file, patch: null }], null)
     ).toBeNull();
+  });
+});
+
+describe("proposal replies", () => {
+  const suggestion = {
+    path: "docs/changelog/release.md",
+    startLine: 3,
+    line: 4,
+    previousLines: ["Old intro one.", "Old intro two."],
+    replacement: ["New intro."],
+  };
+  const proposals = [
+    {
+      path: suggestion.path,
+      commitSha: "345543c0aa11bb22",
+      previous: "# Release\n\nOld intro one.\nOld intro two.\n",
+      suggestions: [suggestion],
+    },
+  ];
+
+  test("puts the suggestion between the summary and the closing offer", () => {
+    const reply = buildGitHubMentionProposalReply({
+      text: "One sentence now leads with the speedup.\n\nWant me to trim the Fixed section too?",
+      proposals,
+      inline: suggestion,
+    });
+    expect(reply).toContain("```suggestion\nNew intro.\n```");
+    expect(reply.indexOf("```suggestion")).toBeLessThan(
+      reply.indexOf("Want me")
+    );
+    expect(reply).toContain("commit it from the suggestion to apply");
+  });
+
+  test("leaves the suggestion to the review comments when not inline", () => {
+    const reply = buildGitHubMentionProposalReply({
+      text: "One sentence now leads with the speedup.",
+      proposals,
+      inline: null,
+    });
+    expect(reply).not.toContain("```");
+    expect(reply).toContain("`docs/changelog/release.md`");
+  });
+
+  test("falls back to a plain diff and an offer to commit", () => {
+    const reply = buildGitHubMentionProposalFallbackReply({
+      text: "One sentence now leads with the speedup.",
+      proposals,
+    });
+    expect(reply).toContain(
+      "```diff\n-Old intro one.\n-Old intro two.\n+New intro.\n```"
+    );
+    expect(reply).toContain("tell me to apply it and I will commit it");
   });
 });
