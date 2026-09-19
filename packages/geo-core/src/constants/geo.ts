@@ -1237,7 +1237,7 @@ export const GEO_CHANGES_COLUMN_LABELS = {
   engine: "Engine",
   prompt: "Prompt",
   position: "Position",
-  detail: "Recommended instead",
+  detail: "Details",
 } as const;
 export const GEO_CHANGES_STATE_NEW = "New";
 export const GEO_CHANGES_STATE_NOT_MENTIONED = "Not mentioned";
@@ -1245,8 +1245,9 @@ export const GEO_CHANGES_STATE_MENTIONED = "Mentioned";
 export const GEO_CHANGES_POSITION_PREFIX = "#";
 export const GEO_CHANGES_EMPTY_DETAIL = "-";
 export const GEO_CHANGES_COMPETITORS_PREFIX = "Now recommended";
-export const GEO_CHANGES_CITATIONS_ADDED_PREFIX = "New citations";
-export const GEO_CHANGES_CITATIONS_REMOVED_PREFIX = "Citations dropped";
+export const GEO_CHANGES_COMPETITORS_CITED_PREFIX = "Now cited";
+export const GEO_CHANGES_STATE_CITED = "Cited";
+export const GEO_CHANGES_STATE_NOT_CITED = "Not cited";
 
 export const GEO_CHANGE_KIND_LABELS: Record<GeoChangeKind, string> = {
   gained_mention: "Gained mention",
@@ -1254,8 +1255,9 @@ export const GEO_CHANGE_KIND_LABELS: Record<GeoChangeKind, string> = {
   position_improved: "Position up",
   position_dropped: "Position down",
   competitor_displaced: "Displaced by competitor",
-  citation_added: "Citation added",
-  citation_removed: "Citation removed",
+  citation_added: "Citation gained",
+  citation_removed: "Citation lost",
+  competitor_cited: "Competitor cited",
   new_engine: "New engine",
 };
 
@@ -1267,6 +1269,7 @@ export const GEO_CHANGE_KIND_ORDER: Record<GeoChangeKind, number> = {
   position_dropped: 2,
   citation_added: 3,
   citation_removed: 3,
+  competitor_cited: 3,
   new_engine: 4,
 };
 
@@ -1278,8 +1281,8 @@ export const GEO_CHANGES_SUMMARY_LABELS: Record<
   lost: "Lost",
   positionImproved: "Position up",
   positionDropped: "Position down",
-  citationsAdded: "Citations added",
-  citationsRemoved: "Citations removed",
+  citationsAdded: "Citations gained",
+  citationsRemoved: "Citations lost",
 };
 
 export const GEO_CHANGES_SUMMARY_HINTS: Record<
