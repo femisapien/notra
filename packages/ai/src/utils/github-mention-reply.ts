@@ -49,6 +49,7 @@ export function buildGitHubMentionDiffSection(
   const blocks: string[] = [];
   let remaining = GITHUB_MENTION_REPLY_DIFF.totalLineLimit;
   let totalLines = 0;
+  let omitted = false;
 
   for (const file of shown) {
     const label = files.length > 1 ? `\`${file.path}\`\n` : "";
@@ -59,6 +60,7 @@ export function buildGitHubMentionDiffSection(
     const all = changedLinesFromPatch(file.patch);
     const lines = all.slice(0, Math.max(remaining, 0));
     if (lines.length === 0) {
+      omitted ||= all.length > 0;
       continue;
     }
     if (lines.length < all.length) {
@@ -76,6 +78,9 @@ export function buildGitHubMentionDiffSection(
   const hiddenFiles = files.length - shown.length;
   if (hiddenFiles > 0) {
     blocks.push(`_…and ${hiddenFiles} more files._`);
+  }
+  if (omitted) {
+    blocks.push("_…additional diff omitted (line limit reached)._");
   }
   const body = blocks.join("\n\n");
   if (totalLines <= GITHUB_MENTION_REPLY_DIFF.inlineLineLimit) {

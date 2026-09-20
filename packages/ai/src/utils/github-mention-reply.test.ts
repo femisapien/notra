@@ -109,6 +109,18 @@ describe("buildGitHubMentionDiffSection", () => {
     expect(section).toContain("+b\n  ⋯\n-c");
     expect(section).toContain("`README.md`\n_No text diff available._");
   });
+
+  test("marks later diffs omitted after the line budget is exhausted", () => {
+    const fullPatch = `@@ -1,200 +1,200 @@\n${Array.from(
+      { length: 200 },
+      (_, index) => `+line ${index}`
+    ).join("\n")}`;
+    const section = buildGitHubMentionDiffSection([
+      { ...file, patch: fullPatch },
+      { ...file, path: "README.md", patch: "@@ -1 +1 @@\n-old\n+new" },
+    ]);
+    expect(section).toContain("additional diff omitted (line limit reached)");
+  });
 });
 
 describe("findGitHubMentionReplyAnchor", () => {

@@ -141,6 +141,17 @@ describe("buildGitHubMentionSuggestions", () => {
       })
     ).toEqual([]);
   });
+
+  test("preserves trailing blank lines beyond the final newline", () => {
+    const suggestions = buildGitHubMentionSuggestions({
+      path: PATH,
+      previous: "hello\n\n\n",
+      next: "hello\n",
+    });
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0]?.previousLines).toEqual(["", ""]);
+    expect(suggestions[0]?.replacement).toEqual([]);
+  });
 });
 
 describe("fitGitHubMentionSuggestionsToRange", () => {

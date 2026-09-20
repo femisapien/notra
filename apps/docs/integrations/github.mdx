@@ -102,11 +102,11 @@ When your comment is about how something reads ("the intro feels heavy", "show m
 
 Notra writes in the brand voice the post was created with, and it reads the pull request description, so an edit from a comment sounds like the rest of the post.
 
-After a commit, Notra replies right at the lines it edited under **Files changed**, with a before and after of the text and a link to the commit. You can also mention Notra in a review comment on specific lines, or reply inside its thread ("shorter please"); it reads the earlier comments, so you do not have to repeat yourself.
+After a commit, Notra replies right at the lines it edited under **Files changed**, with a before and after of the text and a link to the commit. When you wrote in a review thread, the reply stays in that thread. You can also mention Notra in a review comment on specific lines, or reply inside its thread ("shorter please"); it reads the earlier comments, so you do not have to repeat yourself.
 
 * **Questions** get an answer in the thread. Nothing is committed.
 * **Change requests** on a pull request Notra published commit the file onto that pull request, then synchronize the Notra post.
-* **Separate pull request**: say so in the comment ("open a separate PR") and Notra commits to a new branch and opens a draft pull request stacked on the one you commented on.
+* **Separate pull request**: say so in the comment ("open a separate PR") and Notra commits to a new branch and opens a draft pull request stacked on the one you commented on. The Notra post stays as it is. Once you merge that pull request into the published one, the next change picks it up.
 
 Notra only acts on comments from members of your Notra organization whose login is linked to the commenting GitHub account. Other mentions are ignored and logged as skipped. Mentions inside code, quotes, or email addresses do not count.
 

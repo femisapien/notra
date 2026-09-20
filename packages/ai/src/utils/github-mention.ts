@@ -82,11 +82,7 @@ export function isNotraMentionHandle(handle: string) {
 }
 
 export function isGitHubBotSender(sender: { login: string; type?: string }) {
-  return (
-    sender.type === "Bot" ||
-    sender.login.toLowerCase().endsWith("[bot]") ||
-    getGitHubMentionAppHandles().includes(normalizeHandle(sender.login))
-  );
+  return sender.type === "Bot" || sender.login.toLowerCase().endsWith("[bot]");
 }
 
 export function wantsSeparatePullRequest(body: string) {
@@ -107,17 +103,23 @@ const REPLY_DECORATION_PATTERNS = [
   /<sub>[\s\S]*?<\/sub>/g,
 ] as const;
 const REPLY_DIFF_PATTERN = /(`{3,})diff\n[\s\S]*?\n\1/g;
+const COMMITTED_REPLY_NOTE = "(This reply came with a commit of the change.)";
 const COMMITTED_REPLY_FOOTER_PATTERN =
   /<sub>[\s\S]*?github\.com\/[^/\s]+\/[^/\s]+\/commit\/[a-f\d]+[\s\S]*?<\/sub>/i;
 
+/**
+ * The diff and the commit footer say that a reply came with a commit. Both are
+ * dropped, so a short note keeps that fact: prose such as "Should I rename the
+ * title too?" otherwise reads as if the request were still open.
+ */
 function stripReplyDecoration(body: string) {
-  let text = COMMITTED_REPLY_FOOTER_PATTERN.test(body)
-    ? body.replace(REPLY_DIFF_PATTERN, "")
-    : body;
+  const committed = COMMITTED_REPLY_FOOTER_PATTERN.test(body);
+  let text = committed ? body.replace(REPLY_DIFF_PATTERN, "") : body;
   for (const pattern of REPLY_DECORATION_PATTERNS) {
     text = text.replace(pattern, "");
   }
-  return text.replace(/\n{3,}/g, "\n\n");
+  text = text.replace(/\n{3,}/g, "\n\n").trim();
+  return committed && text ? `${text}\n\n${COMMITTED_REPLY_NOTE}` : text;
 }
 
 /**
@@ -154,12 +156,23 @@ export function buildGitHubMentionThread(params: {
     comment.threadRootId === params.current.threadRootId;
   const thread: Array<{ author: string; body: string }> = [];
   let mentionThreadRoot: { author: string; body: string } | null = null;
-  // A review mention only needs its own thread. An issue mention also needs the
-  // threads Notra replied in (its inline replies live there), but not every
-  // unrelated review discussion on a busy pull request.
+  // A review mention needs its own thread and the threads Notra started: its
+  // inline replies to conversation comments live there, and without them those
+  // requests look unanswered. An issue mention needs every thread Notra replied
+  // in, but not each unrelated review discussion on a busy pull request.
   const reviewRootIds =
     params.current.kind === "review" && params.current.threadRootId != null
-      ? new Set([params.current.threadRootId])
+      ? new Set([
+          params.current.threadRootId,
+          ...params.comments
+            .filter(
+              (comment) =>
+                comment.kind === "review" &&
+                comment.threadRootId === comment.id &&
+                isNotraComment(comment)
+            )
+            .map((comment) => comment.id),
+        ])
       : new Set(
           params.comments
             .filter(

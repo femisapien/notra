@@ -6,7 +6,7 @@ import type {
 
 const HUNK_HEADER_PATTERN = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 const BACKTICK_RUN_PATTERN = /`{3,}/g;
-const TRAILING_NEWLINES_PATTERN = /\n+$/;
+const FINAL_NEWLINE_PATTERN = /\n$/;
 
 /** Old lines `oldStart..oldStart+oldCount-1` become `newLines`; a count of 0 inserts before `oldStart`. */
 interface LineHunk {
@@ -138,7 +138,7 @@ function renderRange(
  * can comment on, and a model that drops the final newline changed nothing.
  */
 function splitLines(text: string) {
-  return text.replace(TRAILING_NEWLINES_PATTERN, "").split("\n");
+  return text.replace(FINAL_NEWLINE_PATTERN, "").split("\n");
 }
 
 /**

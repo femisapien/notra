@@ -88,9 +88,10 @@ describe("getGitHubMentionAppHandles", () => {
 });
 
 describe("isGitHubBotSender", () => {
-  test("treats bots and the app slug as bot senders", () => {
+  test("uses GitHub bot identity rather than the app slug", () => {
     expect(isGitHubBotSender({ login: "notra[bot]", type: "Bot" })).toBe(true);
     expect(isGitHubBotSender({ login: "notra[bot]" })).toBe(true);
+    expect(isGitHubBotSender({ login: "notra-ai", type: "User" })).toBe(false);
     expect(isGitHubBotSender({ login: "alice", type: "User" })).toBe(false);
   });
 });
@@ -183,7 +184,7 @@ describe("buildGitHubMentionThread", () => {
         { author: "@alice", body: "@notra shorten the intro" },
         {
           author: "Notra (you)",
-          body: "Cut the intro.\n\nWant me to tighten Fixed too?",
+          body: "Cut the intro.\n\nWant me to tighten Fixed too?\n\n(This reply came with a commit of the change.)",
         },
       ]);
     } finally {
@@ -431,5 +432,75 @@ describe("buildGitHubMentionThread", () => {
     expect(thread).toHaveLength(10);
     expect(thread[0]?.body).toBe("The finding");
     expect(thread.at(-1)?.body).toBe("Reply 11");
+  });
+
+  test("a review mention sees the inline replies Notra gave elsewhere", () => {
+    const previous = process.env.GITHUB_APP_SLUG;
+    process.env.GITHUB_APP_SLUG = "notra-ai";
+    try {
+      const alice = {
+        authorLogin: "alice",
+        authorIsBot: false,
+        authorIsTrusted: true,
+      };
+      const thread = buildGitHubMentionThread({
+        current: { id: 31, kind: "review", threadRootId: 30 },
+        comments: [
+          {
+            ...alice,
+            id: 1,
+            kind: "issue",
+            createdAt: "2026-09-18T10:00:00Z",
+            threadRootId: null,
+            body: "@notra rename the release to 2.4.1",
+          },
+          {
+            id: 20,
+            kind: "review",
+            createdAt: "2026-09-18T10:01:00Z",
+            threadRootId: 20,
+            authorLogin: "notra-ai[bot]",
+            authorIsBot: true,
+            authorIsTrusted: false,
+            body: "Renamed the release to 2.4.1.",
+          },
+          {
+            ...alice,
+            id: 25,
+            kind: "review",
+            createdAt: "2026-09-18T10:02:00Z",
+            threadRootId: 25,
+            body: "Unrelated review discussion",
+          },
+          {
+            ...alice,
+            id: 30,
+            kind: "review",
+            createdAt: "2026-09-18T10:03:00Z",
+            threadRootId: 30,
+            body: "This bullet is vague",
+          },
+          {
+            ...alice,
+            id: 31,
+            kind: "review",
+            createdAt: "2026-09-18T10:04:00Z",
+            threadRootId: 30,
+            body: "@notra fix it",
+          },
+        ],
+      });
+      expect(thread.map((comment) => comment.body)).toEqual([
+        "@notra rename the release to 2.4.1",
+        "Renamed the release to 2.4.1.",
+        "This bullet is vague",
+      ]);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.GITHUB_APP_SLUG;
+      } else {
+        process.env.GITHUB_APP_SLUG = previous;
+      }
+    }
   });
 });
