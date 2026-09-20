@@ -358,10 +358,16 @@ async function listChangedSandboxFiles(
   baseSha: string
 ) {
   const diff = `git -c core.quotePath=false diff --cached --no-renames ${baseSha}`;
-  await box.exec.command("git add -A");
+  const add = await box.exec.command("git add -A");
+  if (add.exitCode !== 0) {
+    throw new Error(`git add exited with code ${add.exitCode ?? 1}`);
+  }
   const [nameStatus, numstat] = await Promise.all([
     box.exec.command(`${diff} --name-status`),
     box.exec.command(`${diff} --numstat`),
   ]);
+  if (nameStatus.exitCode !== 0 || numstat.exitCode !== 0) {
+    throw new Error("git diff failed while collecting sandbox changes");
+  }
   return parseSandboxChanges(nameStatus.result ?? "", numstat.result ?? "");
 }

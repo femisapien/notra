@@ -93,6 +93,8 @@ export async function recordContentPublication(
         ],
         set: {
           postId: params.postId,
+          owner: params.owner,
+          repo: params.repo,
           path: params.path,
           branch: params.branch,
           pullRequestUrl: params.pullRequestUrl,

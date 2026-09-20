@@ -123,7 +123,10 @@ import {
 import { baseProcedure } from "@/lib/orpc/base";
 import { runOrpcEffect } from "@/lib/orpc/effect";
 import { toGitHubPublishOrpcError } from "@/lib/orpc/utils/github-publish-error";
-import { startOnDemandRun } from "@/lib/workflows/start";
+import {
+  startContentPublicationReconciliation,
+  startOnDemandRun,
+} from "@/lib/workflows/start";
 import type {
   CommitPreview,
   LinearIntegrationPreviewItem,
@@ -1177,13 +1180,16 @@ export const contentRouter = {
           headSha: result.headSha,
         };
         await retryWrite(() => recordContentPublication(publication)).catch(
-          (error) => {
+          async (error) => {
             console.error("Failed to record content publication", {
               organizationId: input.organizationId,
               contentId: input.contentId,
               pullRequestUrl: result.pullRequestUrl,
               error,
             });
+            // The PR already exists, so hand the idempotent mapping write to a
+            // durable workflow instead of relying on this request process.
+            await startContentPublicationReconciliation(publication);
           }
         );
         return result;

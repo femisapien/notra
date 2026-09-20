@@ -43,6 +43,7 @@ import {
 } from "@/workflows/brand-analysis";
 import { brandGuidelinesWorkflow } from "@/workflows/brand-guidelines";
 import { standaloneChatWorkflow } from "@/workflows/chat";
+import { contentPublicationReconciliationWorkflow } from "@/workflows/content-publication-reconciliation";
 import { eventContentWorkflow } from "@/workflows/event-content";
 import { geoScanWorkflow } from "@/workflows/geo-scan";
 import { geoWriterWorkflow } from "@/workflows/geo-writer";
@@ -93,6 +94,12 @@ export async function startStandaloneChatRun(
     properties: { chat_id: parsed.chatId, request_id: parsed.requestId },
   });
   return { runId: run.runId };
+}
+
+export async function startContentPublicationReconciliation(
+  publication: Parameters<typeof contentPublicationReconciliationWorkflow>[0]
+): Promise<void> {
+  await start(contentPublicationReconciliationWorkflow, [publication]);
 }
 
 export async function startOnboardingAgentRun(

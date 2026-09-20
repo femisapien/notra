@@ -68,6 +68,9 @@ async function recordWrite(
   // run that wrote must never look retryable.
   params.state.committed = true;
   params.state.commitSha = commitSha;
+  if (params.context.destination.mode === "new_pull_request") {
+    params.state.pullRequestUrl = null;
+  }
   const followUp = await ensureFollowUpPullRequest({
     octokit: params.octokit,
     context: params.context,
@@ -117,7 +120,7 @@ function stopOnPermissionError(
             state.permissionDenied = true;
             return {
               error:
-                "GitHub refused this call: the GitHub App lacks the permission. Do not retry.",
+                "GitHub refused this call: the configured credential lacks the permission. Do not retry.",
             };
           }
         },
@@ -187,17 +190,22 @@ export function buildGitHubMentionTools(params: {
         path: z.string().describe("Repository-relative file path"),
       }),
       execute: async ({ path }) => {
-        const target = await resolveGitHubMentionWriteTarget({
+        const pullNumber = context.pullRequest?.number;
+        if (!pullNumber) {
+          return { error: "No pull request is available to read from." };
+        }
+        const head = await getPullRequestHead({
           octokit,
-          context,
-          state,
+          owner: context.owner,
+          repo: context.repo,
+          pullNumber,
         });
         const contents = await getRepositoryFileContents({
           octokit,
           owner: context.owner,
           repo: context.repo,
           path,
-          ref: target.expectedHeadOid,
+          ref: head.headSha,
         });
         if (
           Buffer.byteLength(contents, "utf8") >
@@ -341,9 +349,16 @@ export function buildGitHubMentionTools(params: {
         markdown: z
           .string()
           .describe("Updated markdown for the published file"),
-        title: z.string().optional().describe("Optional updated title"),
+        title: z
+          .string()
+          .trim()
+          .min(1)
+          .optional()
+          .describe("Optional updated title"),
         commitMessage: z
           .string()
+          .trim()
+          .min(1)
           .optional()
           .describe(
             "Commit headline. Defaults to a short docs update message."

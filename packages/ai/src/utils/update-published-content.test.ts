@@ -97,6 +97,56 @@ if (process.env.NOTRA_PUBLICATION_TEST_WORKER !== "1") {
     expect(headWrite).not.toHaveBeenCalled();
   });
 
+  test("a commit on a follow-up branch leaves the post as published", async () => {
+    const octokit = {
+      request: async () => ({
+        data: {
+          login: "publisher",
+          author: null,
+          commit: { verification: { verified: false } },
+        },
+      }),
+      graphql: async () => ({
+        createCommitOnBranch: { commit: { oid: "follow-up" } },
+      }),
+    } as unknown as GitHubMentionOctokit;
+    const result = await updatePublishedContentAndCommit({
+      octokit,
+      organizationId: "org",
+      postId: "post",
+      markdown: "# Updated",
+      owner: "acme",
+      repo: "docs",
+      branch: "notra/mention-1-issue-2",
+      expectedHeadOid: "read-revision",
+      path: "docs/page.md",
+      publicationId: "publication",
+      commitMessage: "docs: update",
+      recordPublicationHead: false,
+    });
+    expect(result.commitSha).toBe("follow-up");
+    expect(
+      await syncPublishedPostAfterCommit({
+        octokit,
+        organizationId: "org",
+        publication: {
+          id: "pub",
+          postId: "post",
+          path: "docs/page.md",
+          owner: "acme",
+          repo: "docs",
+          headSha: "original",
+        },
+        files: [{ path: "docs/page.md", contents: "# Updated" }],
+        commitSha: "follow-up",
+        branch: "notra/mention-1-issue-2",
+        recordPublicationHead: false,
+      })
+    ).toBe(false);
+    expect(postWrite).not.toHaveBeenCalled();
+    expect(headWrite).not.toHaveBeenCalled();
+  });
+
   test("image synchronization uses the recorded file rather than the changed image order", async () => {
     const octokit = {
       request: async (_route: string, args: { ref: string }) => {

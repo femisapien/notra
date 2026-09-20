@@ -23,7 +23,11 @@ export async function updatePublishedContentAndCommit(params: {
   path: string;
   publicationId: string;
   commitMessage: string;
-  /** False when committing to a follow-up branch that is not the publication's pull request. */
+  /**
+   * False when committing to a follow-up branch that is not the publication's
+   * pull request. The post then stays as it is: it mirrors the published pull
+   * request, and the follow-up may never be merged into it.
+   */
   recordPublicationHead?: boolean;
   onCommitted?: (sha: string) => void;
 }) {
@@ -41,15 +45,15 @@ export async function updatePublishedContentAndCommit(params: {
     ],
   });
   params.onCommitted?.(commitSha);
-  await retryWrite(() =>
-    updatePostRecord({
-      organizationId: params.organizationId,
-      postId: params.postId,
-      markdown: params.markdown,
-      title: params.title,
-    })
-  );
   if (params.recordPublicationHead ?? true) {
+    await retryWrite(() =>
+      updatePostRecord({
+        organizationId: params.organizationId,
+        postId: params.postId,
+        markdown: params.markdown,
+        title: params.title,
+      })
+    );
     await retryWrite(() =>
       updateContentPublicationHead({
         publicationId: params.publicationId,
@@ -86,7 +90,8 @@ export async function syncPublishedPostAfterCommit(params: {
   recordPublicationHead: boolean;
 }) {
   const publication = params.publication;
-  if (!publication) {
+  // A follow-up branch is not the published pull request, so the post stays.
+  if (!(publication && params.recordPublicationHead)) {
     return false;
   }
   // Post first, head second: the recorded head is what tells the next mention
@@ -120,15 +125,13 @@ export async function syncPublishedPostAfterCommit(params: {
       markdown,
     })
   );
-  if (params.recordPublicationHead) {
-    await retryWrite(() =>
-      updateContentPublicationHead({
-        publicationId: publication.id,
-        organizationId: params.organizationId,
-        headSha: params.commitSha,
-        branch: params.branch,
-      })
-    );
-  }
+  await retryWrite(() =>
+    updateContentPublicationHead({
+      publicationId: publication.id,
+      organizationId: params.organizationId,
+      headSha: params.commitSha,
+      branch: params.branch,
+    })
+  );
   return true;
 }

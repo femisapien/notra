@@ -359,8 +359,6 @@ export async function postGitHubReviewComment(params: {
   return { id: data.id, htmlUrl: data.html_url };
 }
 
-const PULL_REQUEST_FILES_PAGE_LIMIT = 3;
-
 /** The pull request's diff of one file; null when the file is not part of it. */
 export async function getGitHubPullRequestFilePatch(params: {
   octokit: CommitFilesToPullRequestParams["octokit"];
@@ -369,7 +367,7 @@ export async function getGitHubPullRequestFilePatch(params: {
   pullNumber: number;
   path: string;
 }) {
-  for (let page = 1; page <= PULL_REQUEST_FILES_PAGE_LIMIT; page++) {
+  for (let page = 1; ; page++) {
     const { data } = await params.octokit.request(
       "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
       {
@@ -386,7 +384,6 @@ export async function getGitHubPullRequestFilePatch(params: {
       return file?.patch ?? null;
     }
   }
-  return null;
 }
 
 /** One review whose comments each carry a suggestion for their lines. */
@@ -456,6 +453,27 @@ function githubStatus(error: unknown) {
     return typeof status === "number" ? status : null;
   }
   return null;
+}
+
+function isDuplicatePullRequestError(error: unknown) {
+  if (githubStatus(error) !== 422 || typeof error !== "object" || !error) {
+    return false;
+  }
+  const requestError = error as {
+    message?: string;
+    errors?: Array<{ message?: string }>;
+    response?: { data?: { errors?: Array<{ message?: string }> } };
+  };
+  const details = [
+    requestError.message,
+    ...(requestError.errors ?? []).map(({ message }) => message),
+    ...(requestError.response?.data?.errors ?? []).map(
+      ({ message }) => message
+    ),
+  ];
+  return details.some((message) =>
+    message?.toLowerCase().includes("pull request already exists")
+  );
 }
 
 export async function createGitHubBranch(params: {
@@ -528,7 +546,7 @@ export async function createDraftPullRequest(params: {
       headSha: data.head.sha,
     };
   } catch (error) {
-    if (githubStatus(error) !== 422) {
+    if (!isDuplicatePullRequestError(error)) {
       throw error;
     }
     const { data: pullRequests } = await params.octokit.request(
@@ -541,7 +559,9 @@ export async function createDraftPullRequest(params: {
         headers: GITHUB_API_VERSION_HEADERS,
       }
     );
-    const existing = pullRequests[0];
+    const existing = pullRequests.find(
+      (pullRequest) => pullRequest.base.ref === params.base
+    );
     if (!existing) {
       throw error;
     }

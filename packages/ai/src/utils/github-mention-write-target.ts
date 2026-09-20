@@ -18,7 +18,8 @@ export interface GitHubMentionWriteState {
 }
 
 function followUpBranchName(context: GitHubMentionContext) {
-  return `notra/mention-${context.issueNumber}-${context.comment.id}`;
+  const kind = context.comment.review ? "review" : "issue";
+  return `notra/mention-${context.issueNumber}-${kind}-${context.comment.id}`;
 }
 
 export async function resolveGitHubMentionWriteTarget(params: {

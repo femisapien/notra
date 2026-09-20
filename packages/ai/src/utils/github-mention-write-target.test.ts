@@ -147,4 +147,39 @@ describe("resolveGitHubMentionWriteTarget", () => {
       pullNumber: 7,
     });
   });
+
+  test("includes the comment kind in a follow-up branch", async () => {
+    const reviewContext = context("new_pull_request");
+    reviewContext.comment.review = {
+      path: "README.md",
+      line: 1,
+      startLine: null,
+      commitSha: "abc123",
+      diffHunk: null,
+      rootCommentId: 1,
+    };
+    let createdRef = "";
+    const octokit = {
+      request: async (route: string, request: Record<string, unknown>) => {
+        if (route === "GET /repos/{owner}/{repo}/pulls/{pull_number}") {
+          return fakeOctokit({ ref: "docs", repoFullName: "acme/app" }).request(
+            route as never,
+            request as never
+          );
+        }
+        if (route === "POST /repos/{owner}/{repo}/git/refs") {
+          createdRef = request.ref as string;
+          return { data: {} };
+        }
+        return { data: { object: { sha: "abc123" } } };
+      },
+    } as unknown as GitHubMentionOctokit;
+    const target = await resolveGitHubMentionWriteTarget({
+      octokit,
+      context: reviewContext,
+      state: emptyState(),
+    });
+    expect(createdRef).toBe("refs/heads/notra/mention-7-review-1");
+    expect(target.branch).toBe("notra/mention-7-review-1");
+  });
 });

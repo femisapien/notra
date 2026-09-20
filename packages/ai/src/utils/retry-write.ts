@@ -9,6 +9,11 @@ export async function retryWrite<T>(
   run: () => Promise<T>,
   attempts = DEFAULT_ATTEMPTS
 ): Promise<T> {
+  if (
+    !(Number.isFinite(attempts) && Number.isInteger(attempts) && attempts >= 1)
+  ) {
+    throw new RangeError("attempts must be a positive finite integer");
+  }
   try {
     return await run();
   } catch (error) {
