@@ -1,5 +1,6 @@
 export interface GitHubAppPublishAccess {
   contents?: string;
+  issues?: string;
   pullRequests?: string;
   /** The installation's settings page on GitHub. */
   settingsUrl?: string;

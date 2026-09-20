@@ -120,6 +120,20 @@ describe("ingestGitHubAppMentionWebhook", () => {
     expect(result.run).toBeUndefined();
   });
 
+  test("does not report a healthy ping without a webhook secret", async () => {
+    delete process.env.GITHUB_APP_WEBHOOK_SECRET;
+    const result = await ingestGitHubAppMentionWebhook({
+      event: "ping",
+      signature: null,
+      deliveryId: "ping-missing-secret",
+      rawBody: "{}",
+    });
+    expect(result).toMatchObject({
+      httpStatus: 500,
+      body: { error: "GitHub App webhook secret is not configured" },
+    });
+  });
+
   test("ignores non-comment events", async () => {
     const result = await ingestGitHubAppMentionWebhook({
       event: "push",

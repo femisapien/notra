@@ -132,14 +132,7 @@ export async function ingestGitHubAppMentionWebhook(params: {
     );
   }
 
-  if (params.event === "ping") {
-    return {
-      httpStatus: 200,
-      body: { message: "Pong! GitHub App mention webhook configured" },
-    };
-  }
-
-  if (!HANDLED_EVENTS.has(params.event)) {
+  if (params.event !== "ping" && !HANDLED_EVENTS.has(params.event)) {
     return {
       httpStatus: 200,
       body: { message: "ignored", event: params.event, ignored: true },
@@ -154,6 +147,13 @@ export async function ingestGitHubAppMentionWebhook(params: {
       "missing_secret",
       params.deliveryId
     );
+  }
+
+  if (params.event === "ping") {
+    return {
+      httpStatus: 200,
+      body: { message: "Pong! GitHub App mention webhook configured" },
+    };
   }
 
   if (!verifyGitHubWebhookSignature(params.rawBody, params.signature, secret)) {

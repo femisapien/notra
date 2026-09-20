@@ -24,12 +24,15 @@ export function isGitHubPermissionError(error: unknown) {
 }
 
 /**
- * Replies and suggestions need write access to pull requests, commits also to
- * contents. Empty when nothing is missing or the access is unknown.
+ * GitHub accepts Issues write or Pull requests write for PR conversation
+ * comments and their reactions, so Issues alone covers a plain answer. Review
+ * replies, suggestions and follow-up pull requests need Pull requests write,
+ * and commits also need Contents.
  */
 export function findMissingGitHubMentionPermissions(params: {
   access: GitHubAppPublishAccess | null;
   mode: GitHubMentionDestination["mode"];
+  commentKind: "issue" | "review";
 }) {
   if (!params.access) {
     return [];
@@ -38,7 +41,11 @@ export function findMissingGitHubMentionPermissions(params: {
   if (params.mode !== "reply_only" && params.access.contents !== "write") {
     missing.push("Contents: Read and write");
   }
-  if (params.access.pullRequests !== "write") {
+  const issuesCoverTheReply =
+    params.commentKind === "issue" &&
+    params.mode === "reply_only" &&
+    params.access.issues === "write";
+  if (!issuesCoverTheReply && params.access.pullRequests !== "write") {
     missing.push("Pull requests: Read and write");
   }
   return missing;
@@ -50,10 +57,10 @@ export function buildGitHubMentionPermissionReply(params: {
 }) {
   const what =
     params.missing.length > 0
-      ? `the Notra GitHub App is missing ${params.missing.length > 1 ? "permissions" : "a permission"} on this repository: ${params.missing.map((permission) => `**${permission}**`).join(" and ")}`
-      : "GitHub refused the request: the Notra GitHub App does not have the access it needs on this repository";
+      ? `the configured GitHub credential is missing ${params.missing.length > 1 ? "permissions" : "a permission"} on this repository: ${params.missing.map((permission) => `**${permission}**`).join(" and ")}`
+      : "GitHub refused the request: the configured GitHub credential does not have the access it needs on this repository";
   const where = params.settingsUrl
     ? `An owner of the account can review and approve the App's permissions in the [installation settings](${params.settingsUrl}).`
-    : "An owner of the account can review and approve the App's permissions in the GitHub App installation settings.";
+    : "An owner can review the configured GitHub credential and grant the required repository access.";
   return `I could not do this because ${what}. ${where} Mention me again once that is done.`;
 }

@@ -100,9 +100,9 @@ export const POST = withEvlog(async (request: NextRequest) => {
       const startedAt = Date.now();
       try {
         const processed = await runMention(run, context, deliveryId);
-        // Only a run that wrote nothing may be redelivered. Everything after
-        // this point is bookkeeping and must not reopen the delivery.
-        if (processed.status === "failed") {
+        // A run that changed GitHub (a commit or reply) must not be redelivered.
+        // Everything after this point is bookkeeping and cannot reopen it.
+        if (processed.status === "failed" && !processed.reply) {
           await releaseGitHubMentionDelivery(deliveryId).catch(() => undefined);
         }
         await writeMentionWebhookLog(

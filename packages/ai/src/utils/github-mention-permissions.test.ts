@@ -30,29 +30,50 @@ describe("findMissingGitHubMentionPermissions", () => {
   test("a commit needs contents and pull requests", () => {
     expect(
       findMissingGitHubMentionPermissions({
-        access: { contents: "read", pullRequests: "write" },
+        access: { contents: "read", issues: "write", pullRequests: "write" },
         mode: "same_pull_request",
+        commentKind: "issue",
       })
     ).toEqual(["Contents: Read and write"]);
     expect(
       findMissingGitHubMentionPermissions({
-        access: { contents: "write", pullRequests: "write" },
+        access: { contents: "write", issues: "write", pullRequests: "write" },
         mode: "new_pull_request",
+        commentKind: "issue",
       })
     ).toEqual([]);
   });
 
-  test("an answer only needs pull requests", () => {
+  test("a PR conversation answer needs Issues or Pull requests write", () => {
     expect(
       findMissingGitHubMentionPermissions({
-        access: { contents: "read", pullRequests: "write" },
+        access: { contents: "read", issues: "write", pullRequests: "read" },
         mode: "reply_only",
+        commentKind: "issue",
       })
     ).toEqual([]);
     expect(
       findMissingGitHubMentionPermissions({
-        access: { contents: "read" },
+        access: { contents: "read", pullRequests: "write" },
         mode: "reply_only",
+        commentKind: "issue",
+      })
+    ).toEqual([]);
+    expect(
+      findMissingGitHubMentionPermissions({
+        access: { contents: "read", issues: "read", pullRequests: "read" },
+        mode: "reply_only",
+        commentKind: "issue",
+      })
+    ).toEqual(["Pull requests: Read and write"]);
+  });
+
+  test("a review thread answer needs Pull requests write", () => {
+    expect(
+      findMissingGitHubMentionPermissions({
+        access: { contents: "read", issues: "write", pullRequests: "read" },
+        mode: "reply_only",
+        commentKind: "review",
       })
     ).toEqual(["Pull requests: Read and write"]);
   });
@@ -62,6 +83,7 @@ describe("findMissingGitHubMentionPermissions", () => {
       findMissingGitHubMentionPermissions({
         access: null,
         mode: "same_pull_request",
+        commentKind: "issue",
       })
     ).toEqual([]);
   });
@@ -85,6 +107,8 @@ describe("buildGitHubMentionPermissionReply", () => {
       settingsUrl: null,
     });
     expect(reply).toContain("GitHub refused the request");
+    expect(reply).toContain("configured GitHub credential");
+    expect(reply).not.toContain("GitHub App");
     expect(reply).toContain("Mention me again");
   });
 });

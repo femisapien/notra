@@ -155,12 +155,30 @@ export async function resolveGitHubMentionContext(params: {
           organizationId,
         });
         if (token) {
-          pullRequest = await getPullRequestHead({
-            octokit: createOctokit(token),
-            owner,
-            repo,
-            pullNumber: issueNumber,
-          });
+          const octokit = createOctokit(token);
+          try {
+            pullRequest = await getPullRequestHead({
+              octokit,
+              owner,
+              repo,
+              pullNumber: issueNumber,
+            });
+          } catch (error) {
+            if (!isGitHubPermissionError(error)) {
+              throw error;
+            }
+            await postGitHubIssueComment({
+              octokit,
+              owner,
+              repo,
+              issueNumber,
+              body: buildGitHubMentionPermissionReply({
+                missing: ["Pull requests: Read"],
+                settingsUrl: null,
+              }),
+            });
+            return { status: "ignored", reason: "permission_reply_posted" };
+          }
         }
       }
     }
@@ -253,6 +271,8 @@ async function postGitHubMentionReply(params: {
   const { octokit, context, body } = params;
   const pullNumber = context.pullRequest?.number;
   try {
+    // Someone who wrote in a review thread is answered there, also after a
+    // commit: a second thread at the changed lines would split the conversation.
     if (context.comment.review && pullNumber) {
       return await replyToGitHubReviewThread({
         octokit,
@@ -495,13 +515,19 @@ export async function processGitHubMention(
       missing,
       settingsUrl: access?.settingsUrl ?? null,
     });
-    await postGitHubMentionReply({
-      octokit,
-      context,
-      body: reply,
-      commitSha: null,
-      changedFiles: [],
-    }).catch(() => undefined);
+    let replyPosted = false;
+    try {
+      await postGitHubMentionReply({
+        octokit,
+        context,
+        body: reply,
+        commitSha: null,
+        changedFiles: [],
+      });
+      replyPosted = true;
+    } catch {
+      // A failed reply remains retryable after permissions are corrected.
+    }
     await finishReaction("confused");
     logGitHubMentionEvent(
       GITHUB_MENTION_LOG_EVENTS.completed,
@@ -522,15 +548,16 @@ export async function processGitHubMention(
       status: "failed",
       reason:
         missing.length > 0
-          ? `The GitHub App is missing a permission: ${missing.join(", ")}`
-          : "GitHub refused the request, the GitHub App lacks a permission",
-      reply,
+          ? `The configured GitHub credential is missing a permission: ${missing.join(", ")}`
+          : "GitHub refused the request, the configured credential lacks a permission",
+      ...(replyPosted && { reply }),
     };
   };
 
   const missingPermissions = findMissingGitHubMentionPermissions({
     access,
     mode: context.destination.mode,
+    commentKind,
   });
   if (missingPermissions.length > 0) {
     return await refuseForPermission(missingPermissions);
@@ -677,13 +704,21 @@ export async function processGitHubMention(
     if (isGitHubPermissionError(error)) {
       return await refuseForPermission([]);
     }
-    await postGitHubIssueComment({
-      octokit,
-      owner: context.owner,
-      repo: context.repo,
-      issueNumber: context.issueNumber,
-      body: "Sorry, something went wrong on my side and I could not finish this. Mention me again to retry, or make the change from the Notra dashboard.",
-    }).catch(() => undefined);
+    const errorReply =
+      "Sorry, something went wrong on my side and I could not finish this. Mention me again to retry, or make the change from the Notra dashboard.";
+    let replyPosted = false;
+    try {
+      await postGitHubIssueComment({
+        octokit,
+        owner: context.owner,
+        repo: context.repo,
+        issueNumber: context.issueNumber,
+        body: errorReply,
+      });
+      replyPosted = true;
+    } catch {
+      // Leave the delivery retryable when GitHub did not receive the reply.
+    }
     await finishReaction("confused");
     logGitHubMentionEvent(
       GITHUB_MENTION_LOG_EVENTS.completed,
@@ -699,6 +734,10 @@ export async function processGitHubMention(
       },
       "error"
     );
-    return { status: "failed", reason };
+    return {
+      status: "failed",
+      reason,
+      ...(replyPosted && { reply: errorReply }),
+    };
   }
 }

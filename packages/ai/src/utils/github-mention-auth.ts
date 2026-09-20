@@ -6,7 +6,7 @@ import {
   members,
   socialConnections,
 } from "@notra/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 export async function resolveGitHubMentionAuth(params: {
   githubUserId: number;
@@ -82,8 +82,8 @@ export async function findGitHubIntegrationForMention(params: {
   return await db.query.githubIntegrations.findFirst({
     where: and(
       eq(githubIntegrations.organizationId, params.organizationId),
-      eq(githubIntegrations.owner, params.owner),
-      eq(githubIntegrations.repo, params.repo),
+      eq(sql`lower(${githubIntegrations.owner})`, params.owner.toLowerCase()),
+      eq(sql`lower(${githubIntegrations.repo})`, params.repo.toLowerCase()),
       eq(githubIntegrations.enabled, true),
       eq(githubIntegrations.repositoryEnabled, true)
     ),

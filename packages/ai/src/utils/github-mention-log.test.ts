@@ -88,6 +88,24 @@ describe("mention webhook logs", () => {
     });
   });
 
+  test("classifies review-thread mentions as review comments", () => {
+    const log = buildAcceptedMentionWebhookLog({
+      ...context,
+      comment: {
+        ...context.comment,
+        review: {
+          path: "README.md",
+          line: 2,
+          startLine: null,
+          commitSha: "abc123",
+          diffHunk: "@@ -1 +1 @@",
+          rootCommentId: 9,
+        },
+      },
+    });
+    expect(log.payload.event).toBe("pull_request_review_comment");
+  });
+
   test("records a commit result as success", () => {
     const log = buildMentionResultWebhookLog({
       context,

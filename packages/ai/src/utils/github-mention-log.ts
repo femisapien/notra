@@ -141,7 +141,9 @@ function mentionPayloadFromContext(
   mentionStatus: string
 ) {
   return {
-    event: "issue_comment",
+    event: context.comment.review
+      ? "pull_request_review_comment"
+      : "issue_comment",
     mentionStatus,
     repository: repositoryLabel(context.owner, context.repo),
     issueNumber: context.issueNumber,
