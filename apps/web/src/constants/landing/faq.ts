@@ -2,7 +2,7 @@ import type { FaqContent } from "@/types/landing/faq";
 
 export const FAQ_CONTENT: FaqContent = {
   heading: "Common questions",
-  subcopy: "Short answers to what comes up most.",
+  subcopy: "Short answers to what comes up most. For anything else, ask below.",
   items: [
     {
       id: "what-is-geo",

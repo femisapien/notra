@@ -3,6 +3,7 @@
 import { cn } from "@notra/ui/lib/utils";
 import { useState } from "react";
 
+import { FaqAssistantRow } from "@/components/landing/faq-assistant-row";
 import { FAQ_CONTENT } from "@/constants/landing/faq";
 import type { FaqItem } from "@/types/landing/faq";
 
@@ -118,6 +119,7 @@ export function FaqSection() {
               open={openId === item.id}
             />
           ))}
+          <FaqAssistantRow />
         </div>
       </div>
     </section>

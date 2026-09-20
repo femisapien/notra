@@ -266,6 +266,7 @@
       "name": "web",
       "version": "0.1.0",
       "dependencies": {
+        "@ai-sdk/gateway": "4.0.85",
         "@c15t/nextjs": "^2.0.4",
         "@databuddy/sdk": "^2.4.11",
         "@dnd-kit/core": "^6.3.1",
@@ -293,6 +294,7 @@
         "@upstash/ratelimit": "^2.0.8",
         "@upstash/redis": "^1.35.8",
         "@usenotra/geo": "npm:@usenotra/geo@^0.5.0",
+        "ai": "7.0.105",
         "dompurify": "^3.4.12",
         "effect": "4.0.0-rc.112",
         "fumadocs-core": "^16.6.17",
