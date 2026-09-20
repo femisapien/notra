@@ -4,11 +4,14 @@ import {
 } from "@notra/ai/constants/github-mention";
 
 const MARKUP_EXTENSIONS = new Set<string>(GITHUB_MENTION_MARKUP_EXTENSIONS);
-const FENCE_PATTERN = /^\s*(`{3,}|~{3,})/;
+const FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})/;
 const INLINE_CODE_PATTERN = /`[^`\n]*`/g;
+const HTML_COMMENT_PATTERN = /<!--[\s\S]*?-->/g;
 const FINDING_SNIPPET_LENGTH = 120;
 const INLINE_CODE_PLACEHOLDER = "`";
 const MDX_EXPRESSION_REASON = "adds an MDX expression";
+const EVENT_HANDLER_REASON = "adds an inline event handler";
+const TAG_NAME_START_PATTERN = /[a-z]/i;
 const MDX_MODULE_REASON = "adds an MDX import or export";
 const MDX_MODULE_START_PATTERN = /^\s*(?:import|export)\s/;
 // What is left of a literal-only expression once strings, comments, and
@@ -36,7 +39,7 @@ function extensionOf(path: string) {
 function renderedLines(markdown: string, preserveCode = false) {
   const lines: string[] = [];
   let openFence: string | null = null;
-  for (const raw of markdown.split("\n")) {
+  for (const raw of markdown.replace(HTML_COMMENT_PATTERN, "").split("\n")) {
     const fence = raw.match(FENCE_PATTERN)?.[1]?.[0];
     if (fence && !openFence) {
       openFence = fence;
@@ -51,6 +54,66 @@ function renderedLines(markdown: string, preserveCode = false) {
     }
   }
   return lines;
+}
+
+function decodeActiveContent(value: string) {
+  let decoded = value
+    .replace(/&colon;?/gi, ":")
+    .replace(
+      /&#(?:x([\da-f]+)|(\d+));?/gi,
+      (match, hex: string | undefined, decimal: string | undefined) => {
+        const radix = hex ? 16 : 10;
+        const point = Number.parseInt(hex ?? decimal ?? "", radix);
+        return point <= 0x10ffff ? String.fromCodePoint(point) : match;
+      }
+    );
+  for (let pass = 0; pass < 2; pass++) {
+    const next = decoded.replace(/%([\da-f]{2})/gi, (_, hex: string) =>
+      String.fromCharCode(Number.parseInt(hex, 16))
+    );
+    if (next === decoded) {
+      break;
+    }
+    decoded = next;
+  }
+  return decoded;
+}
+
+/**
+ * Lines that are part of an HTML or JSX tag, including the continuation lines
+ * of a tag that spans several. A handler only runs as a tag attribute, so
+ * prose such as "Set onboarding=true" is not one. A tag that never closes
+ * keeps every later line inside it, which errs on the strict side.
+ */
+function linesInsideTags(lines: readonly string[]) {
+  const inside = new Set<string>();
+  let open = false;
+  let quote: string | null = null;
+  for (const line of lines) {
+    let touched = open;
+    for (let index = 0; index < line.length; index++) {
+      const char = line[index];
+      if (!open) {
+        if (
+          char === "<" &&
+          TAG_NAME_START_PATTERN.test(line[index + 1] ?? "")
+        ) {
+          open = true;
+          touched = true;
+        }
+      } else if (quote) {
+        quote = char === quote ? null : quote;
+      } else if (char === '"' || char === "'") {
+        quote = char;
+      } else if (char === ">") {
+        open = false;
+      }
+    }
+    if (touched) {
+      inside.add(line);
+    }
+  }
+  return inside;
 }
 
 /** Bodies of the top-level `{...}` expressions, across lines. `\\{` is text. */
@@ -107,7 +170,7 @@ function mdxModules(markdown: string) {
       continue;
     }
     modules.push(
-      /^\s*import\s+(?:[\w$*{},\s]+\s+from\s+)?(?:"[^"\\]*"|'[^'\\]*');\s*$/.test(
+      /^\s*import\s+(?:[\w$*{},\s]+\s+from\s+)?(?:"[^"\\]*"|'[^'\\]*');?\s*$/.test(
         line
       )
         ? line
@@ -136,17 +199,26 @@ export function findNewActiveContent(params: {
   const previousLines = renderedLines(params.previous ?? "");
   const nextLines = renderedLines(params.next);
   const known = new Set(previousLines);
+  const tagLines = linesInsideTags(nextLines);
   const findings: GitHubMentionContentFinding[] = [];
   for (const line of new Set(nextLines)) {
     if (!line || known.has(line)) {
       continue;
     }
-    const rule = GITHUB_MENTION_ACTIVE_CONTENT_RULES.find(
-      (candidate) =>
-        candidate.reason !== MDX_MODULE_REASON &&
-        (!candidate.mdxOnly || extension === "mdx") &&
-        candidate.pattern.test(line)
-    );
+    const rule = GITHUB_MENTION_ACTIVE_CONTENT_RULES.find((candidate) => {
+      if (
+        candidate.reason === MDX_MODULE_REASON ||
+        (candidate.mdxOnly && extension !== "mdx") ||
+        (candidate.reason === EVENT_HANDLER_REASON && !tagLines.has(line))
+      ) {
+        return false;
+      }
+      const decoded = decodeActiveContent(line);
+      return (
+        candidate.pattern.test(decoded) ||
+        candidate.pattern.test(decoded.replace(/\s+/g, ""))
+      );
+    });
     if (rule) {
       findings.push({
         path: params.path,

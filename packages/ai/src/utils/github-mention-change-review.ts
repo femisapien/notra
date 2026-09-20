@@ -8,6 +8,7 @@ import {
   type GitHubMentionContentFinding,
 } from "@notra/ai/utils/github-mention-content-policy";
 import { logGitHubMentionEvent } from "@notra/ai/utils/github-mention-log";
+import { getGitHubMentionPathBlockReason } from "@notra/ai/utils/github-mention-path-policy";
 import { getRepositoryFileContents } from "@notra/ai/utils/github-pr-commit";
 
 function isNotFound(error: unknown) {
@@ -34,6 +35,16 @@ export async function reviewGitHubMentionChange(params: {
 }): Promise<{ blocked: GitHubMentionContentFinding[] }> {
   const findings = await Promise.all(
     params.files.map(async (file) => {
+      const pathBlockReason = getGitHubMentionPathBlockReason(file.path);
+      if (pathBlockReason) {
+        return [
+          {
+            path: file.path,
+            reason: pathBlockReason,
+            line: file.path,
+          },
+        ];
+      }
       const previous = await getRepositoryFileContents({
         octokit: params.octokit,
         owner: params.context.owner,

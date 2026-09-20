@@ -114,6 +114,88 @@ describe("findNewActiveContent", () => {
     ).toEqual([]);
   });
 
+  test("an indented fence cannot hide following active markup", () => {
+    expect(
+      reasons(
+        "docs/guide.md",
+        "# Guide",
+        "# Guide\n\n    ```html\n<script>alert(1)</script>"
+      )
+    ).toEqual(["adds a script tag"]);
+  });
+
+  test("uncommenting active markup is blocked", () => {
+    expect(
+      reasons(
+        "docs/guide.md",
+        "# Guide\n<!--\n<script>alert(1)</script>\n-->",
+        "# Guide\n<script>alert(1)</script>"
+      )
+    ).toEqual(["adds a script tag"]);
+  });
+
+  test("encoded javascript URLs and unquoted handlers are blocked", () => {
+    expect(
+      reasons(
+        "docs/guide.md",
+        "# Guide",
+        [
+          "# Guide",
+          "[numeric](java&#x73;cript&#58;alert(1))",
+          "[percent](java%73cript%3Aalert(1))",
+          "[percent with invalid escape](java%73cript:alert(1)%ZZ)",
+          "[double encoded](java%2573cript%253Aalert(1))",
+          "[named](javascript&colon;alert(1))",
+          "[control](java&#x09;script:alert(1))",
+          "<img src=x onerror=alert(1)>",
+        ].join("\n")
+      )
+    ).toEqual([
+      "adds a javascript: URL",
+      "adds a javascript: URL",
+      "adds a javascript: URL",
+      "adds a javascript: URL",
+      "adds a javascript: URL",
+      "adds a javascript: URL",
+      "adds an inline event handler",
+    ]);
+  });
+
+  test("a handler only counts inside a tag", () => {
+    expect(
+      reasons(
+        "docs/guide.md",
+        "# Guide",
+        [
+          "# Guide",
+          "Set onboarding=true in the URL.",
+          "Once the timeout = 5, retries stop.",
+          "Use a < b and onward = c.",
+        ].join("\n")
+      )
+    ).toEqual([]);
+    expect(
+      reasons(
+        "docs/guide.md",
+        "# Guide",
+        [
+          "# Guide",
+          '<img title="a > b"',
+          "  src=x",
+          "  onerror=alert(1)",
+          ">",
+        ].join("\n")
+      )
+    ).toEqual(["adds an inline event handler"]);
+  });
+
+  test("an existing semicolon-less MDX import does not freeze prose", () => {
+    const previous = 'import { Note } from "../note"\n\n# Release';
+    expect(
+      reasons("docs/release.mdx", previous, `${previous}\n\nShorter intro.`)
+    ).toEqual([]);
+  });
+
   test("new MDX expressions are blocked unless they are literals", () => {
     const previous = "# Release\n\n<Stat value={stats.exports} />";
     expect(

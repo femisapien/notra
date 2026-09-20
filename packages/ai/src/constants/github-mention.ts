@@ -74,14 +74,14 @@ export const GITHUB_MENTION_THREAD_CONTEXT = {
  * allowlist on the server, whatever the model decided to write.
  */
 export const GITHUB_MENTION_WRITABLE_EXTENSIONS = {
-  content: ["md", "mdx", "markdown", "txt", "rst", "adoc"],
+  content: ["md", "mdx", "markdown", "txt"],
   /** Navigation and frontmatter data that sits next to content. */
   data: ["json", "yaml", "yml", "toml", "csv"],
 } as const;
 
 /** Data files that configure builds, deploys, or dependencies. */
 export const GITHUB_MENTION_PROTECTED_DATA_FILE_PATTERN =
-  /^(?:package(?:-lock)?|composer|deno|bun|tsconfig(?:\..+)?|jsconfig|vercel|turbo|nx|lerna|netlify|wrangler|fly|render|railway|firebase|app|biome|renovate|action|serverless|cloudbuild|codecov|cargo|pyproject|pnpm-(?:workspace|lock)|(?:docker-)?compose(?:\..+)?|(?:azure|bitbucket)-pipelines|buildspec|skaffold|chart|values)\.(?:jsonc?|ya?ml|toml)$/i;
+  /^(?:package(?:-lock)?|npm-shrinkwrap|composer|deno|bun|tsconfig(?:\..+)?|jsconfig|vercel|turbo|nx|lerna|netlify|wrangler|fly|render|railway|firebase|app|biome|renovate|action|serverless|cloudbuild|codecov|cargo|pyproject|mkdocs|pnpm-(?:workspace|lock)|(?:docker-)?compose(?:\..+)?|(?:azure|bitbucket)-pipelines|buildspec|skaffold|chart|values)\.(?:jsonc?|ya?ml|toml)$/i;
 
 /** Markup that a site build renders, so new active content in it can execute. */
 export const GITHUB_MENTION_MARKUP_EXTENSIONS = ["md", "mdx", "markdown"];
@@ -113,7 +113,7 @@ export const GITHUB_MENTION_ACTIVE_CONTENT_RULES = [
   },
   {
     reason: "adds an inline event handler",
-    pattern: /(?:^|\s)on[a-z]+\s*=\s*["'{]/i,
+    pattern: /(?:^|\s)on[a-z]+\s*=/i,
     mdxOnly: false,
   },
 ] as const;

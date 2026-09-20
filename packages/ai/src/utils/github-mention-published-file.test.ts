@@ -19,6 +19,16 @@ describe("carryOverImageTargets", () => {
     ).toBe(FILE.replace("Old intro.", "New intro."));
   });
 
+  test("supports angle-bracket image targets", () => {
+    expect(
+      carryOverImageTargets(
+        "![Chart](<https://cdn.notra.dev/a chart.png>)",
+        "![Chart](<https://cdn.notra.dev/a chart.png>)",
+        "![Chart](<../images/a chart.png>)"
+      )
+    ).toBe("![Chart](<../images/a chart.png>)");
+  });
+
   test("maps reordered images by source identity, not position", () => {
     const source = "![A](https://cdn/a.png)\n![B](https://cdn/b.png)";
     const repository = "![A](./a.png)\n![B](./b.png)";

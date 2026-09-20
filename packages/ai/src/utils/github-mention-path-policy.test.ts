@@ -28,6 +28,8 @@ describe("getGitHubMentionPathBlockReason", () => {
       "Makefile",
       "public/logo.svg",
       "docs/page.html",
+      "docs/page.rst",
+      "docs/page.adoc",
     ]) {
       expect(getGitHubMentionPathBlockReason(path)).toContain("content files");
     }
@@ -61,6 +63,8 @@ describe("getGitHubMentionPathBlockReason", () => {
       "wrangler.json",
       "actions/setup/action.yml",
       "pyproject.toml",
+      "npm-shrinkwrap.json",
+      "docs/mkdocs.yml",
     ]) {
       expect(getGitHubMentionPathBlockReason(path)).toContain("configuration");
     }

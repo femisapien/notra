@@ -67,6 +67,23 @@ describe("reviewGitHubMentionChange", () => {
     expect(review.blocked).toEqual([]);
   });
 
+  test("blocks non-content paths before reading the repository", async () => {
+    const review = await reviewGitHubMentionChange({
+      octokit: fakeOctokit({}, 500),
+      context,
+      branch: "notra/changelog",
+      files: [{ path: "src/steal.ts", contents: "export const token = 1" }],
+    });
+    expect(review.blocked).toEqual([
+      {
+        path: "src/steal.ts",
+        reason:
+          "only content files (Markdown, text, JSON, YAML, TOML, CSV) are editable",
+        line: "src/steal.ts",
+      },
+    ]);
+  });
+
   test("an unreadable previous file stops the write", async () => {
     await expect(
       reviewGitHubMentionChange({

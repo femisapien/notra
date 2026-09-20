@@ -1,6 +1,13 @@
+import { GITHUB_MENTION_ACTIVE_CONTENT_BLOCKED_MESSAGE } from "@notra/ai/constants/github-mention";
 import { getGitHubPublishToken } from "@notra/ai/integrations/github-publish-auth";
 import { findOpenContentPublicationForPost } from "@notra/ai/utils/content-publication";
-import { getPullRequestHead } from "@notra/ai/utils/github-pr-commit";
+import { findNewActiveContent } from "@notra/ai/utils/github-mention-content-policy";
+import { getGitHubMentionPathBlockReason } from "@notra/ai/utils/github-mention-path-policy";
+import { carryOverImageTargets } from "@notra/ai/utils/github-mention-published-file";
+import {
+  getPullRequestHead,
+  getRepositoryFileContents,
+} from "@notra/ai/utils/github-pr-commit";
 import { createOctokit } from "@notra/ai/utils/octokit";
 import { updatePublishedContentAndCommit } from "@notra/ai/utils/update-published-content";
 import { defineTool } from "eve/tools";
@@ -27,6 +34,14 @@ export function createUpdatePublishedContentTool() {
         };
       }
 
+      const pathBlockReason = getGitHubMentionPathBlockReason(publication.path);
+      if (pathBlockReason) {
+        return {
+          updated: false,
+          error: `The published file cannot be updated: ${pathBlockReason}.`,
+        };
+      }
+
       const token = await getGitHubPublishToken(publication.repositoryId, {
         organizationId,
       });
@@ -46,12 +61,46 @@ export function createUpdatePublishedContentTool() {
           pullNumber: publication.pullRequestNumber,
         })
       );
+      if (publication.headSha !== head.headSha) {
+        return {
+          updated: false,
+          error:
+            "The pull request changed since Notra last published this post. Refresh the post before updating it.",
+        };
+      }
+      const publishedFile = await withGitHubRateLimitHandling(() =>
+        getRepositoryFileContents({
+          octokit,
+          owner: publication.owner,
+          repo: publication.repo,
+          path: publication.path,
+          ref: head.headSha,
+        })
+      );
+      const fileContents = carryOverImageTargets(
+        input.markdown,
+        publication.markdown ?? "",
+        publishedFile
+      );
+      const blocked = findNewActiveContent({
+        path: publication.path,
+        previous: publishedFile,
+        next: fileContents,
+      });
+      if (blocked.length > 0) {
+        return {
+          updated: false,
+          error: GITHUB_MENTION_ACTIVE_CONTENT_BLOCKED_MESSAGE,
+          blocked,
+        };
+      }
       const result = await withGitHubRateLimitHandling(() =>
         updatePublishedContentAndCommit({
           octokit,
           organizationId,
           postId: input.postId,
           markdown: input.markdown,
+          fileContents,
           title: input.title,
           owner: publication.owner,
           repo: publication.repo,

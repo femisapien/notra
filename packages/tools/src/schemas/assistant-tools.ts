@@ -79,11 +79,15 @@ export const updatePublishedContentInputSchema = z.object({
     .describe("Updated markdown for the published GitHub file"),
   title: z
     .string()
+    .trim()
+    .min(1)
     .max(POST_TITLE_MAX_LENGTH)
     .optional()
     .describe("Optional updated title"),
   commitMessage: z
     .string()
+    .trim()
+    .min(1)
     .optional()
     .describe("Commit headline for the GitHub content pull request"),
 });

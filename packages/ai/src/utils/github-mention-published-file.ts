@@ -5,8 +5,14 @@ import type {
 } from "@notra/ai/types/github-mention";
 import { getRepositoryFileContents } from "@notra/ai/utils/github-pr-commit";
 
-const MARKDOWN_IMAGE_PATTERN = /(!\[[^\]]*\]\()([^)\s]+)/g;
+const MARKDOWN_IMAGE_PATTERN = /(!\[[^\]]*\]\()(<[^>\n]*>|[^)\s]+)/g;
 const ABSOLUTE_URL_PATTERN = /^https?:\/\//i;
+
+function unwrappedTarget(target: string) {
+  return target.startsWith("<") && target.endsWith(">")
+    ? target.slice(1, -1)
+    : target;
+}
 
 function imageTargets(markdown: string) {
   return [...markdown.matchAll(MARKDOWN_IMAGE_PATTERN)].map(
@@ -33,8 +39,8 @@ export function carryOverImageTargets(
     const repositoryTarget = repositoryTargets[index];
     if (
       !repositoryTarget ||
-      ABSOLUTE_URL_PATTERN.test(sourceTarget) ===
-        ABSOLUTE_URL_PATTERN.test(repositoryTarget)
+      ABSOLUTE_URL_PATTERN.test(unwrappedTarget(sourceTarget)) ===
+        ABSOLUTE_URL_PATTERN.test(unwrappedTarget(repositoryTarget))
     ) {
       continue;
     }
