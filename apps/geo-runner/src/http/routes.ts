@@ -1,26 +1,28 @@
+import { db } from "@notra/db/drizzle";
 import {
   createGeoAdhocScan,
   discardQueuedGeoAdhocScan,
   getGeoAdhocScan,
+  listGeoAdhocScanModels,
 } from "@notra/geo-core/geo/adhoc-scan";
-import { type Context, Effect, Schema } from "effect";
-import {
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from "effect/unstable/http";
+import { sql } from "drizzle-orm";
+import { Effect, Schema } from "effect";
+import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
+import { HTTPException } from "hono/http-exception";
 
+import { RUNNER_MAX_REQUEST_BODY_BYTES } from "../constants/runner";
 import { geoRunnerLayer } from "../layers/geo";
 import { RunQueue } from "../services/run-queue";
-import { isAuthorized } from "./auth";
+import { isAuthorized, isRunnerSecretConfigured } from "./auth";
 
 const CreateScanBody = Schema.Struct({
   organizationId: Schema.String,
   projectId: Schema.String,
   prompt: Schema.String,
   engines: Schema.Array(Schema.String),
-  webSearch: Schema.optional(Schema.Boolean),
-  language: Schema.optional(Schema.String),
+  webSearch: Schema.optionalKey(Schema.Boolean),
+  language: Schema.optionalKey(Schema.String),
 });
 
 const ScanScope = Schema.Struct({
@@ -28,137 +30,212 @@ const ScanScope = Schema.Struct({
   projectId: Schema.String,
 });
 
-const ScanPath = Schema.Struct({ scanId: Schema.String });
+const decodeCreateScan = Schema.decodeUnknownPromise(CreateScanBody);
+const decodeScanScope = Schema.decodeUnknownPromise(ScanScope);
 
-function failure(status: number, code: string, message: string) {
-  return HttpServerResponse.jsonUnsafe(
-    { error: { code, message } },
-    { status }
-  );
-}
+const failure = (status: number, code: string, message: string) =>
+  Response.json({ error: { code, message } }, { status });
 
-const unauthorized = failure(401, "unauthorized", "Invalid runner credentials");
+const unauthorized = () =>
+  failure(401, "unauthorized", "Invalid runner credentials");
+const notReady = () => failure(503, "not_ready", "Runner is not ready");
 
-function guarded<E, R>(
-  handler: Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>
+export function createApp(
+  queue: RunQueue["Service"],
+  runnerSecret: string | undefined,
+  layer: typeof geoRunnerLayer = geoRunnerLayer
 ) {
-  return Effect.gen(function* () {
-    if (!(yield* isAuthorized)) {
-      return unauthorized;
+  const app = new Hono();
+
+  app.onError((error) => {
+    if (error instanceof HTTPException) {
+      return error.getResponse();
     }
-    return yield* handler;
+    console.error("geo runner request failed", error);
+    return failure(500, "internal_error", "Internal server error");
   });
-}
 
-type RunQueueShape = Context.Service.Shape<typeof RunQueue>;
+  app.use("*", async (c, next) => {
+    if (c.req.path === "/health" || c.req.path === "/ready") {
+      await next();
+      return;
+    }
+    if (!isAuthorized(c.req.header("authorization"), runnerSecret)) {
+      return unauthorized();
+    }
+    await next();
+  });
 
-const enqueue = (queue: RunQueueShape, scanId: string) =>
-  queue
-    .offer(scanId)
-    .pipe(
-      Effect.map((accepted) =>
-        accepted
-          ? HttpServerResponse.jsonUnsafe(
-              { id: scanId, status: "queued" },
-              { status: 202 }
-            )
-          : failure(
-              503,
-              "runner_busy",
-              "The runner backlog is full. Retry shortly."
-            )
+  app.get("/health", (c) => c.json({ ok: true }));
+
+  app.get("/ready", async (c) => {
+    if (!isRunnerSecretConfigured(runnerSecret)) {
+      return notReady();
+    }
+    try {
+      await db.execute(sql`select 1`);
+      return c.json({ ok: true });
+    } catch (error) {
+      console.error("geo runner readiness failed", error);
+      return notReady();
+    }
+  });
+
+  app.use(
+    "/scans",
+    bodyLimit({
+      maxSize: RUNNER_MAX_REQUEST_BODY_BYTES,
+      onError: () =>
+        failure(413, "request_too_large", "Request body is too large"),
+    })
+  );
+
+  app.get("/models", async (c) => {
+    let scope: Schema.Schema.Type<typeof ScanScope>;
+    try {
+      scope = await decodeScanScope(c.req.query());
+    } catch (error) {
+      return failure(400, "invalid_request", String(error));
+    }
+
+    return Effect.runPromise(
+      listGeoAdhocScanModels(scope).pipe(
+        Effect.provide(layer),
+        Effect.map((models) =>
+          Response.json(
+            { models },
+            { headers: { "cache-control": "private, max-age=60" } }
+          )
+        ),
+        Effect.catchTags({
+          GeoProjectNotFoundError: () =>
+            Effect.succeed(
+              failure(404, "project_not_found", "Project not found")
+            ),
+          GeoSettingsMissingError: () =>
+            Effect.succeed(
+              failure(
+                404,
+                "project_not_found",
+                "GEO is not set up for this project"
+              )
+            ),
+        })
       )
     );
+  });
 
-const createScan = (queue: RunQueueShape) =>
-  guarded(
-    Effect.gen(function* () {
-      const body = yield* HttpServerRequest.schemaBodyJson(CreateScanBody);
-      const { id } = yield* createGeoAdhocScan(body).pipe(
-        Effect.provide(geoRunnerLayer)
-      );
-      const accepted = yield* queue.offer(id);
-      if (!accepted) {
-        yield* discardQueuedGeoAdhocScan(id);
-        return failure(
-          503,
-          "runner_busy",
-          "The runner backlog is full. Retry shortly."
+  app.post("/scans", async (c) => {
+    let body: Schema.Schema.Type<typeof CreateScanBody>;
+    try {
+      body = await decodeCreateScan(await c.req.json());
+    } catch (error) {
+      return failure(400, "invalid_request", String(error));
+    }
+
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        const scan = yield* createGeoAdhocScan({
+          ...body,
+          idempotencyKey: c.req.header("idempotency-key") ?? "",
+        }).pipe(Effect.provide(layer));
+        if (!scan.created && scan.status !== "queued") {
+          return Response.json(
+            { id: scan.id, status: scan.status },
+            { headers: { "cache-control": "no-store" } }
+          );
+        }
+        const accepted = yield* queue.offer(scan.id);
+        if (!accepted) {
+          if (scan.created) {
+            yield* discardQueuedGeoAdhocScan(scan.id);
+          }
+          return failure(
+            503,
+            "runner_busy",
+            "The runner backlog is full. Retry shortly."
+          );
+        }
+        return Response.json(
+          { id: scan.id, status: "queued" },
+          { status: 202, headers: { "cache-control": "no-store" } }
         );
-      }
-      return HttpServerResponse.jsonUnsafe(
-        { id, status: "queued" },
-        { status: 202 }
-      );
-    }).pipe(
-      Effect.catchTags({
-        SchemaError: (error) =>
-          Effect.succeed(failure(400, "invalid_request", error.message)),
-        GeoAdhocScanInvalidError: (error) =>
-          Effect.succeed(failure(422, "invalid_scan", error.message)),
-        GeoProjectNotFoundError: () =>
-          Effect.succeed(
-            failure(404, "project_not_found", "Project not found")
-          ),
-        GeoSettingsMissingError: () =>
-          Effect.succeed(
-            failure(
-              404,
-              "project_not_found",
-              "GEO is not set up for this project"
-            )
-          ),
-      })
+      }).pipe(
+        Effect.catchTags({
+          GeoAdhocScanInvalidError: (error) =>
+            Effect.succeed(failure(422, "invalid_scan", error.message)),
+          GeoAdhocScanConflictError: (error) =>
+            Effect.succeed(failure(409, "idempotency_conflict", error.message)),
+          GeoProjectNotFoundError: () =>
+            Effect.succeed(
+              failure(404, "project_not_found", "Project not found")
+            ),
+          GeoSettingsMissingError: () =>
+            Effect.succeed(
+              failure(
+                404,
+                "project_not_found",
+                "GEO is not set up for this project"
+              )
+            ),
+        })
+      )
+    );
+  });
+
+  app.post("/scans/:scanId/run", (c) =>
+    Effect.runPromise(
+      queue
+        .offer(c.req.param("scanId"))
+        .pipe(
+          Effect.map((accepted) =>
+            accepted
+              ? Response.json(
+                  { id: c.req.param("scanId"), status: "queued" },
+                  { status: 202 }
+                )
+              : failure(
+                  503,
+                  "runner_busy",
+                  "The runner backlog is full. Retry shortly."
+                )
+          )
+        )
     )
   );
 
-/** Hand-off for hosts that already stored the `queued` row themselves. */
-const runScan = (queue: RunQueueShape) =>
-  guarded(
-    Effect.gen(function* () {
-      const { scanId } = yield* HttpRouter.schemaPathParams(ScanPath);
-      return yield* enqueue(queue, scanId);
-    })
-  );
+  app.get("/scans/:scanId", async (c) => {
+    let scope: Schema.Schema.Type<typeof ScanScope>;
+    try {
+      scope = await decodeScanScope(c.req.query());
+    } catch (error) {
+      return failure(400, "invalid_request", String(error));
+    }
 
-const getScan = guarded(
-  Effect.gen(function* () {
-    const { scanId } = yield* HttpRouter.schemaPathParams(ScanPath);
-    const scope = yield* HttpServerRequest.schemaSearchParams(ScanScope);
-    const scan = yield* getGeoAdhocScan(scope, scanId);
-    return HttpServerResponse.jsonUnsafe(scan);
-  }).pipe(
-    Effect.catchTags({
-      SchemaError: (error) =>
-        Effect.succeed(failure(400, "invalid_request", error.message)),
-      GeoAdhocScanNotFoundError: () =>
-        Effect.succeed(failure(404, "scan_not_found", "Scan not found")),
-      GeoProjectNotFoundError: () =>
-        Effect.succeed(failure(404, "project_not_found", "Project not found")),
-      GeoSettingsMissingError: () =>
-        Effect.succeed(
-          failure(
-            404,
-            "project_not_found",
-            "GEO is not set up for this project"
-          )
+    return Effect.runPromise(
+      getGeoAdhocScan(scope, c.req.param("scanId")).pipe(
+        Effect.map((scan) =>
+          Response.json(scan, { headers: { "cache-control": "no-store" } })
         ),
-    })
-  )
-);
-
-// The queue is resolved once while the router is built, so every request
-// shares the same workers.
-export const routes = HttpRouter.use((router) =>
-  Effect.gen(function* () {
-    const queue = yield* RunQueue;
-    yield* router.add(
-      "GET",
-      "/health",
-      HttpServerResponse.jsonUnsafe({ ok: true })
+        Effect.catchTags({
+          GeoAdhocScanNotFoundError: () =>
+            Effect.succeed(failure(404, "scan_not_found", "Scan not found")),
+          GeoProjectNotFoundError: () =>
+            Effect.succeed(
+              failure(404, "project_not_found", "Project not found")
+            ),
+          GeoSettingsMissingError: () =>
+            Effect.succeed(
+              failure(
+                404,
+                "project_not_found",
+                "GEO is not set up for this project"
+              )
+            ),
+        })
+      )
     );
-    yield* router.add("POST", "/scans", createScan(queue));
-    yield* router.add("POST", "/scans/:scanId/run", runScan(queue));
-    yield* router.add("GET", "/scans/:scanId", getScan);
-  })
-);
+  });
+
+  return app;
+}

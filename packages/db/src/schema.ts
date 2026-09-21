@@ -1780,6 +1780,7 @@ export const geoAdhocScans = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    idempotencyKey: text("idempotency_key").notNull(),
     status: text("status", {
       enum: ["queued", "running", "completed", "failed"],
     })
@@ -1797,6 +1798,10 @@ export const geoAdhocScans = pgTable(
   },
   (table) => [
     index("geoAdhocScans_organizationId_idx").on(table.organizationId),
+    uniqueIndex("geoAdhocScans_organizationId_idempotencyKey_uidx").on(
+      table.organizationId,
+      table.idempotencyKey
+    ),
     index("geoAdhocScans_projectId_createdAt_idx").on(
       table.projectId,
       table.createdAt

@@ -14,6 +14,7 @@ import { and, eq, lt, or } from "drizzle-orm";
 import { Effect, Schedule } from "effect";
 
 import {
+  GEO_ADHOC_SCAN_IDEMPOTENCY_KEY_MAX_LENGTH,
   GEO_ADHOC_SCAN_MAX_ENGINES,
   GEO_ADHOC_SCAN_HEARTBEAT_MS,
   GEO_ADHOC_SCAN_QUEUED_STALE_MS,
@@ -43,6 +44,7 @@ import {
 } from "../utils/token-usage";
 import { geoDb } from "./effect";
 import {
+  GeoAdhocScanConflictError,
   GeoAdhocScanInvalidError,
   GeoAdhocScanNotFoundError,
   GeoAdhocScanUnavailableError,
@@ -60,6 +62,7 @@ import { resolveScanZdrPolicy } from "./zdr-policy";
 type GeoAdhocScanSkip = GeoAdhocScanResults["skipped"][number];
 
 export interface GeoAdhocScanRequest extends GeoScopeInput {
+  idempotencyKey: string;
   prompt: string;
   engines: readonly string[];
   webSearch?: boolean;
@@ -101,6 +104,17 @@ export const createGeoAdhocScan = Effect.fn("geo.createAdhocScan")(function* (
   request: GeoAdhocScanRequest
 ) {
   const scope = yield* requireGeoProject(request);
+  const idempotencyKey = request.idempotencyKey.trim();
+  if (
+    idempotencyKey.length === 0 ||
+    idempotencyKey.length > GEO_ADHOC_SCAN_IDEMPOTENCY_KEY_MAX_LENGTH
+  ) {
+    return yield* Effect.fail(
+      new GeoAdhocScanInvalidError({
+        message: `Idempotency-Key must be between 1 and ${GEO_ADHOC_SCAN_IDEMPOTENCY_KEY_MAX_LENGTH} characters`,
+      })
+    );
+  }
   const prompt = request.prompt.trim();
   if (prompt.length === 0 || prompt.length > GEO_PROMPT_MAX_LENGTH) {
     return yield* Effect.fail(
@@ -142,16 +156,70 @@ export const createGeoAdhocScan = Effect.fn("geo.createAdhocScan")(function* (
     language,
   };
   const id = crypto.randomUUID();
-  yield* geoDb("adhoc scan insert failed", () =>
-    db.insert(geoAdhocScans).values({
-      id,
-      organizationId: scope.organizationId,
-      projectId: scope.projectId,
-      input,
+  const [created] = yield* geoDb("adhoc scan insert failed", () =>
+    db
+      .insert(geoAdhocScans)
+      .values({
+        id,
+        organizationId: scope.organizationId,
+        projectId: scope.projectId,
+        idempotencyKey,
+        input,
+      })
+      .onConflictDoNothing()
+      .returning({ id: geoAdhocScans.id, status: geoAdhocScans.status })
+  );
+  if (created) {
+    return { ...created, created: true } as const;
+  }
+
+  const existing = yield* geoDb("adhoc scan idempotency lookup failed", () =>
+    db.query.geoAdhocScans.findFirst({
+      where: and(
+        eq(geoAdhocScans.organizationId, scope.organizationId),
+        eq(geoAdhocScans.idempotencyKey, idempotencyKey)
+      ),
     })
   );
-  return { id };
+  if (!existing) {
+    return yield* Effect.fail(
+      new GeoScanError({ message: "Idempotent scan could not be loaded" })
+    );
+  }
+  const sameRequest =
+    existing.projectId === scope.projectId &&
+    existing.input.prompt === input.prompt &&
+    existing.input.webSearch === input.webSearch &&
+    existing.input.language === input.language &&
+    existing.input.engines.length === input.engines.length &&
+    existing.input.engines.every(
+      (engine, index) => engine === input.engines[index]
+    );
+  if (!sameRequest) {
+    return yield* Effect.fail(
+      new GeoAdhocScanConflictError({
+        message: "Idempotency-Key was already used for a different scan",
+      })
+    );
+  }
+  return { id: existing.id, status: existing.status, created: false } as const;
 });
+
+export const listGeoAdhocScanModels = Effect.fn("geo.listAdhocScanModels")(
+  function* (input: GeoScopeInput) {
+    const scope = yield* requireGeoProject(input);
+    const catalog = yield* loadGeoModelCatalog(scope.organizationId);
+    return catalog.models
+      .filter((model) => !model.hidden)
+      .map((model) => ({
+        id: model.id,
+        label: model.label,
+        provider: model.provider,
+        default: model.default,
+        supportsWebSearch: model.supportsGroundedChecks ?? false,
+      }));
+  }
+);
 
 export const getGeoAdhocScan = Effect.fn("geo.getAdhocScan")(function* (
   input: GeoScopeInput,
@@ -169,7 +237,8 @@ export const getGeoAdhocScan = Effect.fn("geo.getAdhocScan")(function* (
   if (!row) {
     return yield* Effect.fail(new GeoAdhocScanNotFoundError({ scanId }));
   }
-  return row;
+  const { idempotencyKey: _, ...scan } = row;
+  return scan;
 });
 
 export const discardQueuedGeoAdhocScan = Effect.fn(

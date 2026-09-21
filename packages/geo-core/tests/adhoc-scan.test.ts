@@ -23,6 +23,7 @@ import {
   GeoFeatureFlagService,
   GeoModelService,
 } from "../src/deps";
+import type { GeoAdhocScanRequest } from "../src/geo/adhoc-scan";
 import { GeoScanError } from "../src/geo/errors";
 import type { FinalizeContentBillingInput } from "../src/types/content-billing";
 import type { GeoModelServiceShape } from "../src/types/model";
@@ -41,11 +42,20 @@ import {
 } from "./utils/database";
 
 const {
-  createGeoAdhocScan,
+  createGeoAdhocScan: createGeoAdhocScanEffect,
   discardQueuedGeoAdhocScan,
   executeGeoAdhocScan,
   failStaleGeoAdhocScans,
 } = await import("../src/geo/adhoc-scan");
+
+function createGeoAdhocScan(
+  request: Omit<GeoAdhocScanRequest, "idempotencyKey">
+) {
+  return createGeoAdhocScanEffect({
+    ...request,
+    idempotencyKey: crypto.randomUUID(),
+  });
+}
 
 beforeAll(initializeDatabase, 30_000);
 afterAll(() => database.postgres.close());
@@ -167,6 +177,42 @@ describe("one-off GEO scan", () => {
     );
     await run(executeGeoAdhocScan(id));
     expect(await run(executeGeoAdhocScan(id))).toBeNull();
+  });
+
+  test("reuses an idempotent scan and rejects a changed payload", async () => {
+    const scope = await seedProject("adhoc-idempotent");
+    const idempotencyKey = crypto.randomUUID();
+    const first = await run(
+      createGeoAdhocScanEffect({
+        ...scope,
+        idempotencyKey,
+        prompt: "best tools",
+        engines: [ENGINE],
+      })
+    );
+    const repeated = await run(
+      createGeoAdhocScanEffect({
+        ...scope,
+        idempotencyKey,
+        prompt: "best tools",
+        engines: [ENGINE],
+      })
+    );
+    expect(repeated).toEqual({
+      id: first.id,
+      status: "queued",
+      created: false,
+    });
+
+    const conflict = await run(
+      createGeoAdhocScanEffect({
+        ...scope,
+        idempotencyKey,
+        prompt: "different prompt",
+        engines: [ENGINE],
+      }).pipe(Effect.flip)
+    );
+    expect(conflict._tag).toBe("GeoAdhocScanConflictError");
   });
 
   test("a billing denial fails the scan before any model is called", async () => {

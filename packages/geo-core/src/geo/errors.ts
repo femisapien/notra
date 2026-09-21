@@ -255,6 +255,12 @@ export class GeoAdhocScanInvalidError extends Data.TaggedError(
   readonly message: string;
 }> {}
 
+export class GeoAdhocScanConflictError extends Data.TaggedError(
+  "GeoAdhocScanConflictError"
+)<{
+  readonly message: string;
+}> {}
+
 export class GeoAdhocScanNotFoundError extends Data.TaggedError(
   "GeoAdhocScanNotFoundError"
 )<{

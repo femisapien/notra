@@ -1,7 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 
-import { Config, Effect, Redacted } from "effect";
-import { HttpServerRequest } from "effect/unstable/http";
+import { RUNNER_SECRET_MIN_LENGTH } from "../constants/runner";
 
 const BEARER_PREFIX = "Bearer ";
 
@@ -11,20 +10,20 @@ function matches(provided: string, expected: string): boolean {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-/**
- * True when the request carries the shared runner secret. An unset secret
- * authorizes nothing, so a misconfigured deploy fails closed.
- */
-export const isAuthorized = Effect.gen(function* () {
-  const request = yield* HttpServerRequest.HttpServerRequest;
-  const secret = yield* Config.redacted("GEO_RUNNER_SECRET").pipe(
-    Config.withDefault(Redacted.make("")),
-    Effect.map((value) => Redacted.value(value).trim()),
-    Effect.orElseSucceed(() => "")
-  );
-  const header = request.headers.authorization ?? "";
-  if (secret.length === 0 || !header.startsWith(BEARER_PREFIX)) {
+export const isRunnerSecretConfigured = (secret: string | undefined) =>
+  (secret?.trim().length ?? 0) >= RUNNER_SECRET_MIN_LENGTH;
+
+/** An unset or weak secret authorizes nothing, so deploys fail closed. */
+export function isAuthorized(
+  authorization: string | undefined,
+  secret: string | undefined
+): boolean {
+  const expected = secret?.trim() ?? "";
+  if (
+    expected.length < RUNNER_SECRET_MIN_LENGTH ||
+    !authorization?.startsWith(BEARER_PREFIX)
+  ) {
     return false;
   }
-  return matches(header.slice(BEARER_PREFIX.length).trim(), secret);
-});
+  return matches(authorization.slice(BEARER_PREFIX.length).trim(), expected);
+}

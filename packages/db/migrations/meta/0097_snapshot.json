@@ -1,5 +1,5 @@
 {
-  "id": "3c45641d-443e-46b3-a4f8-4bb13ae95a88",
+  "id": "a9396bc7-a04d-4fb1-959a-e992947e68a0",
   "prevId": "ab00fe1c-8891-4392-90b3-b14825d7e5f0",
   "version": "7",
   "dialect": "postgresql",
@@ -4688,6 +4688,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "status": {
           "name": "status",
           "type": "text",
@@ -4763,6 +4769,27 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "geoAdhocScans_organizationId_idempotencyKey_uidx": {
+          "name": "geoAdhocScans_organizationId_idempotencyKey_uidx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
