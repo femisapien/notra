@@ -1,5 +1,6 @@
 import {
   createGeoAdhocScan,
+  discardQueuedGeoAdhocScan,
   getGeoAdhocScan,
 } from "@notra/geo-core/geo/adhoc-scan";
 import { type Context, Effect, Schema } from "effect";
@@ -76,13 +77,29 @@ const createScan = (queue: RunQueueShape) =>
       const { id } = yield* createGeoAdhocScan(body).pipe(
         Effect.provide(geoRunnerLayer)
       );
-      return yield* enqueue(queue, id);
+      const accepted = yield* queue.offer(id);
+      if (!accepted) {
+        yield* discardQueuedGeoAdhocScan(id);
+        return failure(
+          503,
+          "runner_busy",
+          "The runner backlog is full. Retry shortly."
+        );
+      }
+      return HttpServerResponse.jsonUnsafe(
+        { id, status: "queued" },
+        { status: 202 }
+      );
     }).pipe(
       Effect.catchTags({
         SchemaError: (error) =>
           Effect.succeed(failure(400, "invalid_request", error.message)),
         GeoAdhocScanInvalidError: (error) =>
           Effect.succeed(failure(422, "invalid_scan", error.message)),
+        GeoProjectNotFoundError: () =>
+          Effect.succeed(
+            failure(404, "project_not_found", "Project not found")
+          ),
         GeoSettingsMissingError: () =>
           Effect.succeed(
             failure(
@@ -116,6 +133,8 @@ const getScan = guarded(
         Effect.succeed(failure(400, "invalid_request", error.message)),
       GeoAdhocScanNotFoundError: () =>
         Effect.succeed(failure(404, "scan_not_found", "Scan not found")),
+      GeoProjectNotFoundError: () =>
+        Effect.succeed(failure(404, "project_not_found", "Project not found")),
       GeoSettingsMissingError: () =>
         Effect.succeed(
           failure(

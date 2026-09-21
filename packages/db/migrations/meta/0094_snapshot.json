@@ -4440,6 +4440,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "heartbeat_at": {
+          "name": "heartbeat_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
         "finished_at": {
           "name": "finished_at",
           "type": "timestamp",
@@ -4491,8 +4497,8 @@
           "method": "btree",
           "with": {}
         },
-        "geoAdhocScans_status_startedAt_idx": {
-          "name": "geoAdhocScans_status_startedAt_idx",
+        "geoAdhocScans_status_heartbeatAt_idx": {
+          "name": "geoAdhocScans_status_heartbeatAt_idx",
           "columns": [
             {
               "expression": "status",
@@ -4501,7 +4507,7 @@
               "nulls": "last"
             },
             {
-              "expression": "started_at",
+              "expression": "heartbeat_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

@@ -1773,6 +1773,7 @@ export const geoAdhocScans = pgTable(
     errorMessage: text("error_message"),
     retryable: boolean("retryable"),
     startedAt: timestamp("started_at"),
+    heartbeatAt: timestamp("heartbeat_at"),
     finishedAt: timestamp("finished_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -1782,9 +1783,9 @@ export const geoAdhocScans = pgTable(
       table.projectId,
       table.createdAt
     ),
-    index("geoAdhocScans_status_startedAt_idx").on(
+    index("geoAdhocScans_status_heartbeatAt_idx").on(
       table.status,
-      table.startedAt
+      table.heartbeatAt
     ),
   ]
 );

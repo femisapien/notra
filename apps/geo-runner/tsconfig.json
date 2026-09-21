@@ -5,7 +5,8 @@
     "moduleResolution": "Bundler",
     "outDir": "./dist",
     "baseUrl": ".",
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "types": ["node", "bun-types/test"]
   },
   "include": ["src", "tests"],
   "exclude": ["node_modules"]

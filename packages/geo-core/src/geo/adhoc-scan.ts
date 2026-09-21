@@ -10,12 +10,14 @@ import type {
   GeoAdhocScanResults,
 } from "@notra/db/types/geo-adhoc-scan";
 import type { GeoCheckWrite } from "@notra/db/types/geo-checks";
-import { and, eq, inArray, lt, or } from "drizzle-orm";
-import { Effect } from "effect";
+import { and, eq, lt, or } from "drizzle-orm";
+import { Effect, Schedule } from "effect";
 
 import {
   GEO_ADHOC_SCAN_MAX_ENGINES,
-  GEO_ADHOC_SCAN_STALE_MS,
+  GEO_ADHOC_SCAN_HEARTBEAT_MS,
+  GEO_ADHOC_SCAN_QUEUED_STALE_MS,
+  GEO_ADHOC_SCAN_RUNNING_STALE_MS,
   GEO_JUDGE_MODEL,
   GEO_PROMPT_MAX_LENGTH,
   GEO_SCAN_CONCURRENCY,
@@ -33,6 +35,7 @@ import {
   resolveGeoZdrMode,
 } from "../utils/geo-engines";
 import { resolveGroundedEngines } from "../utils/geo-grounded-engines";
+import { isSupportedGeoLanguage } from "../utils/geo-language-rows";
 import { flushGeoLogEffect, geoLogWarn } from "../utils/geo-log";
 import {
   addAgentTokenUsage,
@@ -125,11 +128,18 @@ export const createGeoAdhocScan = Effect.fn("geo.createAdhocScan")(function* (
     );
   }
 
+  const language = request.language ?? DEFAULT_LANGUAGE;
+  if (!isSupportedGeoLanguage(language)) {
+    return yield* Effect.fail(
+      new GeoAdhocScanInvalidError({ message: "Unsupported language" })
+    );
+  }
+
   const input: GeoAdhocScanInput = {
     prompt,
     engines,
     webSearch: request.webSearch ?? true,
-    language: request.language ?? DEFAULT_LANGUAGE,
+    language,
   };
   const id = crypto.randomUUID();
   yield* geoDb("adhoc scan insert failed", () =>
@@ -160,6 +170,20 @@ export const getGeoAdhocScan = Effect.fn("geo.getAdhocScan")(function* (
     return yield* Effect.fail(new GeoAdhocScanNotFoundError({ scanId }));
   }
   return row;
+});
+
+export const discardQueuedGeoAdhocScan = Effect.fn(
+  "geo.discardQueuedAdhocScan"
+)(function* (scanId: string) {
+  const rows = yield* geoDb("adhoc scan discard failed", () =>
+    db
+      .delete(geoAdhocScans)
+      .where(
+        and(eq(geoAdhocScans.id, scanId), eq(geoAdhocScans.status, "queued"))
+      )
+      .returning({ id: geoAdhocScans.id })
+  );
+  return rows.length > 0;
 });
 
 const finishGeoAdhocScan = (
@@ -362,7 +386,16 @@ const runClaimedGeoAdhocScan = Effect.fn("geo.runClaimedAdhocScan")(function* (
       }
     }
     settled = true;
-    yield* settle("confirm", checks.length, usage);
+    const hasUsage =
+      usage.inputTokens > 0 ||
+      usage.outputTokens > 0 ||
+      usage.totalTokens > 0 ||
+      usage.cacheReadTokens > 0 ||
+      usage.cacheWriteTokens > 0 ||
+      (usage.totalUsd ?? 0) > 0;
+    yield* checks.length > 0 || hasUsage
+      ? settle("confirm", checks.length, usage)
+      : settle("release");
     const results: GeoAdhocScanResults = { checks, skipped };
     return results;
   }).pipe(
@@ -383,7 +416,11 @@ export const executeGeoAdhocScan = (scanId: string) =>
     const [row] = yield* geoDb("adhoc scan claim failed", () =>
       db
         .update(geoAdhocScans)
-        .set({ status: "running", startedAt: new Date() })
+        .set({
+          status: "running",
+          startedAt: new Date(),
+          heartbeatAt: new Date(),
+        })
         .where(
           and(eq(geoAdhocScans.id, scanId), eq(geoAdhocScans.status, "queued"))
         )
@@ -392,42 +429,65 @@ export const executeGeoAdhocScan = (scanId: string) =>
     if (!row) {
       return null;
     }
-    return yield* runClaimedGeoAdhocScan(row).pipe(
-      Effect.matchEffect({
-        onSuccess: (results) =>
-          results.checks.length > 0
-            ? finishGeoAdhocScan(scanId, { status: "completed", results })
-            : finishGeoAdhocScan(scanId, {
+    return yield* Effect.scoped(
+      Effect.gen(function* () {
+        const heartbeat = geoDb("adhoc scan heartbeat failed", () =>
+          db
+            .update(geoAdhocScans)
+            .set({ heartbeatAt: new Date() })
+            .where(
+              and(
+                eq(geoAdhocScans.id, scanId),
+                eq(geoAdhocScans.status, "running")
+              )
+            )
+        ).pipe(
+          Effect.catch((error) =>
+            Effect.logError("adhoc scan heartbeat failed", { scanId, error })
+          ),
+          Effect.repeat(Schedule.spaced(GEO_ADHOC_SCAN_HEARTBEAT_MS))
+        );
+        yield* Effect.forkScoped(heartbeat);
+
+        return yield* runClaimedGeoAdhocScan(row).pipe(
+          Effect.matchEffect({
+            onSuccess: (results) =>
+              results.checks.length > 0
+                ? finishGeoAdhocScan(scanId, { status: "completed", results })
+                : finishGeoAdhocScan(scanId, {
+                    status: "failed",
+                    errorCode: "no_answers",
+                    errorMessage:
+                      "Models failed to answer this prompt. Try again.",
+                    retryable: true,
+                    results,
+                  }),
+            onFailure: (error) =>
+              finishGeoAdhocScan(scanId, {
                 status: "failed",
-                errorCode: "no_answers",
-                errorMessage: "Models failed to answer this prompt. Try again.",
-                retryable: true,
-                results,
+                errorCode: adhocErrorCode(error),
+                errorMessage:
+                  "message" in error && typeof error.message === "string"
+                    ? error.message
+                    : "The scan could not be completed",
+                retryable:
+                  error._tag === "GeoDatabaseError" ||
+                  error._tag === "GeoScanError",
               }),
-        onFailure: (error) =>
-          finishGeoAdhocScan(scanId, {
-            status: "failed",
-            errorCode: adhocErrorCode(error),
-            errorMessage:
-              "message" in error && typeof error.message === "string"
-                ? error.message
-                : "The scan could not be completed",
-            retryable:
-              error._tag === "GeoDatabaseError" ||
-              error._tag === "GeoScanError",
           }),
-      }),
-      // A redeploy interrupts in-flight scans; say so now rather than leaving
-      // the row for the stale sweep.
-      Effect.onInterrupt(() =>
-        finishGeoAdhocScan(scanId, {
-          status: "failed",
-          errorCode: "interrupted",
-          errorMessage: "The scan was interrupted. Try again.",
-          retryable: true,
-        }).pipe(Effect.ignore)
-      ),
-      Effect.as(scanId)
+          // A redeploy interrupts in-flight scans; say so now rather than leaving
+          // the row for the stale sweep.
+          Effect.onInterrupt(() =>
+            finishGeoAdhocScan(scanId, {
+              status: "failed",
+              errorCode: "interrupted",
+              errorMessage: "The scan was interrupted. Try again.",
+              retryable: true,
+            }).pipe(Effect.ignore)
+          ),
+          Effect.as(scanId)
+        );
+      })
     );
   }).pipe(Effect.ensuring(flushGeoLogEffect));
 
@@ -451,7 +511,12 @@ function adhocErrorCode(error: { readonly _tag?: string }): string {
  */
 export const failStaleGeoAdhocScans = Effect.fn("geo.failStaleAdhocScans")(
   function* (now = new Date()) {
-    const cutoff = new Date(now.getTime() - GEO_ADHOC_SCAN_STALE_MS);
+    const runningCutoff = new Date(
+      now.getTime() - GEO_ADHOC_SCAN_RUNNING_STALE_MS
+    );
+    const queuedCutoff = new Date(
+      now.getTime() - GEO_ADHOC_SCAN_QUEUED_STALE_MS
+    );
     const rows = yield* geoDb("adhoc scan stale sweep failed", () =>
       db
         .update(geoAdhocScans)
@@ -463,14 +528,14 @@ export const failStaleGeoAdhocScans = Effect.fn("geo.failStaleAdhocScans")(
           finishedAt: now,
         })
         .where(
-          and(
-            inArray(geoAdhocScans.status, ["queued", "running"]),
-            or(
-              lt(geoAdhocScans.startedAt, cutoff),
-              and(
-                eq(geoAdhocScans.status, "queued"),
-                lt(geoAdhocScans.createdAt, cutoff)
-              )
+          or(
+            and(
+              eq(geoAdhocScans.status, "running"),
+              lt(geoAdhocScans.heartbeatAt, runningCutoff)
+            ),
+            and(
+              eq(geoAdhocScans.status, "queued"),
+              lt(geoAdhocScans.createdAt, queuedCutoff)
             )
           )
         )

@@ -232,7 +232,6 @@
         "@notra/db": "workspace:*",
         "@notra/geo-core": "workspace:*",
         "effect": "4.0.0-rc.112",
-        "tsup": "^8.5.1",
       },
       "devDependencies": {
         "@electric-sql/pglite": "0.5.8",

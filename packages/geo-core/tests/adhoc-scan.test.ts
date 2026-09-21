@@ -13,7 +13,10 @@ import { geoAdhocScans, geoMentionChecks } from "@notra/db/schema";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { GEO_ADHOC_SCAN_STALE_MS } from "../src/constants/geo";
+import {
+  GEO_ADHOC_SCAN_QUEUED_STALE_MS,
+  GEO_ADHOC_SCAN_RUNNING_STALE_MS,
+} from "../src/constants/geo";
 import {
   GeoContentBillingService,
   GeoEntitlementService,
@@ -37,8 +40,12 @@ import {
   testDb,
 } from "./utils/database";
 
-const { createGeoAdhocScan, executeGeoAdhocScan, failStaleGeoAdhocScans } =
-  await import("../src/geo/adhoc-scan");
+const {
+  createGeoAdhocScan,
+  discardQueuedGeoAdhocScan,
+  executeGeoAdhocScan,
+  failStaleGeoAdhocScans,
+} = await import("../src/geo/adhoc-scan");
 
 beforeAll(initializeDatabase, 30_000);
 afterAll(() => database.postgres.close());
@@ -205,9 +212,7 @@ describe("one-off GEO scan", () => {
     expect(scan?.results?.skipped).toEqual([
       { engine: `${ENGINE}-grounded`, reason: "failed" },
     ]);
-    expect(settled.map((entry) => [entry.action, entry.units])).toEqual([
-      ["confirm", 0],
-    ]);
+    expect(settled.map((entry) => entry.action)).toEqual(["release"]);
   });
 
   test("rejects models outside the catalog", async () => {
@@ -222,19 +227,93 @@ describe("one-off GEO scan", () => {
     expect(result._tag).toBe("GeoAdhocScanInvalidError");
   });
 
+  test("rejects unsupported languages", async () => {
+    const scope = await seedProject("adhoc-language");
+    const result = await run(
+      createGeoAdhocScan({
+        ...scope,
+        prompt: "best tools",
+        engines: [ENGINE],
+        language: "Klingon",
+      }).pipe(Effect.flip)
+    );
+    expect(result._tag).toBe("GeoAdhocScanInvalidError");
+  });
+
+  test("discards a queued scan when its runner cannot accept it", async () => {
+    const scope = await seedProject("adhoc-discard");
+    const { id } = await run(
+      createGeoAdhocScan({ ...scope, prompt: "best tools", engines: [ENGINE] })
+    );
+    expect(await run(discardQueuedGeoAdhocScan(id))).toBe(true);
+    expect(await loadScan(id)).toBeUndefined();
+  });
+
   test("the stale sweep fails scans whose runner disappeared", async () => {
     const scope = await seedProject("adhoc-stale");
     const { id } = await run(
       createGeoAdhocScan({ ...scope, prompt: "best tools", engines: [ENGINE] })
     );
-    const startedAt = new Date(Date.now() - GEO_ADHOC_SCAN_STALE_MS - 1000);
+    const startedAt = new Date(
+      Date.now() - GEO_ADHOC_SCAN_RUNNING_STALE_MS - 1000
+    );
     await testDb
       .update(geoAdhocScans)
-      .set({ status: "running", startedAt })
+      .set({ status: "running", startedAt, heartbeatAt: startedAt })
       .where(eq(geoAdhocScans.id, id));
     expect(await run(failStaleGeoAdhocScans())).toBe(1);
     const scan = await loadScan(id);
     expect(scan?.status).toBe("failed");
     expect(scan?.errorCode).toBe("stale");
+  });
+
+  test("keeps a long-running scan with a fresh heartbeat", async () => {
+    const scope = await seedProject("adhoc-heartbeat");
+    const { id } = await run(
+      createGeoAdhocScan({ ...scope, prompt: "best tools", engines: [ENGINE] })
+    );
+    const now = new Date();
+    const startedAt = new Date(
+      now.getTime() - GEO_ADHOC_SCAN_RUNNING_STALE_MS - 1000
+    );
+    await testDb
+      .update(geoAdhocScans)
+      .set({ status: "running", startedAt, heartbeatAt: now })
+      .where(eq(geoAdhocScans.id, id));
+
+    expect(await run(failStaleGeoAdhocScans(now))).toBe(0);
+    const scan = await loadScan(id);
+    expect(scan?.status).toBe("running");
+    expect(scan?.startedAt).toEqual(startedAt);
+  });
+
+  test("keeps queued scans until the backlog deadline", async () => {
+    const scope = await seedProject("adhoc-queued-stale");
+    const { id } = await run(
+      createGeoAdhocScan({ ...scope, prompt: "best tools", engines: [ENGINE] })
+    );
+    const now = new Date();
+    await testDb
+      .update(geoAdhocScans)
+      .set({
+        createdAt: new Date(
+          now.getTime() - GEO_ADHOC_SCAN_RUNNING_STALE_MS - 1000
+        ),
+      })
+      .where(eq(geoAdhocScans.id, id));
+
+    expect(await run(failStaleGeoAdhocScans(now))).toBe(0);
+    expect((await loadScan(id))?.status).toBe("queued");
+
+    await testDb
+      .update(geoAdhocScans)
+      .set({
+        createdAt: new Date(
+          now.getTime() - GEO_ADHOC_SCAN_QUEUED_STALE_MS - 1000
+        ),
+      })
+      .where(eq(geoAdhocScans.id, id));
+    expect(await run(failStaleGeoAdhocScans(now))).toBe(1);
+    expect((await loadScan(id))?.status).toBe("failed");
   });
 });
