@@ -31,12 +31,17 @@ import {
   testDb,
 } from "../../../packages/geo-core/tests/utils/database";
 
+const geoLogInfo = mock(() => undefined);
+const geoLogWarn = mock(() => undefined);
+const geoLogError = mock(() => undefined);
+
 mock.module("@notra/db/drizzle", () => ({ db: testDb }));
 mock.module("@notra/ai/evlog", () => ({
   log: { info: mock(), warn: mock(), error: mock() },
-  geoLog: { info: mock(), warn: mock(), error: mock() },
+  geoLog: { info: geoLogInfo, warn: geoLogWarn, error: geoLogError },
   geoLogDrainEnabled: true,
   flushGeoLog: async () => undefined,
+  useLogger: () => ({ getContext: () => ({}), set: mock() }),
 }));
 mock.module("../../../packages/geo-core/src/geo/model-catalog", () => ({
   loadGeoModelCatalog: () => Effect.succeed(seedGeoModelCatalog()),
@@ -119,7 +124,12 @@ function postScan(
 
 beforeAll(initializeDatabase, 30_000);
 afterAll(() => database.postgres.close());
-beforeEach(resetDatabase);
+beforeEach(async () => {
+  geoLogInfo.mockClear();
+  geoLogWarn.mockClear();
+  geoLogError.mockClear();
+  await resetDatabase();
+});
 
 describe("geo runner HTTP routes", () => {
   test("creates, runs, and returns a completed one-off scan", async () => {
@@ -148,6 +158,14 @@ describe("geo runner HTTP routes", () => {
     expect(scan.results.checks).toHaveLength(1);
     expect(scan).not.toHaveProperty("idempotencyKey");
     expect(await testDb.select().from(geoMentionChecks)).toHaveLength(0);
+    expect(geoLogInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "geo.runner.request",
+        method: "GET",
+        path: `/scans/${id}`,
+        status: 200,
+      })
+    );
     await app.dispose();
   });
 

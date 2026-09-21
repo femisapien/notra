@@ -1,3 +1,4 @@
+import { geoLog, useLogger } from "@notra/ai/evlog";
 import { db } from "@notra/db/drizzle";
 import {
   createGeoAdhocScan,
@@ -5,6 +6,7 @@ import {
   getGeoAdhocScan,
   listGeoAdhocScanModels,
 } from "@notra/geo-core/geo/adhoc-scan";
+import { describeGeoError } from "@notra/geo-core/utils/geo-log";
 import { sql } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 import { Hono } from "hono";
@@ -47,12 +49,48 @@ export function createApp(
 ) {
   const app = new Hono();
 
-  app.onError((error) => {
+  app.onError((error, c) => {
     if (error instanceof HTTPException) {
       return error.getResponse();
     }
-    console.error("geo runner request failed", error);
+    geoLog.error({
+      event: "geo.runner.request_failed",
+      method: c.req.method,
+      path: c.req.path,
+      ...describeGeoError(error),
+    });
     return failure(500, "internal_error", "Internal server error");
+  });
+
+  app.use("*", async (c, next) => {
+    const startedAt = performance.now();
+    const requestId = c.req.header("x-request-id") ?? crypto.randomUUID();
+    useLogger().set({
+      feature: "geo_runner",
+      requestId,
+      method: c.req.method,
+      path: c.req.path,
+    });
+    c.header("x-request-id", requestId);
+
+    try {
+      await next();
+    } finally {
+      const event = {
+        event: "geo.runner.request" as const,
+        method: c.req.method,
+        path: c.req.path,
+        status: c.res.status,
+        durationMs: Math.round(performance.now() - startedAt),
+      };
+      if (c.res.status >= 500) {
+        geoLog.error(event);
+      } else if (c.res.status >= 400) {
+        geoLog.warn(event);
+      } else {
+        geoLog.info(event);
+      }
+    }
   });
 
   app.use("*", async (c, next) => {
@@ -76,7 +114,10 @@ export function createApp(
       await db.execute(sql`select 1`);
       return c.json({ ok: true });
     } catch (error) {
-      console.error("geo runner readiness failed", error);
+      geoLog.error({
+        event: "geo.runner.readiness_failed",
+        ...describeGeoError(error),
+      });
       return notReady();
     }
   });

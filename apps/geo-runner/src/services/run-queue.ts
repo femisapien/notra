@@ -2,6 +2,11 @@ import {
   executeGeoAdhocScan,
   failStaleGeoAdhocScans,
 } from "@notra/geo-core/geo/adhoc-scan";
+import {
+  describeGeoCause,
+  flushGeoLogEffect,
+  geoLogError,
+} from "@notra/geo-core/utils/geo-log";
 import { Context, Effect, Layer, Queue, Schedule } from "effect";
 
 import {
@@ -33,7 +38,11 @@ export const runQueueLive = Layer.effect(
         executeGeoAdhocScan(scanId).pipe(
           Effect.provide(geoRunnerLayer),
           Effect.catchCause((cause) =>
-            Effect.logError("adhoc scan crashed", { scanId, cause })
+            geoLogError({
+              event: "geo.runner.scan_crashed",
+              scanId,
+              ...describeGeoCause(cause),
+            }).pipe(Effect.andThen(flushGeoLogEffect))
           )
         )
       ),
@@ -49,7 +58,10 @@ export const runQueueLive = Layer.effect(
     yield* Effect.forkScoped(
       failStaleGeoAdhocScans().pipe(
         Effect.catchCause((cause) =>
-          Effect.logError("adhoc stale sweep failed", { cause })
+          geoLogError({
+            event: "geo.runner.stale_sweep_failed",
+            ...describeGeoCause(cause),
+          }).pipe(Effect.andThen(flushGeoLogEffect))
         ),
         Effect.repeat(Schedule.spaced(RUNNER_STALE_SWEEP_INTERVAL))
       )

@@ -36,9 +36,44 @@ original scan; reusing it for a different request returns `409`.
 `engines` accepts one to five IDs returned by `GET /models`. `webSearch`
 defaults to `true`, and `language` defaults to `English`.
 
+## Smoke test
+
+The command targets the local development server by default. Development uses
+a fixed local-only secret and binds the runner to `127.0.0.1`, so no secret
+setup is needed:
+
+```sh
+bun run dev --filter=geo-runner
+# In another terminal:
+bun geo:smoke
+```
+
+The zero-argument local command idempotently creates a `GEO Smoke Test`
+organization and project in the local database, then scans the example prompt
+`What are the best AI content marketing tools?`.
+
+To use an existing local project instead, pass its IDs and a prompt:
+
+```sh
+bun geo:smoke <organization-id> <project-id> "best GEO tools"
+```
+
+For production, configure `GEO_RUNNER_PROD_URL` and
+`GEO_RUNNER_PROD_SECRET` once in the root `.env`, then pass only the flag:
+
+```sh
+bun geo:smoke --prod <organization-id> <project-id> "best GEO tools"
+```
+
+Pass a model ID as the optional fourth argument to override the catalog default.
+The command checks health and readiness, starts one billable scan, polls it, and
+prints the final result.
+
 ## Environment
 
 `GEO_RUNNER_SECRET`, `DATABASE_URL`, `AI_GATEWAY_API_KEY` (no Vercel OIDC
 outside Vercel), `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
 `PERPLEXITY_API_KEY`, `AUTUMN_SECRET_KEY`, `UPSTASH_REDIS_REST_URL`,
-`UPSTASH_REDIS_REST_TOKEN`.
+`UPSTASH_REDIS_REST_TOKEN`. Set `AXIOM_TOKEN`, `AXIOM_GEO_DATASET`,
+`AXIOM_AI_DATASET`, and optionally `AXIOM_ORG_ID` to drain structured evlog
+events from the runner to Axiom.
