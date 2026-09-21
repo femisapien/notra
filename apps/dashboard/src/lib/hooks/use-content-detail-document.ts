@@ -41,6 +41,18 @@ interface UseContentDetailDocumentParams {
   data: ContentApiResponse | undefined;
 }
 
+function linkedPublishForContent(
+  content: ContentApiResponse["content"] | undefined
+) {
+  if (
+    content?.contentType !== "changelog" &&
+    content?.contentType !== "blog_post"
+  ) {
+    return null;
+  }
+  return content.githubPublish;
+}
+
 export function useContentDetailDocument({
   organizationId,
   contentId,
@@ -292,6 +304,8 @@ export function useContentDetailDocument({
     };
   }, [hasChanges]);
 
+  const linkedGitHubPublish = linkedPublishForContent(data?.content);
+
   const handleSave = useCallback(async () => {
     if (!hasChanges) {
       return true;
@@ -322,9 +336,63 @@ export function useContentDetailDocument({
       setEditingTitle(null);
       setPersistedSlug(persistedSlug);
       setEditingSlug(null);
-      toast.success("Content saved", {
-        position: CONTENT_SAVE_TOAST_POSITION,
-      });
+      if (
+        linkedGitHubPublish &&
+        (data?.content?.contentType === "changelog" ||
+          data?.content?.contentType === "blog_post")
+      ) {
+        try {
+          const result =
+            await dashboardOrpc.content.publishChangelogToGitHub.call({
+              organizationId,
+              contentId,
+              contentType: data.content.contentType,
+              repositoryId: linkedGitHubPublish.repositoryId,
+              linkedOnly: true,
+            });
+          queryClient.setQueryData<ContentApiResponse>(
+            dashboardOrpc.content.get.queryKey({
+              input: { organizationId, contentId },
+            }),
+            (current) => {
+              if (!current) {
+                return current;
+              }
+
+              return {
+                ...current,
+                content: {
+                  ...current.content,
+                  githubPublish: {
+                    branchName: result.branchName,
+                    owner: linkedGitHubPublish.owner,
+                    path: result.path,
+                    pullRequestNumber: result.pullRequestNumber,
+                    pullRequestUrl: result.pullRequestUrl,
+                    repo: linkedGitHubPublish.repo,
+                    repositoryId: linkedGitHubPublish.repositoryId,
+                  },
+                },
+              };
+            }
+          );
+          toast.success("Pull request updated", {
+            position: CONTENT_SAVE_TOAST_POSITION,
+          });
+        } catch (error) {
+          const message =
+            error instanceof Error && error.message
+              ? error.message
+              : "Couldn't update the linked pull request";
+          toast.error(message, {
+            position: CONTENT_SAVE_TOAST_POSITION,
+          });
+        }
+      } else {
+        toast.success("Content saved", {
+          position: CONTENT_SAVE_TOAST_POSITION,
+        });
+      }
       setIsSaving(false);
       return true;
     } catch (error) {
@@ -349,6 +417,8 @@ export function useContentDetailDocument({
     setEditingTitle,
     setPersistedSlug,
     setPersistedTitle,
+    linkedGitHubPublish,
+    data?.content?.contentType,
   ]);
 
   useHotkey(

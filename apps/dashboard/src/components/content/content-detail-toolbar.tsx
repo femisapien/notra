@@ -16,6 +16,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@notra/ui/components/ui/dropdown-menu";
+import { Github } from "@notra/ui/components/ui/svgs/github";
 
 import { Button } from "@/components/button";
 import { ImageExportTargetIcon } from "@/components/content/image-export-target-icon";
@@ -180,11 +181,36 @@ function ContentDetailPublishActions({
     <>
       {(content.contentType === "changelog" ||
         content.contentType === "blog_post") &&
+      content.githubPublish ? (
+        <Button
+          nativeButton={false}
+          render={
+            <a
+              href={content.githubPublish.pullRequestUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <Github className="size-4" />
+              <span className="max-w-52 truncate">
+                {content.githubPublish.owner}/{content.githubPublish.repo} #
+                {content.githubPublish.pullRequestNumber}
+              </span>
+            </a>
+          }
+          size="sm"
+          variant="outline"
+        />
+      ) : null}
+      {(content.contentType === "changelog" ||
+        content.contentType === "blog_post") &&
+      !content.githubPublish &&
       !document.isGeoArticleLoading &&
       document.currentMarkdown.trim() !== "" ? (
         <PublishContentToGitHubDialog
           contentId={contentId}
           contentType={content.contentType}
+          githubPublish={null}
+          key={organizationId}
           onSave={document.handleSave}
           organizationId={organizationId}
           organizationSlug={organizationSlug}
@@ -214,6 +240,13 @@ function ContentDetailPublishActions({
 
 export function ContentDetailToolbar(props: ContentDetailToolbarProps) {
   const { content, document, organizationId } = props;
+  const updatesLinkedPullRequest = Boolean(content.githubPublish);
+  let saveLabel = "Save changes";
+  if (updatesLinkedPullRequest) {
+    saveLabel = document.isSaving ? "Updating PR…" : "Save and update PR";
+  } else if (document.isSaving) {
+    saveLabel = "Saving…";
+  }
   return (
     <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
       {document.hasChanges ? (
@@ -234,7 +267,7 @@ export function ContentDetailToolbar(props: ContentDetailToolbarProps) {
             size="sm"
             variant="outline"
           >
-            {document.isSaving ? "Saving…" : "Save changes"}
+            {saveLabel}
           </Button>
         </>
       ) : null}

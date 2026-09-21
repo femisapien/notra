@@ -64,6 +64,7 @@ import {
   generateContentInputSchema,
   postCollectionInputSchema,
   postCollectionsListInputSchema,
+  postGitHubPublishSchema,
   publishContentToGitHubSchema,
   renamePostCollectionInputSchema,
   updateContentSchema,
@@ -173,6 +174,7 @@ const postReadColumns = {
   contentSubtype: true,
   createdAt: true,
   sourceMetadata: true,
+  githubPublish: true,
   status: true,
   updatedAt: true,
 } as const;
@@ -244,9 +246,12 @@ function serializeContent(post: {
   recommendations: string | null;
   slug: string | null;
   sourceMetadata: unknown;
+  githubPublish: unknown;
   status: "draft" | "published";
   title: string;
 }): ContentResponse {
+  const githubPublish = postGitHubPublishSchema.safeParse(post.githubPublish);
+
   return {
     id: post.id,
     title: post.title,
@@ -260,6 +265,7 @@ function serializeContent(post: {
     status: post.status,
     date: post.createdAt.toISOString(),
     sourceMetadata: post.sourceMetadata as ContentResponse["sourceMetadata"],
+    githubPublish: githubPublish.success ? githubPublish.data : null,
   };
 }
 
@@ -823,6 +829,7 @@ export const contentRouter = {
             contentType: posts.contentType,
             createdAt: posts.createdAt,
             sourceMetadata: posts.sourceMetadata,
+            githubPublish: posts.githubPublish,
             status: posts.status,
             updatedAt: posts.updatedAt,
           });
@@ -925,6 +932,7 @@ export const contentRouter = {
             slug: true,
             markdown: true,
             contentType: true,
+            githubPublish: true,
           },
         }),
         db
@@ -1112,6 +1120,21 @@ export const contentRouter = {
         toGitHubOperationOrpcError
       );
 
+      const storedPublish = postGitHubPublishSchema.safeParse(
+        post.githubPublish
+      );
+      const linkedPullRequest =
+        storedPublish.success &&
+        storedPublish.data.repositoryId === integration.id &&
+        storedPublish.data.owner.toLowerCase() ===
+          integration.owner.toLowerCase() &&
+        storedPublish.data.repo.toLowerCase() === integration.repo.toLowerCase()
+          ? {
+              branchName: storedPublish.data.branchName,
+              number: storedPublish.data.pullRequestNumber,
+            }
+          : undefined;
+
       const octokit = createOctokit(token);
       const publisherLogin =
         getGitHubAppBotLogin() ??
@@ -1135,6 +1158,8 @@ export const contentRouter = {
           path,
           title: post.title,
           markdown: savedMarkdown,
+          ...(linkedPullRequest ? { linkedPullRequest } : {}),
+          ...(input.linkedOnly ? { requireLinkedPullRequest: true } : {}),
           ...(publisherLogin ? { publisherLogin } : {}),
           ...(outputConfig.success && outputConfig.data.imagePath
             ? {
@@ -1171,6 +1196,27 @@ export const contentRouter = {
           outputType: input.contentType,
           repositoryId: integration.id,
         });
+        const githubPublish = postGitHubPublishSchema.safeParse({
+          branchName: result.branchName,
+          owner: integration.owner,
+          path: result.path,
+          pullRequestNumber: result.pullRequestNumber,
+          pullRequestUrl: result.pullRequestUrl,
+          repo: integration.repo,
+          repositoryId: integration.id,
+        });
+        if (!githubPublish.success) {
+          throw badRequest("GitHub did not return a linkable pull request");
+        }
+        await db
+          .update(posts)
+          .set({ githubPublish: githubPublish.data })
+          .where(
+            and(
+              eq(posts.id, input.contentId),
+              eq(posts.organizationId, input.organizationId)
+            )
+          );
         // The pull request already exists; losing the mention mapping must not
         // report the publish as failed. Retry the mapping so a later mention
         // can still find the post.

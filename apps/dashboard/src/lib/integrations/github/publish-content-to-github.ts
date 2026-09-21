@@ -46,6 +46,15 @@ export class GitHubContentBranchConflictError extends Error {
   }
 }
 
+export class GitHubLinkedPullRequestUnavailableError extends Error {
+  constructor() {
+    super(
+      "The linked pull request is no longer open against the repository's default branch"
+    );
+    this.name = "GitHubLinkedPullRequestUnavailableError";
+  }
+}
+
 export class GitHubContentPublishError extends Error {
   readonly branchName: string | null;
   readonly cause: unknown;
@@ -783,43 +792,83 @@ export async function publishContentDraftPullRequest(
     requestedParams.contentId
   );
   let existingPullRequest: GitHubPullRequestSummary | undefined;
+  const linkedPullRequest = requestedParams.linkedPullRequest;
 
-  try {
-    existingPullRequest = await findExistingPullRequest({
-      branchName,
-      defaultBranch: requestedParams.defaultBranch,
-      octokit,
-      owner: requestedParams.owner,
-      repo: requestedParams.repo,
-    });
-    if (!existingPullRequest && hashOnlyBranchName !== branchName) {
+  if (linkedPullRequest) {
+    try {
+      const linked = await getPullRequestAfterCommit({
+        octokit,
+        owner: requestedParams.owner,
+        pullRequestNumber: linkedPullRequest.number,
+        repo: requestedParams.repo,
+      });
+      const headRepository = linked.head.repo?.full_name.toLowerCase();
+      const expectedRepository =
+        `${requestedParams.owner}/${requestedParams.repo}`.toLowerCase();
+      if (
+        linked.state === "open" &&
+        linked.base.ref === requestedParams.defaultBranch &&
+        linked.head.ref === linkedPullRequest.branchName &&
+        headRepository === expectedRepository
+      ) {
+        existingPullRequest = {
+          html_url: linked.html_url,
+          number: linked.number,
+        };
+        branchName = linked.head.ref;
+      }
+    } catch (error) {
+      if (!hasGitHubStatus(error, 404)) {
+        throw new GitHubContentPublishError(
+          "Failed to read the linked pull request",
+          error
+        );
+      }
+    }
+  }
+
+  if (requestedParams.requireLinkedPullRequest && !existingPullRequest) {
+    throw new GitHubLinkedPullRequestUnavailableError();
+  }
+
+  if (!existingPullRequest) {
+    try {
       existingPullRequest = await findExistingPullRequest({
-        branchName: hashOnlyBranchName,
+        branchName,
         defaultBranch: requestedParams.defaultBranch,
         octokit,
         owner: requestedParams.owner,
         repo: requestedParams.repo,
       });
-      if (existingPullRequest) {
-        branchName = hashOnlyBranchName;
+      if (!existingPullRequest && hashOnlyBranchName !== branchName) {
+        existingPullRequest = await findExistingPullRequest({
+          branchName: hashOnlyBranchName,
+          defaultBranch: requestedParams.defaultBranch,
+          octokit,
+          owner: requestedParams.owner,
+          repo: requestedParams.repo,
+        });
+        if (existingPullRequest) {
+          branchName = hashOnlyBranchName;
+        }
       }
-    }
-    if (!existingPullRequest) {
-      const legacyPullRequest = await findLegacyContentPullRequest(
-        octokit,
-        requestedParams,
-        baseSha
+      if (!existingPullRequest) {
+        const legacyPullRequest = await findLegacyContentPullRequest(
+          octokit,
+          requestedParams,
+          baseSha
+        );
+        if (legacyPullRequest) {
+          existingPullRequest = legacyPullRequest;
+          branchName = legacyPullRequest.head.ref;
+        }
+      }
+    } catch (error) {
+      throw new GitHubContentPublishError(
+        "Failed to check for an existing content pull request",
+        error
       );
-      if (legacyPullRequest) {
-        existingPullRequest = legacyPullRequest;
-        branchName = legacyPullRequest.head.ref;
-      }
     }
-  } catch (error) {
-    throw new GitHubContentPublishError(
-      "Failed to check for an existing content pull request",
-      error
-    );
   }
 
   let createdBranch = false;
