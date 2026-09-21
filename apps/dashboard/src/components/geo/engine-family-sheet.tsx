@@ -24,10 +24,6 @@ import type {
 } from "@notra/geo-core/types/geo";
 import { formatAiTrafficTimestamp } from "@notra/geo-core/utils/ai-traffic";
 import { todayIsoDate } from "@notra/geo-core/utils/day-label";
-import {
-  engineFamilyLabel,
-  engineFamilyOf,
-} from "@notra/geo-core/utils/geo-engine-family";
 import { GeoBar } from "@notra/ui/components/geo/geo-bar";
 import { TruncateWithTooltip } from "@notra/ui/components/shared/truncate-with-tooltip";
 import {
@@ -37,7 +33,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@notra/ui/components/ui/sheet";
-import { Tabs, TabsList, TabsTrigger } from "@notra/ui/components/ui/tabs";
 import { useState } from "react";
 
 import { Button } from "@/components/button";
@@ -53,19 +48,16 @@ import { PromptOutcomeIcon } from "@/components/geo/prompt-outcome-icon";
 import { WriteDialog } from "@/components/geo/writer/write-dialog";
 import { InstrumentSection } from "@/components/instrument/instrument-module";
 import { Table, type TableColumn } from "@/components/motion/table";
-import { useGeoProjectScope } from "@/components/providers/geo-project-provider";
-import { useOrganizationsContext } from "@/components/providers/organization-provider";
-import { CHART_PERCENT_SCALE, CHART_PRIMARY_COLOR } from "@/constants/charts";
+import { CHART_MUTED_COLOR, CHART_PERCENT_SCALE } from "@/constants/charts";
 import {
   GEO_PROMPT_DETAIL_SURFACES,
   GEO_WRITE_DIALOG_ENTRIES,
 } from "@/constants/geo-analytics";
 import { TABLE_ROW_HEIGHT } from "@/constants/table";
-import { useGeoActiveProject } from "@/lib/hooks/use-geo-active-project";
+import { useEngineFamilySheet } from "@/lib/hooks/use-engine-family-sheet";
 import { useRetainedValue } from "@/lib/hooks/use-retained-value";
 import { cn } from "@/lib/utils";
 import type { ChartConfig } from "@/types/charts";
-import type { WriteDialogInitialState } from "@/types/components/geo-writer";
 import type {
   EngineFamilyBrandRow,
   EngineFamilyBrandScope,
@@ -89,21 +81,12 @@ import {
   formatMentionRate,
   mentionTrendEmptyLabel,
 } from "@/utils/geo-charts";
-import {
-  engineFamilyBrandRows,
-  findOwnBrandDomain,
-} from "@/utils/geo-competitors";
-import { familyImproveInsight } from "@/utils/geo-family-improve";
-import { resolveOrganizationId } from "@/utils/geo-overview-organization";
-import { geoGapsEngineHref } from "@/utils/geo-paths";
-import {
-  engineFamilyPromptHits,
-  promptTableRowForId,
-} from "@/utils/geo-prompts";
-import { writeDialogStateFromGap } from "@/utils/geo-write-entry";
 import { tableHeightFor } from "@/utils/table";
 
 const FAMILY_TREND_STROKE_WIDTH = 1.5;
+// Matches the visibility activity card: the headline series carries the fill
+// and a heavier stroke, the comparison lines stay thin.
+const FAMILY_TOTAL_STROKE_WIDTH = 2;
 const FAMILY_CHART_HEIGHT_CLASS = "h-52 w-full";
 const FAMILY_SHEET_CONTENT_CLASS =
   "gap-0 overflow-hidden rounded-xl data-[side=right]:inset-y-2 data-[side=right]:right-2 data-[side=right]:h-auto data-[side=right]:border data-[side=right]:sm:max-w-2xl";
@@ -117,10 +100,6 @@ const MODE_LABEL: Record<GeoSparklineMode, string> = {
   memory: GEO_WITHOUT_SEARCH_LABEL,
 };
 
-function isSparklineMode(value: string): value is GeoSparklineMode {
-  return value === "all" || value === "search" || value === "memory";
-}
-
 function modeSeriesColors(mode: GeoSparklineMode) {
   if (mode === "search") {
     return seriesColors(geoModeColor("web"));
@@ -128,7 +107,10 @@ function modeSeriesColors(mode: GeoSparklineMode) {
   if (mode === "memory") {
     return seriesColors(geoModeColor("raw"));
   }
-  return seriesColors(CHART_PRIMARY_COLOR);
+  // Neutral, matching the mode icon: "All" is the baseline the two modes are
+  // read against, and it used to share the search colour because the two never
+  // appeared on the same chart.
+  return seriesColors(CHART_MUTED_COLOR);
 }
 
 function Stat({
@@ -219,23 +201,38 @@ function FamilySheetDescription({ family }: { family: GeoEngineFamily }) {
   );
 }
 
-function ModeTab({
+const TREND_MODES: GeoSparklineMode[] = ["all", "search", "memory"];
+
+function ModeToggle({
   mode,
   totals,
+  active,
+  onToggle,
 }: {
   mode: GeoSparklineMode;
   totals: GeoEngineFamilyTotals | null;
+  active: boolean;
+  onToggle: () => void;
 }) {
   return (
-    <TabsTrigger className="h-6 gap-1 px-2 text-xs" value={mode}>
-      {mode === "all" ? null : <GeoModeIcon className="size-3" mode={mode} />}
+    <button
+      aria-pressed={active}
+      className={cn(
+        "inline-flex cursor-pointer items-center gap-1 rounded-md px-1 py-0.5 text-xs transition-opacity",
+        "hover:bg-muted/60 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
+        active ? "opacity-100" : "opacity-40"
+      )}
+      onClick={onToggle}
+      type="button"
+    >
+      <GeoModeIcon className="size-3" mode={mode} />
       {MODE_LABEL[mode]}
       {totals ? (
         <span className="text-muted-foreground font-normal tabular-nums">
           {formatMentionRate(totals.rate)}
         </span>
       ) : null}
-    </TabsTrigger>
+    </button>
   );
 }
 
@@ -250,18 +247,46 @@ function FamilyTrend({
   const memoryTotals = engineFamilyModeTotals(family, "memory");
   const allTotals = engineFamilyTotals(family);
   const splitModes = searchTotals !== null && memoryTotals !== null;
-  const [mode, setMode] = useState<GeoSparklineMode>("all");
   const rows = buildEngineFamilyModeTrendRows(points, family.family);
-  const activeMode: GeoSparklineMode = splitModes ? mode : "all";
-  const config: ChartConfig = {
-    [activeMode]: {
-      label: `${GEO_MENTION_RATE_LABEL} · ${MODE_LABEL[activeMode]}`,
-      colors: modeSeriesColors(activeMode),
-    },
+  // A family that only ever answers one way has nothing to compare, so it
+  // keeps the single line instead of three copies of it.
+  const modeKeys: GeoSparklineMode[] = splitModes ? TREND_MODES : ["all"];
+  const [hiddenModes, setHiddenModes] = useState<ReadonlySet<GeoSparklineMode>>(
+    () => new Set()
+  );
+  const visibleModes = modeKeys.filter((mode) => !hiddenModes.has(mode));
+
+  function toggleMode(mode: GeoSparklineMode) {
+    setHiddenModes((current) => {
+      const next = new Set(current);
+      if (next.has(mode)) {
+        next.delete(mode);
+        return next;
+      }
+      // Emptying the chart tells you nothing, so the last line stays.
+      if (modeKeys.length - next.size <= 1) {
+        return current;
+      }
+      next.add(mode);
+      return next;
+    });
+  }
+  const totalsByMode: Record<GeoSparklineMode, GeoEngineFamilyTotals | null> = {
+    all: allTotals,
+    search: searchTotals,
+    memory: memoryTotals,
   };
+  const config: ChartConfig = Object.fromEntries(
+    modeKeys.map((mode) => [
+      mode,
+      {
+        label: `${GEO_MENTION_RATE_LABEL} \u00b7 ${MODE_LABEL[mode]}`,
+        colors: modeSeriesColors(mode),
+      },
+    ])
+  );
   const showTrend = rows.length >= GEO_SPARKLINE_MIN_POINTS;
   const markIncompleteTail = rows.at(-1)?.rawDay === todayIsoDate();
-  const rowKeys = [activeMode];
 
   if (!showTrend) {
     return null;
@@ -271,23 +296,20 @@ function FamilyTrend({
     <InstrumentSection
       action={
         splitModes ? (
-          <Tabs
-            onValueChange={(value) => {
-              if (typeof value === "string" && isSparklineMode(value)) {
-                setMode(value);
-              }
-            }}
-            value={activeMode}
+          <div
+            aria-label="Answer mode"
+            className="flex flex-wrap items-center gap-x-3 gap-y-1"
           >
-            <TabsList
-              aria-label="Answer mode"
-              className="h-7 group-data-horizontal/tabs:h-7"
-            >
-              <ModeTab mode="all" totals={allTotals} />
-              <ModeTab mode="search" totals={searchTotals} />
-              <ModeTab mode="memory" totals={memoryTotals} />
-            </TabsList>
-          </Tabs>
+            {modeKeys.map((mode) => (
+              <ModeToggle
+                active={!hiddenModes.has(mode)}
+                key={mode}
+                mode={mode}
+                onToggle={() => toggleMode(mode)}
+                totals={totalsByMode[mode]}
+              />
+            ))}
+          </div>
         ) : undefined
       }
       eyebrow={GEO_MENTION_RATE_LABEL}
@@ -298,32 +320,39 @@ function FamilyTrend({
         config={config}
         curveType="monotone"
         data={rows}
-        key={activeMode}
         xDataKey="day"
       >
-        <EChartsAreaChart.Grid variant="dashed" />
-        <EChartsAreaChart.XAxis dataKey="day" hideDots />
-        <EChartsAreaChart.YAxis hideDots tickFormatter={formatChartPercent} />
-        <EChartsAreaChart.Area
-          connectNulls
-          dataKey={activeMode}
-          enableBufferLine={markIncompleteTail}
-          gapMissing
-          strokeVariant="solid"
-          strokeWidth={FAMILY_TREND_STROKE_WIDTH}
-          variant="gradient"
-        >
-          <EChartsAreaChart.ActiveDot variant="border" />
-        </EChartsAreaChart.Area>
+        <EChartsAreaChart.Grid variant="solid" />
+        <EChartsAreaChart.XAxis dataKey="day" />
+        <EChartsAreaChart.YAxis tickFormatter={formatChartPercent} />
+        {visibleModes.map((mode) => (
+          <EChartsAreaChart.Area
+            connectNulls
+            dataKey={mode}
+            enableBufferLine={markIncompleteTail}
+            gapMissing
+            key={mode}
+            strokeVariant="solid"
+            strokeWidth={
+              mode === "all"
+                ? FAMILY_TOTAL_STROKE_WIDTH
+                : FAMILY_TREND_STROKE_WIDTH
+            }
+            variant={mode === "all" ? "gradient" : "none"}
+          >
+            <EChartsAreaChart.ActiveDot variant="border" />
+          </EChartsAreaChart.Area>
+        ))}
         <EChartsAreaChart.Tooltip
           barMax={CHART_PERCENT_SCALE}
           confine={false}
-          emptyLabel={(row) => mentionTrendEmptyLabel(row, rowKeys)}
+          emptyLabel={(row) => mentionTrendEmptyLabel(row, visibleModes)}
           labelFormatter={formatFullDayLabel}
           labelKey="rawDay"
+          layout="activity"
           position="fixed"
           roundness="xl"
-          rowKeys={rowKeys}
+          rowKeys={visibleModes}
           valueFormatter={formatChartPercent}
         />
       </EChartsAreaChart>
@@ -545,65 +574,32 @@ function EngineFamilySheetSession({
   family: GeoEngineFamily;
   onOpenChangeComplete: (open: boolean) => void;
 }) {
-  const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
-  const [writeOpen, setWriteOpen] = useState(false);
-  const [writeInitial, setWriteInitial] =
-    useState<WriteDialogInitialState | null>(null);
-  const { projectId } = useGeoProjectScope();
-  const { getOrganization, activeOrganization } = useOrganizationsContext();
-  const organizationId = organizationSlug
-    ? resolveOrganizationId(
-        organizationSlug,
-        activeOrganization,
-        getOrganization(organizationSlug)
-      )
-    : "";
-  const { domain: projectDomain } = useGeoActiveProject(organizationId);
-  const ownDomain = projectDomain ?? findOwnBrandDomain(aliases ?? []);
-  const canWrite = Boolean(organizationSlug) && Boolean(organizationId);
-  const name = engineFamilyLabel(family.family);
-  const selectedRow = selectedPromptId
-    ? promptTableRowForId(selectedPromptId, promptResults)
-    : null;
-  const selectedEngine =
-    selectedRow?.results.find(
-      (result) => engineFamilyOf(result.engine) === family.family
-    )?.engine ?? null;
-  const promptHits = engineFamilyPromptHits(family.family, promptResults);
-  const brandScope: EngineFamilyBrandScope = {
+  const {
+    timeseriesPoints: points,
+    organizationId,
+    canWrite,
+    name,
+    selectedRow,
+    selectedEngine,
+    promptHits,
+    brandScope,
+    brandRows,
+    improveInsight,
+    gapsHref,
+    writeOpen,
+    setWriteOpen,
+    writeInitial,
+    setSelectedPromptId,
+    handleWrite,
+  } = useEngineFamilySheet({
+    family,
+    timeseriesPoints,
+    promptResults,
+    organizationSlug,
     companyName,
     aliases,
     competitors,
-    ownDomain,
-  };
-  const brandRows = engineFamilyBrandRows(
-    family.family,
-    promptResults,
-    brandScope
-  );
-  const missedCount = promptHits.filter(
-    (hit) => !(hit.mentioned || hit.ownedSourceCited)
-  ).length;
-  const improveInsight = familyImproveInsight({
-    familyLabel: name,
-    search: engineFamilyModeTotals(family, "search"),
-    memory: engineFamilyModeTotals(family, "memory"),
-    missed: missedCount,
   });
-  const gapsHref =
-    canWrite && organizationSlug
-      ? geoGapsEngineHref(organizationSlug, family.family, projectId)
-      : undefined;
-
-  function handleWrite(hit: EngineFamilyPromptHit) {
-    setWriteInitial(
-      writeDialogStateFromGap({
-        promptId: hit.promptId,
-        prompt: hit.prompt,
-      })
-    );
-    setWriteOpen(true);
-  }
 
   return (
     <>
@@ -621,8 +617,8 @@ function EngineFamilySheetSession({
             <FamilySheetDescription family={family} />
           </SheetHeader>
           <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
-            <FamilyStats family={family} points={timeseriesPoints} />
-            <FamilyTrend family={family} points={timeseriesPoints} />
+            <FamilyStats family={family} points={points} />
+            <FamilyTrend family={family} points={points} />
             {improveInsight ? (
               <FamilyImproveCard gapsHref={gapsHref} insight={improveInsight} />
             ) : null}
@@ -638,19 +634,19 @@ function EngineFamilySheetSession({
             />
           </div>
         </SheetContent>
+        <PromptDetailDialog
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) {
+              setSelectedPromptId(null);
+            }
+          }}
+          initialEngine={selectedEngine}
+          open={selectedRow !== null}
+          organizationId={organizationId || undefined}
+          row={selectedRow}
+          surface={GEO_PROMPT_DETAIL_SURFACES.ENGINE_SHEET}
+        />
       </Sheet>
-      <PromptDetailDialog
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) {
-            setSelectedPromptId(null);
-          }
-        }}
-        initialEngine={selectedEngine}
-        open={selectedRow !== null}
-        organizationId={organizationId || undefined}
-        row={selectedRow}
-        surface={GEO_PROMPT_DETAIL_SURFACES.ENGINE_SHEET}
-      />
       {organizationSlug && organizationId ? (
         <WriteDialog
           entry={GEO_WRITE_DIALOG_ENTRIES.ENGINE_SHEET}

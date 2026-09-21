@@ -2,7 +2,6 @@ import { PGlite } from "@electric-sql/pglite";
 import {
   brandSettings,
   geoAdhocScans,
-  geoScans,
   geoPrompts,
   geoPromptSuggestions,
   geoAgentReadinessReports,
@@ -14,6 +13,10 @@ import {
   geoPersonas,
   geoPersonasRelations,
   geoPromptSequences,
+  geoScanEvents,
+  geoScanEventsRelations,
+  geoScans,
+  geoScansRelations,
   users,
   geoSettings,
   organizations,
@@ -44,6 +47,9 @@ const schema = {
   geoSettings,
   geoScans,
   geoAdhocScans,
+  geoScansRelations,
+  geoScanEvents,
+  geoScanEventsRelations,
 };
 export const database = { postgres: new PGlite() };
 let currentDb = drizzle(database.postgres, { schema });

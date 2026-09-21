@@ -42,7 +42,13 @@ import type {
   GeoPersonaSnapshot,
 } from "./types/geo-personas";
 import type { GeoProspectReportJson } from "./types/geo-prospect-report";
-import type { GeoScanPlanSnapshot, GeoScanPlanSummary } from "./types/geo-scan";
+import {
+  GEO_SCAN_EVENT_STATUSES,
+  GEO_SCAN_EVENT_STEPS,
+  type GeoScanPlanSnapshot,
+  type GeoScanPlanSummary,
+  type GeoScanUsageByRole,
+} from "./types/geo-scan";
 import type { GeoContentBriefJson } from "./types/geo-writer";
 import type { GoogleSearchConsoleQuery } from "./types/google-search-console";
 
@@ -1737,6 +1743,18 @@ export const geoScans = pgTable(
     startedAt: timestamp("started_at").defaultNow().notNull(),
     finishedAt: timestamp("finished_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    runId: text("run_id"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    cacheReadTokens: integer("cache_read_tokens"),
+    cacheWriteTokens: integer("cache_write_tokens"),
+    reasoningTokens: integer("reasoning_tokens"),
+    totalUsd: real("total_usd"),
+    checksTotal: integer("checks_total"),
+    checksFailed: integer("checks_failed"),
+    mentions: integer("mentions"),
+    durationMs: integer("duration_ms"),
+    usageByRole: jsonb("usage_by_role").$type<GeoScanUsageByRole>(),
   },
   (table) => [
     index("geoScans_organizationId_idx").on(table.organizationId),
@@ -1840,6 +1858,9 @@ export const geoMentionChecks = pgTable(
     // Whether the engine call ran with zero data retention enforced. Null on
     // rows written before the column existed or when the route did not say.
     zdrEnforced: boolean("zdr_enforced"),
+    durationMs: integer("duration_ms"),
+    costUsd: real("cost_usd"),
+    judgeTokens: integer("judge_tokens"),
     capturedAt: timestamp("captured_at").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -1889,6 +1910,7 @@ export const geoMentionChecks = pgTable(
       table.engine,
       table.capturedAt.desc()
     ),
+    index("geoMentionChecks_competitors_idx").using("gin", table.competitors),
     // sequenceResults orders by exactly this tuple; `sequence_id` appears in no
     // other index.
     index("geoMentionChecks_sequence_turn_engine_captured_idx")
@@ -1905,6 +1927,32 @@ export const geoMentionChecks = pgTable(
       table.promptId,
       table.turn,
       table.language
+    ),
+  ]
+);
+
+export const geoScanEvents = pgTable(
+  "geo_scan_events",
+  {
+    id: text("id").primaryKey(),
+    scanId: text("scan_id")
+      .notNull()
+      .references(() => geoScans.id, { onDelete: "cascade" }),
+    runId: text("run_id").notNull(),
+    step: text("step", { enum: GEO_SCAN_EVENT_STEPS }).notNull(),
+    status: text("status", { enum: GEO_SCAN_EVENT_STATUSES }).notNull(),
+    startedAt: timestamp("started_at").notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    engine: text("engine"),
+    taskKey: text("task_key"),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    usage: jsonb("usage").$type<GeoScanUsageByRole | null>(),
+  },
+  (table) => [
+    index("geoScanEvents_scanId_startedAt_idx").on(
+      table.scanId,
+      table.startedAt
     ),
   ]
 );
@@ -3350,6 +3398,14 @@ export const geoScansRelations = relations(geoScans, ({ one, many }) => ({
     references: [projects.id],
   }),
   checks: many(geoMentionChecks),
+  events: many(geoScanEvents),
+}));
+
+export const geoScanEventsRelations = relations(geoScanEvents, ({ one }) => ({
+  scan: one(geoScans, {
+    fields: [geoScanEvents.scanId],
+    references: [geoScans.id],
+  }),
 }));
 
 export const geoMentionChecksRelations = relations(
@@ -3645,4 +3701,73 @@ export const geoProspectReportsRelations = relations(
       references: [users.id],
     }),
   })
+);
+
+export const discussionComments = pgTable(
+  "discussion_comments",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    feedbackId: text("feedback_id").references(() => agentFeedback.id, {
+      onDelete: "cascade",
+    }),
+    shelfSourceId: text("shelf_source_id").references(
+      () => geoShelfSources.id,
+      { onDelete: "cascade" }
+    ),
+    parentId: text("parent_id"),
+    depth: integer("depth").notNull().default(0),
+    userId: text("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    editedAt: timestamp("edited_at"),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (table) => [
+    index("discussionComments_feedback_idx").on(
+      table.feedbackId,
+      table.createdAt
+    ),
+    index("discussionComments_shelf_idx").on(
+      table.shelfSourceId,
+      table.createdAt
+    ),
+    foreignKey({
+      columns: [table.parentId],
+      foreignColumns: [table.id],
+    }).onDelete("cascade"),
+    check(
+      "discussionComments_target_check",
+      sql`num_nonnulls(${table.feedbackId}, ${table.shelfSourceId}) = 1`
+    ),
+    check(
+      "discussionComments_depth_check",
+      sql`${table.depth} between 0 and 5`
+    ),
+  ]
+);
+
+export const discussionReactions = pgTable(
+  "discussion_reactions",
+  {
+    id: text("id").primaryKey(),
+    commentId: text("comment_id")
+      .notNull()
+      .references(() => discussionComments.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    emoji: text("emoji").notNull(),
+  },
+  (table) => [
+    uniqueIndex("discussionReactions_unique").on(
+      table.commentId,
+      table.userId,
+      table.emoji
+    ),
+  ]
 );

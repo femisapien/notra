@@ -81,6 +81,7 @@ import {
   loadGeoPromptHistory,
   loadGeoSettings,
   loadGeoTimeseries,
+  loadGeoJourneyStats,
   loadGeoTrafficJourneys,
   loadGeoTrafficLog,
   loadGeoTrafficPages,
@@ -121,6 +122,7 @@ import {
   loadGeoSentimentEvidence,
 } from "@notra/geo-core/geo/sentiment";
 import { loadGeoSentimentAnalysis } from "@notra/geo-core/geo/sentiment-analysis";
+import { generateGeoSequences } from "@notra/geo-core/geo/sequence-generation";
 import {
   createGeoSequence,
   deleteGeoSequence,
@@ -183,6 +185,7 @@ import {
   geoSettingsUpsertInputSchema,
   geoSuggestionIdInputSchema,
   geoTimeseriesInputSchema,
+  geoJourneyStatsInputSchema,
   geoTrafficJourneysInputSchema,
   geoTrafficLogInputSchema,
   geoTrafficPagesInputSchema,
@@ -661,7 +664,7 @@ async function loadGeoShelfSeed(
       toGeoOrpcError
     ),
     options.withMembers
-      ? listGeoShelfMembers(input.organizationId)
+      ? listGeoShelfMembers(input.organizationId, context.headers)
       : Promise.resolve<GeoShelfMember[]>([]),
   ]);
   return { ...shelfContext, members };
@@ -671,7 +674,8 @@ async function loadGeoShelfSeed(
 async function resolveGeoShelfReadMembers(
   organizationId: string,
   loadedMembers: GeoShelfMember[],
-  sources: GeoShelfSource[]
+  sources: GeoShelfSource[],
+  headers: Headers
 ): Promise<GeoShelfMember[]> {
   if (loadedMembers.length > 0) {
     return loadedMembers;
@@ -679,7 +683,7 @@ async function resolveGeoShelfReadMembers(
   if (collectGeoShelfMemberIds(sources).size === 0) {
     return [];
   }
-  return await listGeoShelfMembers(organizationId);
+  return await listGeoShelfMembers(organizationId, headers);
 }
 
 export const geoRouter = {
@@ -727,7 +731,8 @@ export const geoRouter = {
       const shelfMembers = await resolveGeoShelfReadMembers(
         input.organizationId,
         seed.members,
-        page.sources
+        page.sources,
+        context.headers
       );
       return geoShelfListResponseSchema.parse({
         ...page,
@@ -743,7 +748,10 @@ export const geoRouter = {
         organizationId: input.organizationId,
         user: context.user,
       });
-      const members = await listGeoShelfMembers(input.organizationId);
+      const members = await listGeoShelfMembers(
+        input.organizationId,
+        context.headers
+      );
       return geoShelfMembersResponseSchema.parse({
         members,
         currentMemberId: findCurrentGeoShelfMemberId(members, context.user.id),
@@ -1037,7 +1045,12 @@ export const geoRouter = {
     .input(geoCompetitorDetailInputSchema)
     .handler(
       geoHandler((input) =>
-        loadGeoCompetitorDetail(input, input.brand, geoWindow(input))
+        loadGeoCompetitorDetail(
+          input,
+          input.brand,
+          geoWindow(input),
+          input.summaryOnly
+        )
       )
     ),
   agentReadiness: authorizedProcedure
@@ -1123,6 +1136,11 @@ export const geoRouter = {
       geoHandler((input) =>
         loadGeoTrafficJourneys(input, geoWindow(input), input.limit)
       )
+    ),
+  journeyStats: authorizedProcedure
+    .input(geoJourneyStatsInputSchema)
+    .handler(
+      geoHandler((input) => loadGeoJourneyStats(input, geoWindow(input)))
     ),
   journeyDetail: authorizedProcedure
     .input(geoJourneyDetailInputSchema)
@@ -1285,6 +1303,36 @@ export const geoRouter = {
         }
       )
     ),
+  sequencesGenerate: authorizedProcedure
+    .input(geoOrganizationInputSchema)
+    .handler(async (options) => {
+      // Membership first: the limiter is keyed by organization, so without this
+      // any signed-in user could drain another organization's generation budget.
+      await assertOrganizationAccess({
+        headers: options.context.headers,
+        organizationId: options.input.organizationId,
+        user: options.context.user,
+      });
+      const rate = await ratelimit.geoSequencesGenerate.limit(
+        options.input.organizationId
+      );
+      if (!rate.success) {
+        throw badRequest(
+          "Too many conversation generations. Please wait a few minutes."
+        );
+      }
+      return geoHandler(
+        (input) => generateGeoSequences(input),
+        ({ context, input, output }) => {
+          trackGeoRouterEvent({
+            context,
+            input,
+            event: POSTHOG_EVENTS.GEO_CONVERSATIONS_GENERATED,
+            properties: { conversation_count: output.sequences.length },
+          });
+        }
+      )(options);
+    }),
   sequencesUpdate: authorizedProcedure
     .input(geoSequenceUpdateInputSchema)
     .handler(
@@ -1610,6 +1658,7 @@ export const geoRouter = {
             event: POSTHOG_EVENTS.GEO_PROMPTS_GENERATED_FROM_WEBSITE,
             properties: {
               prompt_count: output.promptsAdded,
+              conversation_count: output.conversationsAdded,
               competitor_count: output.competitors.length,
               alias_count: output.aliases.length,
             },

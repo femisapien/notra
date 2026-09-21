@@ -11,9 +11,11 @@ import type {
   GeoCheckWrite,
 } from "@notra/db/types/geo-checks";
 import type { GeoPersonaSnapshotV2 } from "@notra/db/types/geo-personas";
+import type { GeoScanUsageByRole } from "@notra/db/types/geo-scan";
 import type { GeoContentBriefStatus } from "@notra/db/types/geo-writer";
 import type { FinishReason, LanguageModel, ToolSet } from "ai";
 
+import type { GEO_AUDIENCE_TYPES } from "../constants/geo-model-catalog";
 import type { GeoModelTokenUsage } from "./token-usage";
 
 export interface GeoProject {
@@ -185,11 +187,15 @@ export interface GeoGroundedAnswer extends GeoEngineAnswer {
 export interface GeoCheckOutcome {
   row: GeoCheckWrite | null;
   usage: AgentTokenUsage;
+  engineUsage?: AgentTokenUsage;
+  judgeUsage?: AgentTokenUsage;
 }
 
 export interface GeoSequenceCheckOutcome {
   rows: GeoCheckWrite[];
   usage: AgentTokenUsage;
+  engineUsage?: AgentTokenUsage;
+  judgeUsage?: AgentTokenUsage;
   droppedTurns: number;
 }
 
@@ -662,6 +668,8 @@ export interface GeoScanProjectPlan {
   promptCount: number;
   languages: string[];
   engines: string[];
+  /** Translate-call usage (judge role) from prepare. */
+  usage?: AgentTokenUsage;
 }
 
 export type GeoScanProjectPlanResult =
@@ -673,6 +681,8 @@ export interface GeoScanBatchOutcome {
   mentions: number;
   dropped: number;
   usage: AgentTokenUsage;
+  engineUsage?: AgentTokenUsage;
+  judgeUsage?: AgentTokenUsage;
 }
 
 export interface GeoScanFailureMetadata {
@@ -687,6 +697,23 @@ export interface GeoScanProjectTotals {
   mentions: number;
   dropped: number;
   usage: AgentTokenUsage;
+  engineUsage?: AgentTokenUsage;
+  judgeUsage?: AgentTokenUsage;
+}
+
+export interface GeoScanFinishTotals {
+  runId: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  reasoningTokens: number;
+  totalUsd: number;
+  checksTotal: number;
+  checksFailed: number;
+  mentions: number;
+  durationMs: number;
+  usageByRole: GeoScanUsageByRole;
 }
 
 export interface GeoScanProgramOptions {
@@ -824,11 +851,35 @@ export interface GeoDiscoveredPrompt {
   title: string;
 }
 
+export type GeoAudienceType = (typeof GEO_AUDIENCE_TYPES)[number];
+
 export interface GeoWebsiteDiscovery {
   companyName: string;
   aliases: string[];
+  audienceType: GeoAudienceType;
   competitors: GeoCompetitorSeed[];
   prompts: GeoDiscoveredPrompt[];
+  conversations: GeoGeneratedConversation[];
+}
+
+export interface GeoGeneratedConversation {
+  name: string;
+  steps: string[];
+}
+
+export interface GeoConversationGenerationContext {
+  companyName: string;
+  companyDescription: string | null;
+  audience: string | null;
+  language: string | null;
+  competitors: string[];
+  prompts: string[];
+  existingNames: string[];
+  count: number;
+}
+
+export interface GeoSequencesGenerateResponse {
+  sequences: GeoPromptSequence[];
 }
 
 export interface GeoGenerateFromWebsiteResult {
@@ -836,6 +887,7 @@ export interface GeoGenerateFromWebsiteResult {
   aliases: string[];
   competitors: string[];
   promptsAdded: number;
+  conversationsAdded: number;
 }
 
 export interface GeoDiscoverWebsiteResult {
@@ -852,6 +904,7 @@ export interface GeoOnboardingBrandInput {
   aliases: string[];
   prompts: GeoDiscoveredPrompt[];
   languages?: string[];
+  audienceType?: GeoAudienceType;
   engines?: string[];
   enforceZdr?: boolean;
   nonZdrApprovedEngines?: string[];
@@ -892,6 +945,7 @@ export interface GeoJudgeResult {
   sentiment: "positive" | "neutral" | "negative" | null;
   competitors: string[];
   excerpt: string;
+  usage?: GeoModelTokenUsage;
 }
 
 export type GeoMentionSentiment = NonNullable<GeoJudgeResult["sentiment"]>;
@@ -1006,12 +1060,52 @@ export interface GeoJourney {
   distinctPaths: number;
   firstSeenAt: string;
   lastSeenAt: string;
+  /** First page fetched in the journey; `samplePaths` has no ordering. */
+  entryPath: string;
   samplePaths: string[];
 }
 
 export interface GeoTrafficJourneysResponse {
   configured: boolean;
   journeys: GeoJourney[];
+}
+
+export interface GeoJourneyDailyPoint {
+  day: string;
+  journeys: number;
+}
+
+/** Exact journey counts for one source; journeys count toward the window they started in. */
+export interface GeoJourneySourceStats {
+  source: string;
+  visitorType: GeoVisitorType;
+  journeys: number;
+  previousJourneys: number;
+  pages: number;
+  singleFetch: number;
+  deepCrawls: number;
+  lastSeenAt: string | null;
+  /** Days with at least one journey in the current window, oldest first. */
+  daily: GeoJourneyDailyPoint[];
+}
+
+export interface GeoJourneyPageStats {
+  path: string;
+  journeys: number;
+  previousJourneys: number;
+  /** Journeys whose first fetch was this page. */
+  entries: number;
+  lastSeenAt: string | null;
+  daily: GeoJourneyDailyPoint[];
+}
+
+export interface GeoJourneyStatsResponse {
+  configured: boolean;
+  sources: GeoJourneySourceStats[];
+  pages: GeoJourneyPageStats[];
+  /** Distinct pages in the window; can exceed `pages.length`. */
+  totalPages: number;
+  previousTotalPages: number;
 }
 
 export interface GeoJourneyEvent {
@@ -1085,7 +1179,13 @@ export interface GeoTrafficPagesResponse {
   pages: GeoTrafficPage[];
 }
 
-export type GeoIngestFramework = "next" | "nuxt" | "netlify" | "tanstack";
+export type GeoIngestFramework =
+  | "next"
+  | "nuxt"
+  | "netlify"
+  | "tanstack"
+  | "astro"
+  | "sveltekit";
 
 export type GeoIngestPackageManager = "bun" | "pnpm" | "yarn" | "npm";
 
@@ -1320,6 +1420,11 @@ export interface GeoModelCatalogEntry {
   default: boolean;
   /** Gateways that serve the model; OpenRouter-only models are pinned. */
   gateways: readonly GeoModelGateway[];
+  /**
+   * Superseded or niche model: still scannable for projects that track it,
+   * but not offered in the picker.
+   */
+  hidden?: boolean;
 }
 
 export interface GeoModelCatalog {
@@ -1462,17 +1567,20 @@ export interface GeoCompetitorPromptRow {
   position: number | null;
 }
 
+/** Rows are the latest answer per prompt and engine that named the competitor. */
 export interface GeoCompetitorPromptSummary {
-  mentioned: number;
-  total: number;
-  bestPosition: number | null;
+  answers: number;
+  prompts: number;
   engines: number;
+  /** Answers that also mentioned your own brand. */
+  ownMentioned: number;
 }
 
 export interface GeoCompetitorDetailResponse {
   configured: boolean;
   points: GeoCompetitorTimeseriesPoint[];
   prompts: GeoCompetitorPromptRow[];
+  summary?: GeoCompetitorPromptSummary;
 }
 
 export type GeoCompetitorTypeFilter = "all" | GeoCompetitorKind;
@@ -1683,6 +1791,7 @@ export type GeoChangeKind =
   | "competitor_displaced"
   | "citation_added"
   | "citation_removed"
+  | "competitor_cited"
   | "new_engine";
 
 export interface GeoChangeCheckState {
@@ -1694,6 +1803,7 @@ export interface GeoScanCheckSnapshot extends GeoChangeCheckState {
   promptId: string;
   prompt: string;
   engine: string;
+  ownedSourceCited: boolean;
   competitors: string[];
   domains: string[];
 }

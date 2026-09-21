@@ -18,6 +18,7 @@ import {
   useGeoSettings,
   useGeoStartScan,
   useGeoTimeseries,
+  useGeoJourneyStats,
   useGeoTrafficJourneys,
   useIsGeoScanning,
 } from "@/lib/hooks/use-geo";
@@ -107,33 +108,57 @@ export function useGeoOverviewPage(
 
   const { data: settingsData, isPending: isSettingsPending } =
     useGeoSettings(organizationId);
-  const { data: overview } = useGeoOverview(organizationId, geoRange.query);
-  const { data: timeseries } = useGeoTimeseries(organizationId, geoRange.query);
-  const { prompts, isLoading: isPromptsLoading } =
-    useGeoPromptsDb(organizationId);
+  const hasSettings = Boolean(settingsData?.settings);
+  const queriesEnabled =
+    Boolean(organizationId) && !isSettingsPending && hasSettings;
+  const { data: overview } = useGeoOverview(
+    organizationId,
+    geoRange.query,
+    queriesEnabled
+  );
+  const { data: timeseries } = useGeoTimeseries(
+    organizationId,
+    geoRange.query,
+    queriesEnabled
+  );
+  const { prompts, isLoading: isPromptsLoading } = useGeoPromptsDb(
+    organizationId,
+    { enabled: queriesEnabled }
+  );
   const { data: promptResults } = useGeoPromptResults(
     organizationId,
     geoRange.query,
-    activeTab === "visibility"
+    queriesEnabled && activeTab === "visibility"
   );
   const { data: competitorShare } = useGeoCompetitorShare(
     organizationId,
     geoRange.query,
     false,
-    activeTab === "visibility"
+    queriesEnabled && activeTab === "visibility"
   );
-  const { competitors } = useGeoCompetitorsDb(organizationId);
+  const { competitors } = useGeoCompetitorsDb(organizationId, {
+    enabled: queriesEnabled,
+  });
   const { data: languageShare } = useGeoLanguageShare(
     organizationId,
     geoRange.query,
-    activeTab === "visibility"
+    queriesEnabled && activeTab === "visibility"
   );
   const { data: trafficJourneys, isPending: isJourneysPending } =
     useGeoTrafficJourneys(
       organizationId,
       geoRange.query,
-      activeTab === "journeys"
+      queriesEnabled && activeTab === "journeys"
     );
+  const {
+    data: journeyStats,
+    isPending: isJourneyStatsPending,
+    isError: isJourneyStatsError,
+  } = useGeoJourneyStats(
+    organizationId,
+    geoRange.query,
+    queriesEnabled && activeTab === "journeys"
+  );
   const startScan = useGeoStartScan(organizationId);
   const isScanning = useIsGeoScanning(organizationId);
   const [preflightOpen, setPreflightOpen] = useState(false);
@@ -178,7 +203,10 @@ export function useGeoOverviewPage(
     promptResults: promptResults?.results,
     promptCount: prompts.length,
     journeys: trafficJourneys?.journeys,
-    journeysLoading: activeTab === "journeys" && isJourneysPending,
+    journeyStats,
+    journeyStatsFailed: isJourneyStatsError && journeyStats === undefined,
+    journeysLoading:
+      activeTab === "journeys" && (isJourneysPending || isJourneyStatsPending),
     isScanning,
     revealActive,
     scanPreflight: {
