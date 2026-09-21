@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 
+import { GITHUB_CREATE_COMMIT_ON_BRANCH_MUTATION } from "@notra/ai/constants/github";
 import { slugify } from "@notra/utils/slugify";
 
 import {
   GITHUB_API_VERSION_HEADERS,
   GITHUB_CONTENT_COMMIT_METADATA_PREFIX,
   GITHUB_CONTENT_MAX_ASSET_COUNT,
-  GITHUB_CREATE_COMMIT_ON_BRANCH_MUTATION,
 } from "@/constants/github";
 
 import type {
@@ -217,10 +217,14 @@ function toPullRequestResult(
   pullRequest: GitHubPullRequestSummary,
   branchName: string,
   path: string,
-  operation: GitHubPullRequestOperation
+  operation: GitHubPullRequestOperation,
+  headSha: string
 ) {
   return {
     branchName,
+    // The commit this publish put on the branch. Mentions compare it with the
+    // pull request head to notice pushes made outside Notra.
+    headSha,
     operation,
     path,
     pullRequestNumber: pullRequest.number,
@@ -1040,7 +1044,8 @@ export async function publishContentDraftPullRequest(
         existingPullRequest,
         branchName,
         params.path,
-        "updated"
+        "updated",
+        commitSha
       );
     }
     if (await isContentOnDefaultBranch(octokit, params)) {
@@ -1048,7 +1053,8 @@ export async function publishContentDraftPullRequest(
         existingPullRequest,
         branchName,
         params.path,
-        "updated"
+        "updated",
+        commitSha
       );
     }
     existingPullRequest = undefined;
@@ -1094,7 +1100,13 @@ export async function publishContentDraftPullRequest(
       repo: params.repo,
     });
 
-    return toPullRequestResult(pullRequest, branchName, params.path, "created");
+    return toPullRequestResult(
+      pullRequest,
+      branchName,
+      params.path,
+      "created",
+      commitSha
+    );
   } catch (error) {
     if (
       error instanceof GitHubContentBranchConflictError ||
@@ -1141,7 +1153,8 @@ export async function publishContentDraftPullRequest(
           existingPullRequest,
           branchName,
           params.path,
-          "created"
+          "created",
+          commitSha
         );
       }
     } catch (reconciliationError) {

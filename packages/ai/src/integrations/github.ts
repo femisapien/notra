@@ -32,6 +32,7 @@ import {
   GitHubResponseError,
 } from "../schemas/github-operations";
 import type {
+  GitHubAppPublishAccess,
   GitHubInstallationReference,
   GitHubCredentialDependencies,
   SelectGitHubRepositoriesParams,
@@ -48,10 +49,7 @@ import type {
   WebhookConfig,
 } from "../types/integrations";
 import type { GitHubToolRepositoryContext } from "../types/tools";
-import {
-  type GitHubAppPublishAccess,
-  githubAppInstallationCanPublishContent,
-} from "../utils/github-app-publish-access";
+import { githubAppInstallationCanPublishContent } from "../utils/github-app-publish-access";
 import {
   createOctokit,
   GITHUB_INTERACTIVE_READ_TIMEOUT_MS,
@@ -139,7 +137,7 @@ function readGitHubAppConfig() {
   return {
     appId: process.env.GITHUB_APP_ID,
     privateKey: process.env.GITHUB_APP_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    slug: process.env.GITHUB_APP_SLUG ?? process.env.GITHUB_APP_NAME,
+    slug: process.env.GITHUB_APP_SLUG,
   };
 }
 
@@ -263,7 +261,9 @@ export async function getGitHubAppInstallationPublishAccess(
 
     return {
       contents: data.permissions?.contents,
+      issues: data.permissions?.issues,
       pullRequests: data.permissions?.pull_requests,
+      settingsUrl: data.html_url,
     };
   } catch {
     return null;
