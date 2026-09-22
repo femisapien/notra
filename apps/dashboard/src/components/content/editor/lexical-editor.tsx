@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 
 import { editorTheme } from "./editor-theme";
 import { EDITOR_TRANSFORMERS } from "./markdown-transformers";
+import { ContentImageNode } from "./nodes/content-image-node";
 import { KiboCodeBlockNode } from "./nodes/kibo-code-block-node";
 import { EditorAutoLinkPlugin } from "./plugins/auto-link-plugin";
 import { ComponentPickerPlugin } from "./plugins/component-picker-plugin";
@@ -33,6 +34,7 @@ import {
 } from "./plugins/editor-ref-plugin";
 import { FloatingToolbarPlugin } from "./plugins/floating-toolbar-plugin";
 import { HorizontalRulePlugin } from "./plugins/horizontal-rule-plugin";
+import { ImageUploadPlugin } from "./plugins/image-upload-plugin";
 import { MarkdownSyncPlugin } from "./plugins/markdown-sync-plugin";
 import { SelectionPlugin } from "./plugins/selection-plugin";
 import { TabFocusPlugin } from "./plugins/tab-focus-plugin";
@@ -84,6 +86,7 @@ export function LexicalEditor({
         ListNode,
         ListItemNode,
         KiboCodeBlockNode,
+        ContentImageNode,
         LinkNode,
         AutoLinkNode,
         HorizontalRuleNode,
@@ -113,6 +116,7 @@ export function LexicalEditor({
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <div className="lexical-editor relative" ref={onRef}>
+        <ImageUploadPlugin />
         <RichTextPlugin
           contentEditable={
             <ContentEditable

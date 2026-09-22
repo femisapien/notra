@@ -11,12 +11,15 @@ import { ORPCError } from "@orpc/server";
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
+import { GITHUB_CONTENT_MAX_SINGLE_ASSET_BYTES } from "@/constants/github";
 import { assertAuthenticated } from "@/lib/auth/organization";
 import type {
   UploadPresignedResponse,
   UploadType,
 } from "@/types/upload/client";
+import { compressContentImage } from "@/utils/compress-content-image";
 
+import { readContentImage, saveContentImage } from "./content-image-store";
 import { getFileExtension } from "./mime";
 import { getR2Config } from "./r2";
 import { validateUpload } from "./validate";
@@ -275,4 +278,69 @@ export async function recordChatAttachment({
     .onConflictDoNothing({ target: chatAttachments.key });
 
   return { success: true };
+}
+
+export async function uploadContentImage({
+  bytes,
+  headers,
+}: {
+  bytes: Uint8Array;
+  headers: Headers;
+}) {
+  const { organizationId } = await assertUploadAccess({
+    headers,
+    type: "content",
+  });
+  if (!organizationId) {
+    throw new ORPCError("UNAUTHORIZED", {
+      message: "Active organization required for this upload type",
+    });
+  }
+
+  let compressed: Awaited<ReturnType<typeof compressContentImage>>;
+  try {
+    compressed = await compressContentImage(bytes);
+  } catch (error) {
+    throw new ORPCError("BAD_REQUEST", {
+      message:
+        error instanceof Error ? error.message : "Could not read that image",
+    });
+  }
+
+  if (compressed.bytes.byteLength > GITHUB_CONTENT_MAX_SINGLE_ASSET_BYTES) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: "Image is still larger than 10MB after compression",
+    });
+  }
+
+  return saveContentImage({
+    bytes: compressed.bytes,
+    mimeType: compressed.mimeType,
+    organizationId,
+  });
+}
+
+export async function readAuthorizedContentImage({
+  headers,
+  key,
+}: {
+  headers: Headers;
+  key: string;
+}) {
+  const { organizationId } = await assertUploadAccess({
+    headers,
+    type: "content",
+  });
+  if (!organizationId || !key.startsWith(`organization/${organizationId}/`)) {
+    throw new ORPCError("NOT_FOUND", { message: "Image not found" });
+  }
+
+  const image = await readContentImage(
+    key,
+    GITHUB_CONTENT_MAX_SINGLE_ASSET_BYTES
+  );
+  if (!image) {
+    throw new ORPCError("NOT_FOUND", { message: "Image not found" });
+  }
+  return image;
 }

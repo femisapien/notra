@@ -81,6 +81,41 @@ export async function uploadFile({
   return { url: publicUrl, key };
 }
 
+export async function uploadContentImage(
+  file: File
+): Promise<UploadFileResponse> {
+  const body = new FormData();
+  body.set("file", file);
+  const response = await fetch("/api/uploads/content-image", {
+    body,
+    method: "POST",
+  });
+  const payload: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      payload &&
+      typeof payload === "object" &&
+      "message" in payload &&
+      typeof payload.message === "string"
+        ? payload.message
+        : "Image upload failed";
+    throw new Error(message);
+  }
+  if (
+    !(
+      payload &&
+      typeof payload === "object" &&
+      "url" in payload &&
+      typeof payload.url === "string" &&
+      "key" in payload &&
+      typeof payload.key === "string"
+    )
+  ) {
+    throw new Error("Image upload failed");
+  }
+  return { key: payload.key, url: payload.url };
+}
+
 export async function deleteChatUpload({
   key,
 }: DeleteChatUploadProps): Promise<void> {

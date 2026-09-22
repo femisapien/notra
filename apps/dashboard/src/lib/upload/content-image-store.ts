@@ -1,0 +1,178 @@
+import "server-only";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { nanoid } from "nanoid";
+
+import {
+  CONTENT_IMAGE_MIME_EXTENSIONS,
+  CONTENT_IMAGE_ROUTE,
+  type ContentImageMimeType,
+} from "@/constants/content-image";
+import {
+  getOptionalR2PublicUrl,
+  getR2StorageConfig,
+  isR2StorageConfigured,
+} from "@/lib/upload/r2";
+import { isSafeContentImageKey } from "@/utils/content-image-key";
+
+export interface StoredContentImage {
+  bytes: Uint8Array;
+  mimeType: ContentImageMimeType;
+}
+
+function extensionForMime(mimeType: ContentImageMimeType) {
+  return CONTENT_IMAGE_MIME_EXTENSIONS[mimeType];
+}
+
+function mimeForKey(key: string): ContentImageMimeType | null {
+  const extension = key.split(".").pop()?.toLowerCase();
+  for (const [mimeType, candidate] of Object.entries(
+    CONTENT_IMAGE_MIME_EXTENSIONS
+  )) {
+    if (
+      candidate === extension ||
+      (candidate === "jpg" && extension === "jpeg")
+    ) {
+      return mimeType as ContentImageMimeType;
+    }
+  }
+  return null;
+}
+
+// ponytail: tmp dir when R2 is unset. Images vanish on reboot; set CLOUDFLARE_* to keep them.
+function diskRoot() {
+  return path.join(os.tmpdir(), "notra-content-images");
+}
+
+function diskPath(key: string) {
+  if (!isSafeContentImageKey(key)) {
+    throw new Error("Invalid content image key");
+  }
+  const resolved = path.resolve(diskRoot(), key);
+  const root = path.resolve(diskRoot());
+  if (!resolved.startsWith(`${root}${path.sep}`)) {
+    throw new Error("Invalid content image key");
+  }
+  return resolved;
+}
+
+async function writeDisk(key: string, bytes: Uint8Array) {
+  const filePath = diskPath(key);
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, bytes);
+}
+
+async function readDisk(
+  key: string,
+  maxBytes: number
+): Promise<StoredContentImage | null> {
+  const mimeType = mimeForKey(key);
+  if (!mimeType) {
+    return null;
+  }
+  let size: number;
+  try {
+    size = (await stat(diskPath(key))).size;
+  } catch {
+    return null;
+  }
+  if (size > maxBytes) {
+    throw new Error(`Image asset ${key} exceeds the size limit`);
+  }
+  const bytes = await readFile(diskPath(key));
+  if (bytes.byteLength > maxBytes) {
+    throw new Error(`Image asset ${key} exceeds the size limit`);
+  }
+  return { bytes, mimeType };
+}
+
+async function writeR2(key: string, bytes: Uint8Array, mimeType: string) {
+  const { bucketName, client } = getR2StorageConfig();
+  await client.send(
+    new PutObjectCommand({
+      Body: bytes,
+      Bucket: bucketName,
+      CacheControl: "public, max-age=31536000, immutable",
+      ContentLength: bytes.byteLength,
+      ContentType: mimeType,
+      Key: key,
+    })
+  );
+}
+
+async function readR2(
+  key: string,
+  maxBytes: number
+): Promise<StoredContentImage | null> {
+  const mimeType = mimeForKey(key);
+  if (!mimeType) {
+    return null;
+  }
+  const { bucketName, client } = getR2StorageConfig();
+  const abortController = new AbortController();
+  const response = await client.send(
+    new GetObjectCommand({ Bucket: bucketName, Key: key }),
+    { abortSignal: abortController.signal }
+  );
+  if (
+    response.ContentLength === undefined ||
+    response.ContentLength > maxBytes
+  ) {
+    abortController.abort();
+    throw new Error(`Image asset ${key} exceeds the size limit`);
+  }
+  if (!response.Body) {
+    abortController.abort();
+    return null;
+  }
+  let bytes: Uint8Array;
+  try {
+    bytes = await response.Body.transformToByteArray();
+  } catch (error) {
+    abortController.abort();
+    throw error;
+  }
+  if (bytes.byteLength > maxBytes) {
+    abortController.abort();
+    throw new Error(`Image asset ${key} exceeds the size limit`);
+  }
+  return { bytes, mimeType };
+}
+
+export async function saveContentImage(params: {
+  bytes: Uint8Array;
+  mimeType: ContentImageMimeType;
+  organizationId: string;
+}) {
+  const key = `organization/${params.organizationId}/content/${nanoid()}.${extensionForMime(params.mimeType)}`;
+  if (!isSafeContentImageKey(key)) {
+    throw new Error("Invalid content image key");
+  }
+
+  const publicUrl = getOptionalR2PublicUrl();
+  if (isR2StorageConfigured() && publicUrl) {
+    await writeR2(key, params.bytes, params.mimeType);
+    return { key, url: `${publicUrl}/${key}` };
+  }
+
+  if (isR2StorageConfigured()) {
+    await writeR2(key, params.bytes, params.mimeType);
+  } else {
+    await writeDisk(key, params.bytes);
+  }
+
+  return { key, url: `${CONTENT_IMAGE_ROUTE}/${key}` };
+}
+
+export async function readContentImage(key: string, maxBytes: number) {
+  if (!isSafeContentImageKey(key)) {
+    return null;
+  }
+  if (isR2StorageConfigured()) {
+    return readR2(key, maxBytes);
+  }
+  return readDisk(key, maxBytes);
+}

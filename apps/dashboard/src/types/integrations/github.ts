@@ -362,10 +362,11 @@ export interface GitHubSourceImageAsset {
 }
 
 export interface PrepareGitHubContentAssetsParams {
+  appOrigin: string | null;
   contentPath: string;
   imagePathTemplate: string;
   markdown: string;
-  publicUrl: string;
+  publicUrl: string | null;
   slug: string;
   loadImage: (key: string, maxBytes: number) => Promise<GitHubSourceImageAsset>;
 }

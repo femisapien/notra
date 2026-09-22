@@ -1,6 +1,5 @@
 import { posix } from "node:path";
 
-import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { GITHUB_IMAGE_EXTENSION_REGEX } from "@notra/schemas/constants/dashboard/github";
 import { fromMarkdown } from "mdast-util-from-markdown";
 
@@ -14,8 +13,13 @@ import type {
   PrepareGitHubContentAssetsParams,
   PreparedGitHubContent,
 } from "@/types/integrations/github";
+import {
+  getAppContentImageKey,
+  readAppOrigin,
+} from "@/utils/content-image-key";
 
-import { getOptionalR2PublicUrl, getR2StorageConfig } from "../../upload/r2";
+import { readContentImage } from "../../upload/content-image-store";
+import { getOptionalR2PublicUrl } from "../../upload/r2";
 
 const CONTENT_TYPE_EXTENSIONS: Readonly<Record<string, string>> = {
   "image/avif": ".avif",
@@ -144,8 +148,17 @@ function encodeMarkdownPath(path: string) {
     .join("/");
 }
 
+function sourceFragment(sourceUrl: string) {
+  try {
+    return new URL(sourceUrl).hash.slice(1);
+  } catch {
+    const hashIndex = sourceUrl.indexOf("#");
+    return hashIndex === -1 ? "" : sourceUrl.slice(hashIndex + 1);
+  }
+}
+
 function appendSourceFragment(destination: string, sourceUrl: string) {
-  const fragment = new URL(sourceUrl).hash.slice(1);
+  const fragment = sourceFragment(sourceUrl);
   if (!fragment) {
     return destination;
   }
@@ -171,6 +184,26 @@ function appendSourceFragment(destination: string, sourceUrl: string) {
   return `${destination}#${encodedFragment}`;
 }
 
+export function resolveGitHubImagePathTemplate(
+  contentPath: string,
+  configured: string | null | undefined
+) {
+  const trimmed = configured?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+  return contentPath.replace(/\.(?:md|mdx)$/i, "");
+}
+
+function resolveStoredImageKey(
+  imageUrl: string,
+  publicUrl: string | null,
+  appOrigin: string | null
+) {
+  const r2Key = publicUrl ? getR2Key(imageUrl, publicUrl) : null;
+  return r2Key ?? getAppContentImageKey(imageUrl, appOrigin);
+}
+
 function resolveMarkdownImagePath(contentPath: string, imagePath: string) {
   if (imagePath.startsWith("public/")) {
     return `/${encodeMarkdownPath(imagePath.slice("public/".length))}`;
@@ -183,14 +216,18 @@ function resolveMarkdownImagePath(contentPath: string, imagePath: string) {
     : `./${encodedRelativePath}`;
 }
 
-async function prepareGitHubContentAssets(
+export async function prepareGitHubContentAssets(
   params: PrepareGitHubContentAssetsParams
 ): Promise<PreparedGitHubContent> {
   const occurrences = findMarkdownImageOccurrences(params.markdown);
   const imageUrlsByKey = new Map<string, string[]>();
 
   for (const occurrence of occurrences) {
-    const key = getR2Key(occurrence.url, params.publicUrl);
+    const key = resolveStoredImageKey(
+      occurrence.url,
+      params.publicUrl,
+      params.appOrigin
+    );
     if (key) {
       const imageUrls = imageUrlsByKey.get(key) ?? [];
       if (!imageUrls.includes(occurrence.url)) {
@@ -262,45 +299,19 @@ export async function prepareR2GitHubContentAssets(params: {
   slug: string;
 }) {
   const publicUrl = getOptionalR2PublicUrl();
-  if (!publicUrl) {
-    return { assets: [], markdown: params.markdown };
-  }
-  const { bucketName, client } = getR2StorageConfig();
 
   return prepareGitHubContentAssets({
     ...params,
+    appOrigin: readAppOrigin(),
     publicUrl,
     loadImage: async (key, maxBytes) => {
-      const abortController = new AbortController();
-      const response = await client.send(
-        new GetObjectCommand({ Bucket: bucketName, Key: key }),
-        { abortSignal: abortController.signal }
-      );
-      if (
-        response.ContentLength === undefined ||
-        response.ContentLength > maxBytes
-      ) {
-        abortController.abort();
-        throw new Error(`Image asset ${key} exceeds the size limit`);
-      }
-      if (!response.Body) {
-        abortController.abort();
-        throw new Error(`Image asset ${key} is empty`);
-      }
-      let contents: Uint8Array;
-      try {
-        contents = await response.Body.transformToByteArray();
-      } catch (error) {
-        abortController.abort();
-        throw error;
-      }
-      if (contents.byteLength > maxBytes) {
-        abortController.abort();
-        throw new Error(`Image asset ${key} exceeds the size limit`);
+      const stored = await readContentImage(key, maxBytes);
+      if (!stored) {
+        throw new Error(`Image asset ${key} is missing`);
       }
       return {
-        contents,
-        extension: resolveImageExtension(key, response.ContentType),
+        contents: stored.bytes,
+        extension: resolveImageExtension(key, stored.mimeType),
       };
     },
   });

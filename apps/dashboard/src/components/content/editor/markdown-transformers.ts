@@ -6,6 +6,7 @@ import {
 import type {
   ElementTransformer,
   MultilineElementTransformer,
+  TextMatchTransformer,
   Transformer,
 } from "@lexical/markdown";
 import { TRANSFORMERS } from "@lexical/markdown";
@@ -22,10 +23,46 @@ import {
 import { $createParagraphNode, $createTextNode } from "lexical";
 
 import {
+  $createContentImageNode,
+  $isContentImageNode,
+  ContentImageNode,
+} from "./nodes/content-image-node";
+import {
   $createKiboCodeBlockNode,
   $isKiboCodeBlockNode,
   KiboCodeBlockNode,
 } from "./nodes/kibo-code-block-node";
+
+export const CONTENT_IMAGE: TextMatchTransformer = {
+  dependencies: [ContentImageNode],
+  export: (node) => {
+    if (!$isContentImageNode(node)) {
+      return null;
+    }
+    const alt = node.getAltText().replace(/[[\]]/g, "");
+    return `![${alt}](${node.getSrc()})`;
+  },
+  importRegExp: /!(?:\[([^[\]]*)\])(?:\(([^(]+)\))/,
+  regExp: /!(?:\[([^[\]]*)\])(?:\(([^(]+)\))$/,
+  replace: (textNode, match) => {
+    const [, altText, src] = match;
+    if (!src) {
+      return;
+    }
+    try {
+      textNode.replace(
+        $createContentImageNode({
+          altText: altText ?? "",
+          src,
+        })
+      );
+    } catch {
+      // Unsafe image URLs stay as the markdown text the author typed.
+    }
+  },
+  trigger: ")",
+  type: "text-match",
+};
 
 export const HORIZONTAL_RULE: ElementTransformer = {
   dependencies: [HorizontalRuleNode],
@@ -260,6 +297,7 @@ const filteredTransformers = TRANSFORMERS.filter((transformer: Transformer) => {
 });
 
 export const EDITOR_TRANSFORMERS = [
+  CONTENT_IMAGE,
   ...filteredTransformers,
   HORIZONTAL_RULE,
   KIBO_CODE_BLOCK,
