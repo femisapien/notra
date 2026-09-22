@@ -28,7 +28,11 @@ const CONTENT_TYPE_EXTENSIONS: Readonly<Record<string, string>> = {
   "image/png": ".png",
   "image/svg+xml": ".svg",
   "image/webp": ".webp",
+  "video/mp4": ".mp4",
+  "video/webm": ".webm",
 };
+
+const ASSET_EXTENSION_REGEX = /\.(avif|gif|jpe?g|mp4|png|svg|webm|webp)$/i;
 
 export function expandGitHubPathTemplate(template: string, slug: string) {
   return template.replaceAll(":slug", slug);
@@ -89,6 +93,50 @@ function findMarkdownImageOccurrences(markdown: string) {
   return occurrences.sort((left, right) => left.start - right.start);
 }
 
+interface MarkdownNode {
+  children?: MarkdownNode[];
+  position?: { start: { offset?: number | null } };
+  type: string;
+  value?: string;
+}
+
+const VIDEO_SRC_PATTERN = /<video\b[^>]*\bsrc="([^"]+)"/i;
+
+function visitMarkdown(
+  node: MarkdownNode,
+  visit: (node: MarkdownNode) => void
+) {
+  visit(node);
+  for (const child of node.children ?? []) {
+    visitMarkdown(child, visit);
+  }
+}
+
+function findMarkdownVideoOccurrences(markdown: string) {
+  const occurrences: Array<{ end: number; start: number; url: string }> = [];
+  visitMarkdown(fromMarkdown(markdown) as MarkdownNode, (node) => {
+    if (node.type !== "html" || !node.value) {
+      return;
+    }
+    const offset = node.position?.start.offset;
+    if (offset == null) {
+      return;
+    }
+    const match = VIDEO_SRC_PATTERN.exec(node.value);
+    const url = match?.[1];
+    if (!(match && url) || match.index === undefined) {
+      return;
+    }
+    const relative = node.value.indexOf(url, match.index);
+    if (relative < 0) {
+      return;
+    }
+    const start = offset + relative;
+    occurrences.push({ end: start + url.length, start, url });
+  });
+  return occurrences;
+}
+
 function getR2Key(imageUrl: string, publicUrl: string) {
   let source: URL;
   try {
@@ -117,8 +165,7 @@ function getR2Key(imageUrl: string, publicUrl: string) {
 }
 
 function resolveImageExtension(key: string, contentType?: string) {
-  const pathExtension =
-    GITHUB_IMAGE_EXTENSION_REGEX.exec(key)?.[0].toLowerCase();
+  const pathExtension = ASSET_EXTENSION_REGEX.exec(key)?.[0].toLowerCase();
   return pathExtension ?? CONTENT_TYPE_EXTENSIONS[contentType ?? ""] ?? ".png";
 }
 
@@ -219,7 +266,10 @@ function resolveMarkdownImagePath(contentPath: string, imagePath: string) {
 export async function prepareGitHubContentAssets(
   params: PrepareGitHubContentAssetsParams
 ): Promise<PreparedGitHubContent> {
-  const occurrences = findMarkdownImageOccurrences(params.markdown);
+  const occurrences = [
+    ...findMarkdownImageOccurrences(params.markdown),
+    ...findMarkdownVideoOccurrences(params.markdown),
+  ].sort((left, right) => left.start - right.start);
   const imageUrlsByKey = new Map<string, string[]>();
 
   for (const occurrence of occurrences) {
@@ -238,7 +288,7 @@ export async function prepareGitHubContentAssets(
   }
   if (imageUrlsByKey.size > GITHUB_CONTENT_MAX_ASSET_COUNT) {
     throw new Error(
-      `A GitHub draft can include at most ${GITHUB_CONTENT_MAX_ASSET_COUNT} images`
+      `A GitHub draft can include at most ${GITHUB_CONTENT_MAX_ASSET_COUNT} images or videos`
     );
   }
   const images: Array<{
@@ -253,7 +303,7 @@ export async function prepareGitHubContentAssets(
     );
     const asset = await params.loadImage(key, maxBytes);
     if (asset.contents.byteLength > maxBytes) {
-      throw new Error("GitHub draft image assets exceed the size limit");
+      throw new Error("GitHub draft files exceed the size limit");
     }
     remainingBytes -= asset.contents.byteLength;
     images.push({ asset, imageUrls });
@@ -307,7 +357,7 @@ export async function prepareR2GitHubContentAssets(params: {
     loadImage: async (key, maxBytes) => {
       const stored = await readContentImage(key, maxBytes);
       if (!stored) {
-        throw new Error(`Image asset ${key} is missing`);
+        throw new Error(`Content file ${key} is missing`);
       }
       return {
         contents: stored.bytes,

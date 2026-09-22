@@ -19,6 +19,19 @@ describe("carryOverImageTargets", () => {
     ).toBe(FILE.replace("Old intro.", "New intro."));
   });
 
+  test("keeps repository video paths when post text is committed", () => {
+    const source =
+      'Intro\n\n<video controls src="https://cdn.notra.dev/organization/org/content/a.mp4"></video>\n';
+    const repository = 'Intro\n\n<video controls src="./hello.mp4"></video>\n';
+    expect(
+      carryOverImageTargets(
+        source.replace("Intro", "Updated"),
+        source,
+        repository
+      )
+    ).toBe(repository.replace("Intro", "Updated"));
+  });
+
   test("maps reordered images by source identity, not position", () => {
     const source = "![A](https://cdn/a.png)\n![B](https://cdn/b.png)";
     const repository = "![A](./a.png)\n![B](./b.png)";

@@ -1,7 +1,7 @@
 import { CONTENT_IMAGE_ROUTE } from "@/constants/content-image";
 
 const CONTENT_IMAGE_KEY_PATTERN =
-  /^organization\/[^/]+\/content\/[A-Za-z0-9_-]+\.(?:avif|gif|jpe?g|png|webp)$/;
+  /^organization\/[^/]+\/content\/[A-Za-z0-9_-]+\.(?:avif|gif|jpe?g|mp4|png|webm|webp)$/;
 
 export function isSafeContentImageKey(key: string) {
   return (

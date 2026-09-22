@@ -12,31 +12,42 @@ import {
   type ContentImageMimeType,
 } from "@/constants/content-image";
 import {
+  CONTENT_VIDEO_MIME_EXTENSIONS,
+  type ContentVideoMimeType,
+} from "@/constants/content-video";
+import {
   getOptionalR2PublicUrl,
   getR2StorageConfig,
   isR2StorageConfigured,
 } from "@/lib/upload/r2";
 import { isSafeContentImageKey } from "@/utils/content-image-key";
 
+const CONTENT_MEDIA_MIME_EXTENSIONS = {
+  ...CONTENT_IMAGE_MIME_EXTENSIONS,
+  ...CONTENT_VIDEO_MIME_EXTENSIONS,
+} as const;
+
+type ContentMediaMimeType = ContentImageMimeType | ContentVideoMimeType;
+
 export interface StoredContentImage {
   bytes: Uint8Array;
-  mimeType: ContentImageMimeType;
+  mimeType: ContentMediaMimeType;
 }
 
-function extensionForMime(mimeType: ContentImageMimeType) {
-  return CONTENT_IMAGE_MIME_EXTENSIONS[mimeType];
+function extensionForMime(mimeType: ContentMediaMimeType) {
+  return CONTENT_MEDIA_MIME_EXTENSIONS[mimeType];
 }
 
-function mimeForKey(key: string): ContentImageMimeType | null {
+function mimeForKey(key: string): ContentMediaMimeType | null {
   const extension = key.split(".").pop()?.toLowerCase();
   for (const [mimeType, candidate] of Object.entries(
-    CONTENT_IMAGE_MIME_EXTENSIONS
+    CONTENT_MEDIA_MIME_EXTENSIONS
   )) {
     if (
       candidate === extension ||
       (candidate === "jpg" && extension === "jpeg")
     ) {
-      return mimeType as ContentImageMimeType;
+      return mimeType as ContentMediaMimeType;
     }
   }
   return null;
@@ -80,11 +91,11 @@ async function readDisk(
     return null;
   }
   if (size > maxBytes) {
-    throw new Error(`Image asset ${key} exceeds the size limit`);
+    throw new Error(`Content file ${key} exceeds the size limit`);
   }
   const bytes = await readFile(diskPath(key));
   if (bytes.byteLength > maxBytes) {
-    throw new Error(`Image asset ${key} exceeds the size limit`);
+    throw new Error(`Content file ${key} exceeds the size limit`);
   }
   return { bytes, mimeType };
 }
@@ -122,7 +133,7 @@ async function readR2(
     response.ContentLength > maxBytes
   ) {
     abortController.abort();
-    throw new Error(`Image asset ${key} exceeds the size limit`);
+    throw new Error(`Content file ${key} exceeds the size limit`);
   }
   if (!response.Body) {
     abortController.abort();
@@ -137,14 +148,14 @@ async function readR2(
   }
   if (bytes.byteLength > maxBytes) {
     abortController.abort();
-    throw new Error(`Image asset ${key} exceeds the size limit`);
+    throw new Error(`Content file ${key} exceeds the size limit`);
   }
   return { bytes, mimeType };
 }
 
 export async function saveContentImage(params: {
   bytes: Uint8Array;
-  mimeType: ContentImageMimeType;
+  mimeType: ContentMediaMimeType;
   organizationId: string;
 }) {
   const key = `organization/${params.organizationId}/content/${nanoid()}.${extensionForMime(params.mimeType)}`;

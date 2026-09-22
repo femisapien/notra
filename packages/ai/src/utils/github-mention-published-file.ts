@@ -6,6 +6,7 @@ import type {
 import { getRepositoryFileContents } from "@notra/ai/utils/github-pr-commit";
 
 const MARKDOWN_IMAGE_PATTERN = /(!\[[^\]]*\]\()(<[^>\n]*>|[^)\s]+)/g;
+const VIDEO_SRC_PATTERN = /(<video\b[^>]*\bsrc=")([^"]+)/g;
 const ABSOLUTE_URL_PATTERN = /^https?:\/\//i;
 
 function unwrappedTarget(target: string) {
@@ -14,20 +15,18 @@ function unwrappedTarget(target: string) {
     : target;
 }
 
-function imageTargets(markdown: string) {
-  return [...markdown.matchAll(MARKDOWN_IMAGE_PATTERN)].map(
-    (match) => match[2] ?? ""
-  );
+function matchedTargets(markdown: string, pattern: RegExp) {
+  return [...markdown.matchAll(pattern)].map((match) => match[2] ?? "");
 }
 
-/** Translate image identities using two versions known to be synchronized. */
-export function carryOverImageTargets(
+function carryOverMatchedTargets(
   next: string,
   originalSource: string,
-  repositoryMarkdown: string
+  repositoryMarkdown: string,
+  pattern: RegExp
 ) {
-  const sourceTargets = imageTargets(originalSource);
-  const repositoryTargets = imageTargets(repositoryMarkdown);
+  const sourceTargets = matchedTargets(originalSource, pattern);
+  const repositoryTargets = matchedTargets(repositoryMarkdown, pattern);
   if (
     sourceTargets.length === 0 ||
     sourceTargets.length !== repositoryTargets.length
@@ -52,10 +51,29 @@ export function carryOverImageTargets(
         : null
     );
   }
-  return next.replace(MARKDOWN_IMAGE_PATTERN, (match, prefix, target) => {
+  return next.replace(pattern, (match, prefix, target) => {
     const repositoryTarget = targets.get(target);
     return repositoryTarget ? `${prefix}${repositoryTarget}` : match;
   });
+}
+
+/** Translate image and video identities using two versions known to be synchronized. */
+export function carryOverImageTargets(
+  next: string,
+  originalSource: string,
+  repositoryMarkdown: string
+) {
+  return carryOverMatchedTargets(
+    carryOverMatchedTargets(
+      next,
+      originalSource,
+      repositoryMarkdown,
+      MARKDOWN_IMAGE_PATTERN
+    ),
+    originalSource,
+    repositoryMarkdown,
+    VIDEO_SRC_PATTERN
+  );
 }
 
 /**

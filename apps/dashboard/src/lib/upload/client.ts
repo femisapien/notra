@@ -81,11 +81,15 @@ export async function uploadFile({
   return { url: publicUrl, key };
 }
 
-export async function uploadContentImage(
-  file: File
+async function uploadContentFile(
+  file: File,
+  kind: "image" | "video"
 ): Promise<UploadFileResponse> {
+  const fallback =
+    kind === "video" ? "Video upload failed" : "Image upload failed";
   const body = new FormData();
   body.set("file", file);
+  body.set("kind", kind);
   const response = await fetch("/api/uploads/content-image", {
     body,
     method: "POST",
@@ -98,7 +102,7 @@ export async function uploadContentImage(
       "message" in payload &&
       typeof payload.message === "string"
         ? payload.message
-        : "Image upload failed";
+        : fallback;
     throw new Error(message);
   }
   if (
@@ -111,9 +115,17 @@ export async function uploadContentImage(
       typeof payload.key === "string"
     )
   ) {
-    throw new Error("Image upload failed");
+    throw new Error(fallback);
   }
   return { key: payload.key, url: payload.url };
+}
+
+export function uploadContentImage(file: File) {
+  return uploadContentFile(file, "image");
+}
+
+export function uploadContentVideo(file: File) {
+  return uploadContentFile(file, "video");
 }
 
 export async function deleteChatUpload({

@@ -15,6 +15,12 @@ test("accepts a dashboard content image key", () => {
   expect(isSafeContentImageKey("organization/org_1/content/file.svg")).toBe(
     false
   );
+  expect(isSafeContentImageKey("organization/org_1/content/clip.mp4")).toBe(
+    true
+  );
+  expect(isSafeContentImageKey("organization/org_1/content/clip.webm")).toBe(
+    true
+  );
 });
 
 test("reads keys from root-relative and same-origin urls", () => {

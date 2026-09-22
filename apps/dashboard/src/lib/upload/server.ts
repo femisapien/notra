@@ -18,6 +18,7 @@ import type {
   UploadType,
 } from "@/types/upload/client";
 import { compressContentImage } from "@/utils/compress-content-image";
+import { validateContentVideo } from "@/utils/validate-content-video";
 
 import { readContentImage, saveContentImage } from "./content-image-store";
 import { getFileExtension } from "./mime";
@@ -316,6 +317,40 @@ export async function uploadContentImage({
   return saveContentImage({
     bytes: compressed.bytes,
     mimeType: compressed.mimeType,
+    organizationId,
+  });
+}
+
+export async function uploadContentVideo({
+  bytes,
+  headers,
+}: {
+  bytes: Uint8Array;
+  headers: Headers;
+}) {
+  const { organizationId } = await assertUploadAccess({
+    headers,
+    type: "content",
+  });
+  if (!organizationId) {
+    throw new ORPCError("UNAUTHORIZED", {
+      message: "Active organization required for this upload type",
+    });
+  }
+
+  let mimeType: ReturnType<typeof validateContentVideo>;
+  try {
+    mimeType = validateContentVideo(bytes);
+  } catch (error) {
+    throw new ORPCError("BAD_REQUEST", {
+      message:
+        error instanceof Error ? error.message : "Could not read that video",
+    });
+  }
+
+  return saveContentImage({
+    bytes,
+    mimeType,
     organizationId,
   });
 }

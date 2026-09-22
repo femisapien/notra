@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { editorTheme } from "./editor-theme";
 import { EDITOR_TRANSFORMERS } from "./markdown-transformers";
 import { ContentImageNode } from "./nodes/content-image-node";
+import { ContentVideoNode } from "./nodes/content-video-node";
 import { KiboCodeBlockNode } from "./nodes/kibo-code-block-node";
 import { EditorAutoLinkPlugin } from "./plugins/auto-link-plugin";
 import { ComponentPickerPlugin } from "./plugins/component-picker-plugin";
@@ -87,6 +88,7 @@ export function LexicalEditor({
         ListItemNode,
         KiboCodeBlockNode,
         ContentImageNode,
+        ContentVideoNode,
         LinkNode,
         AutoLinkNode,
         HorizontalRuleNode,
