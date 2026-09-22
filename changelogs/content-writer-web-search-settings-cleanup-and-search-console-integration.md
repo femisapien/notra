@@ -4,13 +4,13 @@ This release adds web search to the content writer agent, giving it a way to pul
 
 ## Highlights
 
-**Web search in the content writer.** The content writer agent can now search the web as part of generating drafts, so it has access to more current information instead of relying only on existing context.
+**Web search in the content writer.** The content writer agent now runs live web search mid-draft, pulling in current info instead of leaning solely on its existing context window. Content stays anchored to what's actually happening right now, not just what the agent knew when it started.
 
-**Settings navigation cleanup.** Settings navigation has been reorganized and danger zone sections are now aligned consistently across pages, making destructive actions easier to find and less error prone.
+**Settings navigation cleanup.** Settings navigation is reorganized into logical groups, and danger zone sections now share a consistent layout across every page. Predictable placement means destructive actions are easier to find and harder to hit by accident.
 
-**Google Search Console integration page.** A new dashboard page lets you connect and manage a Google Search Console integration.
+**Google Search Console integration page.** A new dashboard page connects and manages a Google Search Console integration directly from Notra. It's the foundation for surfacing real search performance data next to the content you publish.
 
-**Dashboard theming fix.** Brand logos in the dashboard now use themed engine marks, fixing a visual inconsistency in how they rendered.
+**Dashboard theming fix.** Brand logos in the dashboard now render as themed engine marks instead of static assets, so they automatically match whichever theme is active. No more mismatched logos in light or dark mode.
 
 ## More Updates
 
