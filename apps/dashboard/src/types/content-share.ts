@@ -12,6 +12,8 @@ export interface ContentShareMenuProps {
 
 export interface SharedContentViewModel {
   title: string;
+  slug: string | null;
+  date: string;
   contentType: string;
   bodyHtml: string | null;
   imageSrc: string | null;

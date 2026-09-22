@@ -18,9 +18,11 @@ export const getUnlistedSharedContent = cache(
       where: and(eq(posts.shareToken, token), eq(posts.visibility, "unlisted")),
       columns: {
         title: true,
+        slug: true,
         content: true,
         markdown: true,
         contentType: true,
+        createdAt: true,
       },
     });
 
@@ -28,10 +30,16 @@ export const getUnlistedSharedContent = cache(
       return null;
     }
 
+    const meta = {
+      title: post.title,
+      slug: post.slug,
+      date: post.createdAt.toISOString(),
+      contentType: post.contentType,
+    };
+
     if (post.contentType === "image") {
       return {
-        title: post.title,
-        contentType: post.contentType,
+        ...meta,
         bodyHtml: null,
         imageSrc: isHttpImageContent(post.content) ? post.content : null,
         text: null,
@@ -43,8 +51,7 @@ export const getUnlistedSharedContent = cache(
       post.contentType === "twitter_post"
     ) {
       return {
-        title: post.title,
-        contentType: post.contentType,
+        ...meta,
         bodyHtml: null,
         imageSrc: null,
         text: (post.markdown ?? post.content).trim() || null,
@@ -56,8 +63,7 @@ export const getUnlistedSharedContent = cache(
       : null;
 
     return {
-      title: post.title,
-      contentType: post.contentType,
+      ...meta,
       bodyHtml,
       imageSrc: null,
       text: bodyHtml ? null : post.markdown?.trim() || null,
