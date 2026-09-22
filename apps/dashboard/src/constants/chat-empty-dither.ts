@@ -16,8 +16,18 @@ export const CHAT_EMPTY_DITHER_SCALE = 0.58;
 export const CHAT_EMPTY_DITHER_DEFER_MS = 150;
 /** Fallback if the canvas never mounts (chunk/WebGL stall). */
 export const CHAT_EMPTY_DITHER_REVEAL_FALLBACK_MS = 500;
+/** Clip window + leading-edge feather. Size/position interpolate top → bottom. */
+export const CHAT_EMPTY_DITHER_FRAME_CLASS =
+  "pointer-events-none absolute inset-0 overflow-hidden [mask-image:linear-gradient(to_bottom,transparent,black_14%,black)] [mask-repeat:no-repeat] duration-slower ease-emphasized transition-[mask-size,mask-position] motion-reduce:transition-none";
+export const CHAT_EMPTY_DITHER_SHIFT_CLASS =
+  "duration-slower ease-emphasized transition-[transform,opacity] motion-reduce:transition-none";
+export const CHAT_EMPTY_DITHER_WASH_CLASS =
+  "[mask-image:linear-gradient(to_bottom,black_30%,transparent_88%)]";
 export const CHAT_EMPTY_DITHER_PLACEMENT_CLASS = {
-  top: "inset-0 opacity-60 [mask-image:linear-gradient(to_bottom,black_30%,transparent_88%)]",
-  bottom:
-    "inset-x-0 bottom-0 h-32 opacity-45 [mask-image:linear-gradient(to_top,black_16%,transparent_62%)]",
+  top: "[mask-size:100%_100%] [mask-position:top]",
+  bottom: "[mask-size:100%_8rem] [mask-position:bottom]",
+} as const;
+export const CHAT_EMPTY_DITHER_LAYER_CLASS = {
+  top: "translate-y-0 opacity-60",
+  bottom: "translate-y-[calc(100%-8rem)] opacity-45",
 } as const;
