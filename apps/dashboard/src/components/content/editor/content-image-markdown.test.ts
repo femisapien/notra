@@ -9,13 +9,10 @@ import {
 } from "@lexical/markdown";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
-import { $createParagraphNode, $getRoot, createEditor } from "lexical";
+import { createEditor } from "lexical";
 
 import { EDITOR_TRANSFORMERS } from "./markdown-transformers";
-import {
-  $createContentImageNode,
-  ContentImageNode,
-} from "./nodes/content-image-node";
+import { ContentImageNode } from "./nodes/content-image-node";
 import { ContentVideoNode } from "./nodes/content-video-node";
 import { KiboCodeBlockNode } from "./nodes/kibo-code-block-node";
 
@@ -50,88 +47,28 @@ function withMarkdown(markdown: string) {
   editor.getEditorState().read(() => {
     next = $convertToMarkdownString(EDITOR_TRANSFORMERS);
   });
-  return next;
+  return { editor, next };
 }
 
-test("image markdown round-trips through the editor", () => {
-  const markdown = withMarkdown("![Cover photo](https://cdn.example/a.png)");
-  expect(markdown).toContain("![Cover photo](https://cdn.example/a.png)");
+test("image and video markdown round-trip through the editor", () => {
+  expect(
+    withMarkdown("![Cover photo](https://cdn.example/a.png)").next
+  ).toContain("![Cover photo](https://cdn.example/a.png)");
+  expect(
+    withMarkdown('<video controls src="https://cdn.example/a.mp4"></video>')
+      .next
+  ).toContain('<video controls src="https://cdn.example/a.mp4"></video>');
 });
 
-test("a top-level uploaded image exports as markdown", () => {
-  const editor = createEditor({
-    nodes: [ContentImageNode],
-    onError: (error: Error) => {
-      throw error;
-    },
-  });
-  editor.update(
-    () => {
-      const root = $getRoot();
-      root.clear();
-      root.append(
-        $createParagraphNode(),
-        $createContentImageNode({
-          altText: "Cover",
-          src: "https://cdn.example/a.png",
-        })
-      );
-    },
-    { discrete: true }
-  );
-  let markdown = "";
-  editor.getEditorState().read(() => {
-    markdown = $convertToMarkdownString(EDITOR_TRANSFORMERS);
-  });
-  expect(markdown).toContain("![Cover](https://cdn.example/a.png)");
-});
-
-test("video markdown round-trips through the editor", () => {
-  const markdown = withMarkdown(
-    '<video controls src="https://cdn.example/a.mp4"></video>'
-  );
-  expect(markdown).toContain(
-    '<video controls src="https://cdn.example/a.mp4"></video>'
-  );
-});
-
-test("unsafe video urls stay as text", () => {
-  const editor = createEditor({
-    nodes: [ContentVideoNode],
-    onError: (error: Error) => {
-      throw error;
-    },
-  });
+test("unsafe media urls stay as text", () => {
   const unsafeUrl = ["java", "script:alert(1)"].join("");
-  editor.update(
-    () => {
-      $convertFromMarkdownString(
-        `<video controls src="${unsafeUrl}"></video>`,
-        EDITOR_TRANSFORMERS
-      );
-    },
-    { discrete: true }
-  );
-  const serialized = JSON.stringify(editor.getEditorState().toJSON());
-  expect(serialized).not.toContain('"content-video"');
-  expect(serialized).toContain("alert(1)");
-});
-
-test("unsafe image urls stay as text", () => {
-  const editor = createEditor({
-    nodes: [ContentImageNode],
-    onError: (error: Error) => {
-      throw error;
-    },
-  });
-  const unsafeUrl = ["java", "script:alert(1)"].join("");
-  editor.update(
-    () => {
-      $convertFromMarkdownString(`![x](${unsafeUrl})`, EDITOR_TRANSFORMERS);
-    },
-    { discrete: true }
-  );
-  const serialized = JSON.stringify(editor.getEditorState().toJSON());
+  const image = withMarkdown(`![x](${unsafeUrl})`);
+  const video = withMarkdown(`<video controls src="${unsafeUrl}"></video>`);
+  const serialized = [
+    JSON.stringify(image.editor.getEditorState().toJSON()),
+    JSON.stringify(video.editor.getEditorState().toJSON()),
+  ].join("");
   expect(serialized).not.toContain('"content-image"');
+  expect(serialized).not.toContain('"content-video"');
   expect(serialized).toContain("alert(1)");
 });

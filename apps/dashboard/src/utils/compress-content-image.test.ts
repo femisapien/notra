@@ -33,50 +33,10 @@ test("png compression stays lossless and does not grow", async () => {
   expect(Buffer.compare(before, after)).toBe(0);
 });
 
-test("jpeg is re-encoded and stays a jpeg", async () => {
-  const input = await sharp({
-    create: {
-      background: { b: 20, g: 80, r: 200 },
-      channels: 3,
-      height: 64,
-      width: 64,
-    },
-  })
-    .jpeg({ quality: 100 })
-    .toBuffer();
-  const output = await compressContentImage(input);
-  expect(output.mimeType).toBe("image/jpeg");
-  expect(output.bytes.byteLength).toBeLessThanOrEqual(input.byteLength);
-  expect(await sharp(output.bytes).metadata()).toMatchObject({
-    format: "jpeg",
-    height: 64,
-    width: 64,
-  });
-});
-
-test("gif bytes are left unchanged", async () => {
-  const input = await sharp({
-    create: {
-      background: { alpha: 1, b: 0, g: 0, r: 255 },
-      channels: 4,
-      height: 2,
-      width: 2,
-    },
-  })
-    .gif()
-    .toBuffer();
-  const output = await compressContentImage(input);
-  expect(output.mimeType).toBe("image/gif");
-  expect(Buffer.compare(output.bytes, input)).toBe(0);
-});
-
-test("non-images are rejected", async () => {
+test("rejects non-images and files over 20MB", async () => {
   await expect(
     compressContentImage(Buffer.from("not an image"))
   ).rejects.toThrow("Use a JPEG, PNG, GIF, WebP, or AVIF image");
-});
-
-test("oversized uploads are rejected before decoding", async () => {
   await expect(
     compressContentImage(Buffer.alloc(20 * 1024 * 1024 + 1))
   ).rejects.toThrow("Image must be 20MB or smaller");

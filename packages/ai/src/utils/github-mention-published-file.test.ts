@@ -5,8 +5,10 @@ import {
   resolveEditableMarkdown,
 } from "./github-mention-published-file";
 
-const POST = "# Release\n\n![Chart](https://cdn.notra.dev/a.png)\n\nOld intro.";
-const FILE = "# Release\n\n![Chart](../images/release/a.png)\n\nOld intro.";
+const POST =
+  '# Release\n\n![Chart](https://cdn.notra.dev/a.png)\n\n<video controls src="https://cdn.notra.dev/a.mp4"></video>\n\nOld intro.';
+const FILE =
+  '# Release\n\n![Chart](../images/release/a.png)\n\n<video controls src="./a.mp4"></video>\n\nOld intro.';
 
 describe("carryOverImageTargets", () => {
   test("keeps the repository paths when post text is committed", () => {
@@ -17,19 +19,6 @@ describe("carryOverImageTargets", () => {
         FILE
       )
     ).toBe(FILE.replace("Old intro.", "New intro."));
-  });
-
-  test("keeps repository video paths when post text is committed", () => {
-    const source =
-      'Intro\n\n<video controls src="https://cdn.notra.dev/organization/org/content/a.mp4"></video>\n';
-    const repository = 'Intro\n\n<video controls src="./hello.mp4"></video>\n';
-    expect(
-      carryOverImageTargets(
-        source.replace("Intro", "Updated"),
-        source,
-        repository
-      )
-    ).toBe(repository.replace("Intro", "Updated"));
   });
 
   test("maps reordered images by source identity, not position", () => {
