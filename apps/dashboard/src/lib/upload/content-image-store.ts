@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import type { GetObjectCommandOutput } from "@aws-sdk/client-s3";
 import { nanoid } from "nanoid";
 
 import {
@@ -120,10 +121,23 @@ async function readR2(
   }
   const { bucketName, client } = getR2StorageConfig();
   const abortController = new AbortController();
-  const response = await client.send(
-    new GetObjectCommand({ Bucket: bucketName, Key: key }),
-    { abortSignal: abortController.signal }
-  );
+  let response: GetObjectCommandOutput;
+  try {
+    response = await client.send(
+      new GetObjectCommand({ Bucket: bucketName, Key: key }),
+      { abortSignal: abortController.signal }
+    );
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error &&
+      "name" in error &&
+      (error.name === "NoSuchKey" || error.name === "NotFound")
+    ) {
+      return null;
+    }
+    throw error;
+  }
   if (
     response.ContentLength === undefined ||
     response.ContentLength > maxBytes

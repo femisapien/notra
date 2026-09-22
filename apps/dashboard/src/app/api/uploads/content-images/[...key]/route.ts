@@ -15,7 +15,10 @@ function errorResponse(error: unknown) {
     );
   }
   console.error("Content image read failed", error);
-  return NextResponse.json({ message: "Image not found" }, { status: 404 });
+  return NextResponse.json(
+    { message: "Could not load image" },
+    { status: 500 }
+  );
 }
 
 export async function GET(request: Request, context: ContentImageRouteContext) {
@@ -27,7 +30,7 @@ export async function GET(request: Request, context: ContentImageRouteContext) {
     });
     return new Response(Buffer.from(image.bytes), {
       headers: {
-        "Cache-Control": "private, max-age=31536000, immutable",
+        "Cache-Control": "private, no-store",
         "Content-Type": image.mimeType,
         "X-Content-Type-Options": "nosniff",
       },

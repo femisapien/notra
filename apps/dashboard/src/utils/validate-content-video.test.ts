@@ -14,14 +14,26 @@ function mp4(brand: string) {
   return bytes;
 }
 
+function ebmlDocType(type: string) {
+  const payload = Uint8Array.from(type, (character) => character.charCodeAt(0));
+  const inner = new Uint8Array(3 + payload.length);
+  inner.set([0x42, 0x82, 0x80 | payload.length]);
+  inner.set(payload, 3);
+  const bytes = new Uint8Array(5 + inner.length);
+  bytes.set([0x1a, 0x45, 0xdf, 0xa3, 0x80 | inner.length]);
+  bytes.set(inner, 5);
+  return bytes;
+}
+
 test("accepts an mp4 and a webm", () => {
   expect(validateContentVideo(mp4("isom"))).toBe("video/mp4");
-  expect(
-    validateContentVideo(new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0, 0]))
-  ).toBe("video/webm");
+  expect(validateContentVideo(ebmlDocType("webm"))).toBe("video/webm");
 });
 
-test("rejects a quicktime brand, markup, and a file over 10MB", () => {
+test("rejects matroska labeled as webm, a quicktime brand, markup, and a file over the cap", () => {
+  expect(() => validateContentVideo(ebmlDocType("matroska"))).toThrow(
+    "Use an MP4 or WebM video"
+  );
   expect(() => validateContentVideo(mp4("qt  "))).toThrow(
     "Use an MP4 or WebM video"
   );
@@ -30,5 +42,7 @@ test("rejects a quicktime brand, markup, and a file over 10MB", () => {
   );
   expect(() =>
     validateContentVideo(Buffer.alloc(MAX_CONTENT_VIDEO_BYTES + 1))
-  ).toThrow("Video must be 10MB or smaller");
+  ).toThrow(
+    `Video must be ${MAX_CONTENT_VIDEO_BYTES / (1024 * 1024)}MB or smaller`
+  );
 });

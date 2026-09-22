@@ -8,6 +8,10 @@ import {
   MAX_CONTENT_IMAGE_INPUT_BYTES,
 } from "@/constants/content-image";
 import { GITHUB_CONTENT_MAX_SINGLE_ASSET_BYTES } from "@/constants/github";
+import {
+  contentImageCompressedTooLargeMessage,
+  contentImageTooLargeMessage,
+} from "@/utils/content-image-size";
 
 const FORMAT_MIME = {
   avif: "image/avif",
@@ -68,7 +72,7 @@ export async function compressContentImage(bytes: Uint8Array): Promise<{
   mimeType: ContentImageMimeType;
 }> {
   if (bytes.byteLength > MAX_CONTENT_IMAGE_INPUT_BYTES) {
-    throw new Error("Image must be 20MB or smaller");
+    throw new Error(contentImageTooLargeMessage("image/jpeg"));
   }
 
   let metadata: Awaited<
@@ -86,9 +90,17 @@ export async function compressContentImage(bytes: Uint8Array): Promise<{
     throw new Error("Use a JPEG, PNG, GIF, WebP, or AVIF image");
   }
 
-  if (mimeType === "image/gif" || mimeType === "image/avif") {
+  const passthrough =
+    mimeType === "image/gif" ||
+    mimeType === "image/avif" ||
+    (metadata?.pages ?? 1) > 1;
+  if (passthrough) {
     if (bytes.byteLength > GITHUB_CONTENT_MAX_SINGLE_ASSET_BYTES) {
-      throw new Error("Image is still larger than 10MB after compression");
+      throw new Error(
+        mimeType === "image/gif" || mimeType === "image/avif"
+          ? contentImageTooLargeMessage(mimeType)
+          : `Animated images must be ${GITHUB_CONTENT_MAX_SINGLE_ASSET_BYTES / (1024 * 1024)}MB or smaller`
+      );
     }
     return { bytes: Buffer.from(bytes), mimeType };
   }
@@ -103,7 +115,7 @@ export async function compressContentImage(bytes: Uint8Array): Promise<{
 
   chosen = await encode(bytes, mimeType, CONTENT_IMAGE_FALLBACK_MAX_EDGE);
   if (chosen.byteLength > GITHUB_CONTENT_MAX_SINGLE_ASSET_BYTES) {
-    throw new Error("Image is still larger than 10MB after compression");
+    throw new Error(contentImageCompressedTooLargeMessage());
   }
   return { bytes: chosen, mimeType };
 }

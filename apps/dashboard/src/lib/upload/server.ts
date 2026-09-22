@@ -11,8 +11,6 @@ import { ORPCError } from "@orpc/server";
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-import type { ContentImageMimeType } from "@/constants/content-image";
-import type { ContentVideoMimeType } from "@/constants/content-video";
 import { GITHUB_CONTENT_MAX_SINGLE_ASSET_BYTES } from "@/constants/github";
 import { assertAuthenticated } from "@/lib/auth/organization";
 import type {
@@ -21,6 +19,7 @@ import type {
 } from "@/types/upload/client";
 import { compressContentImage } from "@/utils/compress-content-image";
 import { contentImageKeyBelongsToOrganization } from "@/utils/content-image-key";
+import { contentImageCompressedTooLargeMessage } from "@/utils/content-image-size";
 import { validateContentVideo } from "@/utils/validate-content-video";
 
 import { readContentImage, saveContentImage } from "./content-image-store";
@@ -284,15 +283,7 @@ export async function recordChatAttachment({
   return { success: true };
 }
 
-async function storeContentUpload({
-  bytes,
-  headers,
-  mimeType,
-}: {
-  bytes: Uint8Array;
-  headers: Headers;
-  mimeType: ContentImageMimeType | ContentVideoMimeType;
-}) {
+async function requireContentOrganization(headers: Headers) {
   const { organizationId } = await assertUploadAccess({
     headers,
     type: "content",
@@ -302,8 +293,7 @@ async function storeContentUpload({
       message: "Active organization required for this upload type",
     });
   }
-
-  return saveContentImage({ bytes, mimeType, organizationId });
+  return organizationId;
 }
 
 export async function uploadContentImage({
@@ -313,6 +303,7 @@ export async function uploadContentImage({
   bytes: Uint8Array;
   headers: Headers;
 }) {
+  const organizationId = await requireContentOrganization(headers);
   let compressed: Awaited<ReturnType<typeof compressContentImage>>;
   try {
     compressed = await compressContentImage(bytes);
@@ -325,14 +316,14 @@ export async function uploadContentImage({
 
   if (compressed.bytes.byteLength > GITHUB_CONTENT_MAX_SINGLE_ASSET_BYTES) {
     throw new ORPCError("BAD_REQUEST", {
-      message: "Image is still larger than 10MB after compression",
+      message: contentImageCompressedTooLargeMessage(),
     });
   }
 
-  return storeContentUpload({
+  return saveContentImage({
     bytes: compressed.bytes,
-    headers,
     mimeType: compressed.mimeType,
+    organizationId,
   });
 }
 
@@ -343,6 +334,7 @@ export async function uploadContentVideo({
   bytes: Uint8Array;
   headers: Headers;
 }) {
+  const organizationId = await requireContentOrganization(headers);
   let mimeType: ReturnType<typeof validateContentVideo>;
   try {
     mimeType = validateContentVideo(bytes);
@@ -353,7 +345,7 @@ export async function uploadContentVideo({
     });
   }
 
-  return storeContentUpload({ bytes, headers, mimeType });
+  return saveContentImage({ bytes, mimeType, organizationId });
 }
 
 export async function readAuthorizedContentImage({

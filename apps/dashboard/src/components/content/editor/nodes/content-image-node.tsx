@@ -23,9 +23,17 @@ export interface SerializedContentImageNode extends Spread<
   SerializedLexicalNode
 > {}
 
+function markdownImageDestination(src: string) {
+  // Parentheses destinations cannot contain a raw space or `)`.
+  return src.replaceAll(" ", "%20").replaceAll(")", "%29");
+}
+
 function isSafeContentImageSrc(src: string) {
+  if (/[\s)]/.test(src) || src.includes("\\")) {
+    return false;
+  }
   if (src.startsWith("/") && !src.startsWith("//")) {
-    return !src.includes("\\") && !src.includes(" ");
+    return true;
   }
   try {
     const url = new URL(src);
@@ -132,11 +140,12 @@ export function $createContentImageNode(params: {
   altText: string;
   src: string;
 }): ContentImageNode {
-  if (!isSafeContentImageSrc(params.src)) {
+  const src = markdownImageDestination(params.src);
+  if (!isSafeContentImageSrc(src)) {
     throw new Error("Image URL is not allowed");
   }
   return $applyNodeReplacement(
-    new ContentImageNode(params.src, params.altText.replace(/[\r\n]/g, " "))
+    new ContentImageNode(src, params.altText.replace(/[\r\n]/g, " "))
   );
 }
 

@@ -125,7 +125,7 @@ interface MarkdownNode {
   value?: string;
 }
 
-const VIDEO_SRC_PATTERN = /<video\b[^>]*\bsrc="([^"]+)"/i;
+const VIDEO_SRC_PATTERN = /<video\b[^>]*?\ssrc="([^"]+)"/i;
 
 function visitMarkdown(
   node: MarkdownNode,
@@ -172,18 +172,24 @@ function resolveImageExtension(key: string, contentType?: string) {
   );
 }
 
-function resolveIndexedImagePath(
+function resolveStoredAssetPath(
   template: string,
   extension: string,
-  index: number
+  key: string
 ) {
-  // The extension always follows the source image; one configured in the
-  // template would mislabel other formats (a JPEG stored as `cover.png`).
+  const stem =
+    key
+      .split("/")
+      .pop()
+      ?.replace(/\.[^.]+$/, "") || "media";
+  // Identity-stable: reorder and republish keep the same GitHub path.
   const base = template
-    .replaceAll(":index", String(index))
+    .replaceAll(":index", stem)
     .replace(GITHUB_IMAGE_EXTENSION_REGEX, "");
-  const suffix = index === 1 || template.includes(":index") ? "" : `-${index}`;
-  return `${base}${suffix}${extension}`;
+  if (template.includes(":index")) {
+    return `${base}${extension}`;
+  }
+  return `${base}-${stem}${extension}`;
 }
 
 function encodeMarkdownPath(path: string) {
@@ -296,6 +302,7 @@ export async function prepareGitHubContentAssets(
   }
   const images: Array<{
     asset: GitHubSourceImageAsset;
+    assetKey: string;
     imageUrls: string[];
   }> = [];
   let remainingBytes = GITHUB_CONTENT_MAX_ASSET_BYTES;
@@ -309,17 +316,16 @@ export async function prepareGitHubContentAssets(
       throw new Error("GitHub draft files exceed the size limit");
     }
     remainingBytes -= asset.contents.byteLength;
-    images.push({ asset, imageUrls });
+    images.push({ asset, assetKey: key, imageUrls });
   }
 
   const assets = [];
   const replacements = new Map<string, string>();
-  for (const [offset, image] of images.entries()) {
-    const index = offset + 1;
-    const imagePath = resolveIndexedImagePath(
+  for (const image of images) {
+    const imagePath = resolveStoredAssetPath(
       expandGitHubPathTemplate(params.imagePathTemplate, params.slug),
       image.asset.extension,
-      index
+      image.assetKey
     );
     assets.push({ contents: image.asset.contents, path: imagePath });
     const markdownImagePath = resolveMarkdownImagePath(

@@ -115,13 +115,11 @@ export function ContentVideoPlayer({ src }: { src: string }) {
           ref={videoRef}
           src={src}
         />
-        <button
+        <div
           aria-hidden
           className="absolute inset-0 flex items-center justify-center"
           onClick={togglePlay}
           onMouseDown={(event) => event.preventDefault()}
-          tabIndex={-1}
-          type="button"
         >
           {playing ? null : (
             <span className="bg-background/95 text-foreground ring-foreground/10 flex size-12 items-center justify-center rounded-full ring-1">
@@ -132,7 +130,7 @@ export function ContentVideoPlayer({ src }: { src: string }) {
               />
             </span>
           )}
-        </button>
+        </div>
       </div>
       <div className="border-border bg-background flex items-center gap-1.5 border-t px-2 py-1.5">
         <Button

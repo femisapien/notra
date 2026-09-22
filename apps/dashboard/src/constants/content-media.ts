@@ -7,12 +7,12 @@ export const CONTENT_MEDIA = {
     choose: "Choose an image to upload",
     failed: "Image upload failed",
     maxBytes: MAX_CONTENT_IMAGE_INPUT_BYTES,
-    tooLarge: "Image must be 20MB or smaller",
+    tooLarge: `Image must be ${MAX_CONTENT_IMAGE_INPUT_BYTES / (1024 * 1024)}MB or smaller`,
   },
   video: {
     choose: "Choose a video to upload",
     failed: "Video upload failed",
     maxBytes: MAX_CONTENT_VIDEO_BYTES,
-    tooLarge: "Video must be 10MB or smaller",
+    tooLarge: `Video must be ${MAX_CONTENT_VIDEO_BYTES / (1024 * 1024)}MB or smaller`,
   },
 } as const;

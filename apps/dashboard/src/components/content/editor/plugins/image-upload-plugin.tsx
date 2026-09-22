@@ -30,6 +30,11 @@ import { CONTENT_MEDIA } from "@/constants/content-media";
 import { CONTENT_VIDEO_MIME_EXTENSIONS } from "@/constants/content-video";
 import { uploadContentMedia } from "@/lib/upload/client";
 import type { ContentMediaKind } from "@/types/content/media";
+import {
+  contentImageMaxBytes,
+  contentImageTooLargeMessage,
+  guessContentImageMime,
+} from "@/utils/content-image-size";
 
 import { $createContentImageNode } from "../nodes/content-image-node";
 import { $createContentVideoNode } from "../nodes/content-video-node";
@@ -141,7 +146,13 @@ function queuedMedia(files: File[]) {
     if (!kind) {
       continue;
     }
-    if (file.size > CONTENT_MEDIA[kind].maxBytes) {
+    if (kind === "image") {
+      const mime = guessContentImageMime(file);
+      if (file.size > contentImageMaxBytes(mime)) {
+        toast.error(contentImageTooLargeMessage(mime));
+        continue;
+      }
+    } else if (file.size > CONTENT_MEDIA[kind].maxBytes) {
       toast.error(CONTENT_MEDIA[kind].tooLarge);
       continue;
     }
@@ -253,7 +264,7 @@ export function ImageUploadPlugin() {
       editor.registerCommand(
         PASTE_COMMAND,
         (event) => {
-          if (!editor.isEditable() || !(event instanceof ClipboardEvent)) {
+          if (!(event instanceof ClipboardEvent)) {
             return false;
           }
           const files = mediaFiles(event.clipboardData?.files);
@@ -261,6 +272,9 @@ export function ImageUploadPlugin() {
             return false;
           }
           event.preventDefault();
+          if (!editor.isEditable()) {
+            return true;
+          }
           rememberSelection();
           insertFromDom(files);
           return true;
@@ -270,7 +284,7 @@ export function ImageUploadPlugin() {
       editor.registerCommand(
         DROP_COMMAND,
         (event) => {
-          if (!editor.isEditable() || !(event instanceof DragEvent)) {
+          if (!(event instanceof DragEvent)) {
             return false;
           }
           const files = mediaFiles(event.dataTransfer?.files);
@@ -278,6 +292,9 @@ export function ImageUploadPlugin() {
             return false;
           }
           event.preventDefault();
+          if (!editor.isEditable()) {
+            return true;
+          }
           rememberSelection();
           insertFromDom(files);
           return true;

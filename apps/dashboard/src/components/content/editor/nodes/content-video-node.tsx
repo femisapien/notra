@@ -28,6 +28,7 @@ function isSafeContentVideoSrc(src: string) {
     src.includes("<") ||
     src.includes(">") ||
     src.includes(" ") ||
+    src.includes(")") ||
     src.includes("\\")
   ) {
     return false;

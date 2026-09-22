@@ -4,6 +4,11 @@ import { NextResponse } from "next/server";
 import { CONTENT_MEDIA } from "@/constants/content-media";
 import { uploadContentImage, uploadContentVideo } from "@/lib/upload/server";
 import type { ContentMediaKind } from "@/types/content/media";
+import {
+  contentImageMaxBytes,
+  contentImageTooLargeMessage,
+  guessContentImageMime,
+} from "@/utils/content-image-size";
 
 export const maxDuration = 30;
 
@@ -47,8 +52,19 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) {
     return NextResponse.json({ message: media.choose }, { status: 400 });
   }
-  if (file.size > media.maxBytes) {
-    return NextResponse.json({ message: media.tooLarge }, { status: 400 });
+  const imageMime = kind === "image" ? guessContentImageMime(file) : "";
+  const maxBytes =
+    kind === "image" ? contentImageMaxBytes(imageMime) : media.maxBytes;
+  if (file.size > maxBytes) {
+    return NextResponse.json(
+      {
+        message:
+          kind === "image"
+            ? contentImageTooLargeMessage(imageMime)
+            : media.tooLarge,
+      },
+      { status: 400 }
+    );
   }
 
   try {

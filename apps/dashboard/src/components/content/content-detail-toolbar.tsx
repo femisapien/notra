@@ -250,7 +250,9 @@ export function ContentDetailToolbar(props: ContentDetailToolbarProps) {
   return (
     <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
       {document.hasChanges &&
-      (updatesLinkedPullRequest || document.saveFailed) ? (
+      (updatesLinkedPullRequest ||
+        document.saveFailed ||
+        document.reviewPreviousMarkdown) ? (
         <>
           <Button
             disabled={document.isSaving}
