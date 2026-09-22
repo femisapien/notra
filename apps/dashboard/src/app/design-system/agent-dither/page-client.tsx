@@ -17,9 +17,10 @@ import { RIGHT_PANEL_FRAME_CLASSNAME } from "@/constants/right-panel";
 
 const NOOP = () => undefined;
 const FIRST_MESSAGE = "Draft a short launch note for GEO tracking.";
-const EMPTY_DELAY_MS = 4000;
+const EMPTY_DELAY_MS = 3500;
 const TYPE_INTERVAL_MS = 28;
 const SEND_PAUSE_MS = 450;
+const WORKING_HOLD_MS = 4000;
 
 const FIRST_USER_MESSAGE: UIMessage = {
   id: "user-1",
@@ -84,12 +85,29 @@ export default function AgentDitherPreviewPage() {
   }, [setTheme]);
 
   useEffect(() => {
+    if (phase !== "empty") {
+      return;
+    }
+
     const startTyping = window.setTimeout(() => {
       setPhase("typing");
     }, EMPTY_DELAY_MS);
 
     return () => window.clearTimeout(startTyping);
-  }, []);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "working") {
+      return;
+    }
+
+    const reset = window.setTimeout(() => {
+      setDraft("");
+      setPhase("empty");
+    }, WORKING_HOLD_MS);
+
+    return () => window.clearTimeout(reset);
+  }, [phase]);
 
   useEffect(() => {
     if (phase !== "typing") {
