@@ -186,6 +186,7 @@ async function insertUploadedFiles(
       EDITOR_MEDIA[item.kind].createNode(item.file, item.url)
     );
   }
+  return key;
 }
 
 export function ImageUploadPlugin() {
@@ -193,7 +194,7 @@ export function ImageUploadPlugin() {
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const anchorKeyRef = useRef<string | null>(null);
   const uploadingRef = useRef(false);
-  const pendingFilesRef = useRef<File[][]>([]);
+  const pendingRef = useRef<{ files: File[]; afterKey: string | null }[]>([]);
   const [editable, setEditable] = useState(() => editor.isEditable());
 
   useEffect(() => editor.registerEditableListener(setEditable), [editor]);
@@ -207,33 +208,46 @@ export function ImageUploadPlugin() {
     });
   }, [editor]);
 
-  const insertUploaded = (files: File[]) => {
+  const insertUploaded = (
+    files: File[],
+    afterKey: string | null = anchorKeyRef.current
+  ) => {
     if (files.length === 0 || !editor.isEditable()) {
       return;
     }
     if (uploadingRef.current) {
-      pendingFilesRef.current.push(files);
+      pendingRef.current.push({ files, afterKey });
       return;
     }
     const jobs = queuedMedia(files);
-    if (jobs.length === 0) {
-      const next = pendingFilesRef.current.shift();
+    const startNext = () => {
+      const next = pendingRef.current.shift();
       if (next) {
-        insertUploaded(next);
+        insertUploaded(next.files, next.afterKey);
       }
+    };
+    if (jobs.length === 0) {
+      startNext();
       return;
     }
     uploadingRef.current = true;
     const toastId = toast.loading("Uploading…");
-    const afterKey = anchorKeyRef.current;
-    void insertUploadedFiles(editor, jobs, afterKey).finally(() => {
-      toast.dismiss(toastId);
-      uploadingRef.current = false;
-      const next = pendingFilesRef.current.shift();
-      if (next) {
-        insertUploaded(next);
-      }
-    });
+    void insertUploadedFiles(editor, jobs, afterKey)
+      .then((lastKey) => {
+        if (lastKey === afterKey) {
+          return;
+        }
+        for (const batch of pendingRef.current) {
+          if (batch.afterKey === afterKey) {
+            batch.afterKey = lastKey;
+          }
+        }
+      })
+      .finally(() => {
+        toast.dismiss(toastId);
+        uploadingRef.current = false;
+        startNext();
+      });
   };
   const insertFromDom = useEffectEvent(insertUploaded);
 
