@@ -10,6 +10,8 @@ import {
   CHAT_EMPTY_DITHER_COLORS_DARK,
   CHAT_EMPTY_DITHER_COLORS_LIGHT,
   CHAT_EMPTY_DITHER_DEFER_MS,
+  CHAT_EMPTY_DITHER_FADE_CLASS,
+  CHAT_EMPTY_DITHER_FADE_MS,
   CHAT_EMPTY_DITHER_PLACEMENT_CLASS,
   CHAT_EMPTY_DITHER_REVEAL_FALLBACK_MS,
   CHAT_EMPTY_DITHER_SCALE,
@@ -17,6 +19,7 @@ import {
   CHAT_EMPTY_DITHER_SIZE,
   CHAT_EMPTY_DITHER_SPEED,
   CHAT_EMPTY_DITHER_TYPE,
+  CHAT_EMPTY_DITHER_WASH_OPACITY_CLASS,
 } from "@/constants/chat-empty-dither";
 import type { ChatEmptyDitherProps } from "@/types/components/chat-empty-dither";
 
@@ -37,6 +40,8 @@ export function ChatEmptyDither({
   const [shaderRevealed, setShaderRevealed] = useState(false);
   const instantReveal = shouldReduceMotion === true;
   const shaderVisible = instantReveal || shaderRevealed;
+  const [displayedPlacement, setDisplayedPlacement] = useState(placement);
+  const [fadedOut, setFadedOut] = useState(false);
   const colors =
     resolvedTheme === "dark"
       ? CHAT_EMPTY_DITHER_COLORS_DARK
@@ -49,6 +54,27 @@ export function ChatEmptyDither({
 
     return () => window.clearTimeout(timeout);
   }, []);
+
+  useEffect(() => {
+    if (placement === displayedPlacement) {
+      setFadedOut(false);
+      return;
+    }
+
+    if (instantReveal) {
+      setDisplayedPlacement(placement);
+      setFadedOut(false);
+      return;
+    }
+
+    setFadedOut(true);
+    const swap = window.setTimeout(() => {
+      setDisplayedPlacement(placement);
+      setFadedOut(false);
+    }, CHAT_EMPTY_DITHER_FADE_MS);
+
+    return () => window.clearTimeout(swap);
+  }, [displayedPlacement, instantReveal, placement]);
 
   useEffect(() => {
     if (!shaderReady || instantReveal) {
@@ -95,7 +121,11 @@ export function ChatEmptyDither({
       aria-hidden="true"
       className={cn(
         "pointer-events-none absolute overflow-hidden",
-        CHAT_EMPTY_DITHER_PLACEMENT_CLASS[placement],
+        CHAT_EMPTY_DITHER_FADE_CLASS,
+        CHAT_EMPTY_DITHER_PLACEMENT_CLASS[displayedPlacement],
+        fadedOut
+          ? "opacity-0"
+          : CHAT_EMPTY_DITHER_WASH_OPACITY_CLASS[displayedPlacement],
         className
       )}
     >

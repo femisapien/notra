@@ -16,8 +16,16 @@ export const CHAT_EMPTY_DITHER_SCALE = 0.58;
 export const CHAT_EMPTY_DITHER_DEFER_MS = 150;
 /** Fallback if the canvas never mounts (chunk/WebGL stall). */
 export const CHAT_EMPTY_DITHER_REVEAL_FALLBACK_MS = 500;
+/** Matches `duration-normal` (200ms). Fade out, then swap, then fade in. */
+export const CHAT_EMPTY_DITHER_FADE_MS = 200;
+export const CHAT_EMPTY_DITHER_FADE_CLASS =
+  "duration-normal ease-emphasized transition-opacity motion-reduce:transition-none";
 export const CHAT_EMPTY_DITHER_PLACEMENT_CLASS = {
-  top: "inset-0 opacity-60 [mask-image:linear-gradient(to_bottom,black_30%,transparent_88%)]",
+  top: "inset-0 [mask-image:linear-gradient(to_bottom,black_30%,transparent_88%)]",
   bottom:
-    "inset-x-0 bottom-0 h-32 opacity-45 [mask-image:linear-gradient(to_top,black_16%,transparent_62%)]",
+    "inset-x-0 bottom-0 h-32 [mask-image:linear-gradient(to_top,black_16%,transparent_62%)]",
+} as const;
+export const CHAT_EMPTY_DITHER_WASH_OPACITY_CLASS = {
+  top: "opacity-60",
+  bottom: "opacity-45",
 } as const;
