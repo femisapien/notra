@@ -6,8 +6,15 @@ import type {
 import { getRepositoryFileContents } from "@notra/ai/utils/github-pr-commit";
 
 const MARKDOWN_IMAGE_PATTERN = /(!\[[^\]]*\]\()(<[^>\n]*>|[^)\s]+)/g;
-const VIDEO_SRC_PATTERN = /(<video\b[^>]*\bsrc=")([^"]+)/g;
+const VIDEO_SRC_PATTERN = /(<video\b[^>]*?\ssrc=")([^"]+)/g;
+const FENCE_OR_TEXT_PATTERN = /```[\s\S]*?```|[\s\S]+?(?=```|$)/g;
 const ABSOLUTE_URL_PATTERN = /^https?:\/\//i;
+
+function mapOutsideFences(markdown: string, map: (text: string) => string) {
+  return markdown.replace(FENCE_OR_TEXT_PATTERN, (segment) =>
+    segment.startsWith("```") ? segment : map(segment)
+  );
+}
 
 function unwrappedTarget(target: string) {
   return target.startsWith("<") && target.endsWith(">")
@@ -16,7 +23,14 @@ function unwrappedTarget(target: string) {
 }
 
 function matchedTargets(markdown: string, pattern: RegExp) {
-  return [...markdown.matchAll(pattern)].map((match) => match[2] ?? "");
+  const targets: string[] = [];
+  mapOutsideFences(markdown, (text) => {
+    for (const match of text.matchAll(new RegExp(pattern.source, "g"))) {
+      targets.push(match[2] ?? "");
+    }
+    return text;
+  });
+  return targets;
 }
 
 function carryOverMatchedTargets(
@@ -51,10 +65,12 @@ function carryOverMatchedTargets(
         : null
     );
   }
-  return next.replace(pattern, (match, prefix, target) => {
-    const repositoryTarget = targets.get(target);
-    return repositoryTarget ? `${prefix}${repositoryTarget}` : match;
-  });
+  return mapOutsideFences(next, (text) =>
+    text.replace(new RegExp(pattern.source, "g"), (match, prefix, target) => {
+      const repositoryTarget = targets.get(target);
+      return repositoryTarget ? `${prefix}${repositoryTarget}` : match;
+    })
+  );
 }
 
 /** Translate image and video identities using two versions known to be synchronized. */

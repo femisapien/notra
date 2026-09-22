@@ -208,6 +208,10 @@ export function useContentDetailDocument({
     },
     [setEditingSlugState]
   );
+  const setEditedMarkdownAndRetry = useCallback((markdown: string | null) => {
+    setSaveFailed(false);
+    setEditedMarkdown(markdown);
+  }, []);
 
   const hasMarkdownChanges =
     resolvedEditedMarkdown !== resolvedOriginalMarkdown;
@@ -634,7 +638,7 @@ export function useContentDetailDocument({
     resolvePlanConflictLoadLatest,
     resolvePlanConflictSaveMine,
     reviewPreviousMarkdown,
-    setEditedMarkdown,
+    setEditedMarkdown: setEditedMarkdownAndRetry,
     setEditingSlug,
     setEditingTitle,
     setIsPlanDirty,

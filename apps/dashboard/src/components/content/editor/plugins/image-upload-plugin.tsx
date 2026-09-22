@@ -193,6 +193,7 @@ export function ImageUploadPlugin() {
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const anchorKeyRef = useRef<string | null>(null);
   const uploadingRef = useRef(false);
+  const pendingFilesRef = useRef<File[][]>([]);
   const [editable, setEditable] = useState(() => editor.isEditable());
 
   useEffect(() => editor.registerEditableListener(setEditable), [editor]);
@@ -207,11 +208,19 @@ export function ImageUploadPlugin() {
   }, [editor]);
 
   const insertUploaded = (files: File[]) => {
-    if (files.length === 0 || !editor.isEditable() || uploadingRef.current) {
+    if (files.length === 0 || !editor.isEditable()) {
+      return;
+    }
+    if (uploadingRef.current) {
+      pendingFilesRef.current.push(files);
       return;
     }
     const jobs = queuedMedia(files);
     if (jobs.length === 0) {
+      const next = pendingFilesRef.current.shift();
+      if (next) {
+        insertUploaded(next);
+      }
       return;
     }
     uploadingRef.current = true;
@@ -220,6 +229,10 @@ export function ImageUploadPlugin() {
     void insertUploadedFiles(editor, jobs, afterKey).finally(() => {
       toast.dismiss(toastId);
       uploadingRef.current = false;
+      const next = pendingFilesRef.current.shift();
+      if (next) {
+        insertUploaded(next);
+      }
     });
   };
   const insertFromDom = useEffectEvent(insertUploaded);

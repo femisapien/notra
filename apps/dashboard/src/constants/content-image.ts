@@ -1,4 +1,4 @@
-/** Root-relative URL prefix for images served by the dashboard when R2 is unset. */
+/** Root-relative URL prefix for dashboard-served content images and videos. */
 export const CONTENT_IMAGE_ROUTE = "/api/uploads/content-images";
 
 /** Reject uploads before Sharp reads them. */

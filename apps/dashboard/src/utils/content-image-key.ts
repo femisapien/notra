@@ -48,6 +48,15 @@ function keyFromPathname(pathname: string) {
 }
 
 function originAllowed(origin: string, appOrigin: string | null) {
+  let parsed: URL;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return false;
+  }
   if (appOrigin) {
     try {
       if (origin === new URL(appOrigin).origin) {
@@ -57,12 +66,7 @@ function originAllowed(origin: string, appOrigin: string | null) {
       // Ignore a malformed app origin and fall through to loopback.
     }
   }
-  try {
-    const hostname = new URL(origin).hostname;
-    return hostname === "localhost" || hostname === "127.0.0.1";
-  } catch {
-    return false;
-  }
+  return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
 }
 
 /**

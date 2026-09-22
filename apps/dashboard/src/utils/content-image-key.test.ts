@@ -33,4 +33,22 @@ test("reads keys from root-relative and same-origin urls", () => {
       "https://app.usenotra.com"
     )
   ).toBeNull();
+  expect(
+    getAppContentImageKey(
+      `http://localhost:3000/api/uploads/content-images/${KEY}`,
+      null
+    )
+  ).toBe(KEY);
+  expect(
+    getAppContentImageKey(
+      `ftp://localhost/api/uploads/content-images/${KEY}`,
+      null
+    )
+  ).toBeNull();
+  expect(
+    getAppContentImageKey(
+      `ws://127.0.0.1/api/uploads/content-images/${KEY}`,
+      null
+    )
+  ).toBeNull();
 });
