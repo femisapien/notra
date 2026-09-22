@@ -25,10 +25,15 @@ const FORMAT_MIME = {
 const PIXEL_LIMIT = 40_000_000;
 
 function mimeFromFormat(
-  format: string | undefined
+  format: string | undefined,
+  compression?: string
 ): ContentImageMimeType | null {
   if (!format) {
     return null;
+  }
+  // Sharp reports AVIF as HEIF with AV1 compression, not as "avif".
+  if (format === "heif") {
+    return compression === "av1" ? "image/avif" : null;
   }
   return FORMAT_MIME[format as keyof typeof FORMAT_MIME] ?? null;
 }
@@ -85,7 +90,7 @@ export async function compressContentImage(bytes: Uint8Array): Promise<{
   } catch {
     metadata = null;
   }
-  const mimeType = mimeFromFormat(metadata?.format);
+  const mimeType = mimeFromFormat(metadata?.format, metadata?.compression);
   if (!mimeType || !(mimeType in CONTENT_IMAGE_MIME_EXTENSIONS)) {
     throw new Error("Use a JPEG, PNG, GIF, WebP, or AVIF image");
   }

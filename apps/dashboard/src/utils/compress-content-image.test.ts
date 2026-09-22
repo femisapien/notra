@@ -33,6 +33,17 @@ test("png compression stays lossless and does not grow", async () => {
   expect(Buffer.compare(before, after)).toBe(0);
 });
 
+test("accepts AVIF that Sharp labels as heif", async () => {
+  const input = await sharp({
+    create: { background: "red", channels: 3, height: 8, width: 8 },
+  })
+    .avif()
+    .toBuffer();
+  const output = await compressContentImage(input);
+  expect(output.mimeType).toBe("image/avif");
+  expect(Buffer.compare(output.bytes, input)).toBe(0);
+});
+
 test("rejects non-images and files over 20MB", async () => {
   await expect(
     compressContentImage(Buffer.from("not an image"))
