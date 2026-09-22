@@ -706,14 +706,7 @@
             "idx": 100,
             "version": "7",
             "when": 1790070000000,
-            "tag": "0100_geo_brand_facts",
-            "breakpoints": true
-        },
-        {
-            "idx": 101,
-            "version": "7",
-            "when": 1790080000000,
-            "tag": "0101_brand_knowledge",
+            "tag": "0100_brand_knowledge",
             "breakpoints": true
         }
     ]
