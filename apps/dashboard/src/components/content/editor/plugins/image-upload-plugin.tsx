@@ -195,7 +195,7 @@ export function ImageUploadPlugin() {
     });
   }, [editor]);
 
-  const insertUploaded = useEffectEvent((files: File[]) => {
+  const insertUploaded = (files: File[]) => {
     if (files.length === 0 || !editor.isEditable() || uploadingRef.current) {
       return;
     }
@@ -210,7 +210,8 @@ export function ImageUploadPlugin() {
       toast.dismiss(toastId);
       uploadingRef.current = false;
     });
-  });
+  };
+  const insertFromDom = useEffectEvent(insertUploaded);
 
   useEffect(() => {
     const onDragOver = (event: DragEvent) => {
@@ -261,7 +262,7 @@ export function ImageUploadPlugin() {
           }
           event.preventDefault();
           rememberSelection();
-          insertUploaded(files);
+          insertFromDom(files);
           return true;
         },
         COMMAND_PRIORITY_HIGH
@@ -278,7 +279,7 @@ export function ImageUploadPlugin() {
           }
           event.preventDefault();
           rememberSelection();
-          insertUploaded(files);
+          insertFromDom(files);
           return true;
         },
         COMMAND_PRIORITY_HIGH
