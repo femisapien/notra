@@ -10,16 +10,13 @@ import {
   CHAT_EMPTY_DITHER_COLORS_DARK,
   CHAT_EMPTY_DITHER_COLORS_LIGHT,
   CHAT_EMPTY_DITHER_DEFER_MS,
-  CHAT_EMPTY_DITHER_FRAME_CLASS,
   CHAT_EMPTY_DITHER_PLACEMENT_CLASS,
   CHAT_EMPTY_DITHER_REVEAL_FALLBACK_MS,
   CHAT_EMPTY_DITHER_SCALE,
   CHAT_EMPTY_DITHER_SHAPE,
-  CHAT_EMPTY_DITHER_SHIFT_CLASS,
   CHAT_EMPTY_DITHER_SIZE,
   CHAT_EMPTY_DITHER_SPEED,
   CHAT_EMPTY_DITHER_TYPE,
-  CHAT_EMPTY_DITHER_WASH_CLASS,
 } from "@/constants/chat-empty-dither";
 import type { ChatEmptyDitherProps } from "@/types/components/chat-empty-dither";
 
@@ -96,39 +93,34 @@ export function ChatEmptyDither({
   return (
     <div
       aria-hidden="true"
-      className={cn(CHAT_EMPTY_DITHER_FRAME_CLASS, className)}
+      className={cn(
+        "pointer-events-none absolute overflow-hidden",
+        CHAT_EMPTY_DITHER_PLACEMENT_CLASS[placement],
+        className
+      )}
     >
-      <div
-        className={cn(
-          "absolute inset-0",
-          CHAT_EMPTY_DITHER_SHIFT_CLASS,
-          CHAT_EMPTY_DITHER_WASH_CLASS,
-          CHAT_EMPTY_DITHER_PLACEMENT_CLASS[placement]
-        )}
-      >
-        {shaderReady ? (
-          <div
-            className={cn(
-              "size-full min-h-full min-w-full",
-              !instantReveal &&
-                "duration-slow ease-emphasized transition-opacity",
-              instantReveal || shaderVisible ? "opacity-100" : "opacity-0"
-            )}
-            ref={shaderRef}
-          >
-            <Dithering
-              className="size-full min-h-full min-w-full"
-              colorBack={colors.colorBack}
-              colorFront={colors.colorFront}
-              scale={CHAT_EMPTY_DITHER_SCALE}
-              shape={CHAT_EMPTY_DITHER_SHAPE}
-              size={CHAT_EMPTY_DITHER_SIZE}
-              speed={shouldReduceMotion ? 0 : CHAT_EMPTY_DITHER_SPEED}
-              type={CHAT_EMPTY_DITHER_TYPE}
-            />
-          </div>
-        ) : null}
-      </div>
+      {shaderReady ? (
+        <div
+          className={cn(
+            "size-full min-h-full min-w-full",
+            !instantReveal &&
+              "duration-slow ease-emphasized transition-opacity",
+            instantReveal || shaderVisible ? "opacity-100" : "opacity-0"
+          )}
+          ref={shaderRef}
+        >
+          <Dithering
+            className="size-full min-h-full min-w-full"
+            colorBack={colors.colorBack}
+            colorFront={colors.colorFront}
+            scale={CHAT_EMPTY_DITHER_SCALE}
+            shape={CHAT_EMPTY_DITHER_SHAPE}
+            size={CHAT_EMPTY_DITHER_SIZE}
+            speed={shouldReduceMotion ? 0 : CHAT_EMPTY_DITHER_SPEED}
+            type={CHAT_EMPTY_DITHER_TYPE}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
