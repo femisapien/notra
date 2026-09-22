@@ -3,11 +3,6 @@
 import { ArrowLeft02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { TextSelection } from "@notra/ai/types/chat";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@notra/ui/components/ui/tooltip";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
@@ -74,21 +69,13 @@ export function ContentDetailLoadedView({
             <div className="bg-background h-full rounded-t-2xl" />
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Link
-                    aria-label={backLabel}
-                    className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring inline-flex min-h-8 shrink-0 items-center gap-2 rounded-md px-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                    href={backHref}
-                  />
-                }
-              >
-                <HugeiconsIcon className="size-4" icon={ArrowLeft02Icon} />
-                {backLabel}
-              </TooltipTrigger>
-              <TooltipContent>{backLabel}</TooltipContent>
-            </Tooltip>
+            <Link
+              className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring inline-flex min-h-8 shrink-0 items-center gap-2 rounded-md px-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              href={backHref}
+            >
+              <HugeiconsIcon className="size-4" icon={ArrowLeft02Icon} />
+              {backLabel}
+            </Link>
           </div>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
             <ContentDetailToolbar

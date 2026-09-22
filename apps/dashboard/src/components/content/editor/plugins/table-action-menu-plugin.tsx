@@ -14,6 +14,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@notra/ui/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@notra/ui/components/ui/tooltip";
 import { cn } from "@notra/ui/lib/utils";
 import {
   $getSelection,
@@ -87,17 +92,21 @@ function TableToolbarButton({
   children: ReactNode;
 }) {
   return (
-    <button
-      aria-label={label}
-      className={cn(toolbarButtonClass, className)}
-      disabled={disabled}
-      onClick={onClick}
-      onMouseDown={(event) => event.preventDefault()}
-      title={label}
-      type="button"
-    >
-      {children}
-    </button>
+    <Tooltip>
+      <TooltipTrigger render={<span className="inline-flex" />}>
+        <button
+          aria-label={label}
+          className={cn(toolbarButtonClass, className)}
+          disabled={disabled}
+          onClick={onClick}
+          onMouseDown={(event) => event.preventDefault()}
+          type="button"
+        >
+          {children}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -212,18 +221,22 @@ function TableActionMenu({
       </TableToolbarButton>
       <div className="bg-border mx-0.5 h-4 w-px" />
       <DropdownMenu modal={false} onOpenChange={onInsertMenuOpenChange}>
-        <DropdownMenuTrigger
-          render={
-            <button
-              aria-label="Insert or delete rows and columns"
-              className={cn(toolbarButtonClass, "inline-flex items-center")}
-              title="Insert or delete rows and columns"
-              type="button"
-            />
-          }
-        >
-          <Plus className="size-4" />
-        </DropdownMenuTrigger>
+        <Tooltip>
+          <TooltipTrigger render={<span className="inline-flex" />}>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  aria-label="Insert or delete rows and columns"
+                  className={cn(toolbarButtonClass, "inline-flex items-center")}
+                  type="button"
+                />
+              }
+            >
+              <Plus className="size-4" />
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>Insert or delete</TooltipContent>
+        </Tooltip>
         <DropdownMenuContent align="center" className="w-auto min-w-44">
           <DropdownMenuItem
             onClick={() => run(() => $insertTableRowAtSelection(false))}

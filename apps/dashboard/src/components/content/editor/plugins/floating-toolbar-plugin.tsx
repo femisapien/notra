@@ -4,6 +4,11 @@ import { $isLinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { mergeRegister } from "@lexical/utils";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@notra/ui/components/ui/tooltip";
+import {
   $getSelection,
   $isRangeSelection,
   COMMAND_PRIORITY_LOW,
@@ -18,8 +23,48 @@ import {
   Strikethrough,
   Underline,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
+
+function formatToolbarButtonClass(active: boolean) {
+  return `rounded p-1.5 transition-colors hover:bg-muted ${active ? "bg-muted text-primary" : "text-muted-foreground"}`;
+}
+
+function FormatToolbarButton({
+  label,
+  active,
+  onClick,
+  children,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            aria-label={label}
+            className={formatToolbarButtonClass(active)}
+            onClick={onClick}
+            type="button"
+          />
+        }
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 interface FloatingToolbarProps {
   editor: ReturnType<typeof useLexicalComposerContext>[0];
@@ -210,9 +255,6 @@ function FloatingToolbar({
     [submitLink, cancelLinkEdit]
   );
 
-  const buttonClass = (active: boolean) =>
-    `p-1.5 rounded hover:bg-muted transition-colors ${active ? "bg-muted text-primary" : "text-muted-foreground"}`;
-
   return (
     <div
       className="bg-popover absolute z-50 flex items-center gap-0.5 rounded-lg border p-1 opacity-0 shadow-lg transition-opacity"
@@ -220,63 +262,51 @@ function FloatingToolbar({
       role="toolbar"
       style={{ pointerEvents: "auto" }}
     >
-      <button
-        aria-label="Format bold"
-        className={buttonClass(isBold)}
+      <FormatToolbarButton
+        active={isBold}
+        label="Bold (Ctrl+B)"
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
-        title="Bold (Ctrl+B)"
-        type="button"
       >
         <Bold className="size-4" />
-      </button>
-      <button
-        aria-label="Format italic"
-        className={buttonClass(isItalic)}
+      </FormatToolbarButton>
+      <FormatToolbarButton
+        active={isItalic}
+        label="Italic (Ctrl+I)"
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}
-        title="Italic (Ctrl+I)"
-        type="button"
       >
         <Italic className="size-4" />
-      </button>
-      <button
-        aria-label="Format underline"
-        className={buttonClass(isUnderline)}
+      </FormatToolbarButton>
+      <FormatToolbarButton
+        active={isUnderline}
+        label="Underline (Ctrl+U)"
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}
-        title="Underline (Ctrl+U)"
-        type="button"
       >
         <Underline className="size-4" />
-      </button>
-      <button
-        aria-label="Format strikethrough"
-        className={buttonClass(isStrikethrough)}
+      </FormatToolbarButton>
+      <FormatToolbarButton
+        active={isStrikethrough}
+        label="Strikethrough"
         onClick={() =>
           editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")
         }
-        title="Strikethrough"
-        type="button"
       >
         <Strikethrough className="size-4" />
-      </button>
-      <button
-        aria-label="Format code"
-        className={buttonClass(isCode)}
+      </FormatToolbarButton>
+      <FormatToolbarButton
+        active={isCode}
+        label="Code"
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code")}
-        title="Code"
-        type="button"
       >
         <Code className="size-4" />
-      </button>
+      </FormatToolbarButton>
       <div className="bg-border mx-1 h-4 w-px" />
-      <button
-        aria-label="Insert link"
-        className={buttonClass(isLink || isLinkEditMode)}
+      <FormatToolbarButton
+        active={isLink || isLinkEditMode}
+        label="Link"
         onClick={handleLinkClick}
-        title="Link"
-        type="button"
       >
         <Link className="size-4" />
-      </button>
+      </FormatToolbarButton>
       {isLinkEditMode && (
         <div className="ml-1 flex items-center gap-1">
           <input
