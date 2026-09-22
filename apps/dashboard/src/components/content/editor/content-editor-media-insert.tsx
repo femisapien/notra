@@ -1,6 +1,10 @@
 "use client";
 
-import { PlusSignIcon } from "@hugeicons/core-free-icons";
+import {
+  Image01Icon,
+  PlusSignIcon,
+  Video01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   DropdownMenu,
@@ -8,7 +12,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@notra/ui/components/ui/dropdown-menu";
-import { Film, ImagePlus } from "lucide-react";
 import type { RefObject } from "react";
 
 import { Button } from "@/components/button";
@@ -29,7 +32,7 @@ export function ContentEditorMediaInsert({
         render={
           <Button
             aria-label="Add image or video"
-            className="mt-1 shrink-0 md:mt-1.5"
+            className="shrink-0"
             size="icon-sm"
             variant="ghost"
           />
@@ -37,8 +40,9 @@ export function ContentEditorMediaInsert({
       >
         <HugeiconsIcon
           aria-hidden="true"
-          className="text-muted-foreground group-hover/button:text-foreground size-4"
+          className="text-muted-foreground group-hover/button:text-foreground group-aria-expanded/button:text-foreground size-4"
           icon={PlusSignIcon}
+          strokeWidth={2}
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-40">
@@ -50,7 +54,12 @@ export function ContentEditorMediaInsert({
             );
           }}
         >
-          <ImagePlus className="size-4" />
+          <HugeiconsIcon
+            aria-hidden="true"
+            className="size-4"
+            icon={Image01Icon}
+            strokeWidth={2}
+          />
           Image
         </DropdownMenuItem>
         <DropdownMenuItem
@@ -61,7 +70,12 @@ export function ContentEditorMediaInsert({
             );
           }}
         >
-          <Film className="size-4" />
+          <HugeiconsIcon
+            aria-hidden="true"
+            className="size-4"
+            icon={Video01Icon}
+            strokeWidth={2}
+          />
           Video
         </DropdownMenuItem>
       </DropdownMenuContent>

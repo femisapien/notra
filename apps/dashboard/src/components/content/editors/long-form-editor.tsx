@@ -62,10 +62,10 @@ export function LongFormEditor({
 
   return (
     <div className="w-full">
-      <div className="flex items-start gap-1">
+      <div className="flex items-start gap-2 text-2xl leading-tight md:text-3xl">
         <textarea
           aria-label="Post title"
-          className="placeholder:text-muted-foreground/40 block field-sizing-content h-auto min-h-0 w-auto max-w-[calc(100%-2.25rem)] min-w-16 resize-none overflow-hidden bg-transparent p-0 text-2xl leading-tight font-semibold tracking-tight outline-none md:text-3xl"
+          className="placeholder:text-muted-foreground/40 block h-auto min-h-0 min-w-0 flex-1 resize-none overflow-hidden bg-transparent p-0 font-semibold tracking-tight outline-none"
           onChange={(e) => actions.setEditingTitle(e.target.value)}
           onFocus={(e) => {
             if (state.editingTitle === null) {
@@ -88,7 +88,11 @@ export function LongFormEditor({
           rows={1}
           value={title}
         />
-        {readOnly ? null : <ContentEditorMediaInsert editorRef={editorRef} />}
+        {readOnly ? null : (
+          <div className="flex h-[1.25em] shrink-0 items-center">
+            <ContentEditorMediaInsert editorRef={editorRef} />
+          </div>
+        )}
       </div>
       <div className="text-muted-foreground mt-4 space-y-2 text-sm">
         {showSlug ? (
