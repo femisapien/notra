@@ -725,6 +725,7 @@ function ScheduleTable({
   isRunning,
   updatingTriggerId,
   runningTriggerId,
+  loading = false,
 }: {
   triggers: Trigger[];
   repositoryMap: Record<string, string>;
@@ -741,6 +742,7 @@ function ScheduleTable({
   isRunning: boolean;
   updatingTriggerId?: string;
   runningTriggerId?: string;
+  loading?: boolean;
 }) {
   const columns: TableColumn<Trigger>[] = [
     {
@@ -905,6 +907,7 @@ function ScheduleTable({
       emptyState="No schedules in this category."
       getRowId={(trigger) => trigger.id}
       height={tableHeightFor(triggers.length, SCHEDULE_TABLE_ROW_HEIGHT)}
+      loading={loading}
       onSortChange={(next) => onSortCreatedChange(next?.direction ?? false)}
       rowHeight={SCHEDULE_TABLE_ROW_HEIGHT}
       sort={

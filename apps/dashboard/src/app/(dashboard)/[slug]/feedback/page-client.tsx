@@ -263,15 +263,10 @@ function FeedbackList({
         })}
       </PermissionRow>
 
-      <div
-        className={cn(
-          "duration-normal min-h-0 flex-1 transition-opacity",
-          isPlaceholderData && "opacity-60"
-        )}
-      >
+      <div className="min-h-0 flex-1">
         <AgentFeedbackTable
           isDeleting={isDeleting}
-          isPending={isLoading}
+          isPending={isLoading || isPlaceholderData}
           isUpdatingStatus={isUpdatingStatus}
           items={items}
           onDelete={onDelete}
