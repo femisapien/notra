@@ -1,53 +1,41 @@
 "use client";
 
-import { AtIcon, StopIcon } from "@hugeicons/core-free-icons";
+import { ArrowUp02Icon, AtIcon, StopIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { UIMessage } from "ai";
+import type { ChatStatus, UIMessage } from "ai";
 import { useTheme } from "next-themes";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { Composer } from "@/components/composer/composer-shell";
 import { ContentChatActivityPanel } from "@/components/content/content-chat-activity-panel";
 import { RightPanelProvider } from "@/components/dashboard/right-panel-context";
-import { DASHBOARD_AGENT_TITLE } from "@/constants/dashboard-agent";
+import {
+  DASHBOARD_AGENT_CHAT_PLACEHOLDER,
+  DASHBOARD_AGENT_TITLE,
+} from "@/constants/dashboard-agent";
 import { RIGHT_PANEL_FRAME_CLASSNAME } from "@/constants/right-panel";
 
 const NOOP = () => undefined;
+const FIRST_MESSAGE = "Draft a short launch note for GEO tracking.";
+const EMPTY_DELAY_MS = 2200;
+const TYPE_INTERVAL_MS = 28;
+const SEND_PAUSE_MS = 450;
 
-const MOCK_MESSAGES: UIMessage[] = [
-  {
-    id: "user-1",
-    role: "user",
-    parts: [
-      {
-        type: "text",
-        text: "Draft a short launch note for GEO tracking.",
-      },
-    ],
-  },
-  {
-    id: "assistant-1",
-    role: "assistant",
-    parts: [
-      {
-        type: "text",
-        text: "I'll keep it under 120 words and lead with weekly mention tracking.",
-      },
-    ],
-  },
-  {
-    id: "user-2",
-    role: "user",
-    parts: [
-      {
-        type: "text",
-        text: "Mention that it works across ChatGPT, Perplexity, and Gemini.",
-      },
-    ],
-  },
-];
+const FIRST_USER_MESSAGE: UIMessage = {
+  id: "user-1",
+  role: "user",
+  parts: [{ type: "text", text: FIRST_MESSAGE }],
+};
 
-function MockWorkingComposer() {
+type PreviewPhase = "empty" | "typing" | "working";
+
+function MockComposer({ draft, working }: { draft: string; working: boolean }) {
+  const showStop = working;
+  const value = working ? "" : draft;
+  const placeholder = working
+    ? "Queue a message..."
+    : DASHBOARD_AGENT_CHAT_PLACEHOLDER;
+
   return (
     <div className="shrink-0 p-2 pt-1">
       <Composer.Frame>
@@ -59,15 +47,26 @@ function MockWorkingComposer() {
           >
             <HugeiconsIcon className="size-4" icon={AtIcon} />
           </Composer.ToolbarButton>
-          <p className="text-muted-foreground min-h-7 flex-1 px-1 py-1 text-sm leading-5">
-            Queue a message...
+          <p
+            className={
+              value
+                ? "text-foreground min-h-7 flex-1 px-1 py-1 text-sm leading-5"
+                : "text-muted-foreground min-h-7 flex-1 px-1 py-1 text-sm leading-5"
+            }
+          >
+            {value || placeholder}
           </p>
           <Composer.Send
-            label="Stop generating"
+            disabled={!showStop && value.trim().length === 0}
+            label={showStop ? "Stop generating" : "Send message"}
             onClick={NOOP}
-            tooltip="Stop generating"
+            tooltip={showStop ? "Stop generating" : "Send message"}
           >
-            <HugeiconsIcon className="size-4" icon={StopIcon} strokeWidth={2} />
+            <HugeiconsIcon
+              className="size-4"
+              icon={showStop ? StopIcon : ArrowUp02Icon}
+              strokeWidth={2}
+            />
           </Composer.Send>
         </div>
       </Composer.Frame>
@@ -77,10 +76,49 @@ function MockWorkingComposer() {
 
 export default function AgentDitherPreviewPage() {
   const { setTheme } = useTheme();
+  const [phase, setPhase] = useState<PreviewPhase>("empty");
+  const [draft, setDraft] = useState("");
 
   useEffect(() => {
     setTheme("light");
   }, [setTheme]);
+
+  useEffect(() => {
+    const startTyping = window.setTimeout(() => {
+      setPhase("typing");
+    }, EMPTY_DELAY_MS);
+
+    return () => window.clearTimeout(startTyping);
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "typing") {
+      return;
+    }
+
+    let count = 0;
+    let sendTimeout = 0;
+    const interval = window.setInterval(() => {
+      count += 1;
+      setDraft(FIRST_MESSAGE.slice(0, count));
+      if (count < FIRST_MESSAGE.length) {
+        return;
+      }
+      window.clearInterval(interval);
+      sendTimeout = window.setTimeout(() => {
+        setPhase("working");
+        setDraft("");
+      }, SEND_PAUSE_MS);
+    }, TYPE_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(sendTimeout);
+    };
+  }, [phase]);
+
+  const messages = phase === "working" ? [FIRST_USER_MESSAGE] : [];
+  const status: ChatStatus = phase === "working" ? "streaming" : "ready";
 
   return (
     <RightPanelProvider>
@@ -91,16 +129,16 @@ export default function AgentDitherPreviewPage() {
           <ContentChatActivityPanel
             activeChatId="mock-chat"
             isHistoryLoading={false}
-            messages={MOCK_MESSAGES}
+            messages={messages}
             onClose={NOOP}
             onNewChat={NOOP}
             onSelectChat={NOOP}
             sessions={[]}
             showHistory={false}
-            status="streaming"
+            status={status}
             title={DASHBOARD_AGENT_TITLE}
           >
-            <MockWorkingComposer />
+            <MockComposer draft={draft} working={phase === "working"} />
           </ContentChatActivityPanel>
         </div>
       </main>
