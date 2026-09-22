@@ -1,6 +1,7 @@
 "use client";
 
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { mergeRegister } from "@lexical/utils";
 import {
   $createParagraphNode,
   $getNodeByKey,
@@ -16,19 +17,15 @@ import {
   type LexicalNode,
   PASTE_COMMAND,
 } from "lexical";
-import { Film, ImagePlus } from "lucide-react";
+import { Film, ImagePlus, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import {
-  CONTENT_IMAGE_MIME_EXTENSIONS,
-  MAX_CONTENT_IMAGE_INPUT_BYTES,
-} from "@/constants/content-image";
-import {
-  CONTENT_VIDEO_MIME_EXTENSIONS,
-  MAX_CONTENT_VIDEO_BYTES,
-} from "@/constants/content-video";
-import { uploadContentImage, uploadContentVideo } from "@/lib/upload/client";
+import { CONTENT_IMAGE_MIME_EXTENSIONS } from "@/constants/content-image";
+import { CONTENT_MEDIA } from "@/constants/content-media";
+import { CONTENT_VIDEO_MIME_EXTENSIONS } from "@/constants/content-video";
+import { uploadContentMedia } from "@/lib/upload/client";
+import type { ContentMediaKind } from "@/types/content/media";
 
 import { $createContentImageNode } from "../nodes/content-image-node";
 import { $createContentVideoNode } from "../nodes/content-video-node";
@@ -39,9 +36,40 @@ export const OPEN_CONTENT_IMAGE_UPLOAD_COMMAND: LexicalCommand<void> =
 export const OPEN_CONTENT_VIDEO_UPLOAD_COMMAND: LexicalCommand<void> =
   createCommand("OPEN_CONTENT_VIDEO_UPLOAD_COMMAND");
 
-const ACCEPTED_IMAGE_TYPES = Object.keys(CONTENT_IMAGE_MIME_EXTENSIONS).join(
-  ","
-);
+const CONTENT_MEDIA_KINDS = [
+  "image",
+  "video",
+] as const satisfies readonly ContentMediaKind[];
+
+const EDITOR_MEDIA: Record<
+  ContentMediaKind,
+  {
+    accept: string;
+    command: LexicalCommand<void>;
+    createNode: (file: File, url: string) => LexicalNode;
+    icon: LucideIcon;
+    matches: (file: File) => boolean;
+  }
+> = {
+  image: {
+    accept: Object.keys(CONTENT_IMAGE_MIME_EXTENSIONS).join(","),
+    command: OPEN_CONTENT_IMAGE_UPLOAD_COMMAND,
+    createNode: (file, url) =>
+      $createContentImageNode({
+        altText: altFromFileName(file.name),
+        src: url,
+      }),
+    icon: ImagePlus,
+    matches: (file) => !isVideoFile(file) && isImageFile(file),
+  },
+  video: {
+    accept: Object.keys(CONTENT_VIDEO_MIME_EXTENSIONS).join(","),
+    command: OPEN_CONTENT_VIDEO_UPLOAD_COMMAND,
+    createNode: (_file, url) => $createContentVideoNode({ src: url }),
+    icon: Film,
+    matches: isVideoFile,
+  },
+};
 
 function altFromFileName(name: string) {
   const base = name
@@ -61,9 +89,6 @@ function isVideoFile(file: File) {
 }
 
 function isImageFile(file: File) {
-  if (isVideoFile(file)) {
-    return false;
-  }
   return (
     file.type === "" ||
     file.type in CONTENT_IMAGE_MIME_EXTENSIONS ||
@@ -75,7 +100,13 @@ function mediaFiles(list: FileList | null | undefined) {
   if (!list) {
     return [];
   }
-  return [...list].filter((file) => isVideoFile(file) || isImageFile(file));
+  return [...list].filter((file) =>
+    CONTENT_MEDIA_KINDS.some((kind) => EDITOR_MEDIA[kind].matches(file))
+  );
+}
+
+function kindForFile(file: File) {
+  return CONTENT_MEDIA_KINDS.find((kind) => EDITOR_MEDIA[kind].matches(file));
 }
 
 function placeBlock(
@@ -106,8 +137,7 @@ function placeBlock(
 
 export function ImageUploadPlugin() {
   const [editor] = useLexicalComposerContext();
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const anchorKeyRef = useRef<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [editable, setEditable] = useState(editor.isEditable());
@@ -133,25 +163,18 @@ export function ImageUploadPlugin() {
       let afterKey = anchorKey;
       try {
         for (const file of files) {
-          if (isVideoFile(file)) {
-            if (file.size > MAX_CONTENT_VIDEO_BYTES) {
-              toast.error("Video must be 10MB or smaller");
-              continue;
-            }
-            const uploaded = await uploadContentVideo(file);
-            afterKey = placeBlock(editor, afterKey, () =>
-              $createContentVideoNode({ src: uploaded.url })
-            );
+          const kind = kindForFile(file);
+          if (!kind) {
             continue;
           }
-          if (file.size > MAX_CONTENT_IMAGE_INPUT_BYTES) {
-            toast.error("Image must be 20MB or smaller");
+          const media = CONTENT_MEDIA[kind];
+          if (file.size > media.maxBytes) {
+            toast.error(media.tooLarge);
             continue;
           }
-          const uploaded = await uploadContentImage(file);
-          const altText = altFromFileName(file.name);
+          const uploaded = await uploadContentMedia(file, kind);
           afterKey = placeBlock(editor, afterKey, () =>
-            $createContentImageNode({ altText, src: uploaded.url })
+            EDITOR_MEDIA[kind].createNode(file, uploaded.url)
           );
         }
       } catch (error) {
@@ -182,72 +205,60 @@ export function ImageUploadPlugin() {
   }, [editor]);
 
   useEffect(() => {
-    return editor.registerCommand(
-      OPEN_CONTENT_IMAGE_UPLOAD_COMMAND,
-      () => {
-        if (!editor.isEditable()) {
-          return false;
-        }
-        rememberSelection();
-        imageInputRef.current?.click();
-        return true;
-      },
-      COMMAND_PRIORITY_LOW
+    return mergeRegister(
+      ...CONTENT_MEDIA_KINDS.map((kind, index) =>
+        editor.registerCommand(
+          EDITOR_MEDIA[kind].command,
+          () => {
+            if (!editor.isEditable()) {
+              return false;
+            }
+            rememberSelection();
+            inputRefs.current[index]?.click();
+            return true;
+          },
+          COMMAND_PRIORITY_LOW
+        )
+      )
     );
   }, [editor, rememberSelection]);
 
   useEffect(() => {
-    return editor.registerCommand(
-      OPEN_CONTENT_VIDEO_UPLOAD_COMMAND,
-      () => {
-        if (!editor.isEditable()) {
-          return false;
-        }
-        rememberSelection();
-        videoInputRef.current?.click();
-        return true;
-      },
-      COMMAND_PRIORITY_LOW
-    );
-  }, [editor, rememberSelection]);
-
-  useEffect(() => {
-    return editor.registerCommand(
-      PASTE_COMMAND,
-      (event) => {
-        if (!editor.isEditable() || !(event instanceof ClipboardEvent)) {
-          return false;
-        }
-        const files = mediaFiles(event.clipboardData?.files);
-        if (files.length === 0) {
-          return false;
-        }
-        event.preventDefault();
-        rememberSelection();
-        insertRef.current(files);
-        return true;
-      },
-      COMMAND_PRIORITY_HIGH
-    );
-  }, [editor, rememberSelection]);
-
-  useEffect(() => {
-    return editor.registerCommand(
-      DROP_COMMAND,
-      (event) => {
-        if (!editor.isEditable() || !(event instanceof DragEvent)) {
-          return false;
-        }
-        const files = mediaFiles(event.dataTransfer?.files);
-        if (files.length === 0) {
-          return false;
-        }
-        event.preventDefault();
-        rememberSelection();
-        insertRef.current(files);
-        return true;
-      },
-      COMMAND_PRIORITY_HIGH
+    return mergeRegister(
+      editor.registerCommand(
+        PASTE_COMMAND,
+        (event) => {
+          if (!editor.isEditable() || !(event instanceof ClipboardEvent)) {
+            return false;
+          }
+          const files = mediaFiles(event.clipboardData?.files);
+          if (files.length === 0) {
+            return false;
+          }
+          event.preventDefault();
+          rememberSelection();
+          insertRef.current(files);
+          return true;
+        },
+        COMMAND_PRIORITY_HIGH
+      ),
+      editor.registerCommand(
+        DROP_COMMAND,
+        (event) => {
+          if (!editor.isEditable() || !(event instanceof DragEvent)) {
+            return false;
+          }
+          const files = mediaFiles(event.dataTransfer?.files);
+          if (files.length === 0) {
+            return false;
+          }
+          event.preventDefault();
+          rememberSelection();
+          insertRef.current(files);
+          return true;
+        },
+        COMMAND_PRIORITY_HIGH
+      )
     );
   }, [editor, rememberSelection]);
 
@@ -257,58 +268,44 @@ export function ImageUploadPlugin() {
 
   return (
     <div className="mb-3 flex gap-3">
-      <button
-        aria-label="Upload image"
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm disabled:opacity-60"
-        disabled={uploading}
-        onMouseDown={(event) => {
-          event.preventDefault();
-          rememberSelection();
-        }}
-        onClick={() => imageInputRef.current?.click()}
-        type="button"
-      >
-        <ImagePlus aria-hidden="true" className="size-4" />
-        {uploading ? "Uploading…" : "Add image"}
-      </button>
-      <button
-        aria-label="Upload video"
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm disabled:opacity-60"
-        disabled={uploading}
-        onMouseDown={(event) => {
-          event.preventDefault();
-          rememberSelection();
-        }}
-        onClick={() => videoInputRef.current?.click()}
-        type="button"
-      >
-        <Film aria-hidden="true" className="size-4" />
-        {uploading ? "Uploading…" : "Add video"}
-      </button>
-      <input
-        accept={ACCEPTED_IMAGE_TYPES}
-        className="hidden"
-        multiple
-        onChange={(event) => {
-          const files = mediaFiles(event.currentTarget.files);
-          event.currentTarget.value = "";
-          insertUploaded(files);
-        }}
-        ref={imageInputRef}
-        type="file"
-      />
-      <input
-        accept={Object.keys(CONTENT_VIDEO_MIME_EXTENSIONS).join(",")}
-        className="hidden"
-        multiple
-        onChange={(event) => {
-          const files = mediaFiles(event.currentTarget.files);
-          event.currentTarget.value = "";
-          insertUploaded(files);
-        }}
-        ref={videoInputRef}
-        type="file"
-      />
+      {CONTENT_MEDIA_KINDS.map((kind, index) => {
+        const Icon = EDITOR_MEDIA[kind].icon;
+        const media = CONTENT_MEDIA[kind];
+        return (
+          <button
+            aria-label={media.ariaLabel}
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm disabled:opacity-60"
+            disabled={uploading}
+            key={kind}
+            onClick={() => inputRefs.current[index]?.click()}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              rememberSelection();
+            }}
+            type="button"
+          >
+            <Icon aria-hidden="true" className="size-4" />
+            {uploading ? "Uploading…" : media.label}
+          </button>
+        );
+      })}
+      {CONTENT_MEDIA_KINDS.map((kind, index) => (
+        <input
+          accept={EDITOR_MEDIA[kind].accept}
+          className="hidden"
+          key={kind}
+          multiple
+          onChange={(event) => {
+            const files = mediaFiles(event.currentTarget.files);
+            event.currentTarget.value = "";
+            insertUploaded(files);
+          }}
+          ref={(node) => {
+            inputRefs.current[index] = node;
+          }}
+          type="file"
+        />
+      ))}
     </div>
   );
 }

@@ -4,7 +4,9 @@ import {
   SVG_MIME_TYPE,
 } from "@notra/schemas/constants/dashboard/upload";
 
+import { CONTENT_MEDIA } from "@/constants/content-media";
 import { dashboardOrpc } from "@/lib/orpc/query";
+import type { ContentMediaKind } from "@/types/content/media";
 import type {
   DeleteChatUploadProps,
   UploadFileProps,
@@ -81,12 +83,8 @@ export async function uploadFile({
   return { url: publicUrl, key };
 }
 
-async function uploadContentFile(
-  file: File,
-  kind: "image" | "video"
-): Promise<UploadFileResponse> {
-  const fallback =
-    kind === "video" ? "Video upload failed" : "Image upload failed";
+export async function uploadContentMedia(file: File, kind: ContentMediaKind) {
+  const fallback = CONTENT_MEDIA[kind].failed;
   const body = new FormData();
   body.set("file", file);
   body.set("kind", kind);
@@ -118,14 +116,6 @@ async function uploadContentFile(
     throw new Error(fallback);
   }
   return { key: payload.key, url: payload.url };
-}
-
-export function uploadContentImage(file: File) {
-  return uploadContentFile(file, "image");
-}
-
-export function uploadContentVideo(file: File) {
-  return uploadContentFile(file, "video");
 }
 
 export async function deleteChatUpload({

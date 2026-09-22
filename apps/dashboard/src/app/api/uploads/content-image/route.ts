@@ -1,13 +1,21 @@
 import { ORPCError } from "@orpc/server";
 import { NextResponse } from "next/server";
 
-import { MAX_CONTENT_IMAGE_INPUT_BYTES } from "@/constants/content-image";
-import { MAX_CONTENT_VIDEO_BYTES } from "@/constants/content-video";
+import { CONTENT_MEDIA } from "@/constants/content-media";
 import { uploadContentImage, uploadContentVideo } from "@/lib/upload/server";
+import type { ContentMediaKind } from "@/types/content/media";
 
 export const maxDuration = 30;
 
-function errorResponse(error: unknown, video: boolean) {
+const CONTENT_UPLOADS = {
+  image: uploadContentImage,
+  video: uploadContentVideo,
+} as const satisfies Record<
+  ContentMediaKind,
+  typeof uploadContentImage | typeof uploadContentVideo
+>;
+
+function errorResponse(error: unknown, failed: string) {
   if (error instanceof ORPCError) {
     return NextResponse.json(
       { message: error.message },
@@ -15,10 +23,11 @@ function errorResponse(error: unknown, video: boolean) {
     );
   }
   console.error("Content upload failed", error);
-  return NextResponse.json(
-    { message: video ? "Video upload failed" : "Image upload failed" },
-    { status: 500 }
-  );
+  return NextResponse.json({ message: failed }, { status: 500 });
+}
+
+function uploadKind(form: FormData): ContentMediaKind {
+  return form.get("kind") === "video" ? "video" : "image";
 }
 
 export async function POST(request: Request) {
@@ -27,43 +36,29 @@ export async function POST(request: Request) {
     form = await request.formData();
   } catch {
     return NextResponse.json(
-      { message: "Choose an image to upload" },
+      { message: CONTENT_MEDIA.image.choose },
       { status: 400 }
     );
   }
 
+  const kind = uploadKind(form);
+  const media = CONTENT_MEDIA[kind];
   const file = form.get("file");
-  const video = form.get("kind") === "video";
   if (!(file instanceof File)) {
-    return NextResponse.json(
-      {
-        message: video
-          ? "Choose a video to upload"
-          : "Choose an image to upload",
-      },
-      { status: 400 }
-    );
+    return NextResponse.json({ message: media.choose }, { status: 400 });
   }
-  if (video && file.size > MAX_CONTENT_VIDEO_BYTES) {
-    return NextResponse.json(
-      { message: "Video must be 10MB or smaller" },
-      { status: 400 }
-    );
-  }
-  if (!video && file.size > MAX_CONTENT_IMAGE_INPUT_BYTES) {
-    return NextResponse.json(
-      { message: "Image must be 20MB or smaller" },
-      { status: 400 }
-    );
+  if (file.size > media.maxBytes) {
+    return NextResponse.json({ message: media.tooLarge }, { status: 400 });
   }
 
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const uploaded = video
-      ? await uploadContentVideo({ bytes, headers: request.headers })
-      : await uploadContentImage({ bytes, headers: request.headers });
+    const uploaded = await CONTENT_UPLOADS[kind]({
+      bytes,
+      headers: request.headers,
+    });
     return NextResponse.json(uploaded);
   } catch (error) {
-    return errorResponse(error, video);
+    return errorResponse(error, media.failed);
   }
 }

@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 
 import {
+  contentImageKeyBelongsToOrganization,
   getAppContentImageKey,
   isSafeContentImageKey,
 } from "./content-image-key";
@@ -21,6 +22,14 @@ test("accepts a dashboard content image key", () => {
   expect(isSafeContentImageKey("organization/org_1/content/clip.webm")).toBe(
     true
   );
+  expect(contentImageKeyBelongsToOrganization(KEY, "org_1")).toBe(true);
+  expect(contentImageKeyBelongsToOrganization(KEY, "org_2")).toBe(false);
+  expect(
+    contentImageKeyBelongsToOrganization(
+      "organization/org_1/content/file.svg",
+      "org_1"
+    )
+  ).toBe(false);
 });
 
 test("reads keys from root-relative and same-origin urls", () => {

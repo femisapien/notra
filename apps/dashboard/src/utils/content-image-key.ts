@@ -1,7 +1,15 @@
 import { CONTENT_IMAGE_ROUTE } from "@/constants/content-image";
 
-const CONTENT_IMAGE_KEY_PATTERN =
-  /^organization\/[^/]+\/content\/[A-Za-z0-9_-]+\.(?:avif|gif|jpe?g|mp4|png|webm|webp)$/;
+const CONTENT_MEDIA_EXTENSION_SOURCE = "avif|gif|jpe?g|mp4|png|webm|webp";
+
+const CONTENT_IMAGE_KEY_PATTERN = new RegExp(
+  `^organization/[^/]+/content/[A-Za-z0-9_-]+\\.(?:${CONTENT_MEDIA_EXTENSION_SOURCE})$`
+);
+
+const CONTENT_MEDIA_EXTENSION_PATTERN = new RegExp(
+  `\\.(?:${CONTENT_MEDIA_EXTENSION_SOURCE})$`,
+  "i"
+);
 
 export function isSafeContentImageKey(key: string) {
   return (
@@ -10,6 +18,20 @@ export function isSafeContentImageKey(key: string) {
     !key.includes("\\") &&
     CONTENT_IMAGE_KEY_PATTERN.test(key)
   );
+}
+
+export function contentImageKeyBelongsToOrganization(
+  key: string,
+  organizationId: string
+) {
+  return (
+    isSafeContentImageKey(key) &&
+    key.startsWith(`organization/${organizationId}/`)
+  );
+}
+
+export function contentMediaExtension(key: string) {
+  return CONTENT_MEDIA_EXTENSION_PATTERN.exec(key)?.[0].toLowerCase() ?? null;
 }
 
 function keyFromPathname(pathname: string) {

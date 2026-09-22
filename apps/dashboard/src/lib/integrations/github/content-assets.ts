@@ -3,6 +3,8 @@ import { posix } from "node:path";
 import { GITHUB_IMAGE_EXTENSION_REGEX } from "@notra/schemas/constants/dashboard/github";
 import { fromMarkdown } from "mdast-util-from-markdown";
 
+import { CONTENT_IMAGE_MIME_EXTENSIONS } from "@/constants/content-image";
+import { CONTENT_VIDEO_MIME_EXTENSIONS } from "@/constants/content-video";
 import {
   GITHUB_CONTENT_MAX_ASSET_BYTES,
   GITHUB_CONTENT_MAX_ASSET_COUNT,
@@ -14,8 +16,9 @@ import type {
   PreparedGitHubContent,
 } from "@/types/integrations/github";
 import {
+  contentImageKeyBelongsToOrganization,
+  contentMediaExtension,
   getAppContentImageKey,
-  isSafeContentImageKey,
   readAppOrigin,
 } from "@/utils/content-image-key";
 
@@ -23,40 +26,40 @@ import { readContentImage } from "../../upload/content-image-store";
 import { getOptionalR2PublicUrl } from "../../upload/r2";
 
 const CONTENT_TYPE_EXTENSIONS: Readonly<Record<string, string>> = {
-  "image/avif": ".avif",
-  "image/gif": ".gif",
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
+  ...dottedExtensions(CONTENT_IMAGE_MIME_EXTENSIONS),
+  ...dottedExtensions(CONTENT_VIDEO_MIME_EXTENSIONS),
   "image/svg+xml": ".svg",
-  "image/webp": ".webp",
-  "video/mp4": ".mp4",
-  "video/webm": ".webm",
 };
 
-const ASSET_EXTENSION_REGEX = /\.(avif|gif|jpe?g|mp4|png|svg|webm|webp)$/i;
+function dottedExtensions(extensions: Record<string, string>) {
+  return Object.fromEntries(
+    Object.entries(extensions).map(([mime, extension]) => [
+      mime,
+      `.${extension}`,
+    ])
+  );
+}
 
 export function expandGitHubPathTemplate(template: string, slug: string) {
   return template.replaceAll(":slug", slug);
 }
 
 /**
- * Returns the byte ranges of inline image destinations (`![alt](url)`) in
- * source order. Only the URL span is reported so alt text, titles, and
- * angle-bracket destinations are preserved verbatim when the URL is swapped.
- *
- * Reference-style images (`![alt][ref]`) and raw `<img>` HTML are left
- * untouched: Notra's editor and generators only emit inline images.
+ * Returns image and video URL spans in source order. Image destinations keep
+ * alt text, titles, and angle-bracket forms. Reference-style images and raw
+ * `<img>` HTML stay untouched: the editor only emits inline images and
+ * `<video controls src="...">`.
  *
  * The extension overrides mdast-util-from-markdown's default
  * `resourceDestinationString` handlers, which is the only place the parser
  * exposes the destination's offsets. The replacement keeps the default
  * behaviour (`buffer` on enter, `resume` + `node.url` on exit).
  */
-function findMarkdownImageOccurrences(markdown: string) {
+function findMarkdownMediaOccurrences(markdown: string) {
   const occurrences: Array<{ end: number; start: number; url: string }> = [];
   let destination: { end: number; image: boolean; start: number } | undefined;
 
-  fromMarkdown(markdown, {
+  const tree = fromMarkdown(markdown, {
     mdastExtensions: [
       {
         enter: {
@@ -91,6 +94,27 @@ function findMarkdownImageOccurrences(markdown: string) {
     ],
   });
 
+  visitMarkdown(tree as MarkdownNode, (node) => {
+    if (node.type !== "html" || !node.value) {
+      return;
+    }
+    const offset = node.position?.start.offset;
+    if (offset == null) {
+      return;
+    }
+    const match = VIDEO_SRC_PATTERN.exec(node.value);
+    const url = match?.[1];
+    if (!(match && url) || match.index === undefined) {
+      return;
+    }
+    const relative = node.value.indexOf(url, match.index);
+    if (relative < 0) {
+      return;
+    }
+    const start = offset + relative;
+    occurrences.push({ end: start + url.length, start, url });
+  });
+
   return occurrences.sort((left, right) => left.start - right.start);
 }
 
@@ -111,31 +135,6 @@ function visitMarkdown(
   for (const child of node.children ?? []) {
     visitMarkdown(child, visit);
   }
-}
-
-function findMarkdownVideoOccurrences(markdown: string) {
-  const occurrences: Array<{ end: number; start: number; url: string }> = [];
-  visitMarkdown(fromMarkdown(markdown) as MarkdownNode, (node) => {
-    if (node.type !== "html" || !node.value) {
-      return;
-    }
-    const offset = node.position?.start.offset;
-    if (offset == null) {
-      return;
-    }
-    const match = VIDEO_SRC_PATTERN.exec(node.value);
-    const url = match?.[1];
-    if (!(match && url) || match.index === undefined) {
-      return;
-    }
-    const relative = node.value.indexOf(url, match.index);
-    if (relative < 0) {
-      return;
-    }
-    const start = offset + relative;
-    occurrences.push({ end: start + url.length, start, url });
-  });
-  return occurrences;
 }
 
 function getR2Key(imageUrl: string, publicUrl: string) {
@@ -166,8 +165,11 @@ function getR2Key(imageUrl: string, publicUrl: string) {
 }
 
 function resolveImageExtension(key: string, contentType?: string) {
-  const pathExtension = ASSET_EXTENSION_REGEX.exec(key)?.[0].toLowerCase();
-  return pathExtension ?? CONTENT_TYPE_EXTENSIONS[contentType ?? ""] ?? ".png";
+  return (
+    contentMediaExtension(key) ??
+    CONTENT_TYPE_EXTENSIONS[contentType ?? ""] ??
+    ".png"
+  );
 }
 
 function resolveIndexedImagePath(
@@ -267,10 +269,7 @@ function resolveMarkdownImagePath(contentPath: string, imagePath: string) {
 export async function prepareGitHubContentAssets(
   params: PrepareGitHubContentAssetsParams
 ): Promise<PreparedGitHubContent> {
-  const occurrences = [
-    ...findMarkdownImageOccurrences(params.markdown),
-    ...findMarkdownVideoOccurrences(params.markdown),
-  ].sort((left, right) => left.start - right.start);
+  const occurrences = findMarkdownMediaOccurrences(params.markdown);
   const imageUrlsByKey = new Map<string, string[]>();
 
   for (const occurrence of occurrences) {
@@ -281,8 +280,7 @@ export async function prepareGitHubContentAssets(
     );
     if (
       key &&
-      isSafeContentImageKey(key) &&
-      key.startsWith(`organization/${params.organizationId}/`)
+      contentImageKeyBelongsToOrganization(key, params.organizationId)
     ) {
       const imageUrls = imageUrlsByKey.get(key) ?? [];
       if (!imageUrls.includes(occurrence.url)) {

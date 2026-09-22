@@ -11,6 +11,8 @@ import { ORPCError } from "@orpc/server";
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
+import type { ContentImageMimeType } from "@/constants/content-image";
+import type { ContentVideoMimeType } from "@/constants/content-video";
 import { GITHUB_CONTENT_MAX_SINGLE_ASSET_BYTES } from "@/constants/github";
 import { assertAuthenticated } from "@/lib/auth/organization";
 import type {
@@ -18,6 +20,7 @@ import type {
   UploadType,
 } from "@/types/upload/client";
 import { compressContentImage } from "@/utils/compress-content-image";
+import { contentImageKeyBelongsToOrganization } from "@/utils/content-image-key";
 import { validateContentVideo } from "@/utils/validate-content-video";
 
 import { readContentImage, saveContentImage } from "./content-image-store";
@@ -281,12 +284,14 @@ export async function recordChatAttachment({
   return { success: true };
 }
 
-export async function uploadContentImage({
+async function storeContentUpload({
   bytes,
   headers,
+  mimeType,
 }: {
   bytes: Uint8Array;
   headers: Headers;
+  mimeType: ContentImageMimeType | ContentVideoMimeType;
 }) {
   const { organizationId } = await assertUploadAccess({
     headers,
@@ -298,6 +303,16 @@ export async function uploadContentImage({
     });
   }
 
+  return saveContentImage({ bytes, mimeType, organizationId });
+}
+
+export async function uploadContentImage({
+  bytes,
+  headers,
+}: {
+  bytes: Uint8Array;
+  headers: Headers;
+}) {
   let compressed: Awaited<ReturnType<typeof compressContentImage>>;
   try {
     compressed = await compressContentImage(bytes);
@@ -314,10 +329,10 @@ export async function uploadContentImage({
     });
   }
 
-  return saveContentImage({
+  return storeContentUpload({
     bytes: compressed.bytes,
+    headers,
     mimeType: compressed.mimeType,
-    organizationId,
   });
 }
 
@@ -328,16 +343,6 @@ export async function uploadContentVideo({
   bytes: Uint8Array;
   headers: Headers;
 }) {
-  const { organizationId } = await assertUploadAccess({
-    headers,
-    type: "content",
-  });
-  if (!organizationId) {
-    throw new ORPCError("UNAUTHORIZED", {
-      message: "Active organization required for this upload type",
-    });
-  }
-
   let mimeType: ReturnType<typeof validateContentVideo>;
   try {
     mimeType = validateContentVideo(bytes);
@@ -348,11 +353,7 @@ export async function uploadContentVideo({
     });
   }
 
-  return saveContentImage({
-    bytes,
-    mimeType,
-    organizationId,
-  });
+  return storeContentUpload({ bytes, headers, mimeType });
 }
 
 export async function readAuthorizedContentImage({
@@ -366,7 +367,12 @@ export async function readAuthorizedContentImage({
     headers,
     type: "content",
   });
-  if (!organizationId || !key.startsWith(`organization/${organizationId}/`)) {
+  if (
+    !(
+      organizationId &&
+      contentImageKeyBelongsToOrganization(key, organizationId)
+    )
+  ) {
     throw new ORPCError("NOT_FOUND", { message: "Image not found" });
   }
 
