@@ -131,9 +131,10 @@ test("billing blocks denied and expired requests, confirms attempted calls inclu
     }
     expect(gates[0]).toMatchObject({
       organizationId: "org-a",
-      quotaFeatureId: "ai_answers",
-      units: 1,
+      outputType: null,
+      allowPlanIncluded: true,
     });
+    expect(gates[0]?.quotaFeatureId).toBeUndefined();
     expect(generated).toBe(mode === "denied" || mode === "expired" ? 0 : 1);
     if (mode === "denied") {
       expect(finalized).toHaveLength(0);
