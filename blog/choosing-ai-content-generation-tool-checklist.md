@@ -122,6 +122,8 @@ Take a post you already published. Give the tool the same source facts and ask i
 
 Ask for a published subprocessor list and privacy terms, not a verbal assurance. Check log retention periods and whether a zero data retention option exists. Confirm which scopes the integration requests and whether read-only access is enough. Notra publishes its subprocessors and privacy terms on its site.
 
+dkshfgbhsdkfbg
+
 ### How much does Notra cost?
 
 Notra pricing is listed on the pricing page.
