@@ -32,7 +32,7 @@ function readEbmlVint(bytes: Uint8Array, offset: number) {
     width += 1;
     mask >>= 1;
   }
-  if (offset + width > bytes.length) {
+  if (width > 8 || offset + width > bytes.length) {
     return null;
   }
   let value = first & (mask - 1);
@@ -41,7 +41,10 @@ function readEbmlVint(bytes: Uint8Array, offset: number) {
     if (next === undefined) {
       return null;
     }
-    value = (value << 8) | next;
+    value = value * 256 + next;
+  }
+  if (value > bytes.length - (offset + width)) {
+    return null;
   }
   return { value, width };
 }
@@ -81,7 +84,10 @@ function ebmlDocType(bytes: Uint8Array) {
     return null;
   }
   let offset = header.width + size.width;
-  const end = Math.min(bytes.length, offset + size.value);
+  const end = offset + size.value;
+  if (end > bytes.length) {
+    return null;
+  }
   while (offset < end) {
     const id = readEbmlId(bytes, offset);
     const payloadSize = id ? readEbmlVint(bytes, offset + id.width) : null;
@@ -90,7 +96,7 @@ function ebmlDocType(bytes: Uint8Array) {
     }
     const dataStart = offset + id.width + payloadSize.width;
     const dataEnd = dataStart + payloadSize.value;
-    if (dataEnd > bytes.length) {
+    if (dataEnd > end) {
       return null;
     }
     if (id.id === EBML_DOCTYPE_ID) {
