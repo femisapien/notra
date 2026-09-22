@@ -11,7 +11,6 @@ import {
   CHAT_EMPTY_DITHER_COLORS_LIGHT,
   CHAT_EMPTY_DITHER_DEFER_MS,
   CHAT_EMPTY_DITHER_FRAME_CLASS,
-  CHAT_EMPTY_DITHER_LAYER_CLASS,
   CHAT_EMPTY_DITHER_PLACEMENT_CLASS,
   CHAT_EMPTY_DITHER_REVEAL_FALLBACK_MS,
   CHAT_EMPTY_DITHER_SCALE,
@@ -97,18 +96,14 @@ export function ChatEmptyDither({
   return (
     <div
       aria-hidden="true"
-      className={cn(
-        CHAT_EMPTY_DITHER_FRAME_CLASS,
-        CHAT_EMPTY_DITHER_PLACEMENT_CLASS[placement],
-        className
-      )}
+      className={cn(CHAT_EMPTY_DITHER_FRAME_CLASS, className)}
     >
       <div
         className={cn(
           "absolute inset-0",
           CHAT_EMPTY_DITHER_SHIFT_CLASS,
           CHAT_EMPTY_DITHER_WASH_CLASS,
-          CHAT_EMPTY_DITHER_LAYER_CLASS[placement]
+          CHAT_EMPTY_DITHER_PLACEMENT_CLASS[placement]
         )}
       >
         {shaderReady ? (
