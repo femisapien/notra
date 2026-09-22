@@ -20,7 +20,7 @@ export const CHAT_EMPTY_DITHER_REVEAL_FALLBACK_MS = 500;
 export const CHAT_EMPTY_DITHER_FRAME_CLASS =
   "pointer-events-none absolute inset-0 overflow-hidden";
 export const CHAT_EMPTY_DITHER_SHIFT_CLASS =
-  "duration-slower ease-emphasized transition-[transform,opacity] motion-reduce:transition-none";
+  "duration-slower ease-emphasized transition-[translate,opacity] motion-reduce:transition-none";
 export const CHAT_EMPTY_DITHER_WASH_CLASS =
   "[mask-image:linear-gradient(to_bottom,transparent,black_6%,black_32%,transparent_88%)]";
 export const CHAT_EMPTY_DITHER_PLACEMENT_CLASS = {
