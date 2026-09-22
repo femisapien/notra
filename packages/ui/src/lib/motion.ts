@@ -29,12 +29,14 @@ export const DURATION = {
 export const EASE = {
   /** Default for small interactions. Tailwind's `ease-out`. */
   out: [0, 0, 0.2, 1],
-  /** Strong deceleration for entrances and layout moves. */
-  emphasized: [0.22, 1, 0.36, 1],
-  /** Mirrored acceleration, for exits. */
+  /** Strong ease-out. Entrances and exits both start fast. */
+  emphasized: [0.23, 1, 0.32, 1],
+  /** Ease-in. Starts slow. Do not use it on UI. */
   emphasizedIn: [0.7, 0, 0.84, 0],
-  /** Symmetric morphs (size/position changing both ways). */
-  emphasizedInOut: [0.65, 0, 0.35, 1],
+  /** Strong ease-in-out for on-screen morphs. */
+  emphasizedInOut: [0.77, 0, 0.175, 1],
+  /** CSS `ease`. Hover and color only. */
+  standard: [0.25, 0.1, 0.25, 1],
 } as const;
 
 /**
@@ -74,18 +76,19 @@ export const TRANSITION = {
   fade: tween("fast"),
   /** A panel, row or card entering. */
   enter: tween("normal", "emphasized"),
-  /** A panel, row or card leaving. */
-  exit: tween("fast", "emphasizedIn"),
+  /** A panel, row or card leaving. Ease-out, so the exit starts immediately. */
+  exit: tween("fast", "emphasized"),
   /** Something growing or shrinking (range pickers, expanding inputs). */
   resize: tween("slow", "emphasizedInOut"),
 } as const satisfies Record<string, Transition>;
 
 /** Vertical fade-in. `distance` is px; negative enters from above. */
 export function fadeUp(distance = 8) {
+  const from = `translateY(${distance}px)`;
   return {
-    initial: { opacity: 0, y: distance },
-    animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: distance },
+    initial: { opacity: 0, transform: from },
+    animate: { opacity: 1, transform: "translateY(0px)" },
+    exit: { opacity: 0, transform: from },
     transition: TRANSITION.enter,
   };
 }

@@ -31,17 +31,18 @@
 
   /*
    * Easings. `ease-out` (Tailwind's own cubic-bezier(0, 0, 0.2, 1)) stays the
-   * default for small interactions.
+   * default for small interactions. Built-in curves are too weak for deliberate
+   * motion, so entrances, exits, and morphs use the strong curves below.
    *
-   * emphasized        strong deceleration for entrances and layout moves.
-   *                   Replaces the two near-identical curves that were in use:
-   *                   cubic-bezier(.23,1,.32,1) and cubic-bezier(.22,1,.36,1).
-   * emphasized-in     the mirrored acceleration, for exits.
-   * emphasized-in-out for symmetric morphs (size/position changes both ways).
+   * emphasized        strong ease-out. Entrances and exits both start fast.
+   * emphasized-in     ease-in. Starts slow. Do not use it on UI.
+   * emphasized-in-out strong ease-in-out for on-screen morphs.
    */
-  --ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-emphasized: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-emphasized-in: cubic-bezier(0.7, 0, 0.84, 0);
-  --ease-emphasized-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-emphasized-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  /* CSS `ease`. Hover and color only. */
+  --ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 @utility transition-width {
@@ -69,7 +70,119 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    transition: none;
+    transition-property: opacity !important;
+    transition-duration: var(--transition-duration-fast) !important;
+    transition-timing-function: var(--ease-emphasized) !important;
+  }
+}
+
+/*
+ * Anchored layers (menus, selects, tooltips, popovers).
+ * Transitions retarget if the user opens and closes mid-flight. Keyframes
+ * would restart from zero. Scale starts at 0.95, never 0, and the origin is
+ * the trigger (`--transform-origin` from Base UI).
+ */
+@utility popup-motion {
+  transform-origin: var(--transform-origin);
+  opacity: 1;
+  scale: 1;
+  translate: 0 0;
+  transition-property: opacity, scale, translate;
+  transition-duration: var(--transition-duration-fast);
+  transition-timing-function: var(--ease-emphasized);
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+    scale: 0.95;
+  }
+
+  &[data-side="bottom"][data-starting-style],
+  &[data-side="bottom"][data-ending-style] {
+    translate: 0 -0.5rem;
+  }
+
+  &[data-side="top"][data-starting-style],
+  &[data-side="top"][data-ending-style] {
+    translate: 0 0.5rem;
+  }
+
+  &[data-side="left"][data-starting-style],
+  &[data-side="left"][data-ending-style] {
+    translate: 0.5rem 0;
+  }
+
+  &[data-side="right"][data-starting-style],
+  &[data-side="right"][data-ending-style] {
+    translate: -0.5rem 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    scale: 1 !important;
+    translate: 0 0 !important;
+    transition-property: opacity !important;
+    transition-duration: var(--transition-duration-fast) !important;
+
+    &[data-starting-style],
+    &[data-ending-style] {
+      scale: 1 !important;
+      translate: 0 0 !important;
+    }
+  }
+}
+
+/* Centered modals. Origin stays center. Same interruptible fade + scale. */
+@utility dialog-motion {
+  opacity: 1;
+  scale: 1;
+  transition-property: opacity, scale;
+  transition-duration: var(--transition-duration-normal);
+  transition-timing-function: var(--ease-emphasized);
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+    scale: 0.95;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    scale: 1 !important;
+    transition-property: opacity !important;
+    transition-duration: var(--transition-duration-fast) !important;
+
+    &[data-starting-style],
+    &[data-ending-style] {
+      scale: 1 !important;
+    }
+  }
+}
+
+@utility overlay-motion {
+  transition-property: opacity;
+  transition-duration: var(--transition-duration-fast);
+  transition-timing-function: var(--ease-emphasized);
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition-property: opacity !important;
+    transition-duration: var(--transition-duration-fast) !important;
+  }
+}
+
+/* Keyboard surfaces (command palette) skip the open/close transition. */
+@utility motion-static {
+  opacity: 1 !important;
+  scale: 1 !important;
+  transition: none !important;
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 1 !important;
+    scale: 1 !important;
   }
 }
 
@@ -101,6 +214,20 @@
   /* Selected-detail sheets can mount with open=true, without a closed frame. */
   @starting-style {
     transform: translate(var(--sheet-exit-x), var(--sheet-exit-y));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transform: none !important;
+
+    &[data-starting-style],
+    &[data-ending-style],
+    &[data-side="right"][data-nested-dialog-open]:not([data-ending-style]) {
+      transform: none !important;
+    }
+
+    @starting-style {
+      transform: none !important;
+    }
   }
 }
 

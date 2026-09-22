@@ -1,3 +1,5 @@
+import { DURATION, EASE } from "@notra/ui/lib/motion";
+
 import type {
   CrawlerCategory,
   CrawlerCategoryCopy,
@@ -32,11 +34,9 @@ export const IP_CHECKER_STATUS_MESSAGES: Partial<
   error: "Something went wrong. Try again.",
 };
 
-const MOTION_EASE = [0.22, 1, 0.36, 1] as const;
-
 export const IP_CHECKER_MOTION = {
-  enter: { duration: 0.4, ease: MOTION_EASE, delay: 0.08 },
-  exit: { duration: 0.28, ease: MOTION_EASE },
+  enter: { duration: DURATION.normal, ease: EASE.emphasized },
+  exit: { duration: DURATION.fast, ease: EASE.emphasized },
 } as const;
 
 export const IP_CHECKER_PLACEHOLDER = "1.1.1.1";

@@ -568,6 +568,7 @@ function CommandPaletteDialog({
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogContent
         className="border-border/60 top-[18%] w-[calc(100%-2rem)] max-w-[45rem]! translate-y-0 gap-0 overflow-hidden rounded-xl! border p-0! shadow-2xl sm:max-w-[45rem]!"
+        motion="none"
         showCloseButton={false}
       >
         <DialogHeader className="sr-only">
@@ -793,7 +794,7 @@ function CommandPaletteList({
           </div>
           <div className="flex w-full flex-col gap-1.5">
             <button
-              className="group border-border/80 bg-background hover:border-border hover:bg-muted/60 duration-fast flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-all disabled:opacity-60"
+              className="group border-border/80 bg-background hover:border-border hover:bg-muted/60 duration-fast ease-standard flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors disabled:opacity-60"
               disabled={isLoading}
               onClick={runAiSearch}
               type="button"
@@ -815,7 +816,7 @@ function CommandPaletteList({
               </div>
             </button>
             <button
-              className="group border-border/80 bg-background hover:border-border hover:bg-muted/60 duration-fast flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-all"
+              className="group border-border/80 bg-background hover:border-border hover:bg-muted/60 duration-fast ease-standard flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors"
               onClick={() => openChatWithQuery(trimmedQuery)}
               type="button"
             >
@@ -826,7 +827,7 @@ function CommandPaletteList({
               />
               <span className="flex-1 font-medium">Ask AI chat</span>
               <HugeiconsIcon
-                className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5"
+                className="text-muted-foreground size-4"
                 icon={ArrowRight01Icon}
                 strokeWidth={2}
               />

@@ -413,7 +413,7 @@ const MOTION_EASINGS = [
   },
   {
     token: "ease-emphasized-in",
-    meta: "exits",
+    meta: "ease-in — starts slow, not for UI",
     className: "duration-slower ease-emphasized-in",
   },
   {

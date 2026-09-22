@@ -31,6 +31,7 @@ import {
   MessageScrollerViewport,
 } from "@notra/ui/components/ui/message-scroller";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
+import { EASE } from "@notra/ui/lib/motion";
 import {
   useMutation,
   useQuery,
@@ -377,7 +378,7 @@ function UserImageGrid({ children }: UserImageGridProps) {
       transition={
         reduceMotion
           ? { duration: 0 }
-          : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }
+          : { duration: 0.2, ease: EASE.emphasized }
       }
     >
       {imageItems.slice(0, visibleImageCount).map((imageItem, index) => {
@@ -402,7 +403,7 @@ function UserImageGrid({ children }: UserImageGridProps) {
             transition={
               reduceMotion
                 ? { duration: 0 }
-                : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }
+                : { duration: 0.2, ease: EASE.emphasized }
             }
           >
             {imageItem}
@@ -2563,8 +2564,8 @@ function StandaloneChatPageClient({
                                 className="ml-auto flex w-full max-w-full items-start justify-end gap-2"
                                 layout={!reduceMotion}
                                 transition={{
-                                  duration: 0.22,
-                                  ease: [0.22, 1, 0.36, 1],
+                                  duration: 0.2,
+                                  ease: EASE.emphasized,
                                 }}
                               >
                                 <div className="flex w-full min-w-0 flex-col items-end gap-2">

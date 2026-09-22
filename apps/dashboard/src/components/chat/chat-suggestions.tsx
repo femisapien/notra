@@ -44,7 +44,7 @@ const faded = {
   filter: "blur(0px)",
 };
 
-const swapTransition = tween("slow", "emphasizedInOut");
+const swapTransition = tween("normal", "emphasizedInOut");
 
 function SuggestionCard({
   suggestion,
@@ -189,7 +189,10 @@ export function ChatSuggestions({
         animate={
           shouldReduceMotion
             ? undefined
-            : { opacity: hidden ? 0 : 1, y: hidden ? -2 : 0 }
+            : {
+                opacity: hidden ? 0 : 1,
+                transform: hidden ? "translateY(-2px)" : "translateY(0px)",
+              }
         }
         aria-hidden={hidden}
         aria-label="Example prompts"
@@ -212,7 +215,7 @@ export function ChatSuggestions({
           isPointerInside.current = false;
         }}
         style={{ pointerEvents: hidden ? "none" : undefined }}
-        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        transition={tween("normal", "emphasized")}
       >
         <div className="flex items-center justify-between gap-3">
           <p className="text-muted-foreground text-sm">
@@ -257,17 +260,20 @@ export function ChatSuggestions({
               {displayedSuggestions.map((suggestion, index) => (
                 <m.li
                   animate={
-                    shouldReduceMotion ? undefined : { opacity: 1, y: 0 }
+                    shouldReduceMotion
+                      ? undefined
+                      : { opacity: 1, transform: "translateY(0px)" }
                   }
                   className="min-w-0"
                   initial={
-                    shouldReduceMotion ? undefined : { opacity: 0, y: 4 }
+                    shouldReduceMotion
+                      ? undefined
+                      : { opacity: 0, transform: "translateY(4px)" }
                   }
                   key={suggestion.title}
                   transition={{
-                    duration: 0.35,
-                    delay: 0.05 + index * 0.05,
-                    ease: [0.22, 1, 0.36, 1],
+                    ...tween("normal", "emphasized"),
+                    delay: 0.04 + index * 0.04,
                   }}
                 >
                   <SuggestionCard

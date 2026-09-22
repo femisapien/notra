@@ -24,7 +24,7 @@ export function AnimatedHeight({ children, className }: AnimatedHeightProps) {
 
   return (
     <div
-      className={`overflow-hidden transition-[height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${className ?? ""}`}
+      className={`duration-normal ease-emphasized overflow-hidden transition-[height] motion-reduce:transition-none ${className ?? ""}`}
       style={{ height: height ?? "auto" }}
     >
       <div ref={contentRef}>{children}</div>

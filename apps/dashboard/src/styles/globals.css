@@ -107,7 +107,7 @@
 }
 
 .chat-input-slide-down {
-  animation: chat-input-slide-down 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: chat-input-slide-down 480ms var(--ease-emphasized) both;
 }
 
 @keyframes chat-messages-fade-in {

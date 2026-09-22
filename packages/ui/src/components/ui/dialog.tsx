@@ -30,7 +30,7 @@ function DialogOverlay({
   return (
     <DialogPrimitive.Backdrop
       className={cn(
-        "data-closed:fade-out-0 data-open:fade-in-0 fixed inset-0 isolate z-50 bg-black/10 duration-instant data-closed:animate-out data-open:animate-in supports-backdrop-filter:backdrop-blur-xs",
+        "overlay-motion fixed inset-0 isolate z-50 bg-black/10 supports-backdrop-filter:backdrop-blur-xs",
         className
       )}
       data-slot="dialog-overlay"
@@ -43,18 +43,23 @@ function DialogContent({
   className,
   children,
   keepMounted = false,
+  motion = "default",
   showCloseButton = true,
   ...props
 }: DialogPrimitive.Popup.Props & {
   keepMounted?: boolean;
+  motion?: "default" | "none";
   showCloseButton?: boolean;
 }) {
   return (
     <DialogPortal keepMounted={keepMounted}>
-      <DialogOverlay />
+      <DialogOverlay
+        className={motion === "none" ? "motion-static" : undefined}
+      />
       <DialogPrimitive.Popup
         className={cn(
-          "data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-background p-4 text-sm outline-none ring-1 ring-foreground/10 duration-instant data-closed:animate-out data-open:animate-in sm:max-w-sm",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-background p-4 text-sm outline-none ring-1 ring-foreground/10 sm:max-w-sm",
+          motion === "default" ? "dialog-motion" : "motion-static",
           className
         )}
         data-slot="dialog-content"

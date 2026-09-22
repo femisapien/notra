@@ -100,8 +100,8 @@ const SWAP_TRANSITION = {
   filter: { ...tween("instant"), delay: CONTENT_ENTER_DELAY },
 } as const;
 const SWAP_EXIT_TRANSITION = {
-  x: tween("instant", "emphasizedIn"),
-  scale: tween("instant", "emphasizedIn"),
+  x: tween("instant", "emphasized"),
+  scale: tween("instant", "emphasized"),
   opacity: tween("instant"),
   filter: tween("instant"),
 } as const;
