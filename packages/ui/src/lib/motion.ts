@@ -19,9 +19,9 @@ export const DURATION = {
   fast: 0.15,
   /** An element changing state in place (expand, reveal, swap). */
   normal: 0.2,
-  /** Layout-level movement (sidebar, accordion, drawer). */
+  /** Layout-level movement (sidebar). */
   slow: 0.3,
-  /** A deliberate, attention-carrying reveal (hero, score, onboarding). */
+  /** Drawers, and a deliberate reveal (hero, score, onboarding). */
   slower: 0.5,
 } as const;
 
@@ -37,6 +37,8 @@ export const EASE = {
   emphasizedInOut: [0.77, 0, 0.175, 1],
   /** CSS `ease`. Hover and color only. */
   standard: [0.25, 0.1, 0.25, 1],
+  /** iOS-like drawer curve. Sheets only. */
+  drawer: [0.32, 0.72, 0, 1],
 } as const;
 
 /**

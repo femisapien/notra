@@ -535,7 +535,7 @@ export function CommandTabs({
           {pill && (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute inset-y-1.5 left-0 rounded-[calc(var(--radius-xl)-6px)] bg-primary shadow-sm transition-transform duration-slow ease-out"
+              className="pointer-events-none absolute inset-y-1.5 left-0 rounded-[calc(var(--radius-xl)-6px)] bg-primary shadow-sm transition-transform duration-normal ease-emphasized-in-out"
               style={{
                 transform: `translateX(${pill.left}px)`,
                 width: pill.width,

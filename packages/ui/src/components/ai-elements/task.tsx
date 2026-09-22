@@ -62,7 +62,7 @@ export const TaskTrigger = ({
         <HugeiconsIcon className="size-4" icon={Search01Icon} />
         <p className="text-sm">{title}</p>
         <HugeiconsIcon
-          className="size-4 transition-transform group-data-[state=open]:rotate-180"
+          className="size-4 transition-[rotate] duration-fast ease-emphasized in-data-[panel-open]:rotate-180"
           icon={ArrowDown01Icon}
         />
       </div>
@@ -79,7 +79,7 @@ export const TaskContent = ({
 }: TaskContentProps) => (
   <CollapsibleContent
     className={cn(
-      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+      "collapse-motion text-popover-foreground outline-none",
       className
     )}
     {...props}

@@ -20,8 +20,8 @@
    * instant  popover layer appearing/disappearing (menus, tooltips, selects)
    * fast     direct feedback on a control (hover, press, colour change)
    * normal   an element changing state in place (expand, reveal, swap)
-   * slow     layout-level movement (sidebar, accordion, drawer)
-   * slower   a deliberate, attention-carrying reveal (hero, score, onboarding)
+   * slow     layout-level movement (sidebar)
+   * slower   drawers, and a deliberate reveal (hero, score, onboarding)
    */
   --transition-duration-instant: 100ms;
   --transition-duration-fast: 150ms;
@@ -43,6 +43,15 @@
   --ease-emphasized-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   /* CSS `ease`. Hover and color only. */
   --ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
+  /* iOS-like drawer curve. Sheets only. */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Wrap hover motion so a touch tap does not count as a hover. */
+@custom-variant fine-pointer {
+  @media (hover: hover) and (pointer: fine) {
+    @slot;
+  }
 }
 
 @utility transition-width {
@@ -86,8 +95,7 @@
   transform-origin: var(--transform-origin);
   opacity: 1;
   scale: 1;
-  translate: 0 0;
-  transition-property: opacity, scale, translate;
+  transition-property: opacity, scale;
   transition-duration: var(--transition-duration-fast);
   transition-timing-function: var(--ease-emphasized);
 
@@ -97,36 +105,48 @@
     scale: 0.95;
   }
 
-  &[data-side="bottom"][data-starting-style],
-  &[data-side="bottom"][data-ending-style] {
-    translate: 0 -0.5rem;
-  }
-
-  &[data-side="top"][data-starting-style],
-  &[data-side="top"][data-ending-style] {
-    translate: 0 0.5rem;
-  }
-
-  &[data-side="left"][data-starting-style],
-  &[data-side="left"][data-ending-style] {
-    translate: 0.5rem 0;
-  }
-
-  &[data-side="right"][data-starting-style],
-  &[data-side="right"][data-ending-style] {
-    translate: -0.5rem 0;
-  }
-
   @media (prefers-reduced-motion: reduce) {
     scale: 1 !important;
-    translate: 0 0 !important;
     transition-property: opacity !important;
     transition-duration: var(--transition-duration-fast) !important;
 
     &[data-starting-style],
     &[data-ending-style] {
       scale: 1 !important;
-      translate: 0 0 !important;
+    }
+  }
+}
+
+/*
+ * Tooltips are opened constantly, so they stay smaller and faster than menus.
+ * Once one is open, neighbours carry `data-instant` and skip the transition.
+ */
+@utility tooltip-motion {
+  transform-origin: var(--transform-origin);
+  opacity: 1;
+  scale: 1;
+  transition-property: opacity, scale;
+  transition-duration: var(--transition-duration-fast);
+  transition-timing-function: var(--ease-emphasized);
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+    scale: 0.97;
+  }
+
+  &[data-instant] {
+    transition-duration: 0ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    scale: 1 !important;
+    transition-property: opacity !important;
+    transition-duration: var(--transition-duration-fast) !important;
+
+    &[data-starting-style],
+    &[data-ending-style] {
+      scale: 1 !important;
     }
   }
 }
@@ -142,7 +162,7 @@
   &[data-starting-style],
   &[data-ending-style] {
     opacity: 0;
-    scale: 0.95;
+    scale: 0.96;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -188,6 +208,8 @@
 
 @utility sheet-motion {
   transition-property: transform;
+  transition-duration: var(--transition-duration-slower);
+  transition-timing-function: var(--ease-drawer);
   --sheet-exit-x: 0px;
   --sheet-exit-y: 0px;
 
@@ -217,17 +239,59 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    opacity: 1;
     transform: none !important;
+    transition-property: opacity !important;
+    transition-duration: var(--transition-duration-fast) !important;
+    transition-timing-function: var(--ease-emphasized) !important;
 
     &[data-starting-style],
-    &[data-ending-style],
+    &[data-ending-style] {
+      opacity: 0;
+      transform: none !important;
+    }
+
     &[data-side="right"][data-nested-dialog-open]:not([data-ending-style]) {
       transform: none !important;
     }
 
     @starting-style {
+      opacity: 0;
       transform: none !important;
     }
+  }
+}
+
+/* Press scale uses ease-out. Color and shadow use CSS ease. */
+@utility control-motion {
+  transition-property: color, background-color, border-color, box-shadow, opacity, scale;
+  transition-duration: var(--transition-duration-fast);
+  transition-timing-function:
+    var(--ease-standard),
+    var(--ease-standard),
+    var(--ease-standard),
+    var(--ease-standard),
+    var(--ease-standard),
+    var(--ease-emphasized);
+}
+
+/* Accordion panels. Height is the one layout property this animation is allowed to touch. */
+@utility collapse-motion {
+  height: var(--collapsible-panel-height);
+  overflow: hidden;
+  opacity: 1;
+  transition-property: height, opacity;
+  transition-duration: var(--transition-duration-normal);
+  transition-timing-function: var(--ease-emphasized);
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition-property: opacity !important;
+    transition-duration: var(--transition-duration-fast) !important;
   }
 }
 

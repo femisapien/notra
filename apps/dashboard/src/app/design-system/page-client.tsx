@@ -421,6 +421,16 @@ const MOTION_EASINGS = [
     meta: "symmetric morphs",
     className: "duration-slower ease-emphasized-in-out",
   },
+  {
+    token: "ease-standard",
+    meta: "CSS ease · hover and color",
+    className: "duration-slower ease-standard",
+  },
+  {
+    token: "ease-drawer",
+    meta: "sheets only",
+    className: "duration-slower ease-drawer",
+  },
 ] as const;
 
 function MotionSample({

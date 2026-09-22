@@ -242,7 +242,7 @@ export function StarVideoPreview() {
                 aria-label={preset.label}
                 aria-pressed={backgroundColor === preset.value}
                 className={cn(
-                  "size-7 rounded-full border transition-transform hover:scale-110",
+                  "duration-fast ease-emphasized fine-pointer:hover:scale-105 size-7 rounded-full border transition-[scale]",
                   backgroundColor === preset.value
                     ? "border-[#1E1E1E] ring-2 ring-[#1E1E1E1A] dark:border-white dark:ring-white/20"
                     : "border-[#1E1E1E1A] dark:border-white/15"
@@ -258,7 +258,7 @@ export function StarVideoPreview() {
                 aria-label="Custom background color"
                 aria-pressed={isCustomBackground}
                 className={cn(
-                  "size-7 cursor-pointer rounded-full border transition-transform hover:scale-110",
+                  "duration-fast ease-emphasized fine-pointer:hover:scale-105 size-7 cursor-pointer rounded-full border transition-[scale]",
                   isCustomBackground
                     ? "border-[#1E1E1E] ring-2 ring-[#1E1E1E1A] dark:border-white dark:ring-white/20"
                     : "border-[#1E1E1E1A] bg-[conic-gradient(from_180deg,#FF6B6B,#FFD93D,#6BCB77,#4D96FF,#B983FF,#FF6B6B)] dark:border-white/15"

@@ -136,10 +136,10 @@ function CompetitorSwatch({
       aria-label={label}
       aria-pressed={selected}
       className={cn(
-        "duration-fast relative size-6 rounded-full outline outline-1 -outline-offset-1 outline-black/10 transition-transform ease-out dark:outline-white/10",
+        "duration-fast ease-emphasized relative size-6 rounded-full outline outline-1 -outline-offset-1 outline-black/10 transition-[scale] dark:outline-white/10",
         "focus-visible:ring-1 focus-visible:ring-white/70 focus-visible:outline-none focus-visible:ring-inset",
-        "active:scale-[0.96]",
-        !selected && "hover:scale-105",
+        "active:scale-[0.97]",
+        !selected && "fine-pointer:hover:scale-105",
         className
       )}
       style={{ backgroundColor: color, ...style }}

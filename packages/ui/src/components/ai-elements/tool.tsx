@@ -112,7 +112,7 @@ export const ToolHeader = ({
       {getStatusBadge(state)}
     </div>
     <HugeiconsIcon
-      className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+      className="size-4 text-muted-foreground transition-[rotate] duration-fast ease-emphasized in-data-[panel-open]:rotate-180"
       icon={ArrowDown01Icon}
     />
   </CollapsibleTrigger>
@@ -123,7 +123,7 @@ export type ToolContentProps = ComponentProps<typeof CollapsibleContent>;
 export const ToolContent = ({ className, ...props }: ToolContentProps) => (
   <CollapsibleContent
     className={cn(
-      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+      "collapse-motion text-popover-foreground outline-none",
       className
     )}
     {...props}

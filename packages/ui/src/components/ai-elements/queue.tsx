@@ -243,7 +243,7 @@ export const QueueSectionLabel = ({
 }: QueueSectionLabelProps) => (
   <span className={cn("flex items-center gap-2", className)} {...props}>
     <HugeiconsIcon
-      className="size-4 transition-transform group-data-[state=closed]:-rotate-90"
+      className="size-4 -rotate-90 transition-[rotate] duration-fast ease-emphasized in-data-[panel-open]:rotate-0"
       icon={ArrowDown01Icon}
     />
     {icon && <HugeiconsIcon className="size-4" icon={icon} />}

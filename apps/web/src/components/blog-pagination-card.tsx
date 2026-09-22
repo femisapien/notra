@@ -30,7 +30,7 @@ export function BlogPaginationCard({
             <>
               {label}
               <HugeiconsIcon
-                className="size-3.5 transition-transform group-hover:translate-x-0.5"
+                className="duration-fast ease-emphasized fine-pointer:group-hover:translate-x-0.5 size-3.5 transition-[translate]"
                 icon={icon}
                 strokeWidth={2}
               />
@@ -38,7 +38,7 @@ export function BlogPaginationCard({
           ) : (
             <>
               <HugeiconsIcon
-                className="size-3.5 transition-transform group-hover:-translate-x-0.5"
+                className="duration-fast ease-emphasized fine-pointer:group-hover:-translate-x-0.5 size-3.5 transition-[translate]"
                 icon={icon}
                 strokeWidth={2}
               />
