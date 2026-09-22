@@ -19,5 +19,5 @@ export const CHAT_EMPTY_DITHER_REVEAL_FALLBACK_MS = 500;
 export const CHAT_EMPTY_DITHER_PLACEMENT_CLASS = {
   top: "inset-0 opacity-60 [mask-image:linear-gradient(to_bottom,black_30%,transparent_88%)]",
   bottom:
-    "inset-x-0 bottom-0 h-[min(18rem,55%)] opacity-70 [mask-image:linear-gradient(to_top,black_10%,transparent_100%)]",
+    "inset-x-0 bottom-0 h-36 opacity-50 [mask-image:linear-gradient(to_top,black_12%,transparent_70%)]",
 } as const;
