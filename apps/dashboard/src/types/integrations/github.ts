@@ -407,6 +407,8 @@ export interface PublishContentDraftPullRequestParams {
   path: string;
   title: string;
   markdown: string;
+  /** Organization billed for follow-up commit-message generation. */
+  organizationId?: string;
   assets?: GitHubContentAsset[];
   assetPathsToDelete?: string[];
   /** Prepares repository-local assets after an existing draft's pinned content path is known. */

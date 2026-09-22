@@ -1161,6 +1161,7 @@ export const contentRouter = {
           path,
           title: post.title,
           markdown: savedMarkdown,
+          organizationId: input.organizationId,
           ...(linkedPullRequest ? { linkedPullRequest } : {}),
           ...(input.linkedOnly ? { requireLinkedPullRequest: true } : {}),
           ...(publisherLogin ? { publisherLogin } : {}),
