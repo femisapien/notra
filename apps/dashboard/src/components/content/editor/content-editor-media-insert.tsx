@@ -29,7 +29,7 @@ export function ContentEditorMediaInsert({
         render={
           <Button
             aria-label="Add image or video"
-            className="text-muted-foreground hover:text-foreground mt-1 shrink-0 md:mt-1.5"
+            className="mt-1 shrink-0 md:mt-1.5"
             size="icon-sm"
             variant="ghost"
           />
@@ -37,7 +37,7 @@ export function ContentEditorMediaInsert({
       >
         <HugeiconsIcon
           aria-hidden="true"
-          className="size-4"
+          className="text-muted-foreground group-hover/button:text-foreground size-4"
           icon={PlusSignIcon}
         />
       </DropdownMenuTrigger>
