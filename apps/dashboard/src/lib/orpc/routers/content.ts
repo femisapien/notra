@@ -1172,6 +1172,7 @@ export const contentRouter = {
                 outputConfig.success ? outputConfig.data.imagePath : null
               ),
               markdown: savedMarkdown,
+              organizationId: input.organizationId,
               slug: contentSlug,
             });
             if (

@@ -15,11 +15,7 @@ import {
   CONTENT_VIDEO_MIME_EXTENSIONS,
   type ContentVideoMimeType,
 } from "@/constants/content-video";
-import {
-  getOptionalR2PublicUrl,
-  getR2StorageConfig,
-  isR2StorageConfigured,
-} from "@/lib/upload/r2";
+import { getR2StorageConfig, isR2StorageConfigured } from "@/lib/upload/r2";
 import { isSafeContentImageKey } from "@/utils/content-image-key";
 
 const CONTENT_MEDIA_MIME_EXTENSIONS = {
@@ -106,7 +102,7 @@ async function writeR2(key: string, bytes: Uint8Array, mimeType: string) {
     new PutObjectCommand({
       Body: bytes,
       Bucket: bucketName,
-      CacheControl: "public, max-age=31536000, immutable",
+      CacheControl: "private, max-age=31536000, immutable",
       ContentLength: bytes.byteLength,
       ContentType: mimeType,
       Key: key,
@@ -163,18 +159,14 @@ export async function saveContentImage(params: {
     throw new Error("Invalid content image key");
   }
 
-  const publicUrl = getOptionalR2PublicUrl();
-  if (isR2StorageConfigured() && publicUrl) {
-    await writeR2(key, params.bytes, params.mimeType);
-    return { key, url: `${publicUrl}/${key}` };
-  }
-
   if (isR2StorageConfigured()) {
     await writeR2(key, params.bytes, params.mimeType);
   } else {
     await writeDisk(key, params.bytes);
   }
 
+  // ponytail: app URL only, so a draft is as private as the post. A public R2
+  // bucket still serves a key that already leaked; use a private bucket then.
   return { key, url: `${CONTENT_IMAGE_ROUTE}/${key}` };
 }
 

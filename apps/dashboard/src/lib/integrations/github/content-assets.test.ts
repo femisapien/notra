@@ -43,6 +43,7 @@ test("puts an uploaded image in the pull request beside the markdown", async () 
       return { contents: png, extension: ".png" };
     },
     markdown: `Intro\n\n![Cover](/api/uploads/content-images/${KEY})\n`,
+    organizationId: "org_1",
     publicUrl: null,
     slug: "hello-world",
   });
@@ -58,16 +59,21 @@ test("keeps external images as links and numbers later uploads", async () => {
     appOrigin: "https://app.usenotra.com",
     contentPath: "blog/hello-world.md",
     imagePathTemplate: "public/blog/:slug/image",
-    loadImage: async (key) => ({
-      contents: new Uint8Array([key === KEY ? 1 : 2]),
-      extension: key.endsWith(".jpg") ? ".jpg" : ".png",
-    }),
+    loadImage: async (key) => {
+      expect(key.startsWith("organization/org_1/")).toBe(true);
+      return {
+        contents: new Uint8Array([key === KEY ? 1 : 2]),
+        extension: key.endsWith(".jpg") ? ".jpg" : ".png",
+      };
+    },
     markdown: [
       `![Cover](https://cdn.example/organization/org_1/content/abc123.png)`,
       `![Shot](https://cdn.example/${KEY})`,
       "![Remote](https://example.com/remote.png)",
+      `![Other](https://cdn.example/organization/org_2/content/other.png)`,
       `![Second](https://cdn.example/${SECOND_KEY})`,
     ].join("\n"),
+    organizationId: "org_1",
     publicUrl: "https://cdn.example",
     slug: "hello-world",
   });
@@ -80,6 +86,9 @@ test("keeps external images as links and numbers later uploads", async () => {
   expect(prepared.markdown).toContain("![Shot](/blog/hello-world/image.png)");
   expect(prepared.markdown).toContain(
     "![Remote](https://example.com/remote.png)"
+  );
+  expect(prepared.markdown).toContain(
+    "![Other](https://cdn.example/organization/org_2/content/other.png)"
   );
   expect(prepared.markdown).toContain(
     "![Second](/blog/hello-world/image-2.jpg)"
@@ -100,6 +109,7 @@ test("puts an uploaded video in the pull request beside the markdown", async () 
     contentPath: "blog/hello-world.md",
     imagePathTemplate: "blog/hello-world",
     markdown: `Intro\n\n<video controls src="${saved.url}"></video>\n\n\`\`\`\n<video controls src="${saved.url}"></video>\n\`\`\`\n`,
+    organizationId: "org_video",
     slug: "hello-world",
   });
 
@@ -112,4 +122,23 @@ test("puts an uploaded video in the pull request beside the markdown", async () 
   expect(prepared.markdown).toContain(
     `\`\`\`\n<video controls src="${saved.url}"></video>\n\`\`\``
   );
+});
+
+test("leaves another organization's upload as a link", async () => {
+  const { saveContentImage } = await import("../../upload/content-image-store");
+  const saved = await saveContentImage({
+    bytes: new Uint8Array([1, 2, 3, 4]),
+    mimeType: "image/png",
+    organizationId: "org_other",
+  });
+  const prepared = await prepareR2GitHubContentAssets({
+    contentPath: "blog/hello-world.md",
+    imagePathTemplate: "blog/hello-world",
+    markdown: `![Cover](${saved.url})`,
+    organizationId: "org_1",
+    slug: "hello-world",
+  });
+
+  expect(prepared.assets).toEqual([]);
+  expect(prepared.markdown).toContain(`![Cover](${saved.url})`);
 });

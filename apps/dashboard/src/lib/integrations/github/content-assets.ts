@@ -15,6 +15,7 @@ import type {
 } from "@/types/integrations/github";
 import {
   getAppContentImageKey,
+  isSafeContentImageKey,
   readAppOrigin,
 } from "@/utils/content-image-key";
 
@@ -278,7 +279,11 @@ export async function prepareGitHubContentAssets(
       params.publicUrl,
       params.appOrigin
     );
-    if (key) {
+    if (
+      key &&
+      isSafeContentImageKey(key) &&
+      key.startsWith(`organization/${params.organizationId}/`)
+    ) {
       const imageUrls = imageUrlsByKey.get(key) ?? [];
       if (!imageUrls.includes(occurrence.url)) {
         imageUrls.push(occurrence.url);
@@ -346,6 +351,7 @@ export async function prepareR2GitHubContentAssets(params: {
   contentPath: string;
   imagePathTemplate: string;
   markdown: string;
+  organizationId: string;
   slug: string;
 }) {
   const publicUrl = getOptionalR2PublicUrl();
