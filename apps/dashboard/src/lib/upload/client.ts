@@ -92,8 +92,8 @@ export async function uploadContentMedia(file: File, kind: ContentMediaKind) {
     body,
     method: "POST",
   });
-  const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
+    const payload: unknown = await response.json().catch(() => null);
     const message =
       payload &&
       typeof payload === "object" &&
@@ -103,6 +103,7 @@ export async function uploadContentMedia(file: File, kind: ContentMediaKind) {
         : fallback;
     throw new Error(message);
   }
+  const payload: unknown = await response.json().catch(() => null);
   if (
     !(
       payload &&

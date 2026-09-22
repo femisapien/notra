@@ -183,8 +183,8 @@ export function useContentDetailDocument({
     hasTitleChanges,
     serverSlug,
     serverTitle,
-    setEditingSlug,
-    setEditingTitle,
+    setEditingSlug: setEditingSlugState,
+    setEditingTitle: setEditingTitleState,
     setPersistedSlug,
     setPersistedTitle,
     title,
@@ -194,13 +194,24 @@ export function useContentDetailDocument({
     currentMarkdown,
   });
 
+  const setEditingTitle = useCallback(
+    (nextTitle: string | null) => {
+      setSaveFailed(false);
+      setEditingTitleState(nextTitle);
+    },
+    [setEditingTitleState]
+  );
+  const setEditingSlug = useCallback(
+    (nextSlug: string | null) => {
+      setSaveFailed(false);
+      setEditingSlugState(nextSlug);
+    },
+    [setEditingSlugState]
+  );
+
   const hasMarkdownChanges =
     resolvedEditedMarkdown !== resolvedOriginalMarkdown;
   const hasChanges = hasMarkdownChanges || hasTitleChanges || hasSlugChanges;
-
-  useEffect(() => {
-    setSaveFailed(false);
-  }, [editingSlug, resolvedEditedMarkdown, title]);
 
   const handlePlanBriefChange = useCallback(
     (nextBrief: GeoContentBrief) => {
@@ -260,8 +271,8 @@ export function useContentDetailDocument({
         editedMarkdownRef.current = article.content.markdown ?? "";
         originalMarkdownRef.current = article.content.markdown ?? "";
         setPersistedSlug(null);
-        setEditingTitle(null);
-        setEditingSlug(null);
+        setEditingTitleState(null);
+        setEditingSlugState(null);
         setReviewPreviousMarkdown(null);
         needsNormalizationRef.current = true;
         setEditorKey((key) => key + 1);
@@ -286,8 +297,8 @@ export function useContentDetailDocument({
       pendingArticleBriefId,
       organizationId,
       queryClient,
-      setEditingSlug,
-      setEditingTitle,
+      setEditingSlugState,
+      setEditingTitleState,
       setPersistedSlug,
     ]
   );
@@ -347,11 +358,11 @@ export function useContentDetailDocument({
             setReviewPreviousMarkdown(null);
           }
           setPersistedTitle(persistedTitle);
-          setEditingTitle((current) =>
+          setEditingTitleState((current) =>
             current === null || current === titleToSave ? null : current
           );
           setPersistedSlug(persistedSlug);
-          setEditingSlug((current) =>
+          setEditingSlugState((current) =>
             current === null || current === slugToSave ? null : current
           );
           setSaveFailed(false);
@@ -443,8 +454,8 @@ export function useContentDetailDocument({
       organizationId,
       contentId,
       queryClient,
-      setEditingSlug,
-      setEditingTitle,
+      setEditingSlugState,
+      setEditingTitleState,
       setPersistedSlug,
       setPersistedTitle,
       linkedGitHubPublish,
@@ -496,12 +507,12 @@ export function useContentDetailDocument({
     setOriginalMarkdown("");
     editedMarkdownRef.current = resolvedOriginalMarkdown;
     editorRef.current?.setMarkdown(resolvedOriginalMarkdown);
-    setEditingTitle(null);
-    setEditingSlug(null);
+    setEditingTitleState(null);
+    setEditingSlugState(null);
     setReviewPreviousMarkdown(null);
     setSaveFailed(false);
     setEditorKey((key) => key + 1);
-  }, [resolvedOriginalMarkdown, setEditingSlug, setEditingTitle]);
+  }, [resolvedOriginalMarkdown, setEditingSlugState, setEditingTitleState]);
 
   const handleToggleStatus = useCallback(async () => {
     const currentStatus = data?.content?.status;
@@ -534,6 +545,7 @@ export function useContentDetailDocument({
     needsNormalizationRef.current = false;
     setEditedMarkdown(markdown);
     editedMarkdownRef.current = markdown;
+    setSaveFailed(false);
   }, []);
 
   const invalidateContentQueries = useCallback(

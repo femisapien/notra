@@ -15,11 +15,11 @@ import {
 import type { RefObject } from "react";
 
 import { Button } from "@/components/button";
-import type { EditorRefHandle } from "@/components/content/editor/plugins/editor-ref-plugin";
 import {
   OPEN_CONTENT_IMAGE_UPLOAD_COMMAND,
   OPEN_CONTENT_VIDEO_UPLOAD_COMMAND,
-} from "@/components/content/editor/plugins/image-upload-plugin";
+} from "@/components/content/editor/plugins/content-media-commands";
+import type { EditorRefHandle } from "@/components/content/editor/plugins/editor-ref-plugin";
 
 export function ContentEditorMediaInsert({
   editorRef,

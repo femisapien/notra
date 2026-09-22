@@ -42,7 +42,7 @@ import { $createKiboCodeBlockNode } from "../nodes/kibo-code-block-node";
 import {
   OPEN_CONTENT_IMAGE_UPLOAD_COMMAND,
   OPEN_CONTENT_VIDEO_UPLOAD_COMMAND,
-} from "./image-upload-plugin";
+} from "./content-media-commands";
 
 class ComponentPickerOption extends MenuOption {
   title: string;

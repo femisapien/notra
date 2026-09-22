@@ -10,14 +10,19 @@ import {
   $isRangeSelection,
   COMMAND_PRIORITY_HIGH,
   COMMAND_PRIORITY_LOW,
-  createCommand,
   DROP_COMMAND,
   type LexicalCommand,
   type LexicalEditor,
   type LexicalNode,
   PASTE_COMMAND,
 } from "lexical";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import { CONTENT_IMAGE_MIME_EXTENSIONS } from "@/constants/content-image";
@@ -28,12 +33,10 @@ import type { ContentMediaKind } from "@/types/content/media";
 
 import { $createContentImageNode } from "../nodes/content-image-node";
 import { $createContentVideoNode } from "../nodes/content-video-node";
-
-export const OPEN_CONTENT_IMAGE_UPLOAD_COMMAND: LexicalCommand<void> =
-  createCommand("OPEN_CONTENT_IMAGE_UPLOAD_COMMAND");
-
-export const OPEN_CONTENT_VIDEO_UPLOAD_COMMAND: LexicalCommand<void> =
-  createCommand("OPEN_CONTENT_VIDEO_UPLOAD_COMMAND");
+import {
+  OPEN_CONTENT_IMAGE_UPLOAD_COMMAND,
+  OPEN_CONTENT_VIDEO_UPLOAD_COMMAND,
+} from "./content-media-commands";
 
 const CONTENT_MEDIA_KINDS = [
   "image",
@@ -131,12 +134,55 @@ function placeBlock(
   return insertedKey;
 }
 
+function queuedMedia(files: File[]) {
+  const jobs: { file: File; kind: ContentMediaKind }[] = [];
+  for (const file of files) {
+    const kind = kindForFile(file);
+    if (!kind) {
+      continue;
+    }
+    if (file.size > CONTENT_MEDIA[kind].maxBytes) {
+      toast.error(CONTENT_MEDIA[kind].tooLarge);
+      continue;
+    }
+    jobs.push({ file, kind });
+  }
+  return jobs;
+}
+
+async function insertUploadedFiles(
+  editor: LexicalEditor,
+  jobs: { file: File; kind: ContentMediaKind }[],
+  afterKey: string | null
+) {
+  const uploaded = await Promise.all(
+    jobs.map(async ({ file, kind }) => {
+      try {
+        const { url } = await uploadContentMedia(file, kind);
+        return { file, kind, url };
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Upload failed");
+        return null;
+      }
+    })
+  );
+  let key = afterKey;
+  for (const item of uploaded) {
+    if (!item) {
+      continue;
+    }
+    key = placeBlock(editor, key, () =>
+      EDITOR_MEDIA[item.kind].createNode(item.file, item.url)
+    );
+  }
+}
+
 export function ImageUploadPlugin() {
   const [editor] = useLexicalComposerContext();
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const anchorKeyRef = useRef<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [editable, setEditable] = useState(editor.isEditable());
+  const uploadingRef = useRef(false);
+  const [editable, setEditable] = useState(() => editor.isEditable());
 
   useEffect(() => editor.registerEditableListener(setEditable), [editor]);
 
@@ -149,42 +195,22 @@ export function ImageUploadPlugin() {
     });
   }, [editor]);
 
-  const insertUploaded = (files: File[]) => {
-    if (files.length === 0 || !editor.isEditable() || uploading) {
+  const insertUploaded = useEffectEvent((files: File[]) => {
+    if (files.length === 0 || !editor.isEditable() || uploadingRef.current) {
       return;
     }
-    const anchorKey = anchorKeyRef.current;
-    setUploading(true);
+    const jobs = queuedMedia(files);
+    if (jobs.length === 0) {
+      return;
+    }
+    uploadingRef.current = true;
     const toastId = toast.loading("Uploading…");
-    void (async () => {
-      let afterKey = anchorKey;
-      try {
-        for (const file of files) {
-          const kind = kindForFile(file);
-          if (!kind) {
-            continue;
-          }
-          const media = CONTENT_MEDIA[kind];
-          if (file.size > media.maxBytes) {
-            toast.error(media.tooLarge);
-            continue;
-          }
-          const uploaded = await uploadContentMedia(file, kind);
-          afterKey = placeBlock(editor, afterKey, () =>
-            EDITOR_MEDIA[kind].createNode(file, uploaded.url)
-          );
-        }
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Upload failed");
-      } finally {
-        toast.dismiss(toastId);
-        setUploading(false);
-      }
-    })();
-  };
-
-  const insertRef = useRef(insertUploaded);
-  insertRef.current = insertUploaded;
+    const afterKey = anchorKeyRef.current;
+    void insertUploadedFiles(editor, jobs, afterKey).finally(() => {
+      toast.dismiss(toastId);
+      uploadingRef.current = false;
+    });
+  });
 
   useEffect(() => {
     const onDragOver = (event: DragEvent) => {
@@ -235,7 +261,7 @@ export function ImageUploadPlugin() {
           }
           event.preventDefault();
           rememberSelection();
-          insertRef.current(files);
+          insertUploaded(files);
           return true;
         },
         COMMAND_PRIORITY_HIGH
@@ -252,7 +278,7 @@ export function ImageUploadPlugin() {
           }
           event.preventDefault();
           rememberSelection();
-          insertRef.current(files);
+          insertUploaded(files);
           return true;
         },
         COMMAND_PRIORITY_HIGH
