@@ -105,6 +105,7 @@ import { assertOrganizationAccess } from "@/lib/auth/organization";
 import { assertActiveSubscription } from "@/lib/billing/subscription";
 import { getUtcDayRange } from "@/lib/content/content-calendar";
 import { getContentPublishingMetrics } from "@/lib/content/content-publishing-metrics.server";
+import { postsVisibleToUser } from "@/lib/content/post-visibility";
 import { projectScopedCollectionIds } from "@/lib/content/project-scope";
 import {
   addActiveGeneration,
@@ -179,6 +180,9 @@ const postReadColumns = {
   sourceMetadata: true,
   githubPublish: true,
   status: true,
+  visibility: true,
+  shareToken: true,
+  createdByUserId: true,
   updatedAt: true,
 } as const;
 
@@ -251,7 +255,9 @@ function serializeContent(post: {
   sourceMetadata: unknown;
   githubPublish: unknown;
   status: "draft" | "published";
+  shareToken: string | null;
   title: string;
+  visibility: ContentResponse["visibility"];
 }): ContentResponse {
   const githubPublish = postGitHubPublishSchema.safeParse(post.githubPublish);
 
@@ -266,6 +272,8 @@ function serializeContent(post: {
     recommendations: post.recommendations,
     contentType: post.contentType as ContentResponse["contentType"],
     status: post.status,
+    visibility: post.visibility,
+    shareToken: post.shareToken,
     date: post.createdAt.toISOString(),
     sourceMetadata: post.sourceMetadata as ContentResponse["sourceMetadata"],
     githubPublish: githubPublish.success ? githubPublish.data : null,
@@ -532,13 +540,16 @@ export const contentRouter = {
         contentOrganizationIdInputSchema.and(dashboardHomeContentQuerySchema)
       )
       .handler(async ({ context, input }) => {
-        await assertOrganizationAccess({
+        const auth = await assertOrganizationAccess({
           headers: context.headers,
           organizationId: input.organizationId,
         });
 
         const dateRange = getUtcDayRange("today");
-        const filters = [eq(posts.organizationId, input.organizationId)];
+        const filters = [
+          eq(posts.organizationId, input.organizationId),
+          postsVisibleToUser(auth.user.id),
+        ];
         const collectionIds = projectScopedCollectionIds(
           input.organizationId,
           input.projectId
@@ -570,7 +581,7 @@ export const contentRouter = {
   list: baseProcedure
     .input(contentOrganizationIdInputSchema.and(contentListQuerySchema))
     .handler(async ({ context, input }) => {
-      await assertOrganizationAccess({
+      const auth = await assertOrganizationAccess({
         headers: context.headers,
         organizationId: input.organizationId,
       });
@@ -581,7 +592,10 @@ export const contentRouter = {
         throw badRequest("Invalid date");
       }
 
-      const baseFilters = [eq(posts.organizationId, input.organizationId)];
+      const baseFilters = [
+        eq(posts.organizationId, input.organizationId),
+        postsVisibleToUser(auth.user.id),
+      ];
       const projectCollectionIds = projectScopedCollectionIds(
         input.organizationId,
         input.projectId
@@ -628,7 +642,7 @@ export const contentRouter = {
   get: baseProcedure
     .input(contentInputSchema)
     .handler(async ({ context, input }) => {
-      await assertOrganizationAccess({
+      const auth = await assertOrganizationAccess({
         headers: context.headers,
         organizationId: input.organizationId,
       });
@@ -636,7 +650,8 @@ export const contentRouter = {
       const post = await db.query.posts.findFirst({
         where: and(
           eq(posts.id, input.contentId),
-          eq(posts.organizationId, input.organizationId)
+          eq(posts.organizationId, input.organizationId),
+          postsVisibleToUser(auth.user.id)
         ),
         columns: postReadColumns,
       });
@@ -660,7 +675,7 @@ export const contentRouter = {
             },
             // The current post is excluded in SQL, and the rail is bounded: a
             // collection can hold hundreds of posts.
-            where: ne(posts.id, post.id),
+            where: and(ne(posts.id, post.id), postsVisibleToUser(auth.user.id)),
             orderBy: [asc(posts.createdAt), asc(posts.id)],
             limit: CONTENT_SIBLING_LIMIT,
           },
@@ -740,6 +755,8 @@ export const contentRouter = {
             markdown,
             contentType: input.contentType,
             status: "draft",
+            visibility: "organization",
+            createdByUserId: auth.user.id,
             sourceMetadata: null,
             createdAt: now,
             updatedAt: now,
@@ -782,12 +799,15 @@ export const contentRouter = {
       const existingPost = await db.query.posts.findFirst({
         where: and(
           eq(posts.id, input.contentId),
-          eq(posts.organizationId, input.organizationId)
+          eq(posts.organizationId, input.organizationId),
+          postsVisibleToUser(auth.user.id)
         ),
         columns: {
           title: true,
           contentType: true,
           status: true,
+          visibility: true,
+          shareToken: true,
         },
       });
 
@@ -809,6 +829,16 @@ export const contentRouter = {
         updateData.slug = input.slug;
       }
 
+      if (input.visibility !== undefined) {
+        updateData.visibility = input.visibility;
+        if (input.visibility === "private") {
+          updateData.createdByUserId = auth.user.id;
+        }
+        if (input.visibility === "unlisted" && !existingPost.shareToken) {
+          updateData.shareToken = nanoid();
+        }
+      }
+
       try {
         const [updatedPost] = await db
           .update(posts)
@@ -816,7 +846,8 @@ export const contentRouter = {
           .where(
             and(
               eq(posts.id, input.contentId),
-              eq(posts.organizationId, input.organizationId)
+              eq(posts.organizationId, input.organizationId),
+              postsVisibleToUser(auth.user.id)
             )
           )
           .returning({
@@ -834,6 +865,8 @@ export const contentRouter = {
             sourceMetadata: posts.sourceMetadata,
             githubPublish: posts.githubPublish,
             status: posts.status,
+            visibility: posts.visibility,
+            shareToken: posts.shareToken,
             updatedAt: posts.updatedAt,
           });
 
@@ -1340,7 +1373,8 @@ export const contentRouter = {
       const existingPost = await db.query.posts.findFirst({
         where: and(
           eq(posts.id, input.contentId),
-          eq(posts.organizationId, input.organizationId)
+          eq(posts.organizationId, input.organizationId),
+          postsVisibleToUser(auth.user.id)
         ),
         columns: {
           id: true,
@@ -1357,7 +1391,8 @@ export const contentRouter = {
         .where(
           and(
             eq(posts.id, input.contentId),
-            eq(posts.organizationId, input.organizationId)
+            eq(posts.organizationId, input.organizationId),
+            postsVisibleToUser(auth.user.id)
           )
         );
 
@@ -1378,7 +1413,7 @@ export const contentRouter = {
     list: baseProcedure
       .input(postCollectionsListInputSchema)
       .handler(async ({ context, input }) => {
-        await assertOrganizationAccess({
+        const auth = await assertOrganizationAccess({
           headers: context.headers,
           organizationId: input.organizationId,
         });
@@ -1427,7 +1462,12 @@ export const contentRouter = {
                   >`array_agg(distinct ${posts.contentType})`,
                 })
                 .from(posts)
-                .where(inArray(posts.collectionId, collectionIds))
+                .where(
+                  and(
+                    inArray(posts.collectionId, collectionIds),
+                    postsVisibleToUser(auth.user.id)
+                  )
+                )
                 .groupBy(posts.collectionId)
             : [];
 
@@ -1503,7 +1543,7 @@ export const contentRouter = {
     get: baseProcedure
       .input(postCollectionInputSchema)
       .handler(async ({ context, input }) => {
-        await assertOrganizationAccess({
+        const auth = await assertOrganizationAccess({
           headers: context.headers,
           organizationId: input.organizationId,
         });
@@ -1526,6 +1566,7 @@ export const contentRouter = {
                 createdAt: true,
                 updatedAt: true,
               },
+              where: postsVisibleToUser(auth.user.id),
               orderBy: [asc(posts.createdAt), asc(posts.id)],
             },
           },

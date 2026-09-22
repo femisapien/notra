@@ -12,3 +12,9 @@ export const CONTENT_PUBLICATION_STATUSES = [
   "merged",
   "closed",
 ] as const;
+
+export const POST_VISIBILITIES = [
+  "private",
+  "organization",
+  "unlisted",
+] as const;
