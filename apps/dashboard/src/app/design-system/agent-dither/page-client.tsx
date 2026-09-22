@@ -17,7 +17,7 @@ import { RIGHT_PANEL_FRAME_CLASSNAME } from "@/constants/right-panel";
 
 const NOOP = () => undefined;
 const FIRST_MESSAGE = "Draft a short launch note for GEO tracking.";
-const EMPTY_DELAY_MS = 2200;
+const EMPTY_DELAY_MS = 4000;
 const TYPE_INTERVAL_MS = 28;
 const SEND_PAUSE_MS = 450;
 
