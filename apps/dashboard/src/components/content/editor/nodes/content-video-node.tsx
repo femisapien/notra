@@ -5,7 +5,6 @@ import type {
   DOMConversionOutput,
   DOMExportOutput,
   EditorConfig,
-  LexicalEditor,
   LexicalNode,
   NodeKey,
   SerializedLexicalNode,
@@ -13,6 +12,8 @@ import type {
 } from "lexical";
 import { $applyNodeReplacement, DecoratorNode } from "lexical";
 import type { JSX } from "react";
+
+import { ContentVideoPlayer } from "./content-video-player";
 
 export interface SerializedContentVideoNode extends Spread<
   {
@@ -116,16 +117,7 @@ export class ContentVideoNode extends DecoratorNode<JSX.Element> {
   }
 
   decorate(): JSX.Element {
-    return (
-      // oxlint-disable-next-line jsx-a11y/media-has-caption -- uploads do not include a caption file
-      <video
-        aria-label="Video"
-        className="max-h-[32rem] w-full rounded-md"
-        controls
-        preload="metadata"
-        src={this.__src}
-      />
-    );
+    return <ContentVideoPlayer src={this.__src} />;
   }
 }
 

@@ -5,7 +5,6 @@ import type {
   DOMConversionOutput,
   DOMExportOutput,
   EditorConfig,
-  LexicalEditor,
   LexicalNode,
   NodeKey,
   SerializedLexicalNode,
@@ -13,6 +12,8 @@ import type {
 } from "lexical";
 import { $applyNodeReplacement, DecoratorNode } from "lexical";
 import type { JSX } from "react";
+
+import { ContentImageView } from "./content-image-view";
 
 export interface SerializedContentImageNode extends Spread<
   {
@@ -122,18 +123,8 @@ export class ContentImageNode extends DecoratorNode<JSX.Element> {
     return this.__altText;
   }
 
-  decorate(_editor: LexicalEditor, _config: EditorConfig): JSX.Element {
-    return (
-      // User content can be an R2 host or a same-origin upload. next/image
-      // only allows configured remote hosts, so the editor uses a plain image.
-      // biome-ignore lint/performance/noImgElement: remote content images are not limited to next/image hosts
-      <img
-        alt={this.__altText}
-        className="max-h-[32rem] w-full rounded-md object-contain"
-        draggable={false}
-        src={this.__src}
-      />
-    );
+  decorate(): JSX.Element {
+    return <ContentImageView alt={this.__altText} src={this.__src} />;
   }
 }
 
