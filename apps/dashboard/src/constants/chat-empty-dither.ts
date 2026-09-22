@@ -16,3 +16,8 @@ export const CHAT_EMPTY_DITHER_SCALE = 0.58;
 export const CHAT_EMPTY_DITHER_DEFER_MS = 150;
 /** Fallback if the canvas never mounts (chunk/WebGL stall). */
 export const CHAT_EMPTY_DITHER_REVEAL_FALLBACK_MS = 500;
+export const CHAT_EMPTY_DITHER_PLACEMENT_CLASS = {
+  top: "inset-0 opacity-60 [mask-image:linear-gradient(to_bottom,black_30%,transparent_88%)]",
+  bottom:
+    "inset-x-0 bottom-0 h-[min(18rem,55%)] opacity-70 [mask-image:linear-gradient(to_top,black_10%,transparent_100%)]",
+} as const;

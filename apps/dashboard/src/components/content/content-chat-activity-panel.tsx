@@ -64,16 +64,13 @@ const ACTIVITY_MESSAGE_CLASSNAME =
 function ContentChatActivityFeed({
   children,
   scrollKey,
-  showDither,
 }: {
   children: ReactNode;
   scrollKey: string;
-  showDither: boolean;
 }) {
   return (
     <MessageScrollerProvider autoScroll key={scrollKey}>
       <MessageScroller className="relative min-h-0 min-w-0 flex-1 overflow-x-clip">
-        {showDither ? <ChatEmptyDither /> : null}
         <MessageScrollerViewport className="min-w-0 overflow-x-hidden">
           <MessageScrollerContent className="min-w-0 gap-4 px-4 pt-4 pb-4">
             {children}
@@ -404,16 +401,16 @@ export function ContentChatActivityPanel(props: ContentChatActivityPanelProps) {
   const lastUserMessageId = [...visibleMessages]
     .reverse()
     .find((message) => message.role === "user")?.id;
+  const showDither = visibleMessages.length === 0 || isAgentBusy;
+  const ditherPlacement = isAgentBusy ? "bottom" : "top";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ContentChatActivityHeader {...props} />
       <div className="bg-muted flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-[calc(0.75rem-1px)]">
-        <div className="bg-background flex min-h-0 flex-1 flex-col rounded-t-xl">
-          <ContentChatActivityFeed
-            scrollKey={activeChatId ?? ""}
-            showDither={visibleMessages.length === 0 && !showThinkingIndicator}
-          >
+        <div className="bg-background relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-xl">
+          {showDither ? <ChatEmptyDither placement={ditherPlacement} /> : null}
+          <ContentChatActivityFeed scrollKey={activeChatId ?? ""}>
             {visibleMessages.map((message) => (
               <MessageScrollerItem
                 key={message.id}

@@ -10,6 +10,7 @@ import {
   CHAT_EMPTY_DITHER_COLORS_DARK,
   CHAT_EMPTY_DITHER_COLORS_LIGHT,
   CHAT_EMPTY_DITHER_DEFER_MS,
+  CHAT_EMPTY_DITHER_PLACEMENT_CLASS,
   CHAT_EMPTY_DITHER_REVEAL_FALLBACK_MS,
   CHAT_EMPTY_DITHER_SCALE,
   CHAT_EMPTY_DITHER_SHAPE,
@@ -25,7 +26,10 @@ const Dithering = dynamic(
   { ssr: false }
 );
 
-export function ChatEmptyDither({ className }: ChatEmptyDitherProps) {
+export function ChatEmptyDither({
+  className,
+  placement = "top",
+}: ChatEmptyDitherProps) {
   const { resolvedTheme } = useTheme();
   const shouldReduceMotion = useReducedMotion();
   const shaderRef = useRef<HTMLDivElement>(null);
@@ -90,7 +94,8 @@ export function ChatEmptyDither({ className }: ChatEmptyDitherProps) {
     <div
       aria-hidden="true"
       className={cn(
-        "pointer-events-none absolute inset-0 overflow-hidden [mask-image:linear-gradient(to_bottom,black_30%,transparent_88%)] opacity-60",
+        "pointer-events-none absolute overflow-hidden",
+        CHAT_EMPTY_DITHER_PLACEMENT_CLASS[placement],
         className
       )}
     >
