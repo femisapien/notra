@@ -3,8 +3,6 @@ import { NextResponse } from "next/server";
 
 import { readAuthorizedContentImage } from "@/lib/upload/server";
 
-export const runtime = "nodejs";
-
 interface ContentImageRouteContext {
   params: Promise<{ key: string[] }>;
 }

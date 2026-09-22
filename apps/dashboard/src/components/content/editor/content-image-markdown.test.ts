@@ -9,10 +9,13 @@ import {
 } from "@lexical/markdown";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
-import { createEditor } from "lexical";
+import { $createParagraphNode, $getRoot, createEditor } from "lexical";
 
 import { EDITOR_TRANSFORMERS } from "./markdown-transformers";
-import { ContentImageNode } from "./nodes/content-image-node";
+import {
+  $createContentImageNode,
+  ContentImageNode,
+} from "./nodes/content-image-node";
 import { ContentVideoNode } from "./nodes/content-video-node";
 import { KiboCodeBlockNode } from "./nodes/kibo-code-block-node";
 
@@ -53,6 +56,34 @@ function withMarkdown(markdown: string) {
 test("image markdown round-trips through the editor", () => {
   const markdown = withMarkdown("![Cover photo](https://cdn.example/a.png)");
   expect(markdown).toContain("![Cover photo](https://cdn.example/a.png)");
+});
+
+test("a top-level uploaded image exports as markdown", () => {
+  const editor = createEditor({
+    nodes: [ContentImageNode],
+    onError: (error: Error) => {
+      throw error;
+    },
+  });
+  editor.update(
+    () => {
+      const root = $getRoot();
+      root.clear();
+      root.append(
+        $createParagraphNode(),
+        $createContentImageNode({
+          altText: "Cover",
+          src: "https://cdn.example/a.png",
+        })
+      );
+    },
+    { discrete: true }
+  );
+  let markdown = "";
+  editor.getEditorState().read(() => {
+    markdown = $convertToMarkdownString(EDITOR_TRANSFORMERS);
+  });
+  expect(markdown).toContain("![Cover](https://cdn.example/a.png)");
 });
 
 test("video markdown round-trips through the editor", () => {

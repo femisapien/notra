@@ -5,7 +5,6 @@ import { MAX_CONTENT_IMAGE_INPUT_BYTES } from "@/constants/content-image";
 import { MAX_CONTENT_VIDEO_BYTES } from "@/constants/content-video";
 import { uploadContentImage, uploadContentVideo } from "@/lib/upload/server";
 
-export const runtime = "nodejs";
 export const maxDuration = 30;
 
 function errorResponse(error: unknown, video: boolean) {

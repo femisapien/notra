@@ -6,7 +6,6 @@ import {
 import type {
   ElementTransformer,
   MultilineElementTransformer,
-  TextMatchTransformer,
   Transformer,
 } from "@lexical/markdown";
 import { TRANSFORMERS } from "@lexical/markdown";
@@ -38,7 +37,7 @@ import {
   KiboCodeBlockNode,
 } from "./nodes/kibo-code-block-node";
 
-export const CONTENT_IMAGE: TextMatchTransformer = {
+export const CONTENT_IMAGE: ElementTransformer = {
   dependencies: [ContentImageNode],
   export: (node) => {
     if (!$isContentImageNode(node)) {
@@ -47,26 +46,32 @@ export const CONTENT_IMAGE: TextMatchTransformer = {
     const alt = node.getAltText().replace(/[[\]]/g, "");
     return `![${alt}](${node.getSrc()})`;
   },
-  importRegExp: /!(?:\[([^[\]]*)\])(?:\(([^(]+)\))/,
-  regExp: /!(?:\[([^[\]]*)\])(?:\(([^(]+)\))$/,
-  replace: (textNode, match) => {
-    const [, altText, src] = match;
-    if (!src) {
-      return;
-    }
+  regExp: /^!\[([^[\]]*)\]\(([^)\s]+)\)\s*$/,
+  replace: (parentNode, children, match) => {
+    const altText = match[1] ?? "";
+    const src = match[2];
     try {
-      textNode.replace(
+      if (!src) {
+        throw new Error("Image URL is missing");
+      }
+      parentNode.replace(
         $createContentImageNode({
-          altText: altText ?? "",
+          altText,
           src,
         })
       );
     } catch {
-      // Unsafe image URLs stay as the markdown text the author typed.
+      // Lexical clears the matched line before replace. Put it back when the
+      // URL is not one we can render.
+      const text = children?.[0];
+      const line = match[0];
+      if ($isTextNode(text) && line) {
+        text.setTextContent(line);
+      }
+      return false;
     }
   },
-  trigger: ")",
-  type: "text-match",
+  type: "element",
 };
 
 export const CONTENT_VIDEO: ElementTransformer = {
