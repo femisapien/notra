@@ -30,9 +30,9 @@ export const editorTheme: EditorThemeClasses = {
   },
   quote: "border-l-4 border-border pl-4 italic my-4 text-muted-foreground",
   link: "text-primary underline hover:no-underline cursor-pointer",
-  table:
-    "w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-lg border border-border",
-  tableScrollableWrapper: "my-4 max-w-full overflow-x-auto",
+  table: "w-full table-fixed border-separate border-spacing-0",
+  tableScrollableWrapper:
+    "my-4 max-w-full overflow-x-auto rounded-xl border border-border",
   tableCell:
     "relative min-h-10 min-w-[7rem] border-border border-r border-b px-3 py-2 align-top text-sm break-words [&_p]:m-0",
   tableCellHeader: "bg-muted/70 text-left font-medium",
