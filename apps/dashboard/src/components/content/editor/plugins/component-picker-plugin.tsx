@@ -205,7 +205,7 @@ export function ComponentPickerPlugin() {
         onSelect: () =>
           editor.dispatchCommand(INSERT_TABLE_COMMAND, {
             columns: "3",
-            rows: "3",
+            rows: "2",
             includeHeaders: { rows: true, columns: false },
           }),
       }),

@@ -2,14 +2,19 @@
 
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
-  $deleteTableColumnAtSelection,
-  $deleteTableRowAtSelection,
   $getTableCellNodeFromLexicalNode,
   $insertTableColumnAtSelection,
   $insertTableRowAtSelection,
-  $isTableNode,
 } from "@lexical/table";
 import { mergeRegister } from "@lexical/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@notra/ui/components/ui/dropdown-menu";
+import { cn } from "@notra/ui/lib/utils";
 import {
   $getSelection,
   $isRangeSelection,
@@ -21,25 +26,89 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  BetweenHorizontalEnd,
+  BetweenHorizontalStart,
+  BetweenVerticalEnd,
+  BetweenVerticalStart,
   Columns3,
+  Plus,
   Rows3,
   Trash2,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
+
+import {
+  $deleteSelectedTable,
+  $deleteSelectedTableColumn,
+  $deleteSelectedTableRow,
+  $getTableMoveState,
+  $moveTableColumn,
+  $moveTableRow,
+  type TableMoveState,
+} from "../table-commands";
 
 interface TableActionMenuProps {
   editor: ReturnType<typeof useLexicalComposerContext>[0];
   anchorElem: HTMLElement;
   cellDOMNode: HTMLElement;
+  onInsertMenuOpenChange: (open: boolean) => void;
+}
+
+const IDLE_MOVE_STATE: TableMoveState = {
+  canDeleteColumn: false,
+  canDeleteRow: false,
+  canMoveDown: false,
+  canMoveLeft: false,
+  canMoveRight: false,
+  canMoveUp: false,
+};
+
+const toolbarButtonClass =
+  "rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40";
+
+function TableToolbarButton({
+  label,
+  onClick,
+  disabled,
+  className,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      aria-label={label}
+      className={cn(toolbarButtonClass, className)}
+      disabled={disabled}
+      onClick={onClick}
+      onMouseDown={(event) => event.preventDefault()}
+      title={label}
+      type="button"
+    >
+      {children}
+    </button>
+  );
 }
 
 function TableActionMenu({
   editor,
   anchorElem,
   cellDOMNode,
+  onInsertMenuOpenChange,
 }: TableActionMenuProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const [moveState, setMoveState] = useState<TableMoveState>(IDLE_MOVE_STATE);
 
   const updatePosition = useCallback(() => {
     const toolbar = toolbarRef.current;
@@ -50,16 +119,13 @@ function TableActionMenu({
     const cellRect = cellDOMNode.getBoundingClientRect();
     const anchorRect = anchorElem.getBoundingClientRect();
     const toolbarHeight = toolbar.offsetHeight;
-
     const spaceAbove = cellRect.top - anchorRect.top;
     const minSpaceNeeded = toolbarHeight + 8;
 
-    let top: number;
-    if (spaceAbove < minSpaceNeeded) {
-      top = cellRect.bottom - anchorRect.top + 4;
-    } else {
-      top = cellRect.top - anchorRect.top - toolbarHeight - 4;
-    }
+    const top =
+      spaceAbove < minSpaceNeeded
+        ? cellRect.bottom - anchorRect.top + 4
+        : cellRect.top - anchorRect.top - toolbarHeight - 4;
 
     let left =
       cellRect.left -
@@ -75,153 +141,140 @@ function TableActionMenu({
     toolbar.style.opacity = "1";
   }, [anchorElem, cellDOMNode]);
 
+  const syncMoveState = useCallback(() => {
+    editor.getEditorState().read(() => {
+      setMoveState($getTableMoveState() ?? IDLE_MOVE_STATE);
+    });
+  }, [editor]);
+
   useEffect(() => {
     updatePosition();
+    syncMoveState();
     window.addEventListener("resize", updatePosition);
     return () => {
       window.removeEventListener("resize", updatePosition);
     };
-  }, [updatePosition]);
+  }, [syncMoveState, updatePosition]);
 
   useEffect(() => {
     return editor.registerUpdateListener(() => {
       editor.getEditorState().read(() => {
         updatePosition();
+        setMoveState($getTableMoveState() ?? IDLE_MOVE_STATE);
       });
     });
   }, [editor, updatePosition]);
 
-  const insertRowAbove = useCallback(() => {
-    editor.update(() => {
-      $insertTableRowAtSelection(false);
-    });
-  }, [editor]);
-
-  const insertRowBelow = useCallback(() => {
-    editor.update(() => {
-      $insertTableRowAtSelection(true);
-    });
-  }, [editor]);
-
-  const insertColumnBefore = useCallback(() => {
-    editor.update(() => {
-      $insertTableColumnAtSelection(false);
-    });
-  }, [editor]);
-
-  const insertColumnAfter = useCallback(() => {
-    editor.update(() => {
-      $insertTableColumnAtSelection(true);
-    });
-  }, [editor]);
-
-  const deleteRow = useCallback(() => {
-    editor.update(() => {
-      $deleteTableRowAtSelection();
-    });
-  }, [editor]);
-
-  const deleteColumn = useCallback(() => {
-    editor.update(() => {
-      $deleteTableColumnAtSelection();
-    });
-  }, [editor]);
-
-  const deleteTable = useCallback(() => {
-    editor.update(() => {
-      const selection = $getSelection();
-      if (!$isRangeSelection(selection)) {
-        return;
-      }
-      const anchor = selection.anchor.getNode();
-      const cellNode = $getTableCellNodeFromLexicalNode(anchor);
-      if (!cellNode) {
-        return;
-      }
-      let current = cellNode.getParent();
-      while (current && !$isTableNode(current)) {
-        current = current.getParent();
-      }
-      if (current && $isTableNode(current)) {
-        current.remove();
-      }
-    });
-  }, [editor]);
-
-  const buttonClass =
-    "p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground";
+  const run = useCallback(
+    (action: () => void) => {
+      editor.update(() => {
+        action();
+      });
+    },
+    [editor]
+  );
 
   return (
     <div
       className="bg-popover absolute z-50 flex items-center gap-0.5 rounded-lg border p-1 opacity-0 shadow-lg transition-opacity"
+      onMouseDown={(event) => event.preventDefault()}
       ref={toolbarRef}
       role="toolbar"
       style={{ pointerEvents: "auto" }}
     >
-      <button
-        aria-label="Insert row above"
-        className={buttonClass}
-        onClick={insertRowAbove}
-        title="Insert row above"
-        type="button"
+      <TableToolbarButton
+        disabled={!moveState.canMoveUp}
+        label="Move row up"
+        onClick={() => run(() => $moveTableRow("up"))}
       >
         <ArrowUp className="size-4" />
-      </button>
-      <button
-        aria-label="Insert row below"
-        className={buttonClass}
-        onClick={insertRowBelow}
-        title="Insert row below"
-        type="button"
+      </TableToolbarButton>
+      <TableToolbarButton
+        disabled={!moveState.canMoveDown}
+        label="Move row down"
+        onClick={() => run(() => $moveTableRow("down"))}
       >
         <ArrowDown className="size-4" />
-      </button>
-      <button
-        aria-label="Insert column before"
-        className={buttonClass}
-        onClick={insertColumnBefore}
-        title="Insert column before"
-        type="button"
+      </TableToolbarButton>
+      <TableToolbarButton
+        disabled={!moveState.canMoveLeft}
+        label="Move column left"
+        onClick={() => run(() => $moveTableColumn("left"))}
       >
         <ArrowLeft className="size-4" />
-      </button>
-      <button
-        aria-label="Insert column after"
-        className={buttonClass}
-        onClick={insertColumnAfter}
-        title="Insert column after"
-        type="button"
+      </TableToolbarButton>
+      <TableToolbarButton
+        disabled={!moveState.canMoveRight}
+        label="Move column right"
+        onClick={() => run(() => $moveTableColumn("right"))}
       >
         <ArrowRight className="size-4" />
-      </button>
+      </TableToolbarButton>
       <div className="bg-border mx-0.5 h-4 w-px" />
-      <button
-        aria-label="Delete row"
-        className={buttonClass}
-        onClick={deleteRow}
-        title="Delete row"
-        type="button"
-      >
-        <Rows3 className="size-4" />
-      </button>
-      <button
-        aria-label="Delete column"
-        className={buttonClass}
-        onClick={deleteColumn}
-        title="Delete column"
-        type="button"
-      >
-        <Columns3 className="size-4" />
-      </button>
-      <button
-        aria-label="Delete table"
-        className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded p-1.5 transition-colors"
-        onClick={deleteTable}
-        title="Delete table"
-        type="button"
+      <DropdownMenu modal={false} onOpenChange={onInsertMenuOpenChange}>
+        <DropdownMenuTrigger
+          render={
+            <button
+              aria-label="Insert or delete rows and columns"
+              className={cn(toolbarButtonClass, "inline-flex items-center")}
+              title="Insert or delete rows and columns"
+              type="button"
+            />
+          }
+        >
+          <Plus className="size-4" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="center" className="w-auto min-w-44">
+          <DropdownMenuItem
+            onClick={() => run(() => $insertTableRowAtSelection(false))}
+          >
+            <BetweenHorizontalStart className="size-4" />
+            Insert row above
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => run(() => $insertTableRowAtSelection(true))}
+          >
+            <BetweenHorizontalEnd className="size-4" />
+            Insert row below
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => run(() => $insertTableColumnAtSelection(false))}
+          >
+            <BetweenVerticalStart className="size-4" />
+            Insert column left
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => run(() => $insertTableColumnAtSelection(true))}
+          >
+            <BetweenVerticalEnd className="size-4" />
+            Insert column right
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            disabled={!moveState.canDeleteRow}
+            onClick={() => run(() => $deleteSelectedTableRow())}
+            variant="destructive"
+          >
+            <Rows3 className="size-4" />
+            Delete row
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!moveState.canDeleteColumn}
+            onClick={() => run(() => $deleteSelectedTableColumn())}
+            variant="destructive"
+          >
+            <Columns3 className="size-4" />
+            Delete column
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <TableToolbarButton
+        className="hover:bg-destructive/10 hover:text-destructive"
+        label="Delete table"
+        onClick={() => run(() => $deleteSelectedTable())}
       >
         <Trash2 className="size-4" />
-      </button>
+      </TableToolbarButton>
     </div>
   );
 }
@@ -237,6 +290,7 @@ export function TableActionMenuPlugin({
   const [tableCellDOMNode, setTableCellDOMNode] = useState<HTMLElement | null>(
     null
   );
+  const insertMenuOpenRef = useRef(false);
 
   const updateMenu = useCallback(() => {
     editor.getEditorState().read(() => {
@@ -246,20 +300,26 @@ export function TableActionMenuPlugin({
 
       const selection = $getSelection();
       if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
-        setTableCellDOMNode(null);
+        if (!insertMenuOpenRef.current) {
+          setTableCellDOMNode(null);
+        }
         return;
       }
 
       const anchor = selection.anchor.getNode();
       const cellNode = $getTableCellNodeFromLexicalNode(anchor);
       if (!cellNode) {
-        setTableCellDOMNode(null);
+        if (!insertMenuOpenRef.current) {
+          setTableCellDOMNode(null);
+        }
         return;
       }
 
       const cellDOMNode = editor.getElementByKey(cellNode.getKey());
       if (!cellDOMNode) {
-        setTableCellDOMNode(null);
+        if (!insertMenuOpenRef.current) {
+          setTableCellDOMNode(null);
+        }
         return;
       }
       setTableCellDOMNode(cellDOMNode);
@@ -291,6 +351,12 @@ export function TableActionMenuPlugin({
       anchorElem={anchorElem}
       cellDOMNode={tableCellDOMNode}
       editor={editor}
+      onInsertMenuOpenChange={(open) => {
+        insertMenuOpenRef.current = open;
+        if (!open) {
+          updateMenu();
+        }
+      }}
     />,
     anchorElem
   );

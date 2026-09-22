@@ -134,7 +134,7 @@ export function LexicalEditor({
         <HistoryPlugin />
         <ListPlugin />
         <HorizontalRulePlugin />
-        <TablePlugin hasCellMerge={false} hasTabHandler />
+        <TablePlugin hasCellMerge={false} hasHorizontalScroll hasTabHandler />
         {editable && (
           <MarkdownShortcutPlugin transformers={EDITOR_TRANSFORMERS} />
         )}

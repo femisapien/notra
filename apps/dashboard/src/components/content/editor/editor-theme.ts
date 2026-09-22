@@ -30,11 +30,13 @@ export const editorTheme: EditorThemeClasses = {
   },
   quote: "border-l-4 border-border pl-4 italic my-4 text-muted-foreground",
   link: "text-primary underline hover:no-underline cursor-pointer",
-  table: "w-full my-4 border-collapse",
+  table:
+    "w-full table-fixed border-separate border-spacing-0 overflow-hidden rounded-lg border border-border",
+  tableScrollableWrapper: "my-4 max-w-full overflow-x-auto",
   tableCell:
-    "border border-border px-3 py-2 text-sm min-w-[75px] align-top relative",
-  tableCellHeader: "bg-muted font-semibold text-left",
+    "relative min-h-10 min-w-[7rem] border-border border-r border-b px-3 py-2 align-top text-sm break-words [&_p]:m-0",
+  tableCellHeader: "bg-muted/70 text-left font-medium",
   tableRow: "",
   tableCellSelected: "bg-primary/10",
-  tableSelected: "outline outline-2 outline-primary",
+  tableSelected: "outline outline-2 outline-primary/50 outline-offset-2",
 };

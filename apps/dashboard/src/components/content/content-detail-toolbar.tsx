@@ -8,6 +8,17 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
+import {
+  ResponsiveAlertDialog,
+  ResponsiveAlertDialogAction,
+  ResponsiveAlertDialogCancel,
+  ResponsiveAlertDialogContent,
+  ResponsiveAlertDialogDescription,
+  ResponsiveAlertDialogFooter,
+  ResponsiveAlertDialogHeader,
+  ResponsiveAlertDialogTitle,
+  ResponsiveAlertDialogTrigger,
+} from "@notra/ui/components/shared/responsive-alert-dialog";
 import { ButtonGroup } from "@notra/ui/components/ui/button-group";
 import {
   DropdownMenu,
@@ -254,14 +265,40 @@ export function ContentDetailToolbar(props: ContentDetailToolbarProps) {
         document.saveFailed ||
         document.reviewPreviousMarkdown) ? (
         <>
-          <Button
-            disabled={document.isSaving}
-            onClick={document.handleDiscard}
-            size="sm"
-            variant="ghost"
-          >
-            Discard changes
-          </Button>
+          <ResponsiveAlertDialog>
+            <ResponsiveAlertDialogTrigger
+              render={
+                <Button
+                  disabled={document.isSaving}
+                  size="sm"
+                  variant="ghost"
+                />
+              }
+            >
+              Discard changes
+            </ResponsiveAlertDialogTrigger>
+            <ResponsiveAlertDialogContent>
+              <ResponsiveAlertDialogHeader>
+                <ResponsiveAlertDialogTitle>
+                  Discard changes?
+                </ResponsiveAlertDialogTitle>
+                <ResponsiveAlertDialogDescription>
+                  Unsaved edits will be lost. This cannot be undone.
+                </ResponsiveAlertDialogDescription>
+              </ResponsiveAlertDialogHeader>
+              <ResponsiveAlertDialogFooter>
+                <ResponsiveAlertDialogCancel>
+                  Cancel
+                </ResponsiveAlertDialogCancel>
+                <ResponsiveAlertDialogAction
+                  onClick={document.handleDiscard}
+                  variant="destructive"
+                >
+                  Discard
+                </ResponsiveAlertDialogAction>
+              </ResponsiveAlertDialogFooter>
+            </ResponsiveAlertDialogContent>
+          </ResponsiveAlertDialog>
           <Button
             aria-keyshortcuts="Meta+S Control+S"
             data-save-bar
