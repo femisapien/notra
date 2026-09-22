@@ -17,7 +17,6 @@ import {
   type LexicalNode,
   PASTE_COMMAND,
 } from "lexical";
-import { Film, ImagePlus, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -47,7 +46,6 @@ const EDITOR_MEDIA: Record<
     accept: string;
     command: LexicalCommand<void>;
     createNode: (file: File, url: string) => LexicalNode;
-    icon: LucideIcon;
     matches: (file: File) => boolean;
   }
 > = {
@@ -59,14 +57,12 @@ const EDITOR_MEDIA: Record<
         altText: altFromFileName(file.name),
         src: url,
       }),
-    icon: ImagePlus,
     matches: (file) => !isVideoFile(file) && isImageFile(file),
   },
   video: {
     accept: Object.keys(CONTENT_VIDEO_MIME_EXTENSIONS).join(","),
     command: OPEN_CONTENT_VIDEO_UPLOAD_COMMAND,
     createNode: (_file, url) => $createContentVideoNode({ src: url }),
-    icon: Film,
     matches: isVideoFile,
   },
 };
@@ -154,11 +150,12 @@ export function ImageUploadPlugin() {
   }, [editor]);
 
   const insertUploaded = (files: File[]) => {
-    if (files.length === 0 || !editor.isEditable()) {
+    if (files.length === 0 || !editor.isEditable() || uploading) {
       return;
     }
     const anchorKey = anchorKeyRef.current;
     setUploading(true);
+    const toastId = toast.loading("Uploading…");
     void (async () => {
       let afterKey = anchorKey;
       try {
@@ -180,6 +177,7 @@ export function ImageUploadPlugin() {
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Upload failed");
       } finally {
+        toast.dismiss(toastId);
         setUploading(false);
       }
     })();
@@ -267,31 +265,11 @@ export function ImageUploadPlugin() {
   }
 
   return (
-    <div className="mb-3 flex gap-3">
-      {CONTENT_MEDIA_KINDS.map((kind, index) => {
-        const Icon = EDITOR_MEDIA[kind].icon;
-        const media = CONTENT_MEDIA[kind];
-        return (
-          <button
-            aria-label={media.ariaLabel}
-            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm disabled:opacity-60"
-            disabled={uploading}
-            key={kind}
-            onClick={() => inputRefs.current[index]?.click()}
-            onMouseDown={(event) => {
-              event.preventDefault();
-              rememberSelection();
-            }}
-            type="button"
-          >
-            <Icon aria-hidden="true" className="size-4" />
-            {uploading ? "Uploading…" : media.label}
-          </button>
-        );
-      })}
+    <>
       {CONTENT_MEDIA_KINDS.map((kind, index) => (
         <input
           accept={EDITOR_MEDIA[kind].accept}
+          aria-hidden="true"
           className="hidden"
           key={kind}
           multiple
@@ -303,9 +281,10 @@ export function ImageUploadPlugin() {
           ref={(node) => {
             inputRefs.current[index] = node;
           }}
+          tabIndex={-1}
           type="file"
         />
       ))}
-    </div>
+    </>
   );
 }

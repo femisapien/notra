@@ -249,7 +249,8 @@ export function ContentDetailToolbar(props: ContentDetailToolbarProps) {
   }
   return (
     <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-      {document.hasChanges ? (
+      {document.hasChanges &&
+      (updatesLinkedPullRequest || document.saveFailed) ? (
         <>
           <Button
             disabled={document.isSaving}
@@ -263,7 +264,9 @@ export function ContentDetailToolbar(props: ContentDetailToolbarProps) {
             aria-keyshortcuts="Meta+S Control+S"
             data-save-bar
             disabled={document.isSaving}
-            onClick={document.handleSave}
+            onClick={() => {
+              void document.handleSave();
+            }}
             size="sm"
             variant="outline"
           >
