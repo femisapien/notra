@@ -60,7 +60,7 @@ function ReleaseNoteContent({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        "fixed bottom-4 left-4 z-50 w-[min(22rem,calc(100%-2rem))] overflow-hidden rounded-xl bg-background text-sm shadow-lg ring-1 ring-foreground/10",
+        "fixed bottom-4 left-4 z-50 w-[min(20rem,calc(100%-2rem))] overflow-hidden rounded-xl bg-background text-sm shadow-lg ring-1 ring-foreground/10",
         className
       )}
       data-slot="release-note"
@@ -74,7 +74,7 @@ function ReleaseNoteVisual({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        "flex items-center justify-center overflow-x-auto bg-muted/40 px-3 py-3",
+        "flex items-center justify-center bg-muted/40 px-4 py-5",
         className
       )}
       data-slot="release-note-visual"
@@ -86,7 +86,7 @@ function ReleaseNoteVisual({ className, ...props }: ComponentProps<"div">) {
 function ReleaseNoteHeader({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
-      className={cn("space-y-1 border-t px-3 pt-3", className)}
+      className={cn("space-y-1.5 border-t px-4 pt-4", className)}
       data-slot="release-note-header"
       {...props}
     />
@@ -96,7 +96,7 @@ function ReleaseNoteHeader({ className, ...props }: ComponentProps<"div">) {
 function ReleaseNoteTitle({ className, ...props }: ComponentProps<"h2">) {
   return (
     <h2
-      className={cn("font-semibold text-sm tracking-tight", className)}
+      className={cn("font-semibold text-base tracking-tight", className)}
       data-slot="release-note-title"
       {...props}
     />
@@ -106,7 +106,7 @@ function ReleaseNoteTitle({ className, ...props }: ComponentProps<"h2">) {
 function ReleaseNoteDescription({ className, ...props }: ComponentProps<"p">) {
   return (
     <p
-      className={cn("text-muted-foreground text-xs leading-snug", className)}
+      className={cn("text-muted-foreground text-sm leading-relaxed", className)}
       data-slot="release-note-description"
       {...props}
     />
@@ -116,7 +116,7 @@ function ReleaseNoteDescription({ className, ...props }: ComponentProps<"p">) {
 function ReleaseNoteFooter({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
-      className={cn("flex justify-end px-3 pt-2 pb-3", className)}
+      className={cn("flex justify-end px-4 pt-3 pb-4", className)}
       data-slot="release-note-footer"
       {...props}
     />
@@ -133,8 +133,7 @@ function ReleaseNoteAction({
 
   return (
     <Button
-      className={cn("min-w-14", className)}
-      size="sm"
+      className={cn("min-w-16", className)}
       {...props}
       onClick={(event) => {
         onClick?.(event);

@@ -26,41 +26,42 @@ const ENGINES = [
 
 function GeoLaunchVisual() {
   return (
-    <div className="flex items-center gap-2">
-      <div className="bg-background ring-foreground/10 w-28 rounded-md p-2 shadow-sm ring-1">
+    <div className="flex w-full flex-col items-center gap-2">
+      <div className="bg-background ring-foreground/10 w-full rounded-lg p-3 shadow-sm ring-1">
         <p className="text-muted-foreground text-xs font-medium">Prompts</p>
-        <p className="mt-1 truncate font-mono text-xs">changelog</p>
-        <span className="mt-1.5 inline-flex items-center gap-1 text-xs">
+        <p className="mt-1.5 font-mono text-xs">best changelog tool</p>
+        <span className="mt-2 inline-flex items-center gap-1.5 text-xs">
           <span className="bg-info size-1.5 rounded-full" />
           Scanning
         </span>
       </div>
       <svg
         aria-hidden="true"
-        className="text-muted-foreground size-5 shrink-0"
+        className="text-muted-foreground size-4 shrink-0"
         fill="none"
-        viewBox="0 0 32 16"
+        viewBox="0 0 16 32"
       >
         <path
-          d="M1 8h26M21 2l6 6-6 6"
+          d="M8 1v26M2 21l6 6 6-6"
           stroke="currentColor"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="1.5"
         />
       </svg>
-      <div className="bg-background ring-foreground/10 min-w-0 flex-1 rounded-md p-2 shadow-sm ring-1">
+      <div className="bg-background ring-foreground/10 w-full rounded-lg p-3 shadow-sm ring-1">
         <div className="flex items-center justify-between gap-2">
           <p className="text-muted-foreground text-xs font-medium">Mentions</p>
-          <span className="bg-muted text-foreground rounded-md px-1.5 text-xs font-medium tabular-nums">
+          <span className="bg-muted text-foreground rounded-md px-1.5 py-0.5 text-xs font-medium tabular-nums">
             4
           </span>
         </div>
-        <ul className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-1">
+        <ul className="mt-2 space-y-1.5">
           {ENGINES.map(({ name, Icon }) => (
-            <li className="flex min-w-0 items-center gap-1 text-xs" key={name}>
-              <Icon aria-hidden="true" className="size-3 shrink-0" />
-              <span className="truncate">{name}</span>
+            <li className="flex items-center gap-2 text-xs" key={name}>
+              <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{name}</span>
+              <span className="text-muted-foreground">Cited</span>
             </li>
           ))}
         </ul>
@@ -84,8 +85,8 @@ export function GeoLaunchReleaseDemo() {
         <ReleaseNoteHeader>
           <ReleaseNoteTitle>GEO is live</ReleaseNoteTitle>
           <ReleaseNoteDescription>
-            Each prompt gets its own scan, with mentions across the engines you
-            follow.
+            Each tracked prompt gets its own scan, with mentions across the
+            engines you follow.
           </ReleaseNoteDescription>
         </ReleaseNoteHeader>
         <ReleaseNoteFooter>
