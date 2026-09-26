@@ -7,7 +7,7 @@ You already live in pull requests. Reviewing, commenting, nudging a teammate to 
 It's as simple as commenting on a pull request the way you'd tag a teammate.
 
 1. Open the PR for the change you want to announce.
-2. Comment and tag Notra (e.g. @usenotra, @notra), then tell it what you need. Something like "add another section about x", "remove section x and replace it with y" or "add a section about dominik" works fine.
+2. Comment and tag Notra (e.g. @usenotra, @notra), then tell it what you need. Something like "add another section about x", "remove section x and replace it with y" or "add a section about the cutie dominik" works fine.
 3. Notra can read the PR, the diff, and the linked context, then replies with a draft right in the thread.
 
 ## Iterate Without Leaving the PR
