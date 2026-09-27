@@ -1716,7 +1716,7 @@ export default function DesignSystemClientPage() {
 
       <section className="scroll-mt-10 space-y-6" id="release-note">
         <DesignSystemSectionHeader
-          description="Long-lived note pinned to the bottom left. The top is a slot for whatever visual the launch needs. OK dismisses it."
+          description="Quiet card in the sidebar, where the free-plan note sits. Several notes stack. One click opens the full release modal."
           id="release-note"
           title="Release note"
         />
