@@ -128,31 +128,26 @@ function ReleaseNoteStack({
 
   return (
     <div
-      className={cn(
-        "relative",
-        peeks > 1 && "pt-6",
-        peeks === 1 && "pt-3.5",
-        className
-      )}
+      className={cn("relative", peeks > 1 && "pt-5", peeks === 1 && "pt-3", className)}
       data-slot="release-note-stack"
     >
       {peeks > 1 ? (
         <div
           aria-hidden
-          className="bg-background border-border absolute inset-x-5 top-0 h-4 rounded-t-lg border border-b-0 shadow-sm"
+          className="bg-card border-border pointer-events-none absolute inset-x-3 top-0 bottom-3 rounded-xl border"
         />
       ) : null}
       {peeks > 0 ? (
         <div
           aria-hidden
           className={cn(
-            "bg-background border-border absolute inset-x-3 h-4 rounded-t-lg border border-b-0 shadow-sm",
-            peeks > 1 ? "top-1.5" : "top-0"
+            "bg-card border-border pointer-events-none absolute inset-x-1.5 bottom-1.5 rounded-xl border",
+            peeks > 1 ? "top-2" : "top-0"
           )}
         />
       ) : null}
       <button
-        className="bg-card hover:bg-muted/40 relative z-10 w-full cursor-pointer rounded-lg px-3 py-2.5 text-left ring-1 ring-foreground/10 transition-colors"
+        className="bg-card border-border hover:bg-muted/50 relative z-10 w-full cursor-pointer rounded-xl border px-3 py-2.5 text-left shadow-sm transition-colors"
         onClick={() => onSelect(top.id)}
         type="button"
       >

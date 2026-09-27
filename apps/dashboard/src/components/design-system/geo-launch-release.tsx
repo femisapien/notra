@@ -42,42 +42,39 @@ const ENGINES = [
 
 function GeoLaunchVisual() {
   return (
-    <div className="flex items-center gap-3">
-      <div className="bg-background ring-foreground/10 w-44 rounded-lg p-3 shadow-sm ring-1">
-        <p className="text-muted-foreground text-xs font-medium">Prompts</p>
-        <p className="mt-2 font-mono text-xs">best changelog tool</p>
-        <span className="mt-3 inline-flex items-center gap-1.5 text-xs">
+    <div className="flex w-full max-w-lg items-stretch gap-3">
+      <div className="border-border bg-background flex w-40 flex-col rounded-xl border p-3">
+        <p className="text-muted-foreground text-xs">Prompt</p>
+        <p className="mt-2 text-sm">best changelog tool</p>
+        <p className="text-muted-foreground mt-auto flex items-center gap-1.5 pt-4 text-xs">
           <span className="bg-info size-1.5 rounded-full" />
           Scanning
-        </span>
+        </p>
       </div>
-      <svg
+      <div
+        className="text-muted-foreground flex items-center"
         aria-hidden="true"
-        className="text-muted-foreground size-8 shrink-0"
-        fill="none"
-        viewBox="0 0 32 16"
       >
-        <path
-          d="M1 8h26M21 2l6 6-6 6"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="1.5"
-        />
-      </svg>
-      <div className="bg-background ring-foreground/10 w-52 rounded-lg p-3 shadow-sm ring-1">
+        <svg className="size-4" fill="none" viewBox="0 0 16 16">
+          <path
+            d="M3 8h10M9 4l4 4-4 4"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.5"
+          />
+        </svg>
+      </div>
+      <div className="border-border bg-background min-w-0 flex-1 rounded-xl border p-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-muted-foreground text-xs font-medium">Mentions</p>
-          <span className="bg-muted text-foreground rounded-md px-1.5 py-0.5 text-xs font-medium tabular-nums">
-            4
-          </span>
+          <p className="text-muted-foreground text-xs">Mentions</p>
+          <p className="text-muted-foreground text-xs tabular-nums">4</p>
         </div>
         <ul className="mt-2 space-y-1.5">
           {ENGINES.map(({ name, Icon }) => (
-            <li className="flex items-center gap-2 text-xs" key={name}>
+            <li className="flex items-center gap-2 text-sm" key={name}>
               <Icon aria-hidden="true" className="size-3.5 shrink-0" />
-              <span className="min-w-0 flex-1 truncate">{name}</span>
-              <span className="text-muted-foreground">Cited</span>
+              <span className="truncate">{name}</span>
             </li>
           ))}
         </ul>
@@ -94,12 +91,9 @@ function SidebarSpot({
   label: string;
 }) {
   return (
-    <div className="bg-sidebar ring-sidebar-border w-64 rounded-xl p-3 ring-1">
-      <p className="text-muted-foreground px-1 pb-2 text-xs">{label}</p>
+    <div className="bg-muted w-64 rounded-xl p-3">
+      <p className="text-muted-foreground mb-3 px-0.5 text-xs">{label}</p>
       {children}
-      <p className="text-muted-foreground mt-3 border-t px-1 pt-3 text-xs">
-        Workspace
-      </p>
     </div>
   );
 }
