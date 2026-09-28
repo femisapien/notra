@@ -107,10 +107,10 @@ export function PerplexityModelSelector({
         side="top"
         sideOffset={10}
       >
-        <DropdownMenuItem className="dark:text-foreground mb-0.5 h-9 justify-between gap-3 rounded-[0.85rem] bg-[#e6f3f1] px-3 text-xs font-medium text-[#1a1a1a] data-highlighted:bg-[#dceeea] dark:bg-[#1c3d38] dark:data-highlighted:bg-[#244843]">
+        <DropdownMenuItem className="mb-0.5 h-9 justify-between gap-3 rounded-md border border-[#dce5e3] bg-[#eef2f1] px-3 text-xs font-medium text-[#303636] data-highlighted:bg-[#e4edeb] dark:border-[#262f2f] dark:bg-[#232828] dark:text-[#d6d5d4] dark:data-highlighted:bg-[#2a3333]">
           <span>Access the top AI models</span>
           <HugeiconsIcon
-            className="dark:text-foreground shrink-0 text-[#1a1a1a]"
+            className="shrink-0 text-[#4e99a3]"
             icon={ArrowRight01Icon}
             size={12}
             strokeWidth={2}
