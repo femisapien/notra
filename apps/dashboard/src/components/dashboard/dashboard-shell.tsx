@@ -202,6 +202,7 @@ function DashboardPageViewport({
 
 export function DashboardShell({
   children,
+  footer,
   initialOnboardingAgentRun,
   initialSidebarOpen,
   initialSidebarWidth,
@@ -321,6 +322,7 @@ export function DashboardShell({
           <DashboardPageViewport>
             <SubscriptionGate>{children}</SubscriptionGate>
           </DashboardPageViewport>
+          {footer}
         </SidebarInset>
         <div className="contents" id={RIGHT_PANEL_PORTAL_ID} />
         <DashboardAgentSlot />

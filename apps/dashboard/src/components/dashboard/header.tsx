@@ -341,24 +341,48 @@ function genericHeaderBreadcrumbs({
       }
 
       if (isCollectionDetail && isLast) {
-        return <BreadcrumbPage className="font-medium">{label}</BreadcrumbPage>;
+        return (
+          <BreadcrumbPage
+            className="block min-w-0 truncate font-medium"
+            title={label}
+          >
+            {label}
+          </BreadcrumbPage>
+        );
       }
 
       if (isClickable) {
-        return <BreadcrumbLink render={<Link href={href}>{label}</Link>} />;
+        return (
+          <BreadcrumbLink
+            className="block min-w-0 truncate"
+            title={label}
+            render={<Link href={href}>{label}</Link>}
+          />
+        );
       }
 
       if (isLast) {
-        return <BreadcrumbPage className="font-medium">{label}</BreadcrumbPage>;
+        return (
+          <BreadcrumbPage
+            className="block min-w-0 truncate font-medium"
+            title={label}
+          >
+            {label}
+          </BreadcrumbPage>
+        );
       }
 
-      return <span>{label}</span>;
+      return (
+        <span className="min-w-0 truncate" title={label}>
+          {label}
+        </span>
+      );
     })();
 
     const item = (
       <BreadcrumbItem
         className={cn(
-          (isChatDetailLast || isContentDetailLast) && "min-w-0",
+          "min-w-0",
           isClickable &&
             !(isChatDetailLast || isCollectionDetail || isContentDetailLast) &&
             "hover:underline"
@@ -426,7 +450,11 @@ function geoHeaderBreadcrumbs({
                   {label}
                 </BreadcrumbPage>
               ) : (
-                <BreadcrumbLink render={<Link href={href}>{label}</Link>} />
+                <BreadcrumbLink
+                  className="block min-w-0 truncate"
+                  title={label}
+                  render={<Link href={href}>{label}</Link>}
+                />
               )}
             </BreadcrumbItem>,
           ];

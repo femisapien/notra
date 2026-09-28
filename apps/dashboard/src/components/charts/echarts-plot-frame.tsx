@@ -34,7 +34,7 @@ function ChartPlotChrome() {
         className={cn("flex h-full items-center justify-center", HOVER_FADE)}
         style={MARK_OPACITY_STYLE}
       >
-        <div className="flex items-center gap-[0.28em] text-[length:min(28cqh,7rem)] leading-none font-semibold tracking-tight [opacity:var(--chart-mark-opacity)] dark:[opacity:var(--chart-mark-opacity-dark)]">
+        <div className="flex items-center gap-[0.28em] text-[length:min(28cqh,22cqw,7rem)] leading-none font-semibold tracking-tight [opacity:var(--chart-mark-opacity)] dark:[opacity:var(--chart-mark-opacity-dark)]">
           <Notra className="h-[1em] w-auto shrink-0 [&_path]:stroke-current" />
           <span className="text-foreground text-[0.62em] leading-none">
             {CHART_MARK_WORD}

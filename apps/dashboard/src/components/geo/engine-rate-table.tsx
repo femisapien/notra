@@ -71,7 +71,7 @@ function lastCheckedOf(family: GeoEngineFamily, locale: string): string {
 
 function avgPositionOf(family: GeoEngineFamily): string {
   const position = engineFamilyAvgPosition(family);
-  return position === null ? "-" : `#${position}`;
+  return position === null ? "-" : `#${position.toFixed(1)}`;
 }
 
 export function EngineRateTable({

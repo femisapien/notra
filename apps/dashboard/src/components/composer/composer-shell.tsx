@@ -172,7 +172,12 @@ function ComposerChip({
 
 function ComposerToolbar({ children, className }: ComposerToolbarProps) {
   return (
-    <div className={cn("flex items-center gap-1 px-2 pb-2", className)}>
+    <div
+      className={cn(
+        "flex min-w-0 flex-wrap items-center gap-1 px-2 pb-2",
+        className
+      )}
+    >
       {children}
     </div>
   );

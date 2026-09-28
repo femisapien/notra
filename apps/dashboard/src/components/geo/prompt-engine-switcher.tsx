@@ -53,7 +53,7 @@ export function PromptEngineSwitcher({
 
   if (results.length === 1) {
     return (
-      <div className="flex min-w-0 flex-1 items-center">
+      <div className="flex min-w-0 flex-1 basis-56 items-center">
         <span className="bg-background inline-flex h-7 max-w-full min-w-0 items-center gap-1.5 rounded-lg border px-2.5 text-[0.8rem] font-medium">
           <EngineIcon className="size-3.5 shrink-0" engine={active.engine} />
           <span className="truncate">
@@ -66,7 +66,7 @@ export function PromptEngineSwitcher({
 
   return (
     <LazyMotion features={domAnimation}>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="flex min-w-0 flex-1 basis-56 items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger
             render={

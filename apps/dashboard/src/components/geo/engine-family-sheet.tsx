@@ -170,7 +170,7 @@ function FamilyStats({
           delta={trends.positionDelta}
           kind="position"
           label={tGeoShared("avgPosition")}
-          value={position === null ? "—" : `#${position}`}
+          value={position === null ? "—" : `#${position.toFixed(1)}`}
         />
       </div>
     </div>
@@ -318,13 +318,17 @@ function FamilyTrend({
         animation={false}
         className={FAMILY_CHART_HEIGHT_CLASS}
         config={config}
-        curveType="monotone"
+        curveType="monotoneX"
         data={rows}
         xDataKey="day"
       >
         <EChartsAreaChart.Grid variant="solid" />
         <EChartsAreaChart.XAxis dataKey="day" />
-        <EChartsAreaChart.YAxis tickFormatter={formatChartPercent} />
+        <EChartsAreaChart.YAxis
+          min={0}
+          max={CHART_PERCENT_SCALE}
+          tickFormatter={formatChartPercent}
+        />
         {visibleModes.map((mode) => (
           <EChartsAreaChart.Area
             connectNulls
@@ -629,7 +633,7 @@ function EngineFamilySheetSession({
             </SheetTitle>
             <FamilySheetDescription family={family} />
           </SheetHeader>
-          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
+          <div className="min-h-0 min-w-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto overscroll-x-none p-5">
             <FamilyStats family={family} points={points} />
             <FamilyTrend family={family} points={points} />
             {improveInsight ? (

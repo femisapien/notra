@@ -3,6 +3,8 @@ import { RPCLink } from "@orpc/client/fetch";
 import { BatchLinkPlugin } from "@orpc/client/plugins";
 import type { RouterClient } from "@orpc/server";
 
+import { isDemoBrowser } from "@/lib/demo/is-demo";
+
 import type { DashboardRouter } from "./router";
 
 function getBaseUrl() {
@@ -45,6 +47,15 @@ const link = new RPCLink({
 });
 
 export const dashboardOrpcClient: RouterClient<DashboardRouter> =
-  createORPCClient(link);
+  createORPCClient({
+    call: (...args: Parameters<typeof link.call>) => {
+      if (isDemoBrowser()) {
+        return import("@/lib/demo/rpc").then(({ demoRpc }) =>
+          demoRpc(args[0], args[1])
+        );
+      }
+      return link.call(...args);
+    },
+  });
 
 export type DashboardORPCClient = RouterClient<DashboardRouter>;

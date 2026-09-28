@@ -181,7 +181,14 @@ const HINT_ICON_PX_SIZE = 13;
  * it is the tooltip trigger, so a sortable header stays a single button. */
 function HeaderLabel<T>({ column }: { column: TableColumn<T> }) {
   if (!column.hint) {
-    return <span className="whitespace-nowrap">{column.header}</span>;
+    return (
+      <span
+        className="min-w-0 truncate"
+        title={typeof column.header === "string" ? column.header : undefined}
+      >
+        {column.header}
+      </span>
+    );
   }
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap">
@@ -349,7 +356,7 @@ export function TableHeader<T>({
                     <WithHeaderHint column={column}>
                       <button
                         className={cn(
-                          "hover:text-foreground flex h-full flex-1 items-center gap-1 px-4 transition-colors select-none",
+                          "hover:text-foreground flex h-full min-w-0 flex-1 items-center gap-1 px-4 transition-colors select-none",
                           alignFlex(column.align),
                           active && "text-foreground"
                         )}
@@ -401,7 +408,7 @@ export function TableHeader<T>({
                     <WithHeaderHint column={column}>
                       <span
                         className={cn(
-                          "flex-1 px-4 whitespace-nowrap",
+                          "min-w-0 flex-1 truncate px-4",
                           alignText(column.align)
                         )}
                       >

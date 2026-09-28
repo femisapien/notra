@@ -25,7 +25,8 @@ async function resolveRequestLocale() {
 }
 
 export default getRequestConfig(async () => {
-  const locale = await resolveRequestLocale();
+  const demo = (await headers()).get("x-notra-public-demo") === "1";
+  const locale = demo ? "en" : await resolveRequestLocale();
 
   return {
     locale,

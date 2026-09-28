@@ -78,7 +78,7 @@ const SettingsModal = dynamic(
   { loading: SettingsModalLoading, ssr: false }
 );
 
-function DashboardOverlays() {
+export function DashboardOverlays() {
   const { open } = useCommandPalette();
   const { isOpen } = useSettingsModal();
   const [opened, setOpened] = useState({ palette: open, settings: isOpen });

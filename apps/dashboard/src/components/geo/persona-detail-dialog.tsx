@@ -146,7 +146,7 @@ function PersonaDetailHeader({
         </Tabs>
       </div>
       {view === "conversation" && active ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <PromptEngineSwitcher
             active={active}
             onChange={onEngineChange}
@@ -158,7 +158,10 @@ function PersonaDetailHeader({
               onValueChange={onSelectScan}
               value={selectedScanId}
             >
-              <SelectTrigger aria-label={t("scanHistory")} className="w-44">
+              <SelectTrigger
+                aria-label={t("scanHistory")}
+                className="w-full sm:w-44"
+              >
                 <SelectValue>
                   {selectedScan.id === scans.at(0)?.id
                     ? t("latestScan", {

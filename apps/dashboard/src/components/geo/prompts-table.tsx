@@ -351,8 +351,8 @@ export function PromptsTable({
     {
       key: "engines",
       header: tGeoShared("engines"),
-      width: "5.5rem",
-      minWidth: "5.5rem",
+      width: "7rem",
+      minWidth: "7rem",
       sortable: true,
       cell: (row) =>
         row.total === 0 ? (

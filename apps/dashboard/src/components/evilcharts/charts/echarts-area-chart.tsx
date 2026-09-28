@@ -815,7 +815,7 @@ function curveConfig(curveType: CurveType): {
   // between points, so each dot sits centered on its plateau.
   if (curveType === "step") return { smooth: false, step: "middle" };
   if (curveType === "linear") return { smooth: false, step: false };
-  if (curveType === "monotoneX") return { smooth: true, step: false, smoothMonotone: "x" };
+  if (curveType === "monotone" || curveType === "monotoneX") return { smooth: true, step: false, smoothMonotone: "x" };
   if (curveType === "monotoneY") return { smooth: true, step: false, smoothMonotone: "y" };
   return { smooth: true, step: false };
 }

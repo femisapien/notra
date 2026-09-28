@@ -4,6 +4,7 @@ import { withDualmark } from "@dualmark/nextjs";
 import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
 
+import { WEB_CONTENT_SECURITY_POLICY } from "./src/constants/content-security-policy";
 import { SHOWCASE_COMPANIES } from "./src/utils/showcase";
 import { SOCIAL_LINKS } from "./src/utils/social-links";
 import { APP_URL, SITE_URL } from "./src/utils/urls";
@@ -13,9 +14,6 @@ const SHOWCASE_COMPANY_SLUGS = SHOWCASE_COMPANIES.map(
 );
 
 const C15T_BACKEND_URL = "https://notra-prod-notra.inth.app";
-
-const DASHBOARD_SESSION_ORIGIN =
-  process.env.NODE_ENV === "development" ? "http://localhost:3000" : APP_URL;
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
@@ -136,20 +134,29 @@ const nextConfig: NextConfig = {
         },
         {
           key: "Content-Security-Policy",
-          value: [
-            "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' databuddy.cc *.databuddy.cc https://challenges.cloudflare.com",
-            "style-src 'self' 'unsafe-inline'",
-            "font-src 'self'",
-            "img-src 'self' data: blob: databuddy.cc *.databuddy.cc avatars.githubusercontent.com cdn.contentport.io media.brand.dev *.r2.dev cdn.usenotra.com pbs.twimg.com abs.twimg.com",
-            `connect-src 'self' databuddy.cc *.databuddy.cc *.inth.app *.c15t.com *.c15t.dev ${DASHBOARD_SESSION_ORIGIN}`,
-            "frame-src https://challenges.cloudflare.com",
-            "frame-ancestors 'none'",
-            "object-src 'none'",
-            "base-uri 'self'",
-            "form-action 'self'",
-            "upgrade-insecure-requests",
-          ].join("; "),
+          value: WEB_CONTENT_SECURITY_POLICY.join("; "),
+        },
+      ],
+    },
+    {
+      source: "/demo",
+      headers: [
+        { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        {
+          key: "Content-Security-Policy",
+          value: WEB_CONTENT_SECURITY_POLICY.map((directive) => {
+            if (directive === "frame-ancestors 'none'") {
+              return "frame-ancestors 'self'";
+            }
+            if (directive === "frame-src https://challenges.cloudflare.com") {
+              const dashboardOrigin =
+                process.env.NODE_ENV === "development"
+                  ? "http://localhost:3002"
+                  : APP_URL;
+              return `frame-src ${dashboardOrigin}`;
+            }
+            return directive;
+          }).join("; "),
         },
       ],
     },

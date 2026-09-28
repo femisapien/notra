@@ -269,3 +269,29 @@ export function useOrganizationsContext() {
   }
   return context;
 }
+
+export function OrganizationSnapshotProvider({
+  children,
+  organization,
+}: {
+  children: ReactNode;
+  organization: Organization;
+}) {
+  const value = useMemo(
+    () => ({
+      organizations: [organization],
+      activeOrganization: organization,
+      isLoading: false,
+      isOrganizationListLoading: false,
+      getOrganization: (slug: string) =>
+        slug === organization.slug ? organization : undefined,
+      requestOrganizations: () => undefined,
+    }),
+    [organization]
+  );
+  return (
+    <OrganizationsContext.Provider value={value}>
+      {children}
+    </OrganizationsContext.Provider>
+  );
+}

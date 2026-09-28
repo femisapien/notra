@@ -26,7 +26,7 @@ export const GEO_PERSONA_GENERATION_STEPS = [
 ] as const;
 export const GEO_PERSONA_GENERATION_TICK_MS = 500;
 
-export const GEO_PERSONAS_MEMORIES_COLUMN_WIDTH = "6.5rem";
+export const GEO_PERSONAS_MEMORIES_COLUMN_WIDTH = "7.5rem";
 export const GEO_PERSONAS_TURNS_COLUMN_WIDTH = "9rem";
 export const GEO_PERSONAS_ACTIONS_COLUMN_WIDTH = "6rem";
 export const GEO_PERSONAS_MIN_TABLE_ROWS = 3;

@@ -220,7 +220,7 @@ function TrafficSourceSheetContent({
         </SheetDescription>
       </SheetHeader>
 
-      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-5">
+      <div className="min-h-0 min-w-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto overscroll-contain p-5">
         <SheetStatGrid stats={stats} />
 
         {series.length >= GEO_SPARKLINE_MIN_POINTS ? (

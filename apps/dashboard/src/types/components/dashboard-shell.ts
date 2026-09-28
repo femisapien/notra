@@ -4,6 +4,7 @@ import type { InitialOnboardingAgentRun } from "@/types/hooks/onboarding";
 
 export interface DashboardShellProps {
   children: ReactNode;
+  footer?: ReactNode;
   initialOnboardingAgentRun: InitialOnboardingAgentRun;
   initialSidebarOpen: boolean;
   initialSidebarWidth: number;

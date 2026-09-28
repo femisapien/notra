@@ -148,10 +148,6 @@ const nextConfig: NextConfig = {
             value: "nosniff",
           },
           {
-            key: "X-Frame-Options",
-            value: "DENY",
-          },
-          {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
           },
@@ -166,6 +162,19 @@ const nextConfig: NextConfig = {
           {
             key: "X-DNS-Prefetch-Control",
             value: "on",
+          },
+        ],
+      },
+      {
+        source: "/((?!demo(?:/|$)).*)",
+        headers: [{ key: "X-Frame-Options", value: "DENY" }],
+      },
+      {
+        source: "/demo/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: `frame-ancestors 'self' https://www.usenotra.com https://usenotra.com${process.env.NODE_ENV === "development" ? " http://localhost:3001 http://127.0.0.1:3001" : ""}`,
           },
         ],
       },

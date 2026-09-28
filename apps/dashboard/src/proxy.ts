@@ -25,12 +25,26 @@ function localDevProxy(request: NextRequest) {
 }
 
 export default async function proxy(request: NextRequest) {
+  // This route renders only public fixtures, never an authenticated organization.
+  if (
+    request.nextUrl.pathname === "/demo" ||
+    request.nextUrl.pathname.startsWith("/demo/")
+  ) {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return new NextResponse("This demo is read only.", { status: 405 });
+    }
+    const demoHeaders = new Headers(request.headers);
+    demoHeaders.set("x-notra-public-demo", "1");
+    return NextResponse.next({ request: { headers: demoHeaders } });
+  }
   if (
     process.env.NODE_ENV === "production" &&
     /^\/design-system(?:\/|$)/.test(request.nextUrl.pathname)
   ) {
     return new NextResponse(null, { status: 404 });
   }
+
+  request.headers.delete("x-notra-public-demo");
 
   // Local impersonation has no WorkOS session and still requires loopback.
   if (isLocalDevAuthEnabled()) {
