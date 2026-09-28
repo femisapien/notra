@@ -833,6 +833,8 @@
       "title": "ChatGPT UI",
       "description": "Composable ChatGPT conversation components, including messages and input.",
       "dependencies": [
+        "lucide-react",
+        "class-variance-authority",
         "cn",
         "@base-ui/react",
         "@hugeicons/core-free-icons",
@@ -976,6 +978,8 @@
       "title": "ChatGPT Chat Block",
       "description": "A composed ChatGPT conversation with the matching composer.",
       "dependencies": [
+        "lucide-react",
+        "class-variance-authority",
         "cn",
         "@base-ui/react",
         "@hugeicons/core-free-icons",
@@ -2060,7 +2064,14 @@
       "type": "registry:component",
       "title": "Chatgpt Activity",
       "description": "Installable primitive from the ChatGPT chat UI.",
-      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "dependencies": [
+        "@base-ui/react",
+        "lucide-react",
+        "class-variance-authority",
+        "cn",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
       "registryDependencies": ["sheet"],
       "files": [
         {
@@ -2080,7 +2091,13 @@
       "type": "registry:component",
       "title": "Chatgpt Composer",
       "description": "Installable primitive from the ChatGPT chat UI.",
-      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "dependencies": [
+        "@base-ui/react",
+        "lucide-react",
+        "cn",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
       "registryDependencies": ["dropdown-menu"],
       "files": [
         {
@@ -2135,7 +2152,13 @@
       "type": "registry:component",
       "title": "Chatgpt Model Selector",
       "description": "Installable primitive from the ChatGPT chat UI.",
-      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "dependencies": [
+        "@base-ui/react",
+        "lucide-react",
+        "cn",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
       "registryDependencies": ["dropdown-menu"],
       "files": [
         {
@@ -2165,7 +2188,7 @@
       "type": "registry:component",
       "title": "Chatgpt Reasoning",
       "description": "Installable primitive from the ChatGPT chat UI.",
-      "dependencies": ["cn"],
+      "dependencies": ["@base-ui/react", "cn"],
       "registryDependencies": ["collapsible"],
       "files": [
         {
@@ -2195,7 +2218,7 @@
       "type": "registry:component",
       "title": "ChatGPT Tool Call",
       "description": "A collapsible tool call and result for ChatGPT Chat.",
-      "dependencies": ["cn"],
+      "dependencies": ["@base-ui/react", "cn"],
       "registryDependencies": ["collapsible"],
       "files": [
         {
