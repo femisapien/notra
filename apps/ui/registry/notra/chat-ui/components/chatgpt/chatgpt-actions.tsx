@@ -25,7 +25,7 @@ function ActionButton({
   children,
 }: {
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
   children: ReactNode;
 }) {
   return (
@@ -34,7 +34,8 @@ function ActionButton({
         render={
           <button
             aria-label={label}
-            className="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 items-center justify-center rounded-lg transition-colors [&_svg]:size-4"
+            className="text-muted-foreground enabled:hover:bg-muted enabled:hover:text-foreground flex size-8 items-center justify-center rounded-lg transition-colors [&_svg]:size-4"
+            disabled={!onClick}
             onClick={onClick}
             type="button"
           />
@@ -89,24 +90,15 @@ export function ChatgptActions({
             strokeWidth={1.75}
           />
         </ActionButton>
-        {onShare ? (
-          <ActionButton label="Share" onClick={onShare}>
-            <HugeiconsIcon icon={Share01Icon} strokeWidth={1.75} />
-          </ActionButton>
-        ) : null}
-        {onRedo ? (
-          <ActionButton label="Redo" onClick={onRedo}>
-            <HugeiconsIcon
-              icon={ArrowReloadHorizontalIcon}
-              strokeWidth={1.75}
-            />
-          </ActionButton>
-        ) : null}
-        {onMore ? (
-          <ActionButton label="More" onClick={onMore}>
-            <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={1.75} />
-          </ActionButton>
-        ) : null}
+        <ActionButton label="Share" onClick={onShare}>
+          <HugeiconsIcon icon={Share01Icon} strokeWidth={1.75} />
+        </ActionButton>
+        <ActionButton label="Redo" onClick={onRedo}>
+          <HugeiconsIcon icon={ArrowReloadHorizontalIcon} strokeWidth={1.75} />
+        </ActionButton>
+        <ActionButton label="More" onClick={onMore}>
+          <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={1.75} />
+        </ActionButton>
       </div>
     </TooltipProvider>
   );

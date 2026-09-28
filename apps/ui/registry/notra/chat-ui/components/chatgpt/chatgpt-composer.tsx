@@ -71,16 +71,15 @@ export function ChatgptComposer({
       )}
       onSubmit={handleSubmit}
     >
-      {onAdd ? (
-        <button
-          aria-label="Add"
-          className="text-foreground/80 hover:bg-muted hover:text-foreground flex size-6 shrink-0 items-center justify-center rounded-full transition-colors"
-          onClick={onAdd}
-          type="button"
-        >
-          <HugeiconsIcon icon={PlusSignIcon} size={16} strokeWidth={1.75} />
-        </button>
-      ) : null}
+      <button
+        aria-label="Add"
+        className="text-foreground/80 enabled:hover:bg-muted enabled:hover:text-foreground flex size-6 shrink-0 items-center justify-center rounded-full transition-colors"
+        disabled={!onAdd}
+        onClick={onAdd}
+        type="button"
+      >
+        <HugeiconsIcon icon={PlusSignIcon} size={16} strokeWidth={1.75} />
+      </button>
       <input
         aria-label="Message"
         className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent py-2 pr-3 text-[15px] outline-none"

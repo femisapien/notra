@@ -27,7 +27,7 @@ export function ChatgptBlock({
       )}
     >
       <div aria-live="polite" className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-8">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-4 py-8">
           {messages.map((message) => (
             <ChatgptMessage
               key={message.id}
