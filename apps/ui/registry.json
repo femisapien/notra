@@ -826,6 +826,2387 @@
           }
         }
       }
+    },
+    {
+      "name": "chatgpt-ui",
+      "type": "registry:component",
+      "title": "ChatGPT UI",
+      "description": "Composable ChatGPT conversation components, including messages and input.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
+      "registryDependencies": [
+        "collapsible",
+        "dropdown-menu",
+        "sheet",
+        "tooltip"
+      ],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/ai-elements/shimmer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ai-elements/shimmer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-actions.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-actions.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-activity.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-activity.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-message.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-reasoning.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-reasoning.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-search.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-search.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-thinking.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-thinking.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/chatgpt-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/chatgpt-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/chatgpt-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/chatgpt-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chatgpt.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chatgpt.ts"
+        }
+      ],
+      "css": {
+        "@layer components": {
+          ".text-shimmer": {
+            "position": "relative",
+            "display": "inline-block",
+            "color": "var(--muted-foreground)"
+          },
+          ".text-shimmer__text": {
+            "display": "inline-block"
+          },
+          ".text-shimmer__mask": {
+            "position": "absolute",
+            "inset": "0",
+            "contain": "strict",
+            "overflow": "clip",
+            "color": "transparent",
+            "pointer-events": "none",
+            "user-select": "none"
+          },
+          ".text-shimmer__mask::after": {
+            "position": "absolute",
+            "inset": "0",
+            "content": "\"\"",
+            "background": "linear-gradient(90deg,transparent calc(50% - var(--text-shimmer-spread)),var(--foreground) 50%,transparent calc(50% + var(--text-shimmer-spread)))",
+            "pointer-events": "none",
+            "animation": "text-shimmer var(--text-shimmer-duration) linear infinite"
+          },
+          "@media (prefers-reduced-motion: reduce)": {
+            ".text-shimmer__mask": {
+              "display": "none"
+            }
+          },
+          "@supports (-webkit-mask-clip: text)": {
+            ".text-shimmer__mask": {
+              "mask-image": "linear-gradient(white, white)",
+              "-webkit-mask-clip": "text"
+            }
+          },
+          "@supports (mask-image: -moz-element(#text))": {
+            ".text-shimmer__mask": {
+              "mask-image": "var(--text-shimmer-firefox-mask)"
+            }
+          }
+        },
+        "@keyframes text-shimmer": {
+          "from": {
+            "transform": "translateX(-100%)"
+          },
+          "to": {
+            "transform": "translateX(100%)"
+          }
+        }
+      }
+    },
+    {
+      "name": "chatgpt-chat-block",
+      "type": "registry:block",
+      "title": "ChatGPT Chat Block",
+      "description": "A composed ChatGPT conversation with the matching composer.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
+      "registryDependencies": [
+        "collapsible",
+        "dropdown-menu",
+        "sheet",
+        "tooltip"
+      ],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/ai-elements/shimmer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ai-elements/shimmer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/blocks/chatgpt-block.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/blocks/chatgpt-block.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-actions.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-actions.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-activity.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-activity.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-message.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-reasoning.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-reasoning.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-search.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-search.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-thinking.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-thinking.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/chatgpt-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/chatgpt-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/chatgpt-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/chatgpt-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chat-block.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chat-block.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chatgpt.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chatgpt.ts"
+        }
+      ],
+      "css": {
+        "@layer components": {
+          ".text-shimmer": {
+            "position": "relative",
+            "display": "inline-block",
+            "color": "var(--muted-foreground)"
+          },
+          ".text-shimmer__text": {
+            "display": "inline-block"
+          },
+          ".text-shimmer__mask": {
+            "position": "absolute",
+            "inset": "0",
+            "contain": "strict",
+            "overflow": "clip",
+            "color": "transparent",
+            "pointer-events": "none",
+            "user-select": "none"
+          },
+          ".text-shimmer__mask::after": {
+            "position": "absolute",
+            "inset": "0",
+            "content": "\"\"",
+            "background": "linear-gradient(90deg,transparent calc(50% - var(--text-shimmer-spread)),var(--foreground) 50%,transparent calc(50% + var(--text-shimmer-spread)))",
+            "pointer-events": "none",
+            "animation": "text-shimmer var(--text-shimmer-duration) linear infinite"
+          },
+          "@media (prefers-reduced-motion: reduce)": {
+            ".text-shimmer__mask": {
+              "display": "none"
+            }
+          },
+          "@supports (-webkit-mask-clip: text)": {
+            ".text-shimmer__mask": {
+              "mask-image": "linear-gradient(white, white)",
+              "-webkit-mask-clip": "text"
+            }
+          },
+          "@supports (mask-image: -moz-element(#text))": {
+            ".text-shimmer__mask": {
+              "mask-image": "var(--text-shimmer-firefox-mask)"
+            }
+          }
+        },
+        "@keyframes text-shimmer": {
+          "from": {
+            "transform": "translateX(-100%)"
+          },
+          "to": {
+            "transform": "translateX(100%)"
+          }
+        }
+      }
+    },
+    {
+      "name": "claude-chat-ui",
+      "type": "registry:component",
+      "title": "Claude Chat UI",
+      "description": "Composable Claude Chat conversation components, including messages and input.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
+      "registryDependencies": ["button", "dropdown-menu", "tooltip"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-actions.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-actions.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-message.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-search-timing.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-search-timing.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-search.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-search.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-sources.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-sources.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-spinner.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-spinner.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-thinking.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-thinking.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/claude-chat-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/claude-chat-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/claude-chat-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/claude-chat-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/claude-chat.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/claude-chat.ts"
+        }
+      ]
+    },
+    {
+      "name": "claude-chat-block",
+      "type": "registry:block",
+      "title": "Claude Chat Block",
+      "description": "A composed Claude Chat conversation with the matching composer.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
+      "registryDependencies": ["button", "dropdown-menu", "tooltip"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/blocks/claude-chat-block.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/blocks/claude-chat-block.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-actions.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-actions.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-message.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-search-timing.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-search-timing.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-search.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-search.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-sources.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-sources.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-spinner.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-spinner.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-thinking.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-thinking.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/claude-chat-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/claude-chat-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/claude-chat-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/claude-chat-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chat-block.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chat-block.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/claude-chat.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/claude-chat.ts"
+        }
+      ]
+    },
+    {
+      "name": "gemini-ui",
+      "type": "registry:component",
+      "title": "Gemini UI",
+      "description": "Composable Gemini conversation components, including messages and input.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
+      "registryDependencies": ["dropdown-menu", "tooltip"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-actions.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-actions.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-message.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-sparkle.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-sparkle.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-thinking.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-thinking.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/gemini-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/gemini-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/gemini-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/gemini-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/gemini.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/gemini.ts"
+        }
+      ]
+    },
+    {
+      "name": "gemini-chat-block",
+      "type": "registry:block",
+      "title": "Gemini Chat Block",
+      "description": "A composed Gemini conversation with the matching composer.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
+      "registryDependencies": ["dropdown-menu", "tooltip"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/blocks/gemini-block.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/blocks/gemini-block.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-actions.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-actions.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-message.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-sparkle.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-sparkle.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-thinking.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-thinking.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/gemini-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/gemini-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/gemini-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/gemini-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chat-block.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chat-block.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/gemini.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/gemini.ts"
+        }
+      ]
+    },
+    {
+      "name": "perplexity-ui",
+      "type": "registry:component",
+      "title": "Perplexity UI",
+      "description": "Composable Perplexity conversation components, including messages and input.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
+      "registryDependencies": [
+        "collapsible",
+        "dropdown-menu",
+        "sheet",
+        "tooltip"
+      ],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/ai-elements/shimmer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ai-elements/shimmer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-actions.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-actions.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-citation.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-citation.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-favicon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-favicon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-message.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-model-icon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-model-icon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-search-timing.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-search-timing.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-search.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-search.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-sources-sheet.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-sources-sheet.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-thinking.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-thinking.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/claudeAiIcon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/claudeAiIcon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/gemini.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/gemini.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/kimi.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/kimi.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/openai.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/openai.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/perplexity.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/perplexity.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/zai.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/zai.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/perplexity-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/perplexity-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/perplexity-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/perplexity-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/perplexity.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/perplexity.ts"
+        }
+      ],
+      "css": {
+        "@layer components": {
+          ".text-shimmer": {
+            "position": "relative",
+            "display": "inline-block",
+            "color": "var(--muted-foreground)"
+          },
+          ".text-shimmer__text": {
+            "display": "inline-block"
+          },
+          ".text-shimmer__mask": {
+            "position": "absolute",
+            "inset": "0",
+            "contain": "strict",
+            "overflow": "clip",
+            "color": "transparent",
+            "pointer-events": "none",
+            "user-select": "none"
+          },
+          ".text-shimmer__mask::after": {
+            "position": "absolute",
+            "inset": "0",
+            "content": "\"\"",
+            "background": "linear-gradient(90deg,transparent calc(50% - var(--text-shimmer-spread)),var(--foreground) 50%,transparent calc(50% + var(--text-shimmer-spread)))",
+            "pointer-events": "none",
+            "animation": "text-shimmer var(--text-shimmer-duration) linear infinite"
+          },
+          "@media (prefers-reduced-motion: reduce)": {
+            ".text-shimmer__mask": {
+              "display": "none"
+            }
+          },
+          "@supports (-webkit-mask-clip: text)": {
+            ".text-shimmer__mask": {
+              "mask-image": "linear-gradient(white, white)",
+              "-webkit-mask-clip": "text"
+            }
+          },
+          "@supports (mask-image: -moz-element(#text))": {
+            ".text-shimmer__mask": {
+              "mask-image": "var(--text-shimmer-firefox-mask)"
+            }
+          }
+        },
+        "@keyframes text-shimmer": {
+          "from": {
+            "transform": "translateX(-100%)"
+          },
+          "to": {
+            "transform": "translateX(100%)"
+          }
+        }
+      }
+    },
+    {
+      "name": "perplexity-chat-block",
+      "type": "registry:block",
+      "title": "Perplexity Chat Block",
+      "description": "A composed Perplexity conversation with the matching composer.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
+      "registryDependencies": [
+        "collapsible",
+        "dropdown-menu",
+        "sheet",
+        "tooltip"
+      ],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/ai-elements/shimmer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ai-elements/shimmer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/blocks/perplexity-block.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/blocks/perplexity-block.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-actions.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-actions.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-citation.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-citation.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-favicon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-favicon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-message.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-model-icon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-model-icon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-search-timing.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-search-timing.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-search.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-search.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-sources-sheet.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-sources-sheet.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-thinking.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-thinking.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/claudeAiIcon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/claudeAiIcon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/gemini.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/gemini.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/kimi.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/kimi.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/openai.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/openai.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/perplexity.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/perplexity.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/zai.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/zai.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/perplexity-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/perplexity-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/perplexity-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/perplexity-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chat-block.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chat-block.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/perplexity.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/perplexity.ts"
+        }
+      ],
+      "css": {
+        "@layer components": {
+          ".text-shimmer": {
+            "position": "relative",
+            "display": "inline-block",
+            "color": "var(--muted-foreground)"
+          },
+          ".text-shimmer__text": {
+            "display": "inline-block"
+          },
+          ".text-shimmer__mask": {
+            "position": "absolute",
+            "inset": "0",
+            "contain": "strict",
+            "overflow": "clip",
+            "color": "transparent",
+            "pointer-events": "none",
+            "user-select": "none"
+          },
+          ".text-shimmer__mask::after": {
+            "position": "absolute",
+            "inset": "0",
+            "content": "\"\"",
+            "background": "linear-gradient(90deg,transparent calc(50% - var(--text-shimmer-spread)),var(--foreground) 50%,transparent calc(50% + var(--text-shimmer-spread)))",
+            "pointer-events": "none",
+            "animation": "text-shimmer var(--text-shimmer-duration) linear infinite"
+          },
+          "@media (prefers-reduced-motion: reduce)": {
+            ".text-shimmer__mask": {
+              "display": "none"
+            }
+          },
+          "@supports (-webkit-mask-clip: text)": {
+            ".text-shimmer__mask": {
+              "mask-image": "linear-gradient(white, white)",
+              "-webkit-mask-clip": "text"
+            }
+          },
+          "@supports (mask-image: -moz-element(#text))": {
+            ".text-shimmer__mask": {
+              "mask-image": "var(--text-shimmer-firefox-mask)"
+            }
+          }
+        },
+        "@keyframes text-shimmer": {
+          "from": {
+            "transform": "translateX(-100%)"
+          },
+          "to": {
+            "transform": "translateX(100%)"
+          }
+        }
+      }
+    },
+    {
+      "name": "opencode-ui",
+      "type": "registry:component",
+      "title": "OpenCode UI",
+      "description": "Composable OpenCode conversation components, including messages and input.",
+      "dependencies": ["cn"],
+      "registryDependencies": ["dropdown-menu", "input"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-activity.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-activity.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-logo.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-logo.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-message.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-sidebar.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-sidebar.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-sources.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-sources.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/brainless-opencode.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/opencode-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/opencode-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/brainless-opencode.ts"
+        }
+      ],
+      "cssVars": {
+        "light": {
+          "opencode-tui-background": "#fdfdfd",
+          "opencode-tui-surface": "#f6f6f6",
+          "opencode-tui-foreground": "#1d1d1d",
+          "opencode-tui-muted": "#929292",
+          "opencode-tui-subtle": "#dedede",
+          "opencode-tui-purple": "#8256d6",
+          "opencode-tui-orange": "#e48600",
+          "opencode-tui-green": "#00a861"
+        },
+        "dark": {
+          "opencode-tui-background": "#0a0a0a",
+          "opencode-tui-surface": "#141414",
+          "opencode-tui-foreground": "#eeeeee",
+          "opencode-tui-muted": "#a0a0a0",
+          "opencode-tui-subtle": "#484848",
+          "opencode-tui-purple": "#9d7cd8",
+          "opencode-tui-orange": "#fab283",
+          "opencode-tui-green": "#7fd88f"
+        }
+      }
+    },
+    {
+      "name": "opencode-chat-block",
+      "type": "registry:block",
+      "title": "OpenCode Chat Block",
+      "description": "A composed OpenCode conversation with the matching composer.",
+      "dependencies": ["cn"],
+      "registryDependencies": ["dropdown-menu", "input"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/blocks/opencode-block.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/blocks/opencode-block.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-activity.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-activity.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-logo.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-logo.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-message.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-sidebar.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-sidebar.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-sources.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-sources.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/brainless-opencode.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/opencode-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/opencode-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/brainless-opencode.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chat-block.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chat-block.ts"
+        }
+      ],
+      "cssVars": {
+        "light": {
+          "opencode-tui-background": "#fdfdfd",
+          "opencode-tui-surface": "#f6f6f6",
+          "opencode-tui-foreground": "#1d1d1d",
+          "opencode-tui-muted": "#929292",
+          "opencode-tui-subtle": "#dedede",
+          "opencode-tui-purple": "#8256d6",
+          "opencode-tui-orange": "#e48600",
+          "opencode-tui-green": "#00a861"
+        },
+        "dark": {
+          "opencode-tui-background": "#0a0a0a",
+          "opencode-tui-surface": "#141414",
+          "opencode-tui-foreground": "#eeeeee",
+          "opencode-tui-muted": "#a0a0a0",
+          "opencode-tui-subtle": "#484848",
+          "opencode-tui-purple": "#9d7cd8",
+          "opencode-tui-orange": "#fab283",
+          "opencode-tui-green": "#7fd88f"
+        }
+      }
+    },
+    {
+      "name": "opencode-start-block",
+      "type": "registry:block",
+      "title": "OpenCode Start Block",
+      "description": "The centered OpenCode start screen with prompt and status line.",
+      "dependencies": ["cn"],
+      "registryDependencies": ["dropdown-menu", "input"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/blocks/opencode-start-block.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/blocks/opencode-start-block.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-logo.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-logo.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/brainless-opencode.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/opencode-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/opencode-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/brainless-opencode.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chat-block.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chat-block.ts"
+        }
+      ],
+      "cssVars": {
+        "light": {
+          "opencode-tui-background": "#fdfdfd",
+          "opencode-tui-surface": "#f6f6f6",
+          "opencode-tui-foreground": "#1d1d1d",
+          "opencode-tui-muted": "#929292",
+          "opencode-tui-subtle": "#dedede",
+          "opencode-tui-purple": "#8256d6",
+          "opencode-tui-orange": "#e48600",
+          "opencode-tui-green": "#00a861"
+        },
+        "dark": {
+          "opencode-tui-background": "#0a0a0a",
+          "opencode-tui-surface": "#141414",
+          "opencode-tui-foreground": "#eeeeee",
+          "opencode-tui-muted": "#a0a0a0",
+          "opencode-tui-subtle": "#484848",
+          "opencode-tui-purple": "#9d7cd8",
+          "opencode-tui-orange": "#fab283",
+          "opencode-tui-green": "#7fd88f"
+        }
+      }
+    },
+    {
+      "name": "chatgpt-actions",
+      "type": "registry:component",
+      "title": "Chatgpt Actions",
+      "description": "Installable primitive from the ChatGPT chat UI.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
+      "registryDependencies": ["tooltip"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-actions.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-actions.tsx"
+        }
+      ]
+    },
+    {
+      "name": "chatgpt-activity",
+      "type": "registry:component",
+      "title": "Chatgpt Activity",
+      "description": "Installable primitive from the ChatGPT chat UI.",
+      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "registryDependencies": ["sheet"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-activity.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-activity.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-search.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-search.tsx"
+        }
+      ]
+    },
+    {
+      "name": "chatgpt-composer",
+      "type": "registry:component",
+      "title": "Chatgpt Composer",
+      "description": "Installable primitive from the ChatGPT chat UI.",
+      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "registryDependencies": ["dropdown-menu"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/chatgpt-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/chatgpt-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/chatgpt-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/chatgpt-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chatgpt.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chatgpt.ts"
+        }
+      ]
+    },
+    {
+      "name": "chatgpt-message",
+      "type": "registry:component",
+      "title": "Chatgpt Message",
+      "description": "Installable primitive from the ChatGPT chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-message.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chatgpt.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chatgpt.ts"
+        }
+      ]
+    },
+    {
+      "name": "chatgpt-model-selector",
+      "type": "registry:component",
+      "title": "Chatgpt Model Selector",
+      "description": "Installable primitive from the ChatGPT chat UI.",
+      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "registryDependencies": ["dropdown-menu"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/chatgpt-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/chatgpt-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/chatgpt-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/chatgpt-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chatgpt.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chatgpt.ts"
+        }
+      ]
+    },
+    {
+      "name": "chatgpt-reasoning",
+      "type": "registry:component",
+      "title": "Chatgpt Reasoning",
+      "description": "Installable primitive from the ChatGPT chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": ["collapsible"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-reasoning.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-reasoning.tsx"
+        }
+      ]
+    },
+    {
+      "name": "chatgpt-search",
+      "type": "registry:component",
+      "title": "Chatgpt Search",
+      "description": "Installable primitive from the ChatGPT chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-search.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-search.tsx"
+        }
+      ]
+    },
+    {
+      "name": "chatgpt-thinking",
+      "type": "registry:component",
+      "title": "Chatgpt Thinking",
+      "description": "Installable primitive from the ChatGPT chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/ai-elements/shimmer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ai-elements/shimmer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-thinking.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-thinking.tsx"
+        }
+      ],
+      "css": {
+        "@layer components": {
+          ".text-shimmer": {
+            "position": "relative",
+            "display": "inline-block",
+            "color": "var(--muted-foreground)"
+          },
+          ".text-shimmer__text": {
+            "display": "inline-block"
+          },
+          ".text-shimmer__mask": {
+            "position": "absolute",
+            "inset": "0",
+            "contain": "strict",
+            "overflow": "clip",
+            "color": "transparent",
+            "pointer-events": "none",
+            "user-select": "none"
+          },
+          ".text-shimmer__mask::after": {
+            "position": "absolute",
+            "inset": "0",
+            "content": "\"\"",
+            "background": "linear-gradient(90deg,transparent calc(50% - var(--text-shimmer-spread)),var(--foreground) 50%,transparent calc(50% + var(--text-shimmer-spread)))",
+            "pointer-events": "none",
+            "animation": "text-shimmer var(--text-shimmer-duration) linear infinite"
+          },
+          "@media (prefers-reduced-motion: reduce)": {
+            ".text-shimmer__mask": {
+              "display": "none"
+            }
+          },
+          "@supports (-webkit-mask-clip: text)": {
+            ".text-shimmer__mask": {
+              "mask-image": "linear-gradient(white, white)",
+              "-webkit-mask-clip": "text"
+            }
+          },
+          "@supports (mask-image: -moz-element(#text))": {
+            ".text-shimmer__mask": {
+              "mask-image": "var(--text-shimmer-firefox-mask)"
+            }
+          }
+        },
+        "@keyframes text-shimmer": {
+          "from": {
+            "transform": "translateX(-100%)"
+          },
+          "to": {
+            "transform": "translateX(100%)"
+          }
+        }
+      }
+    },
+    {
+      "name": "claude-chat-actions",
+      "type": "registry:component",
+      "title": "Claude Chat Actions",
+      "description": "Installable primitive from the Claude Chat chat UI.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
+      "registryDependencies": ["button", "tooltip"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-actions.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-actions.tsx"
+        }
+      ]
+    },
+    {
+      "name": "claude-chat-composer",
+      "type": "registry:component",
+      "title": "Claude Chat Composer",
+      "description": "Installable primitive from the Claude Chat chat UI.",
+      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "registryDependencies": ["dropdown-menu"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/claude-chat-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/claude-chat-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/claude-chat-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/claude-chat-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/claude-chat.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/claude-chat.ts"
+        }
+      ]
+    },
+    {
+      "name": "claude-chat-message",
+      "type": "registry:component",
+      "title": "Claude Chat Message",
+      "description": "Installable primitive from the Claude Chat chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-message.tsx"
+        }
+      ]
+    },
+    {
+      "name": "claude-chat-model-selector",
+      "type": "registry:component",
+      "title": "Claude Chat Model Selector",
+      "description": "Installable primitive from the Claude Chat chat UI.",
+      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "registryDependencies": ["dropdown-menu"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/claude-chat-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/claude-chat-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/claude-chat-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/claude-chat-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/claude-chat.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/claude-chat.ts"
+        }
+      ]
+    },
+    {
+      "name": "claude-chat-search",
+      "type": "registry:component",
+      "title": "Claude Chat Search",
+      "description": "Installable primitive from the Claude Chat chat UI.",
+      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-search-timing.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-search-timing.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-search.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-search.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-spinner.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-spinner.tsx"
+        }
+      ]
+    },
+    {
+      "name": "claude-chat-sources",
+      "type": "registry:component",
+      "title": "Claude Chat Sources",
+      "description": "Installable primitive from the Claude Chat chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-sources.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-sources.tsx"
+        }
+      ]
+    },
+    {
+      "name": "claude-chat-spinner",
+      "type": "registry:component",
+      "title": "Claude Chat Spinner",
+      "description": "Installable primitive from the Claude Chat chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-spinner.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-spinner.tsx"
+        }
+      ]
+    },
+    {
+      "name": "claude-chat-thinking",
+      "type": "registry:component",
+      "title": "Claude Chat Thinking",
+      "description": "Installable primitive from the Claude Chat chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-spinner.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-spinner.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-thinking.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-thinking.tsx"
+        }
+      ]
+    },
+    {
+      "name": "gemini-actions",
+      "type": "registry:component",
+      "title": "Gemini Actions",
+      "description": "Installable primitive from the Gemini chat UI.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
+      "registryDependencies": ["tooltip"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-actions.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-actions.tsx"
+        }
+      ]
+    },
+    {
+      "name": "gemini-composer",
+      "type": "registry:component",
+      "title": "Gemini Composer",
+      "description": "Installable primitive from the Gemini chat UI.",
+      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "registryDependencies": ["dropdown-menu"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/gemini-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/gemini-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/gemini-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/gemini-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/gemini.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/gemini.ts"
+        }
+      ]
+    },
+    {
+      "name": "gemini-message",
+      "type": "registry:component",
+      "title": "Gemini Message",
+      "description": "Installable primitive from the Gemini chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-message.tsx"
+        }
+      ]
+    },
+    {
+      "name": "gemini-model-selector",
+      "type": "registry:component",
+      "title": "Gemini Model Selector",
+      "description": "Installable primitive from the Gemini chat UI.",
+      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "registryDependencies": ["dropdown-menu"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/gemini-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/gemini-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/gemini-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/gemini-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/gemini.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/gemini.ts"
+        }
+      ]
+    },
+    {
+      "name": "gemini-sparkle",
+      "type": "registry:component",
+      "title": "Gemini Sparkle",
+      "description": "Installable primitive from the Gemini chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-sparkle.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-sparkle.tsx"
+        }
+      ]
+    },
+    {
+      "name": "gemini-thinking",
+      "type": "registry:component",
+      "title": "Gemini Thinking",
+      "description": "Installable primitive from the Gemini chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-sparkle.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-sparkle.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/gemini/gemini-thinking.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/gemini/gemini-thinking.tsx"
+        }
+      ]
+    },
+    {
+      "name": "perplexity-actions",
+      "type": "registry:component",
+      "title": "Perplexity Actions",
+      "description": "Installable primitive from the Perplexity chat UI.",
+      "dependencies": [
+        "cn",
+        "@base-ui/react",
+        "@hugeicons/core-free-icons",
+        "@hugeicons/react"
+      ],
+      "registryDependencies": ["sheet", "tooltip"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-actions.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-actions.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-favicon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-favicon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-sources-sheet.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-sources-sheet.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/perplexity.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/perplexity.ts"
+        }
+      ]
+    },
+    {
+      "name": "perplexity-citation",
+      "type": "registry:component",
+      "title": "Perplexity Citation",
+      "description": "Installable primitive from the Perplexity chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-citation.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-citation.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-favicon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-favicon.tsx"
+        }
+      ]
+    },
+    {
+      "name": "perplexity-composer",
+      "type": "registry:component",
+      "title": "Perplexity Composer",
+      "description": "Installable primitive from the Perplexity chat UI.",
+      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "registryDependencies": ["dropdown-menu"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-model-icon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-model-icon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/claudeAiIcon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/claudeAiIcon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/gemini.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/gemini.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/kimi.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/kimi.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/openai.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/openai.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/perplexity.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/perplexity.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/zai.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/zai.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/perplexity-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/perplexity-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/lib/perplexity-model.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/lib/perplexity-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/perplexity.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/perplexity.ts"
+        }
+      ]
+    },
+    {
+      "name": "perplexity-favicon",
+      "type": "registry:component",
+      "title": "Perplexity Favicon",
+      "description": "Installable primitive from the Perplexity chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-favicon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-favicon.tsx"
+        }
+      ]
+    },
+    {
+      "name": "perplexity-message",
+      "type": "registry:component",
+      "title": "Perplexity Message",
+      "description": "Installable primitive from the Perplexity chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-message.tsx"
+        }
+      ]
+    },
+    {
+      "name": "perplexity-model-icon",
+      "type": "registry:component",
+      "title": "Perplexity Model Icon",
+      "description": "Installable primitive from the Perplexity chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-model-icon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-model-icon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/claudeAiIcon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/claudeAiIcon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/gemini.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/gemini.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/kimi.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/kimi.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/openai.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/openai.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/perplexity.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/perplexity.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/zai.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/zai.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/perplexity.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/perplexity.ts"
+        }
+      ]
+    },
+    {
+      "name": "perplexity-model-selector",
+      "type": "registry:component",
+      "title": "Perplexity Model Selector",
+      "description": "Installable primitive from the Perplexity chat UI.",
+      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "registryDependencies": ["dropdown-menu"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-model-icon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-model-icon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-model-selector.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/claudeAiIcon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/claudeAiIcon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/gemini.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/gemini.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/kimi.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/kimi.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/openai.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/openai.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/perplexity.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/perplexity.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/zai.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/zai.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/perplexity-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/perplexity-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/perplexity.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/perplexity.ts"
+        }
+      ]
+    },
+    {
+      "name": "perplexity-search",
+      "type": "registry:component",
+      "title": "Perplexity Search",
+      "description": "Installable primitive from the Perplexity chat UI.",
+      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "registryDependencies": ["collapsible"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-favicon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-favicon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-search-timing.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-search-timing.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-search.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-search.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/perplexity.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/perplexity.ts"
+        }
+      ]
+    },
+    {
+      "name": "perplexity-sources-sheet",
+      "type": "registry:component",
+      "title": "Perplexity Sources Sheet",
+      "description": "Installable primitive from the Perplexity chat UI.",
+      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "registryDependencies": ["sheet"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-favicon.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-favicon.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-sources-sheet.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-sources-sheet.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/perplexity.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/perplexity.ts"
+        }
+      ]
+    },
+    {
+      "name": "perplexity-thinking",
+      "type": "registry:component",
+      "title": "Perplexity Thinking",
+      "description": "Installable primitive from the Perplexity chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/ai-elements/shimmer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ai-elements/shimmer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-thinking.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-thinking.tsx"
+        }
+      ],
+      "css": {
+        "@layer components": {
+          ".text-shimmer": {
+            "position": "relative",
+            "display": "inline-block",
+            "color": "var(--muted-foreground)"
+          },
+          ".text-shimmer__text": {
+            "display": "inline-block"
+          },
+          ".text-shimmer__mask": {
+            "position": "absolute",
+            "inset": "0",
+            "contain": "strict",
+            "overflow": "clip",
+            "color": "transparent",
+            "pointer-events": "none",
+            "user-select": "none"
+          },
+          ".text-shimmer__mask::after": {
+            "position": "absolute",
+            "inset": "0",
+            "content": "\"\"",
+            "background": "linear-gradient(90deg,transparent calc(50% - var(--text-shimmer-spread)),var(--foreground) 50%,transparent calc(50% + var(--text-shimmer-spread)))",
+            "pointer-events": "none",
+            "animation": "text-shimmer var(--text-shimmer-duration) linear infinite"
+          },
+          "@media (prefers-reduced-motion: reduce)": {
+            ".text-shimmer__mask": {
+              "display": "none"
+            }
+          },
+          "@supports (-webkit-mask-clip: text)": {
+            ".text-shimmer__mask": {
+              "mask-image": "linear-gradient(white, white)",
+              "-webkit-mask-clip": "text"
+            }
+          },
+          "@supports (mask-image: -moz-element(#text))": {
+            ".text-shimmer__mask": {
+              "mask-image": "var(--text-shimmer-firefox-mask)"
+            }
+          }
+        },
+        "@keyframes text-shimmer": {
+          "from": {
+            "transform": "translateX(-100%)"
+          },
+          "to": {
+            "transform": "translateX(100%)"
+          }
+        }
+      }
+    },
+    {
+      "name": "opencode-activity",
+      "type": "registry:component",
+      "title": "Opencode Activity",
+      "description": "Installable primitive from the OpenCode chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-activity.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-activity.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/brainless-opencode.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/brainless-opencode.ts"
+        }
+      ],
+      "cssVars": {
+        "light": {
+          "opencode-tui-background": "#fdfdfd",
+          "opencode-tui-surface": "#f6f6f6",
+          "opencode-tui-foreground": "#1d1d1d",
+          "opencode-tui-muted": "#929292",
+          "opencode-tui-subtle": "#dedede",
+          "opencode-tui-purple": "#8256d6",
+          "opencode-tui-orange": "#e48600",
+          "opencode-tui-green": "#00a861"
+        },
+        "dark": {
+          "opencode-tui-background": "#0a0a0a",
+          "opencode-tui-surface": "#141414",
+          "opencode-tui-foreground": "#eeeeee",
+          "opencode-tui-muted": "#a0a0a0",
+          "opencode-tui-subtle": "#484848",
+          "opencode-tui-purple": "#9d7cd8",
+          "opencode-tui-orange": "#fab283",
+          "opencode-tui-green": "#7fd88f"
+        }
+      }
+    },
+    {
+      "name": "opencode-composer",
+      "type": "registry:component",
+      "title": "Opencode Composer",
+      "description": "Installable primitive from the OpenCode chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": ["dropdown-menu", "input"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-composer.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-composer.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/brainless-opencode.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/opencode-models.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/opencode-models.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/brainless-opencode.ts"
+        }
+      ],
+      "cssVars": {
+        "light": {
+          "opencode-tui-background": "#fdfdfd",
+          "opencode-tui-surface": "#f6f6f6",
+          "opencode-tui-foreground": "#1d1d1d",
+          "opencode-tui-muted": "#929292",
+          "opencode-tui-subtle": "#dedede",
+          "opencode-tui-purple": "#8256d6",
+          "opencode-tui-orange": "#e48600",
+          "opencode-tui-green": "#00a861"
+        },
+        "dark": {
+          "opencode-tui-background": "#0a0a0a",
+          "opencode-tui-surface": "#141414",
+          "opencode-tui-foreground": "#eeeeee",
+          "opencode-tui-muted": "#a0a0a0",
+          "opencode-tui-subtle": "#484848",
+          "opencode-tui-purple": "#9d7cd8",
+          "opencode-tui-orange": "#fab283",
+          "opencode-tui-green": "#7fd88f"
+        }
+      }
+    },
+    {
+      "name": "opencode-logo",
+      "type": "registry:component",
+      "title": "Opencode Logo",
+      "description": "Installable primitive from the OpenCode chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-logo.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-logo.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/brainless-opencode.ts"
+        }
+      ],
+      "cssVars": {
+        "light": {
+          "opencode-tui-background": "#fdfdfd",
+          "opencode-tui-surface": "#f6f6f6",
+          "opencode-tui-foreground": "#1d1d1d",
+          "opencode-tui-muted": "#929292",
+          "opencode-tui-subtle": "#dedede",
+          "opencode-tui-purple": "#8256d6",
+          "opencode-tui-orange": "#e48600",
+          "opencode-tui-green": "#00a861"
+        },
+        "dark": {
+          "opencode-tui-background": "#0a0a0a",
+          "opencode-tui-surface": "#141414",
+          "opencode-tui-foreground": "#eeeeee",
+          "opencode-tui-muted": "#a0a0a0",
+          "opencode-tui-subtle": "#484848",
+          "opencode-tui-purple": "#9d7cd8",
+          "opencode-tui-orange": "#fab283",
+          "opencode-tui-green": "#7fd88f"
+        }
+      }
+    },
+    {
+      "name": "opencode-message",
+      "type": "registry:component",
+      "title": "Opencode Message",
+      "description": "Installable primitive from the OpenCode chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-message.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-message.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/brainless-opencode.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/brainless-opencode.ts"
+        }
+      ],
+      "cssVars": {
+        "light": {
+          "opencode-tui-background": "#fdfdfd",
+          "opencode-tui-surface": "#f6f6f6",
+          "opencode-tui-foreground": "#1d1d1d",
+          "opencode-tui-muted": "#929292",
+          "opencode-tui-subtle": "#dedede",
+          "opencode-tui-purple": "#8256d6",
+          "opencode-tui-orange": "#e48600",
+          "opencode-tui-green": "#00a861"
+        },
+        "dark": {
+          "opencode-tui-background": "#0a0a0a",
+          "opencode-tui-surface": "#141414",
+          "opencode-tui-foreground": "#eeeeee",
+          "opencode-tui-muted": "#a0a0a0",
+          "opencode-tui-subtle": "#484848",
+          "opencode-tui-purple": "#9d7cd8",
+          "opencode-tui-orange": "#fab283",
+          "opencode-tui-green": "#7fd88f"
+        }
+      }
+    },
+    {
+      "name": "opencode-sidebar",
+      "type": "registry:component",
+      "title": "Opencode Sidebar",
+      "description": "Installable primitive from the OpenCode chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-sidebar.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-sidebar.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/brainless-opencode.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/brainless-opencode.ts"
+        }
+      ],
+      "cssVars": {
+        "light": {
+          "opencode-tui-background": "#fdfdfd",
+          "opencode-tui-surface": "#f6f6f6",
+          "opencode-tui-foreground": "#1d1d1d",
+          "opencode-tui-muted": "#929292",
+          "opencode-tui-subtle": "#dedede",
+          "opencode-tui-purple": "#8256d6",
+          "opencode-tui-orange": "#e48600",
+          "opencode-tui-green": "#00a861"
+        },
+        "dark": {
+          "opencode-tui-background": "#0a0a0a",
+          "opencode-tui-surface": "#141414",
+          "opencode-tui-foreground": "#eeeeee",
+          "opencode-tui-muted": "#a0a0a0",
+          "opencode-tui-subtle": "#484848",
+          "opencode-tui-purple": "#9d7cd8",
+          "opencode-tui-orange": "#fab283",
+          "opencode-tui-green": "#7fd88f"
+        }
+      }
+    },
+    {
+      "name": "opencode-sources",
+      "type": "registry:component",
+      "title": "Opencode Sources",
+      "description": "Installable primitive from the OpenCode chat UI.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-activity.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-activity.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/opencode/opencode-sources.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/opencode/opencode-sources.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/constants/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/constants/brainless-opencode.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/brainless-opencode.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/brainless-opencode.ts"
+        }
+      ],
+      "cssVars": {
+        "light": {
+          "opencode-tui-background": "#fdfdfd",
+          "opencode-tui-surface": "#f6f6f6",
+          "opencode-tui-foreground": "#1d1d1d",
+          "opencode-tui-muted": "#929292",
+          "opencode-tui-subtle": "#dedede",
+          "opencode-tui-purple": "#8256d6",
+          "opencode-tui-orange": "#e48600",
+          "opencode-tui-green": "#00a861"
+        },
+        "dark": {
+          "opencode-tui-background": "#0a0a0a",
+          "opencode-tui-surface": "#141414",
+          "opencode-tui-foreground": "#eeeeee",
+          "opencode-tui-muted": "#a0a0a0",
+          "opencode-tui-subtle": "#484848",
+          "opencode-tui-purple": "#9d7cd8",
+          "opencode-tui-orange": "#fab283",
+          "opencode-tui-green": "#7fd88f"
+        }
+      }
     }
   ]
 }

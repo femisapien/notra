@@ -2,6 +2,8 @@ import { defineConfig } from "blume";
 import { script } from "blume/analytics";
 import { filesystem } from "blume/sources";
 
+import { GEIST_MONO_FONT, INTER_FONT } from "./src/constants/fonts";
+
 export default defineConfig({
   agents: {
     llmsTxt: {
@@ -71,9 +73,9 @@ export default defineConfig({
   theme: {
     accent: "#8b5cf6",
     fonts: {
-      body: "inter",
-      display: "inter",
-      mono: "geist-mono",
+      body: INTER_FONT,
+      display: INTER_FONT,
+      mono: GEIST_MONO_FONT,
     },
   },
   title: "Notra UI",

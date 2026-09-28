@@ -1,0 +1,22 @@
+---
+title: OpenCode UI
+description: Composable OpenCode conversation components.
+---
+
+<Component path="chat-ui/examples/opencode-preview" />
+
+<Component path="chat-ui/examples/opencode-start-preview" />
+
+## Installation
+
+```bash
+bunx shadcn@latest add https://ui.usenotra.com/r/opencode-ui.json
+```
+
+This installs the OpenCode primitives into `components/chat-ui` with their model data and required shadcn components. Import each file directly. Every primitive also has its own registry entry; use `https://ui.usenotra.com/r/<file-name>.json` for a single component.
+
+## Components
+
+`opencode-activity`, `opencode-composer`, `opencode-logo`, `opencode-message`, `opencode-sidebar`, `opencode-sources`.
+
+The primitives accept content and callbacks from your application. The preview is an example; the registry does not include its sample data.

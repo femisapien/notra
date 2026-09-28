@@ -115,3 +115,121 @@
     cursor: pointer;
   }
 }
+
+/* Chat examples are full-screen previews inside the Blume iframe. */
+body:has([data-blume-example] section[aria-label$="conversation"]),
+body:has([data-blume-example] section[aria-label="OpenCode start screen"]) {
+  padding: 0 !important;
+}
+
+body:has([data-blume-example] section[aria-label$="conversation"])
+  [data-blume-example],
+body:has([data-blume-example] section[aria-label="OpenCode start screen"])
+  [data-blume-example] {
+  width: 100%;
+  height: 100svh;
+  margin: 0 !important;
+}
+
+body:has([data-blume-example] section[aria-label$="conversation"])
+  section[aria-label$="conversation"],
+body:has([data-blume-example] section[aria-label="OpenCode start screen"])
+  section[aria-label="OpenCode start screen"] {
+  height: 100svh !important;
+  min-height: 0 !important;
+}
+
+body:has([data-blume-example] section[aria-label="Perplexity conversation"])
+  section[aria-label="Perplexity conversation"] {
+  height: calc(100svh - 2.5rem) !important;
+}
+
+/* Chat UI preview styles; registry entries install the same shimmer and OpenCode tokens. */
+@layer components {
+  .text-shimmer {
+    position: relative;
+    display: inline-block;
+    color: var(--muted-foreground);
+  }
+
+  .text-shimmer__text {
+    display: inline-block;
+  }
+
+  .text-shimmer__mask {
+    position: absolute;
+    inset: 0;
+    contain: strict;
+    overflow: clip;
+    color: transparent;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  @supports (-webkit-mask-clip: text) {
+    .text-shimmer__mask {
+      mask-image: linear-gradient(white, white);
+      -webkit-mask-clip: text;
+    }
+  }
+
+  @supports (mask-image: -moz-element(#text)) {
+    .text-shimmer__mask {
+      mask-image: var(--text-shimmer-firefox-mask);
+    }
+  }
+
+  .text-shimmer__mask::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+    background: linear-gradient(
+      90deg,
+      transparent calc(50% - var(--text-shimmer-spread)),
+      var(--foreground) 50%,
+      transparent calc(50% + var(--text-shimmer-spread))
+    );
+    pointer-events: none;
+    will-change: transform;
+    animation: text-shimmer var(--text-shimmer-duration) linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .text-shimmer__mask {
+      display: none;
+    }
+  }
+}
+
+@keyframes text-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+:root {
+  --opencode-tui-background: #fdfdfd;
+  --opencode-tui-surface: #f6f6f6;
+  --opencode-tui-foreground: #1d1d1d;
+  --opencode-tui-muted: #929292;
+  --opencode-tui-subtle: #dedede;
+  --opencode-tui-purple: #8256d6;
+  --opencode-tui-orange: #e48600;
+  --opencode-tui-green: #00a861;
+}
+
+.dark,
+[data-theme="dark"] {
+  --opencode-tui-background: #0a0a0a;
+  --opencode-tui-surface: #141414;
+  --opencode-tui-foreground: #eeeeee;
+  --opencode-tui-muted: #a0a0a0;
+  --opencode-tui-subtle: #484848;
+  --opencode-tui-purple: #9d7cd8;
+  --opencode-tui-orange: #fab283;
+  --opencode-tui-green: #7fd88f;
+}

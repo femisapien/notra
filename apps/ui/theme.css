@@ -131,3 +131,19 @@
   --color-aio-action: var(--aio-action);
   --font-aio: "Google Sans", "Google Sans Flex", Roboto, Arial, sans-serif;
 }
+
+/* Keep chat preview cards in the same position across docs pages. */
+.prose:has(> blume-tabs iframe[src*="/chat-ui/examples/"]) > h1 + p {
+  min-height: 3.5rem;
+}
+
+@media (max-width: 40rem) {
+  .prose:has(> blume-tabs iframe[src*="/chat-ui/examples/"]) > h1 + p {
+    min-height: 8.75rem;
+  }
+}
+
+blume-tabs:has(iframe[src*="/chat-ui/examples/"]) [data-blume-tab-panel] {
+  height: min(40rem, 100lvh) !important;
+  transition: none !important;
+}

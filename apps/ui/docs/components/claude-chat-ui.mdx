@@ -1,0 +1,20 @@
+---
+title: Claude Chat UI
+description: Composable Claude Chat conversation components.
+---
+
+<Component path="chat-ui/examples/claude-chat-preview" />
+
+## Installation
+
+```bash
+bunx shadcn@latest add https://ui.usenotra.com/r/claude-chat-ui.json
+```
+
+This installs the Claude Chat primitives into `components/chat-ui` with their model data and required shadcn components. Import each file directly. Every primitive also has its own registry entry; use `https://ui.usenotra.com/r/<file-name>.json` for a single component.
+
+## Components
+
+`claude-chat-actions`, `claude-chat-composer`, `claude-chat-message`, `claude-chat-model-selector`, `claude-chat-search`, `claude-chat-search-timing`, `claude-chat-sources`, `claude-chat-spinner`, `claude-chat-thinking`.
+
+The primitives accept content and callbacks from your application. The preview is an example; the registry does not include its sample data.

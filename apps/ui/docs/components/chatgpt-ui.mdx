@@ -1,0 +1,20 @@
+---
+title: ChatGPT UI
+description: Composable ChatGPT conversation components.
+---
+
+<Component path="chat-ui/examples/chatgpt-preview" />
+
+## Installation
+
+```bash
+bunx shadcn@latest add https://ui.usenotra.com/r/chatgpt-ui.json
+```
+
+This installs the ChatGPT primitives into `components/chat-ui` with their model data and required shadcn components. Import each file directly. Every primitive also has its own registry entry; use `https://ui.usenotra.com/r/<file-name>.json` for a single component.
+
+## Components
+
+`chatgpt-actions`, `chatgpt-activity`, `chatgpt-composer`, `chatgpt-message`, `chatgpt-model-selector`, `chatgpt-reasoning`, `chatgpt-search`, `chatgpt-thinking`.
+
+The primitives accept content and callbacks from your application. The preview is an example; the registry does not include its sample data.

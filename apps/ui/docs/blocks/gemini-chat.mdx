@@ -1,0 +1,16 @@
+---
+title: Gemini Chat
+description: A composed Gemini conversation block.
+---
+
+<Component path="chat-ui/examples/gemini-preview" />
+
+## Installation
+
+```bash
+bunx shadcn@latest add https://ui.usenotra.com/r/gemini-chat-block.json
+```
+
+The block installs the Gemini components and their dependencies. Its source is editable after installation.
+
+Pass `messages`, `onSend`, `onStop`, and `busy` to connect your chat state. Each message has an `id`, `from`, and `content`; add `text` to enable copy actions.

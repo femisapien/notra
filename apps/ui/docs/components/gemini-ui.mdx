@@ -1,0 +1,20 @@
+---
+title: Gemini UI
+description: Composable Gemini conversation components.
+---
+
+<Component path="chat-ui/examples/gemini-preview" />
+
+## Installation
+
+```bash
+bunx shadcn@latest add https://ui.usenotra.com/r/gemini-ui.json
+```
+
+This installs the Gemini primitives into `components/chat-ui` with their model data and required shadcn components. Import each file directly. Every primitive also has its own registry entry; use `https://ui.usenotra.com/r/<file-name>.json` for a single component.
+
+## Components
+
+`gemini-actions`, `gemini-composer`, `gemini-message`, `gemini-model-selector`, `gemini-sparkle`, `gemini-thinking`.
+
+The primitives accept content and callbacks from your application. The preview is an example; the registry does not include its sample data.

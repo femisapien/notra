@@ -1,0 +1,20 @@
+---
+title: OpenCode Chat
+description: The OpenCode session from our dashboard design system, with messages, activity, sources, composer, and context sidebar.
+---
+
+<Component path="chat-ui/examples/opencode-preview" />
+
+## Installation
+
+```bash
+bunx shadcn@latest add https://ui.usenotra.com/r/opencode-chat-block.json
+```
+
+The block installs the OpenCode components and their dependencies. Its source is editable after installation.
+
+Pass messages, activity, and sources as `children`. Set `sidebar`, `cwd`, and `context` for the session layout. Use `onSend` to handle Enter in the composer. Agent, model, and effort use installable shadcn dropdown primitives; their selection callbacks are `onAgentChange`, `onModelChange`, and `onEffortChange`. `value`, `onChange`, `onKeyDown`, `defaultValue`, and `placeholder` are also available.
+
+Select **Plan** in the Agent dropdown to switch the composer accent to orange; **Build** uses purple. Pass `agent="Plan"` with `onAgentChange` to control this state from your application.
+
+For the empty state, use the [OpenCode Start](/blocks/opencode-start) block.

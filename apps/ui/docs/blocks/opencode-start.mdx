@@ -1,0 +1,18 @@
+---
+title: OpenCode Start
+description: The centered OpenCode start screen with prompt, tip and status line.
+---
+
+<Component path="chat-ui/examples/opencode-start-preview" />
+
+## Installation
+
+```bash
+bunx shadcn@latest add https://ui.usenotra.com/r/opencode-start-block.json
+```
+
+The block installs the start screen and its OpenCode primitives. Set `cwd`, `version`, `tip`, `model`, `provider`, and `effort` to match your environment. Use `onSend` for Enter and the agent, model, and effort callbacks to keep selected options when moving into chat. `value`, `onChange`, and `onKeyDown` are also available.
+
+The Agent dropdown switches between purple **Build** and orange **Plan**. Pass `agent="Plan"` to show the Plan state initially.
+
+For an active conversation, use the [OpenCode Chat](/blocks/opencode-chat) block.
