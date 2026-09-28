@@ -46,13 +46,13 @@ const SOURCES = [
 function answerContent(showDetail: boolean) {
   return (
     <div className="space-y-4 font-serif">
-      <p className="animate-in fade-in slide-in-from-bottom-1 duration-300 motion-reduce:animate-none">
+      <p className="animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
         Notion hat <strong>Skiff</strong> gekauft — das Team und die Technik
         hinter dem, was später Notion Mail wurde.{" "}
         <PerplexityCitation domain="techcrunch.com" label="techcrunch" />
       </p>
       {showDetail ? (
-        <p className="animate-in fade-in slide-in-from-bottom-1 duration-300 motion-reduce:animate-none">
+        <p className="animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
           Notion übernahm Skiff im Februar 2024 und integrierte das Team in
           seine eigene Mail-App.{" "}
           <PerplexityCitation domain="theverge.com" label="theverge" />
@@ -151,7 +151,7 @@ export default function PerplexityPreview() {
     setFollowMessages(true);
     setMessages([questionMessage]);
 
-    await delay(550);
+    await delay(480);
     if (!alive()) {
       return;
     }
@@ -183,7 +183,10 @@ export default function PerplexityPreview() {
       },
     ]);
 
-    await delay(perplexitySearchDuration(QUERIES.length, reducedMotion) + 180);
+    await delay(
+      perplexitySearchDuration(QUERIES.length, SOURCES.length, reducedMotion) +
+        100
+    );
     if (!alive()) {
       return;
     }
@@ -198,7 +201,7 @@ export default function PerplexityPreview() {
       },
     ]);
 
-    await delay(700);
+    await delay(620);
     if (!alive()) {
       return;
     }
@@ -213,7 +216,7 @@ export default function PerplexityPreview() {
       },
     ]);
 
-    await delay(620);
+    await delay(540);
     if (!alive()) {
       return;
     }

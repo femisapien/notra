@@ -17,7 +17,7 @@ import type {
 import { Perplexity } from "../ui/svgs/perplexity";
 
 const PANEL_CLASS =
-  "grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ease-out data-closed:grid-rows-[0fr] data-open:grid-rows-[1fr] data-[ending-style]:grid-rows-[0fr] data-[ending-style]:opacity-0 data-[starting-style]:grid-rows-[0fr] data-[starting-style]:opacity-0 motion-reduce:transition-none";
+  "grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out data-closed:grid-rows-[0fr] data-open:grid-rows-[1fr] data-[ending-style]:grid-rows-[0fr] data-[ending-style]:opacity-0 data-[starting-style]:grid-rows-[0fr] data-[starting-style]:opacity-0 motion-reduce:transition-none";
 
 export function PerplexityResearch({
   status = "researched",
@@ -46,7 +46,7 @@ export function PerplexityResearch({
           ) : null}
         </span>
         <HugeiconsIcon
-          className="shrink-0 text-[#8d8d8d] transition-transform duration-300 group-data-panel-open/research:rotate-180 motion-reduce:transition-none"
+          className="shrink-0 text-[#8d8d8d] transition-transform duration-200 group-data-panel-open/research:rotate-180 motion-reduce:transition-none"
           icon={ArrowDown01Icon}
           size={14}
           strokeWidth={2}
@@ -77,7 +77,7 @@ export function PerplexityResearchStep({
         </span>
         <span className="min-w-0 flex-1 truncate">{title}</span>
         <HugeiconsIcon
-          className="shrink-0 text-[#8d8d8d] transition-transform duration-300 group-data-panel-open/step:rotate-180 motion-reduce:transition-none"
+          className="shrink-0 text-[#8d8d8d] transition-transform duration-200 group-data-panel-open/step:rotate-180 motion-reduce:transition-none"
           icon={ArrowDown01Icon}
           size={14}
           strokeWidth={2}

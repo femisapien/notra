@@ -24,6 +24,7 @@ import { PerplexityFavicon } from "./perplexity-favicon";
 import {
   PERPLEXITY_SEARCH_HEADER_MS,
   PERPLEXITY_SEARCH_QUERY_MS,
+  PERPLEXITY_SEARCH_SOURCES_MS,
   PERPLEXITY_SEARCH_STAGGER_MS,
 } from "./perplexity-search-timing";
 
@@ -121,10 +122,10 @@ function ShieldMark({ className }: { className?: string }) {
 }
 
 const ENTER_CLASS =
-  "translate-y-0 opacity-100 transition-[opacity,transform] duration-200 ease-out starting:translate-y-1.5 starting:opacity-0 motion-reduce:transition-none motion-reduce:starting:translate-y-0 motion-reduce:starting:opacity-100";
+  "translate-y-0 opacity-100 transition-[opacity,transform] duration-150 ease-out starting:translate-y-1.5 starting:opacity-0 motion-reduce:transition-none motion-reduce:starting:translate-y-0 motion-reduce:starting:opacity-100";
 
 const PANEL_CLASS =
-  "grid overflow-hidden outline-none transition-[grid-template-rows,opacity] duration-300 ease-out data-closed:grid-rows-[0fr] data-open:grid-rows-[1fr] data-[ending-style]:grid-rows-[0fr] data-[ending-style]:opacity-0 data-[starting-style]:grid-rows-[0fr] data-[starting-style]:opacity-0 motion-reduce:transition-none";
+  "grid overflow-hidden outline-none transition-[grid-template-rows,opacity] duration-200 ease-out data-closed:grid-rows-[0fr] data-open:grid-rows-[1fr] data-[ending-style]:grid-rows-[0fr] data-[ending-style]:opacity-0 data-[starting-style]:grid-rows-[0fr] data-[starting-style]:opacity-0 motion-reduce:transition-none";
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => {
@@ -192,7 +193,10 @@ export function PerplexitySearch({
         return;
       }
       setProgress((current) => ({ ...current, sources: true }));
-      await wait(previewSources.length * PERPLEXITY_SEARCH_STAGGER_MS + 180);
+      await wait(
+        previewSources.length * PERPLEXITY_SEARCH_STAGGER_MS +
+          PERPLEXITY_SEARCH_SOURCES_MS
+      );
       if (!cancelled) {
         setProgress((current) => ({ ...current, done: true }));
       }
@@ -245,7 +249,7 @@ export function PerplexitySearch({
       <CollapsibleTrigger className="group/search dark:hover:text-foreground flex w-full items-center gap-2 rounded-md py-0.5 text-left transition-colors outline-none hover:text-[#1a1a1a] focus-visible:ring-2 focus-visible:ring-black/15">
         {header}
         <HugeiconsIcon
-          className="shrink-0 text-[#8d8d8d] transition-transform duration-300 ease-out group-data-panel-open/search:rotate-180 motion-reduce:transition-none"
+          className="shrink-0 text-[#8d8d8d] transition-transform duration-200 ease-out group-data-panel-open/search:rotate-180 motion-reduce:transition-none"
           icon={ArrowDown01Icon}
           size={14}
           strokeWidth={2}
