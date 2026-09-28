@@ -1452,6 +1452,11 @@
           "target": "components/chat-ui/components/perplexity/perplexity-model-selector.tsx"
         },
         {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-research.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-research.tsx"
+        },
+        {
           "path": "registry/notra/chat-ui/components/perplexity/perplexity-search-timing.tsx",
           "type": "registry:component",
           "target": "components/chat-ui/components/perplexity/perplexity-search-timing.tsx"
@@ -1633,6 +1638,11 @@
           "path": "registry/notra/chat-ui/components/perplexity/perplexity-model-selector.tsx",
           "type": "registry:component",
           "target": "components/chat-ui/components/perplexity/perplexity-model-selector.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-research.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-research.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/perplexity/perplexity-search-timing.tsx",
@@ -2815,6 +2825,31 @@
           "path": "registry/notra/chat-ui/components/perplexity/perplexity-search.tsx",
           "type": "registry:component",
           "target": "components/chat-ui/components/perplexity/perplexity-search.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/perplexity.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/perplexity.ts"
+        }
+      ]
+    },
+    {
+      "name": "perplexity-research",
+      "type": "registry:component",
+      "title": "Perplexity Research",
+      "description": "Nested research activity with collapsed steps and an expandable timeline.",
+      "dependencies": ["cn", "@hugeicons/core-free-icons", "@hugeicons/react"],
+      "registryDependencies": ["collapsible"],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/perplexity/perplexity-research.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/perplexity/perplexity-research.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/components/ui/svgs/perplexity.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/ui/svgs/perplexity.tsx"
         },
         {
           "path": "registry/notra/chat-ui/types/perplexity.ts",

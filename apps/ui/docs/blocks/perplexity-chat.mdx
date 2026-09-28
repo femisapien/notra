@@ -5,7 +5,7 @@ description: A composed Perplexity conversation block.
 
 <Component path="chat-ui/examples/perplexity-preview" />
 
-Use **Play demo** above the preview to replay the conversation from the user question through thinking, search and the answer. **Stop** restores the completed example.
+Use **Play demo** above the preview to replay the conversation from the user question through thinking, web search, source review and the answer. **Stop** restores the completed example. Finished research and each nested step start collapsed; expand **Researched** and then a step to inspect its details.
 
 ## Installation
 
@@ -16,3 +16,5 @@ bunx shadcn@latest add https://ui.usenotra.com/r/perplexity-chat-block.json
 The block installs the Perplexity components and their dependencies. Its source is editable after installation.
 
 Pass `messages`, `onSend`, `onStop`, and `busy` to connect your chat state. Each message has an `id`, `from`, and `content`; add `text` to enable copy actions.
+
+Compose research activity with `PerplexityResearch`, `PerplexitySearch`, and `PerplexityResearchStep`. Both the research group and individual steps use `defaultOpen={false}` by default; set it to `true` for the active step during a live search.

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/collapsible";
 
 import type {
-  PerplexitySearchLabels,
+  PerplexitySearchProps,
   PerplexitySearchSource,
 } from "../../types/perplexity";
 import { PerplexityFavicon } from "./perplexity-favicon";
@@ -140,23 +140,13 @@ export function PerplexitySearch({
   sources,
   extraCount,
   previewCount = DEFAULT_PREVIEW_COUNT,
+  defaultOpen = false,
   sequential = false,
   reducedMotion = false,
   emptyDescription,
   className,
   labels,
-}: {
-  title: string;
-  queries: readonly string[];
-  sources: readonly PerplexitySearchSource[];
-  extraCount?: number;
-  previewCount?: number;
-  sequential?: boolean;
-  reducedMotion?: boolean;
-  emptyDescription?: string;
-  className?: string;
-  labels?: PerplexitySearchLabels;
-}) {
+}: PerplexitySearchProps) {
   const shouldSequence = sequential && !reducedMotion;
   const visiblePreviewCount = Math.min(
     Math.max(previewCount, 0),
@@ -165,7 +155,7 @@ export function PerplexitySearch({
   const previewSources = sources.slice(0, visiblePreviewCount);
   const extraSources = sources.slice(visiblePreviewCount);
   const hiddenCount = extraSources.length || extraCount || 0;
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(defaultOpen);
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [progress, setProgress] = useState({
     queries: 0,

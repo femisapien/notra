@@ -6,6 +6,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { PerplexityChatBlock } from "../components/blocks/perplexity-block";
 import { PerplexityCitation } from "../components/perplexity/perplexity-citation";
+import {
+  PerplexityResearch,
+  PerplexityResearchStep,
+} from "../components/perplexity/perplexity-research";
 import { PerplexitySearch } from "../components/perplexity/perplexity-search";
 import {
   PERPLEXITY_THINKING_GAP_MS,
@@ -58,15 +62,37 @@ function answerContent(showDetail: boolean) {
   );
 }
 
-function search(sequential: boolean, reducedMotion: boolean) {
+function research(phase: "complete" | "web" | "review", reducedMotion = false) {
+  const active = phase !== "complete";
+
   return (
-    <PerplexitySearch
-      queries={QUERIES}
-      reducedMotion={reducedMotion}
-      sequential={sequential}
-      sources={SOURCES}
-      title="Searching for the acquisition history"
-    />
+    <PerplexityResearch
+      defaultOpen={active}
+      duration={active ? undefined : "1s"}
+      key={active ? "running" : "complete"}
+      status={active ? "researching" : "researched"}
+    >
+      <PerplexitySearch
+        defaultOpen={phase === "web"}
+        key={phase === "web" ? "web-active" : "web-complete"}
+        queries={QUERIES}
+        reducedMotion={reducedMotion}
+        sequential={phase === "web"}
+        sources={SOURCES}
+        title="Searching the web"
+      />
+      {phase === "web" ? null : (
+        <PerplexityResearchStep
+          defaultOpen={phase === "review"}
+          title="Checking the timeline"
+        >
+          <p>
+            Notion announced its Skiff acquisition in February 2024, before
+            launching Notion Mail.
+          </p>
+        </PerplexityResearchStep>
+      )}
+    </PerplexityResearch>
   );
 }
 
@@ -80,7 +106,7 @@ const initialMessages: ChatBlockMessage[] = [
   {
     id: "answer",
     from: "assistant",
-    search: search(false, false),
+    search: research("complete"),
     content: answerContent(true),
     text: ANSWER,
   },
@@ -146,10 +172,15 @@ export default function PerplexityPreview() {
     if (!alive()) {
       return;
     }
-    const activeSearch = search(true, reducedMotion);
+    const activeResearch = research("web", reducedMotion);
     setMessages([
       questionMessage,
-      { id: "answer", from: "assistant", search: activeSearch, content: null },
+      {
+        id: "answer",
+        from: "assistant",
+        search: activeResearch,
+        content: null,
+      },
     ]);
 
     await delay(perplexitySearchDuration(QUERIES.length, reducedMotion) + 180);
@@ -162,7 +193,22 @@ export default function PerplexityPreview() {
       {
         id: "answer",
         from: "assistant",
-        search: activeSearch,
+        search: research("review", reducedMotion),
+        content: null,
+      },
+    ]);
+
+    await delay(700);
+    if (!alive()) {
+      return;
+    }
+
+    setMessages([
+      questionMessage,
+      {
+        id: "answer",
+        from: "assistant",
+        search: research("complete"),
         content: answerContent(false),
       },
     ]);
@@ -176,7 +222,7 @@ export default function PerplexityPreview() {
       {
         id: "answer",
         from: "assistant",
-        search: activeSearch,
+        search: research("complete"),
         content: answerContent(true),
         text: ANSWER,
       },

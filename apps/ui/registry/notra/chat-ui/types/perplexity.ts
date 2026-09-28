@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 export interface PerplexitySearchLabels {
   showLess: string;
   more: (count: number) => string;
@@ -47,4 +49,33 @@ export interface PerplexitySearchSource {
   domain: string;
   verified?: boolean;
   url?: string;
+}
+
+export interface PerplexitySearchProps {
+  title: string;
+  queries: readonly string[];
+  sources: readonly PerplexitySearchSource[];
+  extraCount?: number;
+  previewCount?: number;
+  defaultOpen?: boolean;
+  sequential?: boolean;
+  reducedMotion?: boolean;
+  emptyDescription?: string;
+  className?: string;
+  labels?: PerplexitySearchLabels;
+}
+
+export interface PerplexityResearchProps {
+  status?: "researching" | "researched";
+  duration?: string;
+  defaultOpen?: boolean;
+  className?: string;
+  children?: ReactNode;
+}
+
+export interface PerplexityResearchStepProps {
+  title: string;
+  defaultOpen?: boolean;
+  className?: string;
+  children?: ReactNode;
 }
