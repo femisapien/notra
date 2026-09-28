@@ -54,7 +54,11 @@ export function PerplexityResearch({
       </CollapsibleTrigger>
       <CollapsibleContent className={PANEL_CLASS} keepMounted>
         <div className="min-h-0 overflow-hidden ps-[15px]">
-          <div className="flex flex-col gap-3 border-s border-[#e8e8e8] py-3 ps-6 dark:border-white/10">
+          <div className="relative flex flex-col gap-3 py-3 ps-6">
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-y-0 start-0 w-px bg-gradient-to-b from-[#e8e8e8] via-[#e8e8e8] to-transparent dark:from-white/10 dark:via-white/10"
+            />
             {children}
           </div>
         </div>
