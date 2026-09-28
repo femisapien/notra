@@ -9,9 +9,6 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -23,13 +20,13 @@ import { getChatgptEffort, getChatgptModel } from "../../lib/chatgpt-model";
 import type { ChatgptEffortId, ChatgptModelId } from "../../types/chatgpt";
 
 const MENU_SURFACE =
-  "min-w-44 overflow-x-visible overflow-y-visible rounded-2xl p-1.5 ring-0 shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_4px_16px_rgba(0,0,0,0.08)] data-closed:overflow-x-visible data-closed:overflow-y-visible dark:ring-0 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_8px_24px_rgba(0,0,0,0.4)]";
+  "w-72 rounded-2xl p-1.5 ring-0 shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_4px_16px_rgba(0,0,0,0.08)] dark:ring-0 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_8px_24px_rgba(0,0,0,0.4)]";
 
-const ROW_TRIGGER =
-  "h-9 gap-2 rounded-lg px-2.5 py-0 text-[13px] leading-none focus:bg-[#f2f2f2] data-highlighted:bg-[#f2f2f2] data-open:bg-[#f2f2f2] data-popup-open:bg-[#f2f2f2] dark:focus:bg-[#2b2b2b] dark:data-highlighted:bg-[#2b2b2b] dark:data-open:bg-[#2b2b2b] dark:data-popup-open:bg-[#2b2b2b] [&_svg]:ml-0";
+const SECTION_LABEL =
+  "px-2.5 pb-1 pt-2 text-[11px] font-medium text-muted-foreground";
 
 const MODEL_OPTION =
-  "cursor-pointer rounded-lg py-2 pr-8 pl-2.5 text-[13px] focus:bg-[#f2f2f2] data-highlighted:bg-[#f2f2f2] dark:focus:bg-[#2b2b2b] dark:data-highlighted:bg-[#2b2b2b]";
+  "h-8 cursor-pointer rounded-lg py-0 pr-7 pl-2.5 text-[13px] focus:bg-[#f2f2f2] data-highlighted:bg-[#f2f2f2] dark:focus:bg-[#2b2b2b] dark:data-highlighted:bg-[#2b2b2b]";
 
 export function ChatgptModelSelector({
   model,
@@ -74,23 +71,17 @@ export function ChatgptModelSelector({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className={cn("w-64", MENU_SURFACE)}
+        className={MENU_SURFACE}
         side="top"
         sideOffset={8}
       >
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className={ROW_TRIGGER} openOnHover>
-            <span>Model</span>
-            <span className="text-muted-foreground ml-auto">
-              {selectedModel.label}
-            </span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent
-            className={MENU_SURFACE}
-            side="right"
-            sideOffset={0}
-          >
+        <div className="grid grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+          <div className="min-w-0 pr-1">
+            <p aria-hidden className={SECTION_LABEL}>
+              Model
+            </p>
             <DropdownMenuRadioGroup
+              aria-label="Model"
               onValueChange={(value) => {
                 const next = CHATGPT_MODELS.find((item) => item.id === value);
                 if (next) {
@@ -109,21 +100,13 @@ export function ChatgptModelSelector({
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className={ROW_TRIGGER} openOnHover>
-            <span>Effort</span>
-            <span className="text-muted-foreground ml-auto">
-              {selectedEffort.label}
-            </span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent
-            className={MENU_SURFACE}
-            side="right"
-            sideOffset={0}
-          >
+          </div>
+          <div className="min-w-0 border-l border-black/8 pl-1 dark:border-white/10">
+            <p aria-hidden className={SECTION_LABEL}>
+              Effort
+            </p>
             <DropdownMenuRadioGroup
+              aria-label="Effort"
               onValueChange={(value) => {
                 const next = CHATGPT_EFFORTS.find((item) => item.id === value);
                 if (next) {
@@ -142,8 +125,8 @@ export function ChatgptModelSelector({
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+          </div>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
