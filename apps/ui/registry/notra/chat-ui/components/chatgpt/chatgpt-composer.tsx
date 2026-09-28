@@ -102,7 +102,7 @@ export function ChatgptComposer({
       />
       <button
         aria-label={busy ? "Stop" : "Send"}
-        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:bg-blue-600/35 disabled:text-white"
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 disabled:bg-blue-600/35 disabled:text-white dark:disabled:bg-[#164085]"
         disabled={busy ? false : !canSend}
         onClick={
           busy
