@@ -19,3 +19,25 @@ export interface ChatgptEffortOption {
   id: ChatgptEffortId;
   label: string;
 }
+
+export interface ChatgptBlockMessage {
+  id: string;
+  from: ChatgptMessageRole;
+  content: ReactNode;
+  text?: string;
+  reasoning?: ReactNode;
+  tools?: ReactNode;
+}
+
+export interface ChatgptBlockProps {
+  messages: ChatgptBlockMessage[];
+  onSend?: (text: string) => void;
+  onStop?: () => void;
+  onAdd?: () => void;
+  onShareMessage?: (id: string) => void;
+  onRedoMessage?: (id: string) => void;
+  onMoreMessage?: (id: string) => void;
+  busy?: boolean;
+  className?: string;
+}
+import type { ReactNode } from "react";

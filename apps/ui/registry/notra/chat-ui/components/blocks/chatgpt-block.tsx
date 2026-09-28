@@ -2,7 +2,7 @@
 
 import { cn } from "cn";
 
-import type { ChatBlockProps } from "../../types/chat-block";
+import type { ChatgptBlockProps } from "../../types/chatgpt";
 import { ChatgptActions } from "../chatgpt/chatgpt-actions";
 import { ChatgptComposer } from "../chatgpt/chatgpt-composer";
 import { ChatgptMessage } from "../chatgpt/chatgpt-message";
@@ -11,9 +11,13 @@ export function ChatgptBlock({
   messages,
   onSend,
   onStop,
+  onAdd,
+  onShareMessage,
+  onRedoMessage,
+  onMoreMessage,
   busy = false,
   className,
-}: ChatBlockProps) {
+}: ChatgptBlockProps) {
   return (
     <section
       aria-label="ChatGPT conversation"
@@ -32,7 +36,24 @@ export function ChatgptBlock({
               tools={message.tools}
               actions={
                 message.from === "assistant" && message.text ? (
-                  <ChatgptActions text={message.text} />
+                  <ChatgptActions
+                    text={message.text}
+                    onShare={
+                      onShareMessage
+                        ? () => onShareMessage(message.id)
+                        : undefined
+                    }
+                    onRedo={
+                      onRedoMessage
+                        ? () => onRedoMessage(message.id)
+                        : undefined
+                    }
+                    onMore={
+                      onMoreMessage
+                        ? () => onMoreMessage(message.id)
+                        : undefined
+                    }
+                  />
                 ) : undefined
               }
             >
@@ -42,7 +63,12 @@ export function ChatgptBlock({
         </div>
       </div>
       <div className="mx-auto w-full max-w-3xl px-4 pb-4">
-        <ChatgptComposer busy={busy} onSend={onSend} onStop={onStop} />
+        <ChatgptComposer
+          busy={busy}
+          onAdd={onAdd}
+          onSend={onSend}
+          onStop={onStop}
+        />
       </div>
     </section>
   );

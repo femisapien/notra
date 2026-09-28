@@ -4,9 +4,9 @@ import { useState } from "react";
 
 import { ChatgptBlock } from "../components/blocks/chatgpt-block";
 import { ChatgptToolCall } from "../components/chatgpt/chatgpt-tool-call";
-import type { ChatBlockMessage } from "../types/chat-block";
+import type { ChatgptBlockMessage } from "../types/chatgpt";
 
-const initialMessages: ChatBlockMessage[] = [
+const initialMessages: ChatgptBlockMessage[] = [
   {
     id: "question",
     from: "user",

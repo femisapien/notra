@@ -848,72 +848,72 @@
         {
           "path": "registry/notra/chat-ui/components/ai-elements/shimmer.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/ai-elements/shimmer.tsx"
+          "target": "@components/chat-ui/components/ai-elements/shimmer.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-actions.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-actions.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-actions.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-activity.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-activity.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-activity.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-composer.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-composer.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-composer.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-message.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-message.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-message.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-model-selector.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-model-selector.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-model-selector.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-reasoning.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-reasoning.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-reasoning.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-search.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-search.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-search.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-thinking.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-thinking.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-thinking.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-tool-call.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-tool-call.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-tool-call.tsx"
         },
         {
           "path": "registry/notra/chat-ui/constants/chatgpt-models.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/constants/chatgpt-models.ts"
+          "target": "@components/chat-ui/constants/chatgpt-models.ts"
         },
         {
           "path": "registry/notra/chat-ui/lib/chatgpt-model.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/lib/chatgpt-model.ts"
+          "target": "@components/chat-ui/lib/chatgpt-model.ts"
         },
         {
           "path": "registry/notra/chat-ui/types/chatgpt.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/types/chatgpt.ts"
+          "target": "@components/chat-ui/types/chatgpt.ts"
         },
         {
           "path": "registry/notra/chat-ui/types/chatgpt-tool-call.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/types/chatgpt-tool-call.ts"
+          "target": "@components/chat-ui/types/chatgpt-tool-call.ts"
         }
       ],
       "css": {
@@ -991,82 +991,77 @@
         {
           "path": "registry/notra/chat-ui/components/ai-elements/shimmer.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/ai-elements/shimmer.tsx"
+          "target": "@components/chat-ui/components/ai-elements/shimmer.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/blocks/chatgpt-block.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/blocks/chatgpt-block.tsx"
+          "target": "@components/chat-ui/components/blocks/chatgpt-block.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-actions.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-actions.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-actions.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-activity.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-activity.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-activity.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-composer.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-composer.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-composer.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-message.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-message.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-message.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-model-selector.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-model-selector.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-model-selector.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-reasoning.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-reasoning.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-reasoning.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-search.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-search.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-search.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-thinking.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-thinking.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-thinking.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-tool-call.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-tool-call.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-tool-call.tsx"
         },
         {
           "path": "registry/notra/chat-ui/constants/chatgpt-models.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/constants/chatgpt-models.ts"
+          "target": "@components/chat-ui/constants/chatgpt-models.ts"
         },
         {
           "path": "registry/notra/chat-ui/lib/chatgpt-model.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/lib/chatgpt-model.ts"
-        },
-        {
-          "path": "registry/notra/chat-ui/types/chat-block.ts",
-          "type": "registry:lib",
-          "target": "components/chat-ui/types/chat-block.ts"
+          "target": "@components/chat-ui/lib/chatgpt-model.ts"
         },
         {
           "path": "registry/notra/chat-ui/types/chatgpt.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/types/chatgpt.ts"
+          "target": "@components/chat-ui/types/chatgpt.ts"
         },
         {
           "path": "registry/notra/chat-ui/types/chatgpt-tool-call.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/types/chatgpt-tool-call.ts"
+          "target": "@components/chat-ui/types/chatgpt-tool-call.ts"
         }
       ],
       "css": {
@@ -2056,7 +2051,7 @@
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-actions.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-actions.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-actions.tsx"
         }
       ]
     },
@@ -2071,12 +2066,12 @@
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-activity.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-activity.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-activity.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-search.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-search.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-search.tsx"
         }
       ]
     },
@@ -2091,27 +2086,27 @@
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-composer.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-composer.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-composer.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-model-selector.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-model-selector.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-model-selector.tsx"
         },
         {
           "path": "registry/notra/chat-ui/constants/chatgpt-models.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/constants/chatgpt-models.ts"
+          "target": "@components/chat-ui/constants/chatgpt-models.ts"
         },
         {
           "path": "registry/notra/chat-ui/lib/chatgpt-model.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/lib/chatgpt-model.ts"
+          "target": "@components/chat-ui/lib/chatgpt-model.ts"
         },
         {
           "path": "registry/notra/chat-ui/types/chatgpt.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/types/chatgpt.ts"
+          "target": "@components/chat-ui/types/chatgpt.ts"
         }
       ]
     },
@@ -2126,12 +2121,12 @@
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-message.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-message.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-message.tsx"
         },
         {
           "path": "registry/notra/chat-ui/types/chatgpt.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/types/chatgpt.ts"
+          "target": "@components/chat-ui/types/chatgpt.ts"
         }
       ]
     },
@@ -2146,22 +2141,22 @@
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-model-selector.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-model-selector.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-model-selector.tsx"
         },
         {
           "path": "registry/notra/chat-ui/constants/chatgpt-models.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/constants/chatgpt-models.ts"
+          "target": "@components/chat-ui/constants/chatgpt-models.ts"
         },
         {
           "path": "registry/notra/chat-ui/lib/chatgpt-model.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/lib/chatgpt-model.ts"
+          "target": "@components/chat-ui/lib/chatgpt-model.ts"
         },
         {
           "path": "registry/notra/chat-ui/types/chatgpt.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/types/chatgpt.ts"
+          "target": "@components/chat-ui/types/chatgpt.ts"
         }
       ]
     },
@@ -2176,7 +2171,7 @@
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-reasoning.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-reasoning.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-reasoning.tsx"
         }
       ]
     },
@@ -2191,7 +2186,7 @@
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-search.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-search.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-search.tsx"
         }
       ]
     },
@@ -2201,17 +2196,17 @@
       "title": "ChatGPT Tool Call",
       "description": "A collapsible tool call and result for ChatGPT Chat.",
       "dependencies": ["cn"],
-      "registryDependencies": [],
+      "registryDependencies": ["collapsible"],
       "files": [
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-tool-call.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-tool-call.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-tool-call.tsx"
         },
         {
           "path": "registry/notra/chat-ui/types/chatgpt-tool-call.ts",
           "type": "registry:lib",
-          "target": "components/chat-ui/types/chatgpt-tool-call.ts"
+          "target": "@components/chat-ui/types/chatgpt-tool-call.ts"
         }
       ]
     },
@@ -2226,12 +2221,12 @@
         {
           "path": "registry/notra/chat-ui/components/ai-elements/shimmer.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/ai-elements/shimmer.tsx"
+          "target": "@components/chat-ui/components/ai-elements/shimmer.tsx"
         },
         {
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-thinking.tsx",
           "type": "registry:component",
-          "target": "components/chat-ui/components/chatgpt/chatgpt-thinking.tsx"
+          "target": "@components/chat-ui/components/chatgpt/chatgpt-thinking.tsx"
         }
       ],
       "css": {

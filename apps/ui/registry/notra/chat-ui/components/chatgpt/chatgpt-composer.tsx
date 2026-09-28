@@ -20,6 +20,7 @@ import { ChatgptModelSelector } from "./chatgpt-model-selector";
 export function ChatgptComposer({
   onSend,
   onStop,
+  onAdd,
   placeholder = "Ask anything",
   busy = false,
   model: modelProp,
@@ -32,6 +33,7 @@ export function ChatgptComposer({
 }: {
   onSend?: (text: string) => void;
   onStop?: () => void;
+  onAdd?: () => void;
   placeholder?: string;
   busy?: boolean;
   model?: ChatgptModelId;
@@ -47,7 +49,7 @@ export function ChatgptComposer({
   const [uncontrolledEffort, setUncontrolledEffort] = useState(defaultEffort);
   const model = modelProp ?? uncontrolledModel;
   const effort = effortProp ?? uncontrolledEffort;
-  const canSend = value.trim().length > 0;
+  const canSend = value.trim().length > 0 && Boolean(onSend);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -69,13 +71,16 @@ export function ChatgptComposer({
       )}
       onSubmit={handleSubmit}
     >
-      <button
-        aria-label="Add"
-        className="text-foreground/80 hover:bg-muted hover:text-foreground flex size-6 shrink-0 items-center justify-center rounded-full transition-colors"
-        type="button"
-      >
-        <HugeiconsIcon icon={PlusSignIcon} size={16} strokeWidth={1.75} />
-      </button>
+      {onAdd ? (
+        <button
+          aria-label="Add"
+          className="text-foreground/80 hover:bg-muted hover:text-foreground flex size-6 shrink-0 items-center justify-center rounded-full transition-colors"
+          onClick={onAdd}
+          type="button"
+        >
+          <HugeiconsIcon icon={PlusSignIcon} size={16} strokeWidth={1.75} />
+        </button>
+      ) : null}
       <input
         aria-label="Message"
         className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent py-2 pr-3 text-[15px] outline-none"
@@ -103,7 +108,7 @@ export function ChatgptComposer({
       <button
         aria-label={busy ? "Stop" : "Send"}
         className="flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition-colors enabled:hover:bg-blue-500 disabled:bg-blue-600/35 disabled:text-white dark:disabled:bg-[#164085]"
-        disabled={busy ? false : !canSend}
+        disabled={busy ? !onStop : !canSend}
         onClick={
           busy
             ? (event) => {

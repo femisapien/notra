@@ -25,7 +25,7 @@ function ActionButton({
   children,
 }: {
   label: string;
-  onClick?: () => void;
+  onClick: () => void;
   children: ReactNode;
 }) {
   return (
@@ -51,9 +51,15 @@ function ActionButton({
 
 export function ChatgptActions({
   text,
+  onShare,
+  onRedo,
+  onMore,
   className,
 }: {
   text: string;
+  onShare?: () => void;
+  onRedo?: () => void;
+  onMore?: () => void;
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
@@ -83,15 +89,24 @@ export function ChatgptActions({
             strokeWidth={1.75}
           />
         </ActionButton>
-        <ActionButton label="Share">
-          <HugeiconsIcon icon={Share01Icon} strokeWidth={1.75} />
-        </ActionButton>
-        <ActionButton label="Redo">
-          <HugeiconsIcon icon={ArrowReloadHorizontalIcon} strokeWidth={1.75} />
-        </ActionButton>
-        <ActionButton label="More">
-          <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={1.75} />
-        </ActionButton>
+        {onShare ? (
+          <ActionButton label="Share" onClick={onShare}>
+            <HugeiconsIcon icon={Share01Icon} strokeWidth={1.75} />
+          </ActionButton>
+        ) : null}
+        {onRedo ? (
+          <ActionButton label="Redo" onClick={onRedo}>
+            <HugeiconsIcon
+              icon={ArrowReloadHorizontalIcon}
+              strokeWidth={1.75}
+            />
+          </ActionButton>
+        ) : null}
+        {onMore ? (
+          <ActionButton label="More" onClick={onMore}>
+            <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={1.75} />
+          </ActionButton>
+        ) : null}
       </div>
     </TooltipProvider>
   );

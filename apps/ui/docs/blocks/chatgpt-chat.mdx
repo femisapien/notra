@@ -13,4 +13,6 @@ bunx shadcn@latest add https://ui.usenotra.com/r/chatgpt-chat-block.json
 
 The block installs the ChatGPT components and their dependencies. Its source is editable after installation.
 
-Pass `messages`, `onSend`, `onStop`, and `busy` to connect your chat state. Each message has an `id`, `from`, and `content`; add `text` to enable copy actions, or `tools` to show tool calls before the answer. `ChatgptToolCall` displays an expandable result.
+Pass `messages`, `onSend`, `onStop`, and `busy` to connect your chat state. Each message has an `id`, `from`, and `content`; add `text` to enable copy actions, or `tools` to show tool calls before the answer. `ChatgptToolCall` uses the shadcn Collapsible primitive to display an expandable result.
+
+Optional `onAdd`, `onShareMessage`, `onRedoMessage`, and `onMoreMessage` callbacks enable the matching controls. Controls without a handler are hidden; the send and stop buttons are disabled when their handlers are missing. The preview keeps messages in local state and does not call an AI backend.
