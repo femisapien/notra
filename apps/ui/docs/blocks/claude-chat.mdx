@@ -13,4 +13,4 @@ bunx shadcn@latest add https://ui.usenotra.com/r/claude-chat-block.json
 
 The block installs the Claude Chat components and their dependencies. Its source is editable after installation.
 
-Pass `messages`, `onSend`, `onStop`, and `busy` to connect your chat state. Each message has an `id`, `from`, and `content`; add `text` to enable copy actions.
+Pass `messages`, `onSend`, `onStop`, and `busy` to connect your chat state. Each message has an `id`, `from`, and `content`; add `text` to enable copy actions, or `tools` to show tool calls before the answer. `ClaudeChatToolCall` displays an expandable result.

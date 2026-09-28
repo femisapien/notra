@@ -9,6 +9,7 @@ const actionsRevealClassName =
 export function ClaudeChatMessage({
   from,
   search,
+  tools,
   sources,
   actions,
   className,
@@ -16,6 +17,7 @@ export function ClaudeChatMessage({
 }: {
   from: ClaudeChatMessageRole;
   search?: ReactNode;
+  tools?: ReactNode;
   sources?: ReactNode;
   actions?: ReactNode;
   className?: string;
@@ -47,6 +49,7 @@ export function ClaudeChatMessage({
       )}
     >
       {search}
+      {tools}
       {children ? (
         <div className="dark:text-foreground max-w-full font-serif text-[17px] leading-[1.7] text-[#1f1e1b]">
           {children}

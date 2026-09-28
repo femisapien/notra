@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { ClaudeChatBlock } from "../components/blocks/claude-chat-block";
+import { ClaudeChatToolCall } from "../components/claude-chat/claude-chat-tool-call";
 import type { ChatBlockMessage } from "../types/chat-block";
 
 const initialMessages: ChatBlockMessage[] = [
@@ -15,11 +16,28 @@ const initialMessages: ChatBlockMessage[] = [
   {
     id: "answer",
     from: "assistant",
+    tools: (
+      <div className="w-full space-y-2">
+        <ClaudeChatToolCall
+          defaultOpen
+          input="claude-chat-block.tsx"
+          result="The message list scrolls independently; the composer stays below it."
+          tool="Read file"
+        />
+        <ClaudeChatToolCall
+          input="claude-chat-message.tsx"
+          result="User prompts align right at up to 70% width. Assistant replies use the reading edge and serif type."
+          tool="Read file"
+        />
+      </div>
+    ),
     content: (
       <div className="space-y-4">
         <p>
-          I would start with the reading flow: people should always know which
-          message they are in, what the assistant is doing, and where to reply.
+          The current block already keeps the conversation separate from the
+          composer. I would keep that structure and focus on the reading flow:
+          people should always know which message they are in, what the
+          assistant is doing, and where to reply.
         </p>
         <div>
           <p className="font-semibold">
@@ -51,7 +69,7 @@ const initialMessages: ChatBlockMessage[] = [
         </div>
       </div>
     ),
-    text: "I would start with the reading flow: people should always know which message they are in, what the assistant is doing, and where to reply. 1. Give the conversation a clear rhythm. Keep messages in one column with a comfortable line length. Align the user’s prompts to the right, leave assistant answers on the reading edge, and use spacing to separate turns. Long answers need headings, short paragraphs, and lists that can be scanned. 2. Make ongoing work understandable. Show a compact activity state while a reply is being prepared. Keep the composer available, let people stop a response, and only scroll automatically when they are already near the bottom. If they scroll up to read, leave their position alone. 3. Check the difficult moments. Test a very long answer, a failed reply, keyboard navigation, and the point where the composer grows to several lines. Those cases reveal whether the layout still feels stable.",
+    text: "The current block already keeps the conversation separate from the composer. I would keep that structure and focus on the reading flow: people should always know which message they are in, what the assistant is doing, and where to reply. 1. Give the conversation a clear rhythm. Keep messages in one column with a comfortable line length. Align the user’s prompts to the right, leave assistant answers on the reading edge, and use spacing to separate turns. Long answers need headings, short paragraphs, and lists that can be scanned. 2. Make ongoing work understandable. Show a compact activity state while a reply is being prepared. Keep the composer available, let people stop a response, and only scroll automatically when they are already near the bottom. If they scroll up to read, leave their position alone. 3. Check the difficult moments. Test a very long answer, a failed reply, keyboard navigation, and the point where the composer grows to several lines. Those cases reveal whether the layout still feels stable.",
   },
   {
     id: "follow-up",

@@ -15,6 +15,7 @@ export interface ChatBlockMessage {
   content: ReactNode;
   text?: string;
   search?: ReactNode;
+  tools?: ReactNode;
   status?: ReactNode;
   reasoning?: ReactNode;
   sources?: ReactNode;

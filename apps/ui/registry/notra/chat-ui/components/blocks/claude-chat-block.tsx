@@ -29,6 +29,7 @@ export function ClaudeChatBlock({
               key={message.id}
               from={message.from}
               search={message.search}
+              tools={message.tools}
               sources={message.sources}
               actions={
                 message.from === "assistant" && message.text ? (

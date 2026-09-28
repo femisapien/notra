@@ -1162,6 +1162,11 @@
           "target": "components/chat-ui/components/claude-chat/claude-chat-thinking.tsx"
         },
         {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-tool-call.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-tool-call.tsx"
+        },
+        {
           "path": "registry/notra/chat-ui/constants/claude-chat-models.ts",
           "type": "registry:lib",
           "target": "components/chat-ui/constants/claude-chat-models.ts"
@@ -1170,6 +1175,11 @@
           "path": "registry/notra/chat-ui/lib/claude-chat-model.ts",
           "type": "registry:lib",
           "target": "components/chat-ui/lib/claude-chat-model.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/claude-chat-tool-call.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/claude-chat-tool-call.ts"
         },
         {
           "path": "registry/notra/chat-ui/types/claude-chat.ts",
@@ -1242,6 +1252,11 @@
           "target": "components/chat-ui/components/claude-chat/claude-chat-thinking.tsx"
         },
         {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-tool-call.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-tool-call.tsx"
+        },
+        {
           "path": "registry/notra/chat-ui/constants/claude-chat-models.ts",
           "type": "registry:lib",
           "target": "components/chat-ui/constants/claude-chat-models.ts"
@@ -1255,6 +1270,11 @@
           "path": "registry/notra/chat-ui/types/chat-block.ts",
           "type": "registry:lib",
           "target": "components/chat-ui/types/chat-block.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/claude-chat-tool-call.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/claude-chat-tool-call.ts"
         },
         {
           "path": "registry/notra/chat-ui/types/claude-chat.ts",
@@ -2350,6 +2370,26 @@
           "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-spinner.tsx",
           "type": "registry:component",
           "target": "components/chat-ui/components/claude-chat/claude-chat-spinner.tsx"
+        }
+      ]
+    },
+    {
+      "name": "claude-chat-tool-call",
+      "type": "registry:component",
+      "title": "Claude Chat Tool Call",
+      "description": "A collapsible tool call and result for Claude Chat.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/claude-chat/claude-chat-tool-call.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/claude-chat/claude-chat-tool-call.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/claude-chat-tool-call.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/claude-chat-tool-call.ts"
         }
       ]
     },
