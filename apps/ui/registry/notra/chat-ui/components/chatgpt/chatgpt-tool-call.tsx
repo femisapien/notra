@@ -18,42 +18,52 @@ export function ChatgptToolCall({
   className,
 }: ChatgptToolCallProps) {
   return (
-    <Collapsible
+    <div
       className={cn(
-        "w-full rounded-xl border border-black/8 bg-[#f7f7f7] text-[13px] dark:border-white/10 dark:bg-white/5",
+        "border-border bg-muted/50 w-full overflow-hidden rounded-xl border text-sm",
         className
       )}
-      defaultOpen={defaultOpen}
     >
-      <CollapsibleTrigger className="text-foreground flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-blue-600/35 data-[panel-open]:[&_svg]:rotate-180">
-        <span
-          aria-hidden
-          className="flex size-5 shrink-0 items-center justify-center rounded-md bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400"
+      <Collapsible defaultOpen={defaultOpen}>
+        <CollapsibleTrigger
+          render={
+            <button
+              className="text-foreground focus-visible:ring-ring flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-left outline-none focus-visible:ring-2 data-[panel-open]:[&_svg]:rotate-180"
+              type="button"
+            />
+          }
         >
-          ↗
-        </span>
-        <span className="shrink-0 font-medium">{tool}</span>
-        <code className="text-muted-foreground min-w-0 flex-1 truncate">
-          {input}
-        </code>
-        <svg
-          aria-hidden
-          className="text-muted-foreground size-4 shrink-0 transition-transform"
-          fill="none"
-          viewBox="0 0 16 16"
-        >
-          <path
-            d="M4 6.25 8 10.25 12 6.25"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1.5"
-          />
-        </svg>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="text-muted-foreground border-t border-black/8 px-3 py-2.5 font-mono text-xs leading-5 dark:border-white/10">
-        {result}
-      </CollapsibleContent>
-    </Collapsible>
+          <span
+            aria-hidden
+            className="flex size-5 shrink-0 items-center justify-center rounded-md bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400"
+          >
+            ↗
+          </span>
+          <span className="shrink-0 font-medium">{tool}</span>
+          <code className="text-muted-foreground min-w-0 flex-1 truncate">
+            {input}
+          </code>
+          <svg
+            aria-hidden
+            className="text-muted-foreground size-4 shrink-0 transition-transform"
+            fill="none"
+            viewBox="0 0 16 16"
+          >
+            <path
+              d="M4 6.25 8 10.25 12 6.25"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="1.5"
+            />
+          </svg>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="text-muted-foreground border-border border-t px-3 py-2.5 font-mono text-xs leading-5">
+            {result}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
   );
 }

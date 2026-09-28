@@ -25,7 +25,7 @@ const initialMessages: ChatgptBlockMessage[] = [
         />
         <ChatgptToolCall
           input="chatgpt-composer.tsx"
-          result="The composer includes an attachment action, message field, model selector, and send button."
+          result="The composer includes a message field, model selector, and send button. An attachment action can be wired through onAdd."
           tool="Read file"
         />
       </div>
