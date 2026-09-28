@@ -9,12 +9,14 @@ const actionsRevealClassName =
 export function ChatgptMessage({
   from,
   reasoning,
+  tools,
   actions,
   className,
   children,
 }: {
   from: ChatgptMessageRole;
   reasoning?: ReactNode;
+  tools?: ReactNode;
   actions?: ReactNode;
   className?: string;
   children: ReactNode;
@@ -37,6 +39,7 @@ export function ChatgptMessage({
       )}
     >
       {reasoning}
+      {tools}
       <div className="text-foreground max-w-full text-[15px] leading-7">
         {children}
       </div>

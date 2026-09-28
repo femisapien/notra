@@ -3,28 +3,46 @@
 import { useState } from "react";
 
 import { ChatgptBlock } from "../components/blocks/chatgpt-block";
+import { ChatgptToolCall } from "../components/chatgpt/chatgpt-tool-call";
 import type { ChatBlockMessage } from "../types/chat-block";
 
 const initialMessages: ChatBlockMessage[] = [
   {
     id: "question",
     from: "user",
-    content: "Can you break down a responsive chat layout?",
+    content: "Can you review our chat layout and suggest what to improve?",
   },
   {
     id: "answer",
     from: "assistant",
+    tools: (
+      <div className="w-full space-y-2">
+        <ChatgptToolCall
+          defaultOpen
+          input="chatgpt-block.tsx"
+          result="The message list scrolls above a composer that stays at the bottom."
+          tool="Read file"
+        />
+        <ChatgptToolCall
+          input="chatgpt-composer.tsx"
+          result="The composer includes an attachment action, message field, model selector, and send button."
+          tool="Read file"
+        />
+      </div>
+    ),
     content: (
       <div className="space-y-3">
-        <p>Yes. I would build it in three passes:</p>
+        <p>The basic structure is sound. I would refine it in three passes:</p>
         <ol className="list-inside list-decimal space-y-1">
-          <li>Make the conversation area scroll independently.</li>
-          <li>Keep the composer visible at the bottom.</li>
-          <li>Check long text and controls on a 320 px viewport.</li>
+          <li>
+            Keep the scroll position stable while someone reads older messages.
+          </li>
+          <li>Give long answers headings and a readable line length.</li>
+          <li>Check the composer with long text and a 320 px viewport.</li>
         </ol>
       </div>
     ),
-    text: "Yes. I would build it in three passes: 1. Make the conversation area scroll independently. 2. Keep the composer visible at the bottom. 3. Check long text and controls on a 320 px viewport.",
+    text: "The basic structure is sound. I would refine it in three passes: 1. Keep the scroll position stable while someone reads older messages. 2. Give long answers headings and a readable line length. 3. Check the composer with long text and a 320 px viewport.",
   },
 ];
 

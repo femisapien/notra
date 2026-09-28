@@ -29,6 +29,7 @@ export function ChatgptBlock({
               key={message.id}
               from={message.from}
               reasoning={message.reasoning}
+              tools={message.tools}
               actions={
                 message.from === "assistant" && message.text ? (
                   <ChatgptActions text={message.text} />

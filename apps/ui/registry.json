@@ -891,6 +891,11 @@
           "target": "components/chat-ui/components/chatgpt/chatgpt-thinking.tsx"
         },
         {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-tool-call.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-tool-call.tsx"
+        },
+        {
           "path": "registry/notra/chat-ui/constants/chatgpt-models.ts",
           "type": "registry:lib",
           "target": "components/chat-ui/constants/chatgpt-models.ts"
@@ -904,6 +909,11 @@
           "path": "registry/notra/chat-ui/types/chatgpt.ts",
           "type": "registry:lib",
           "target": "components/chat-ui/types/chatgpt.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chatgpt-tool-call.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chatgpt-tool-call.ts"
         }
       ],
       "css": {
@@ -1029,6 +1039,11 @@
           "target": "components/chat-ui/components/chatgpt/chatgpt-thinking.tsx"
         },
         {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-tool-call.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-tool-call.tsx"
+        },
+        {
           "path": "registry/notra/chat-ui/constants/chatgpt-models.ts",
           "type": "registry:lib",
           "target": "components/chat-ui/constants/chatgpt-models.ts"
@@ -1047,6 +1062,11 @@
           "path": "registry/notra/chat-ui/types/chatgpt.ts",
           "type": "registry:lib",
           "target": "components/chat-ui/types/chatgpt.ts"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chatgpt-tool-call.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chatgpt-tool-call.ts"
         }
       ],
       "css": {
@@ -2172,6 +2192,26 @@
           "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-search.tsx",
           "type": "registry:component",
           "target": "components/chat-ui/components/chatgpt/chatgpt-search.tsx"
+        }
+      ]
+    },
+    {
+      "name": "chatgpt-tool-call",
+      "type": "registry:component",
+      "title": "ChatGPT Tool Call",
+      "description": "A collapsible tool call and result for ChatGPT Chat.",
+      "dependencies": ["cn"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/notra/chat-ui/components/chatgpt/chatgpt-tool-call.tsx",
+          "type": "registry:component",
+          "target": "components/chat-ui/components/chatgpt/chatgpt-tool-call.tsx"
+        },
+        {
+          "path": "registry/notra/chat-ui/types/chatgpt-tool-call.ts",
+          "type": "registry:lib",
+          "target": "components/chat-ui/types/chatgpt-tool-call.ts"
         }
       ]
     },
