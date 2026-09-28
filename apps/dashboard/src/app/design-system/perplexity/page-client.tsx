@@ -150,7 +150,7 @@ function PerplexityStoryText({
         if (isHeading) {
           return (
             <strong
-              className="mt-1 block font-serif text-[18px] leading-7 font-semibold"
+              className="mt-1 block text-[18px] leading-7 font-semibold"
               key={block.offset}
             >
               {block.text.slice(2, -2)}

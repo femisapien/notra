@@ -45,7 +45,7 @@ const SOURCES = [
 
 function answerContent(showDetail: boolean) {
   return (
-    <div className="space-y-4 font-serif">
+    <div className="space-y-4">
       <p className="animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
         Notion hat <strong>Skiff</strong> gekauft — das Team und die Technik
         hinter dem, was später Notion Mail wurde.{" "}
