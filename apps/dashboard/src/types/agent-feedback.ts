@@ -119,9 +119,6 @@ export interface AgentFeedbackDetailDialogProps {
   isUpdating: boolean;
 }
 
-export interface AgentFeedbackSetupCardProps {
-  organizationId: string;
-}
 
 export interface AgentFeedbackStatusBadgeProps {
   status: AgentFeedbackStatus;

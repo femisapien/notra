@@ -103,9 +103,6 @@ export interface SettingsModalBodyProps {
   titleId: string;
 }
 
-export interface LogsRetentionHintProps {
-  days: number;
-}
 
 export interface SettingsHeaderContextValue {
   titleAccessory: ReactNode;

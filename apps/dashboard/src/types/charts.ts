@@ -53,9 +53,6 @@ export interface ChartMarker {
   label: string;
 }
 
-export interface GridProps {
-  lineType?: "solid" | "dashed";
-}
 
 export type TooltipLayout = "rows" | "bars" | "activity";
 

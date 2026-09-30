@@ -167,16 +167,7 @@ export interface FollowerGrowthResponse {
   points: FollowerGrowthPoint[];
 }
 
-export interface FollowerChartRow {
-  day: string;
-  [accountKey: string]: string | number;
-}
 
-export interface AnalyticsStatCard {
-  label: string;
-  value: number | null;
-  hint?: string;
-}
 
 export interface AnalyticsRangeOptions {
   days?: number;
@@ -385,9 +376,6 @@ export interface LeaderboardCardProps {
   variant?: "module" | "page";
 }
 
-export interface AnalyticsPageClientProps {
-  organizationSlug: string;
-}
 
 export type AnalyticsProviderFilter = "all" | "twitter" | "linkedin";
 

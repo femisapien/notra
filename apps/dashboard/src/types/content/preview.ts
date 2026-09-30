@@ -67,9 +67,6 @@ export interface RepositoryPreviewFailure {
   message: string;
 }
 
-export type PreviewFailure = RepositoryPreviewFailure;
-export type LinearIssuePreview = LinearIssuePreviewItem;
-export type LinearIntegrationPreview = LinearIntegrationPreviewItem;
 
 export interface PreviewResponse {
   repositories: Array<{

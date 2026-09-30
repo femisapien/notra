@@ -3,14 +3,11 @@ import type { PostHogProperties } from "@notra/posthog/types/posthog";
 import type {
   WORKFLOW_ANALYTICS_NAMES,
   WORKFLOW_OUTCOMES,
-  WORKFLOW_TRIGGERS,
 } from "@/constants/workflow-analytics";
 
 export type WorkflowAnalyticsName =
   (typeof WORKFLOW_ANALYTICS_NAMES)[keyof typeof WORKFLOW_ANALYTICS_NAMES];
 
-export type WorkflowTrigger =
-  (typeof WORKFLOW_TRIGGERS)[keyof typeof WORKFLOW_TRIGGERS];
 
 export type WorkflowOutcome =
   (typeof WORKFLOW_OUTCOMES)[keyof typeof WORKFLOW_OUTCOMES];

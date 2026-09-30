@@ -11,14 +11,11 @@ import type { GEO_SCAN_TRIGGERS } from "@notra/schemas/constants/dashboard/geo-a
 import type {
   AGENT_READINESS_ERROR_KINDS,
   AGENT_READINESS_FIX_COPY_KINDS,
-  GEO_COMPETITOR_DETAIL_SURFACES,
-  GEO_COMPETITOR_SOURCES,
   GEO_PROMPT_DETAIL_SURFACES,
   GEO_PROMPT_SOURCES,
   GEO_WRITE_DIALOG_ENTRIES,
   GEO_WRITER_FAILURE_REASONS,
   TRAFFIC_INSTALL_COPY_KINDS,
-  TRAFFIC_LOG_FILTER_KINDS,
 } from "@/constants/geo-analytics";
 import type { AuthenticatedUser } from "@/types/auth/organization";
 
@@ -27,14 +24,10 @@ export type GeoScanTrigger = (typeof GEO_SCAN_TRIGGERS)[number];
 export type GeoPromptSource =
   (typeof GEO_PROMPT_SOURCES)[keyof typeof GEO_PROMPT_SOURCES];
 
-export type GeoCompetitorSource =
-  (typeof GEO_COMPETITOR_SOURCES)[keyof typeof GEO_COMPETITOR_SOURCES];
 
 export type GeoPromptDetailSurface =
   (typeof GEO_PROMPT_DETAIL_SURFACES)[keyof typeof GEO_PROMPT_DETAIL_SURFACES];
 
-export type GeoCompetitorDetailSurface =
-  (typeof GEO_COMPETITOR_DETAIL_SURFACES)[keyof typeof GEO_COMPETITOR_DETAIL_SURFACES];
 
 export type GeoWriteDialogEntry =
   (typeof GEO_WRITE_DIALOG_ENTRIES)[keyof typeof GEO_WRITE_DIALOG_ENTRIES];
@@ -51,8 +44,6 @@ export type AgentReadinessFixCopyKind =
 export type TrafficInstallCopyKind =
   (typeof TRAFFIC_INSTALL_COPY_KINDS)[keyof typeof TRAFFIC_INSTALL_COPY_KINDS];
 
-export type TrafficLogFilterKind =
-  (typeof TRAFFIC_LOG_FILTER_KINDS)[keyof typeof TRAFFIC_LOG_FILTER_KINDS];
 
 export interface GeoRouterTrackContext {
   headers: Headers;

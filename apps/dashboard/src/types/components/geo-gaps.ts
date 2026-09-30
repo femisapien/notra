@@ -62,9 +62,6 @@ export interface GeoGapLift {
   delta: number;
 }
 
-export interface GeoGapLiftLineProps {
-  lift: GeoGapLift;
-}
 
 export type GeoGapsEmptyKind =
   | "scanning"
@@ -161,14 +158,6 @@ export interface GeoGapContentCellProps {
   lift?: GeoGapLift | null;
 }
 
-export interface GeoGapWriteCellProps {
-  action: GeoGapWriteAction;
-  postId: string | null | undefined;
-  onOpenPost: (postId: string) => void;
-  onWrite: () => void;
-  onRescan?: () => void;
-  rescanDisabled?: boolean;
-}
 
 export interface GeoGapQueriesCellProps {
   prompt: string;

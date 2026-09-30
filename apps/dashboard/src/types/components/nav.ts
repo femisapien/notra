@@ -6,7 +6,6 @@ import type { BrandTab } from "@/types/brand-identity";
 
 export type SidebarMode = "geo" | "studio";
 
-export type NavGroupKey = "visibility" | "improve" | "automation" | "utility";
 
 export type NavItemLabelKey =
   | "home"

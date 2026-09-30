@@ -5,13 +5,6 @@ import type {
   SentimentAnalysisState,
 } from "@notra/geo-core/types/sentiment-analysis";
 
-export interface SentimentScoreProps {
-  summary: GeoSentimentResponse["summary"];
-  comparison?: GeoSentimentResponse["comparison"];
-}
-export interface SentimentSkeletonProps {
-  compact?: boolean;
-}
 export interface SentimentDetailRow {
   theme: string;
   id: string;
@@ -20,9 +13,6 @@ export interface SentimentDetailRow {
   evidence: SentimentTheme["evidence"];
 }
 
-export interface SentimentTrendPlotProps {
-  points: GeoSentimentResponse["points"];
-}
 
 export interface SentimentTrendCardProps {
   summary?: GeoSentimentResponse["summary"];
@@ -63,12 +53,6 @@ export interface SentimentThemesStateInput {
   aggregatePending: boolean;
 }
 
-export interface SentimentSummaryProps {
-  data?: GeoSentimentResponse;
-  isPending: boolean;
-  isError: boolean;
-  retry: () => void;
-}
 
 export interface BrandSentimentCardProps {
   organizationId: string;
@@ -94,7 +78,6 @@ export type SentimentAnalysisStatusKey =
   | "failedRetry"
   | "unavailable";
 
-export type SentimentPolarity = "positive" | "neutral" | "negative";
 
 export type SentimentScoreBand = "strong" | "positive" | "mixed" | "negative";
 

@@ -1,5 +1,4 @@
 import type { GitHubConnectionMethod } from "@notra/ai/types/github-connection";
-import type { IntegrationType } from "@notra/schemas/dashboard/integrations";
 import type { useTranslations } from "next-intl";
 import type React from "react";
 
@@ -103,17 +102,7 @@ export interface GranolaIntegrationCardProps {
   onUpdate?: () => void;
 }
 
-export type WebhookLogType = "release" | "push" | "ping";
 
-export interface IntegrationWebhookLog {
-  id: string;
-  type: WebhookLogType;
-  action: string;
-  status: "success" | "failed";
-  message?: string;
-  payload?: Record<string, unknown>;
-  createdAt: string;
-}
 
 export interface GitHubRepoInfo {
   owner: string;
@@ -130,15 +119,6 @@ export interface AvailableRepo {
   url: string;
 }
 
-export interface IntegrationUIConfig {
-  id: IntegrationType;
-  name: string;
-  description: string;
-  icon: React.ReactNode;
-  href: string;
-  available: boolean;
-  category: "input" | "output";
-}
 
 export interface AddIntegrationDialogProps {
   organizationId?: string;
@@ -189,10 +169,6 @@ export interface IntegrationCardDitherInteraction {
   interactionProps: DitherInteractionProps;
 }
 
-export interface RepositoryListProps {
-  integrationId: string;
-  organizationId: string;
-}
 
 export interface WebhookSetupDialogProps {
   repositoryId: string;

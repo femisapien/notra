@@ -7,11 +7,9 @@ import type {
 import type { PermissionTone } from "@notra/ui/components/ui/permission-selector";
 
 import type {
-  API_KEY_PERMISSIONS,
   API_KEY_PRESET_IDS,
 } from "@/constants/api-keys";
 
-export type ApiKeyPermission = (typeof API_KEY_PERMISSIONS)[number];
 export type ApiKeyGranularScope = (typeof API_KEY_GRANULAR_PERMISSIONS)[number];
 export type ApiKeyPresetId = (typeof API_KEY_PRESET_IDS)[number];
 export type ApiKeyExpiration = (typeof API_KEY_EXPIRATION_VALUES)[number];

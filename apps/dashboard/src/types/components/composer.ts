@@ -35,14 +35,6 @@ export interface ComposerToolbarProps {
   className?: string;
 }
 
-export interface ComposerToolbarButtonProps {
-  children: ReactNode;
-  disabled?: boolean;
-  className?: string;
-  onClick?: () => void;
-  type?: "button" | "submit";
-  "aria-label"?: string;
-}
 
 export interface ComposerSendProps {
   children: ReactNode;
