@@ -67,10 +67,3 @@ export interface StandaloneChatPromptParams {
   timezone?: string;
   workspace?: ChatWorkspace | null;
 }
-
-export interface GithubWebhookMemoryPromptParams {
-  eventType: "release" | "push";
-  repository: string;
-  action: string;
-  data: Record<string, unknown>;
-}

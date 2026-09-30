@@ -48,12 +48,6 @@ export type ValidatedIntegration =
   | ValidatedLinearIntegration
   | ValidatedGranolaIntegration;
 
-export interface EnabledCapabilities {
-  github: boolean;
-  linear: boolean;
-  skills: boolean;
-  markdown: boolean;
-}
 
 export interface TextSelection {
   text: string;

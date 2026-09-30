@@ -8,14 +8,11 @@ import type {
   chatToolApprovalResponseSchema,
   chatSessionSummarySchema,
   chatSurfaceSchema,
-  chatTransportRequestInputSchema,
   chatWorkflowPayloadSchema,
   externalChannelIdSchema,
   externalChannelLookupSourceSchema,
-  externalChannelSourceSchema,
   storedChatPreferencesSchema,
   thinkingLevelSchema,
-  updateChatSessionSchema,
 } from "../schemas/chat";
 import type {
   ContextItem as OrchestrationContextItem,
@@ -35,16 +32,11 @@ export type ChatUIMessage = UIMessage<ChatMessageMetadata>;
 export type StoredChatPreferences = z.infer<typeof storedChatPreferencesSchema>;
 export type ChatSessionSummary = z.infer<typeof chatSessionSummarySchema>;
 export type ChatSurface = z.infer<typeof chatSurfaceSchema>;
-export type ExternalChannelSource = z.infer<typeof externalChannelSourceSchema>;
 export type ExternalChannelLookupSource = z.infer<
   typeof externalChannelLookupSourceSchema
 >;
 export type ExternalChannelId = z.infer<typeof externalChannelIdSchema>;
-export type UpdateChatSessionInput = z.infer<typeof updateChatSessionSchema>;
 export type ChatWorkflowPayload = z.infer<typeof chatWorkflowPayloadSchema>;
-export type ChatTransportRequestInput = z.infer<
-  typeof chatTransportRequestInputSchema
->;
 
 export interface ChatUsageSnapshot {
   inputTokens?: number;

@@ -1,11 +1,9 @@
 import type {
   generateRepoImageInputSchema,
-  repoImageModeSchema,
 } from "@notra/ai/schemas/repo-image";
 import type { AgentTokenUsage } from "@notra/ai/types/agents";
 import type * as z from "zod";
 
-export type RepoImageMode = z.infer<typeof repoImageModeSchema>;
 
 export type RepoImageErrorCode =
   | "missing_config"

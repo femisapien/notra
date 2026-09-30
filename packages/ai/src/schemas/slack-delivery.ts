@@ -18,7 +18,6 @@ export const slackApiResponseSchema = z
       path: ["ts"],
     }
   );
-export type SlackApiResponse = z.infer<typeof slackApiResponseSchema>;
 
 export const irisShipActionValueSchema = z.object({
   postId: z.string().min(1),
