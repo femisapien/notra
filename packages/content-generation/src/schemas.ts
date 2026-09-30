@@ -198,9 +198,6 @@ export type ContentDataPointSettings = z.infer<
   typeof contentDataPointSettingsSchema
 >;
 export type SelectedItems = z.infer<typeof selectedItemsSchema> | undefined;
-export type CreateContentGenerationRequest = z.infer<
-  typeof createContentGenerationRequestSchema
->;
 export type ContentGenerationJobStatus = z.infer<
   typeof contentGenerationJobStatusSchema
 >;
