@@ -1,7 +1,6 @@
 import type {
   members,
   organizations,
-  socialConnections,
 } from "@notra/db/schema";
 
 export interface ActionError {
@@ -15,7 +14,6 @@ export type ActionResult<T> =
 
 export type OrganizationRow = typeof organizations.$inferSelect;
 export type MemberRow = typeof members.$inferSelect;
-export type SocialConnectionRow = typeof socialConnections.$inferSelect;
 
 export interface InvitationSummary {
   id: string;

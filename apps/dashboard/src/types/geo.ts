@@ -14,11 +14,9 @@ import type {
   GeoCompetitorSharePoint,
   GeoCompetitorShareTimeseriesPoint,
   GeoEngineFamily,
-  GeoIngestFramework,
   GeoIngestPackageManager,
   GeoIngestSetupResponse,
   GeoJourney,
-  GeoJourneyDailyPoint,
   GeoJourneyPageStats,
   GeoJourneySourceStats,
   GeoJourneyStatsResponse,
@@ -73,7 +71,7 @@ import type {
 import type { Button } from "@/components/button";
 import type { TableColumn } from "@/components/motion/table";
 import type { GeoPromptDetailSurface } from "@/types/analytics/geo-events";
-import type { ChartConfig, ChartSeriesColors } from "@/types/charts";
+import type { ChartSeriesColors } from "@/types/charts";
 import type { GeoPromptDetailState } from "@/types/geo-prompt-detail";
 
 export interface GeoProjectCreateInput {
@@ -289,9 +287,6 @@ export interface PromptTagsFormProps {
   onSubmit: (tags: string[]) => void;
 }
 
-export interface PromptTagChipsProps {
-  tags: string[];
-}
 
 export interface PromptIntentBadgeProps {
   intent: GeoPromptIntent;
@@ -828,23 +823,8 @@ export interface MentionRateCardProps extends EngineFamilyBrandScope {
   organizationSlug?: string;
 }
 
-export interface PromptResultsPreviewProps {
-  results: GeoPromptResultSummary[];
-  limit?: number;
-  isScanning?: boolean;
-  variant?: "all" | "unseen";
-  gapsHref?: string;
-}
 
-export interface GeoPromptsPanelProps {
-  results: GeoPromptResultSummary[];
-  isScanning?: boolean;
-  gapsHref?: string;
-}
 
-export interface PromptSentimentLabelProps {
-  sentiment: string | null;
-}
 
 export interface EngineFamilyBrandScope {
   companyName?: string | null;
@@ -1525,12 +1505,6 @@ export interface PromptAnswerPageProps {
   surface?: GeoPromptDetailSurface;
 }
 
-export type PromptHistoryChangeKind =
-  | "gained"
-  | "lost"
-  | "position"
-  | "none"
-  | "first";
 
 /**
  * One sentence in the scan-history "What changed" cell, describing how the
@@ -1639,21 +1613,7 @@ export interface CompetitorSheetProps {
   children: ReactNode;
 }
 
-export interface CompetitorDetailDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  organizationId: string;
-  competitor: string | null;
-  domain: string | null;
-}
 
-export interface CompetitorRowProps {
-  competitor: string;
-  domain: string | null;
-  isPending: boolean;
-  onSelect: (competitor: string) => void;
-  onRemove: (competitor: string) => void;
-}
 
 export interface CountryFlagProps {
   code: string;
@@ -1666,14 +1626,6 @@ export interface TwemojiProps {
   className?: string;
 }
 
-export interface GeoPromptSuggestionRow {
-  id: string;
-  prompt: string;
-  title: string | null;
-  source: "search_console";
-  sourceKeywords: GeoSuggestionKeyword[];
-  createdAt: Date;
-}
 
 export interface GeoPromptSuggestion {
   id: string;
@@ -1704,11 +1656,6 @@ export interface GeoTableSkeletonProps {
   toolbar?: ReactNode;
 }
 
-export interface GeoSettingsSkeletonSectionProps {
-  title: string;
-  description: string;
-  children: ReactNode;
-}
 
 export interface GeoWriterContext {
   organizationId: string;

@@ -46,5 +46,3 @@ const link = new RPCLink({
 
 export const dashboardOrpcClient: RouterClient<DashboardRouter> =
   createORPCClient(link);
-
-export type DashboardORPCClient = RouterClient<DashboardRouter>;
