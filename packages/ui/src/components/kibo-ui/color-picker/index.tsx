@@ -21,13 +21,6 @@ import {
 } from "react";
 import { Button } from "@notra/ui/components/ui/button";
 import { Input } from "@notra/ui/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@notra/ui/components/ui/select";
 import { DEFAULT_COLOR_PICKER_LABELS } from "@notra/ui/constants/kibo-ui-labels";
 import { cn } from "@notra/ui/lib/utils";
 import type { ColorPickerLabels } from "@notra/ui/types/kibo-ui";
@@ -345,45 +338,7 @@ export const ColorPickerHue = ({
   );
 };
 
-export type ColorPickerAlphaProps = Omit<
-  Slider.Root.Props<number>,
-  "max" | "onValueChange" | "step" | "value"
->;
 
-export const ColorPickerAlpha = ({
-  className,
-  ...props
-}: ColorPickerAlphaProps) => {
-  const { alpha, setAlpha, hue, saturation, lightness, labels } =
-    useColorPicker();
-
-  return (
-    <Slider.Root
-      className={cn("relative flex h-4 w-full touch-none", className)}
-      max={100}
-      onValueChange={setAlpha}
-      step={1}
-      value={alpha}
-      {...props}
-    >
-      <Slider.Control className="relative flex h-full w-full touch-none items-center">
-        <Slider.Track className="relative my-0.5 h-3 w-full grow rounded-full bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3uCTZhw1gGGYhAGBZIA/nYDCgBDAm9BGDWAAJyRCgLaBCAAgXwixzAS0pgAAAABJRU5ErkJggg==')] bg-center bg-repeat-x dark:bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAALklEQVR4nGP8+vWrCAMewM3N/QafPBM+SWLAqAGDwQBGQgoIpZOB98KoAVQwAADxzQcSVIRCfQAAAABJRU5ErkJggg==')]">
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: `linear-gradient(90deg, transparent, hsl(${hue}, ${saturation}%, ${lightness}%))`,
-            }}
-          />
-          <Slider.Indicator className="absolute h-full rounded-full bg-transparent" />
-          <Slider.Thumb
-            aria-label={labels.opacity}
-            className="block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-disabled:pointer-events-none data-disabled:opacity-50"
-          />
-        </Slider.Track>
-      </Slider.Control>
-    </Slider.Root>
-  );
-};
 
 export type ColorPickerEyeDropperProps = ComponentProps<typeof Button>;
 
@@ -435,46 +390,13 @@ export const ColorPickerEyeDropper = ({
   );
 };
 
-export type ColorPickerOutputProps = ComponentProps<typeof SelectTrigger>;
 
-const formats = ["hex", "rgb", "css", "hsl"];
 const emptySubscribe = () => () => {
   return;
 };
 const rgbChannels = ["r", "g", "b"];
 const hslChannels = ["h", "s", "l"];
 
-export const ColorPickerOutput = ({
-  className,
-  ...props
-}: ColorPickerOutputProps) => {
-  const { mode, setMode, labels } = useColorPicker();
-
-  return (
-    <Select
-      onValueChange={(nextMode) => {
-        if (nextMode) {
-          setMode(nextMode);
-        }
-      }}
-      value={mode}
-    >
-      <SelectTrigger
-        className={cn("h-8 w-20 shrink-0 text-xs", className)}
-        {...props}
-      >
-        <SelectValue placeholder={labels.mode} />
-      </SelectTrigger>
-      <SelectContent>
-        {formats.map((format) => (
-          <SelectItem className="text-xs" key={format} value={format}>
-            {format.toUpperCase()}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-};
 
 const HexInput = () => {
   const { hue, saturation, lightness, commit } = useColorPicker();
