@@ -121,12 +121,6 @@ export function toGeoTrafficLogEntry(
   };
 }
 
-function toNullableNumber(value: number | bigint | null): number | null {
-  if (value === null) {
-    return null;
-  }
-  return Number(value);
-}
 
 export function toGeoPersona(
   row: GeoPersonaRow,
