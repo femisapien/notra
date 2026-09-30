@@ -46,4 +46,3 @@ export const deleteKeyInputSchema = z.object({
 
 export type CreateApiKeyInput = z.infer<typeof createApiKeySchema>;
 export type UpdateApiKeyInput = z.infer<typeof updateApiKeySchema>;
-export type DeleteApiKeyInput = z.infer<typeof deleteApiKeySchema>;

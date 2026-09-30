@@ -11,9 +11,6 @@ export const updateNotificationSettingsSchema = z.object({
   dailySummary: z.boolean().optional(),
 });
 
-export type UpdateNotificationSettings = z.infer<
-  typeof updateNotificationSettingsSchema
->;
 
 export const updateNotificationSettingsInputSchema =
   organizationIdInputSchema.extend(updateNotificationSettingsSchema.shape);

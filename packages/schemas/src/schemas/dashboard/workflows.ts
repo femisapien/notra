@@ -1,6 +1,5 @@
 import "zod/compile";
 import {
-  contentGenerationWorkflowPayloadSchema,
   LOOKBACK_WINDOWS,
 } from "@notra/content-generation/schemas";
 // biome-ignore lint/performance/noNamespaceImport: Zod recommended way of importing
@@ -8,11 +7,7 @@ import * as z from "zod";
 
 import { triggerOutputConfigSchema } from "./integrations";
 
-export const generateChangelogBodySchema = z.object({
-  prompt: z.string().min(1, "Prompt is required"),
-});
 
-export type GenerateChangelogBody = z.infer<typeof generateChangelogBodySchema>;
 
 export const scheduleWorkflowPayloadSchema = z.object({
   triggerId: z.string().min(1),
@@ -21,16 +16,8 @@ export const scheduleWorkflowPayloadSchema = z.object({
   delaySeconds: z.number().int().min(0).max(86_400).optional(),
 });
 
-export const onDemandContentWorkflowPayloadSchema =
-  contentGenerationWorkflowPayloadSchema;
 
-export type OnDemandContentWorkflowPayload = z.infer<
-  typeof onDemandContentWorkflowPayloadSchema
->;
 
-export type ScheduleWorkflowPayload = z.infer<
-  typeof scheduleWorkflowPayloadSchema
->;
 
 export const eventWorkflowPayloadSchema = z.object({
   triggerId: z.string().min(1),
@@ -42,7 +29,6 @@ export const eventWorkflowPayloadSchema = z.object({
   executionId: z.string().min(1).optional(),
 });
 
-export type EventWorkflowPayload = z.infer<typeof eventWorkflowPayloadSchema>;
 
 export const contentEmailDigestPayloadSchema = z.object({
   digestKey: z.string().min(1),

@@ -9,12 +9,9 @@ export const createSitemapSchema = z.object({
   label: z.string().trim().min(1).max(60).optional(),
 });
 
-export type CreateSitemapInput = z.infer<typeof createSitemapSchema>;
 
 export const deleteSitemapSchema = z.object({
   organizationId: z.string().min(1),
   voiceId: z.string().min(1),
   sitemapId: z.string().min(1),
 });
-
-export type DeleteSitemapInput = z.infer<typeof deleteSitemapSchema>;

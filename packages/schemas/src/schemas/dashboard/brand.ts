@@ -33,13 +33,8 @@ export const brandSettingsSchema = z.object({
   language: supportedLanguageSchema.default(DEFAULT_LANGUAGE),
 });
 
-export type BrandSettingsInput = z.infer<typeof brandSettingsSchema>;
 
-export const analyzeBrandSchema = z.object({
-  url: z.url("Please enter a valid URL"),
-});
 
-export type AnalyzeBrandInput = z.infer<typeof analyzeBrandSchema>;
 
 export const updateBrandSettingsSchema = brandSettingsSchema
   .extend({
@@ -60,14 +55,12 @@ export const referenceTypeSchema = z.enum([
   "custom",
 ]);
 
-export type ReferenceType = z.infer<typeof referenceTypeSchema>;
 
 export const applicableToSchema = z
   .array(z.enum(["all", "twitter", "linkedin", "blog"]))
   .min(1)
   .default(["all"]);
 
-export type ApplicableTo = z.infer<typeof applicableToSchema>;
 
 export const BRAND_REFERENCE_CONTENT_MAX_LENGTH = 10_000;
 export const BRAND_REFERENCE_NOTE_MAX_LENGTH = 4000;
@@ -118,7 +111,6 @@ export const updateReferenceSchema = z.object({
   applicableTo: applicableToSchema.optional(),
 });
 
-export type UpdateReferenceInput = z.infer<typeof updateReferenceSchema>;
 
 export const fetchTweetSchema = z.object({
   url: z.string().min(1),
@@ -129,7 +121,6 @@ export const importTweetsSchema = z.object({
   maxResults: z.number().int().min(5).max(20).default(20),
 });
 
-export type ImportTweetsInput = z.infer<typeof importTweetsSchema>;
 
 const brandIdentityWithWebsiteSchema = z
   .object({ websiteUrl: z.string().nullish() })

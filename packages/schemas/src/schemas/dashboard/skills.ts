@@ -35,7 +35,6 @@ export const updateSkillSchema = z.object({
 });
 
 export type CreateSkillInput = z.infer<typeof createSkillSchema>;
-export type UpdateSkillInput = z.infer<typeof updateSkillSchema>;
 
 export const listSkillsInputSchema = z.object({
   organizationId: organizationIdSchema,

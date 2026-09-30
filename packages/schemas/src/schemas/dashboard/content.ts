@@ -9,7 +9,6 @@ import {
   POST_MARKDOWN_MAX_LENGTH,
   POST_TITLE_MAX_LENGTH,
 } from "@notra/ai/schemas/limits";
-import { POST_SLUG_MAX_LENGTH } from "@notra/ai/schemas/post";
 import { createContentGenerationRequestSchema } from "@notra/content-generation/schemas";
 import { BLOG_POST_SUBTYPES } from "@notra/db/constants/content";
 import type { PostGitHubPublish } from "@notra/db/types/post-github-publish";
@@ -73,7 +72,6 @@ export const sourceMetadataSchema = z
   .nullable()
   .optional();
 
-export type SourceMetadata = z.infer<typeof sourceMetadataSchema>;
 
 const githubHostSchema = z
   .url({ protocol: /^https$/ })
@@ -137,7 +135,6 @@ export const postsPaginationSchema = z.object({
   totalPages: z.number().int().min(1),
 });
 
-export type PostsPagination = z.infer<typeof postsPaginationSchema>;
 
 export const postsResponseSchema = z.object({
   posts: z.array(postSchema),
@@ -152,7 +149,6 @@ export const recentPostSchema = z.object({
   status: postStatusSchema,
 });
 
-export type RecentPost = z.infer<typeof recentPostSchema>;
 
 export const recentPostsResponseSchema = z.object({
   posts: z.array(recentPostSchema),
@@ -200,25 +196,18 @@ export const postCollectionSourceSchema = z.enum([
   "api",
   "backfill",
 ]);
-export type PostCollectionSource = z.infer<typeof postCollectionSourceSchema>;
 
 export const postCollectionNameSourceSchema = z.enum([
   "generated",
   "user",
   "backfill",
 ]);
-export type PostCollectionNameSource = z.infer<
-  typeof postCollectionNameSourceSchema
->;
 
 export const postCollectionStatusSummarySchema = z.object({
   total: z.number().int().min(0),
   draft: z.number().int().min(0),
   published: z.number().int().min(0),
 });
-export type PostCollectionStatusSummary = z.infer<
-  typeof postCollectionStatusSummarySchema
->;
 
 export const postCollectionSummarySchema = z.object({
   id: z.string(),
@@ -254,7 +243,6 @@ export const groupPostSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
 });
-export type CollectionPost = z.infer<typeof groupPostSchema>;
 
 export const postCollectionDetailSchema = z.object({
   id: z.string(),
@@ -275,7 +263,6 @@ export const postSiblingSchema = z.object({
   contentType: z.string(),
   status: postStatusSchema,
 });
-export type PostSibling = z.infer<typeof postSiblingSchema>;
 
 export const postCollectionContextSchema = z.object({
   id: z.string(),
@@ -288,15 +275,8 @@ export type PostCollectionContext = z.infer<typeof postCollectionContextSchema>;
 export const renameCollectionSchema = z.object({
   name: z.string().trim().min(1).max(200),
 });
-export type RenameCollectionInput = z.infer<typeof renameCollectionSchema>;
 
-export const editContentSchema = z.object({
-  instruction: z.string().min(1, "Instruction is required"),
-  currentMarkdown: z.string(),
-  selectedText: z.string().optional(),
-});
 
-export type EditContentInput = z.infer<typeof editContentSchema>;
 
 export const contextItemSchema = z.discriminatedUnion("type", [
   z.object({
@@ -359,7 +339,6 @@ export const chatRequestSchema = z.object({
   timezone: z.string().min(1).max(100).optional(),
 });
 
-export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
 export const updateContentSchema = z
   .object({
@@ -379,7 +358,6 @@ export const updateContentSchema = z
     }
   );
 
-export type UpdateContentInput = z.infer<typeof updateContentSchema>;
 
 export const createPostInputSchema = contentOrganizationIdInputSchema
   .extend(contentProjectIdInputSchema.shape)
@@ -488,7 +466,3 @@ export const createOnDemandContentSchema = z.object({
   dataPoints: contentDataPointSettingsSchema.prefault({}),
   selectedItems: selectedItemsSchema.optional(),
 });
-
-export type CreateOnDemandContentInput = z.infer<
-  typeof createOnDemandContentSchema
->;
