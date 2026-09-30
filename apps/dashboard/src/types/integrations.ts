@@ -103,7 +103,7 @@ export interface GranolaIntegrationCardProps {
   onUpdate?: () => void;
 }
 
-export type WebhookLogType = "release" | "push" | "ping";
+type WebhookLogType = "release" | "push" | "ping";
 
 export interface IntegrationWebhookLog {
   id: string;

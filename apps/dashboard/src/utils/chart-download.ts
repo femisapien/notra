@@ -176,7 +176,7 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-export async function renderChartPng(
+async function renderChartPng(
   source: HTMLElement,
   title: string
 ): Promise<Blob> {

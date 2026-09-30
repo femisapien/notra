@@ -8,9 +8,9 @@ import type { ChartConfig } from "@/types/charts";
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Theme selectors mirror the repo's <ChartStyle>: light is the bare root, dark is `.dark`.
-export const THEMES = { light: "", dark: ".dark" } as const;
-export type ThemeKey = keyof typeof THEMES;
-export const THEME_KEYS = Object.keys(THEMES) as ThemeKey[];
+const THEMES = { light: "", dark: ".dark" } as const;
+type ThemeKey = keyof typeof THEMES;
+const THEME_KEYS = Object.keys(THEMES) as ThemeKey[];
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ export function getColorsCount(item: ChartConfig[string]): number {
 
 // Distribute colors evenly across slots; extra slots go to the LAST color(s).
 // 2 colors / 4 slots → [c0, c0, c1, c1]; 3 colors / 4 slots → [c0, c1, c2, c2].
-export function distributeColors(colors: string[], maxCount: number): string[] {
+function distributeColors(colors: string[], maxCount: number): string[] {
   const available = colors.length;
   if (available >= maxCount) return colors.slice(0, maxCount);
 
@@ -74,7 +74,7 @@ export function buildChartCss(id: string, config: ChartConfig): string {
 // A single reusable 1×1 canvas normalizes ANY CSS color (hex, named, oklch, …)
 // to a concrete rgba string by painting it and reading the pixel back.
 let normalizerCtx: CanvasRenderingContext2D | null = null;
-export function normalizeColor(value: string): string {
+function normalizeColor(value: string): string {
   const raw = value.trim();
   if (!raw || typeof document === "undefined") return raw;
 

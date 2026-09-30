@@ -71,7 +71,7 @@ export function isGeoGapsTab(value: unknown): value is GeoGapsTab {
 }
 
 /** Map 0–1 intensity onto a 1–5 inspo-style meter (empty when intensity is 0). */
-export function gapMeterLevel(
+function gapMeterLevel(
   intensity: number,
   steps = GEO_GAPS_METER_STEPS
 ): number {

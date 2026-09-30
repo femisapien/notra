@@ -151,15 +151,15 @@ const LOADING_SHIMMER_FEATHER = 0.22; // sine-eased edge softening of the window
 
 // The pie has a single fill style — a per-sector color gradient. Kept as a named
 // union for API parity with the Recharts twin (and room to grow).
-export type PieVariant = "gradient";
+type PieVariant = "gradient";
 // Where sector labels sit: "inside" draws value text on the sector (the default),
 // "outside" moves the sector's name past the rim with a leader line, matching the
 // classic ECharts pie (echarts.apache.org/examples/en/editor.html?c=pie-simple).
-export type LabelPosition = "inside" | "outside";
+type LabelPosition = "inside" | "outside";
 // TooltipVariant, TooltipRoundness, TooltipPosition, LegendVariant, and ChartConfig
 // now live in the shared @/registry/ui/echarts/* modules and are imported +
 // re-exported at the top of this file.
-export type BackgroundVariant =
+type BackgroundVariant =
   | "dots"
   | "grid"
   | "cross-hatch"
@@ -199,7 +199,7 @@ export interface EChartsPieChartProps<TData extends Record<string, unknown>> {
 // not render. These are never mounted into the tree — they only carry props.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface PieProps {
+interface PieProps {
   variant?: PieVariant; // fill style for the pie's sectors
   innerRadius?: number | string; // inner radius — set above 0 for a donut
   outerRadius?: number | string; // outer radius of the pie
@@ -219,7 +219,7 @@ export interface PieProps {
  */
 const Pie: FC<PieProps> = () => null;
 
-export interface LabelProps {
+interface LabelProps {
   dataKey?: string; // data key for the label text — defaults to the pie's value key
   position?: LabelPosition; // "inside" (value on the sector) or "outside" (name past the rim, with a leader line)
 }
@@ -227,7 +227,7 @@ export interface LabelProps {
 /** Declares per-sector labels for the enclosing <Pie>. Renders nothing. */
 const Label: FC<LabelProps> = () => null;
 
-export interface TooltipProps {
+interface TooltipProps {
   variant?: TooltipVariant; // visual style of the tooltip surface
   roundness?: TooltipRoundness; // border-radius of the tooltip
   defaultIndex?: number; // sector index shown by default with no hover
@@ -240,7 +240,7 @@ export interface TooltipProps {
 /** Presence enables the hover tooltip. Renders nothing. */
 const Tooltip: FC<TooltipProps> = () => null;
 
-export interface LegendProps {
+interface LegendProps {
   variant?: LegendVariant; // visual style of the legend indicators
   align?: "left" | "center" | "right"; // horizontal placement
   verticalAlign?: "top" | "middle" | "bottom"; // vertical placement
@@ -250,7 +250,7 @@ export interface LegendProps {
 /** Presence enables the HTML legend overlay. Renders nothing. */
 const Legend: FC<LegendProps> = () => null;
 
-export interface BackgroundProps {
+interface BackgroundProps {
   variant?: BackgroundVariant; // background pattern style
 }
 

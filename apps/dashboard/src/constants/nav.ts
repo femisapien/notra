@@ -43,20 +43,20 @@ import type {
   SidebarModeOption,
 } from "@/types/components/nav";
 
-export const HOME_NAV_LINK = "";
-export const CHAT_NAV_LINK = "/chat";
+const HOME_NAV_LINK = "";
+const CHAT_NAV_LINK = "/chat";
 export const CONTENT_NAV_LINK = "/content";
 export const ANALYTICS_NAV_LINK = "/analytics";
-export const BRAND_IDENTITY_NAV_LINK = "/brand/identity";
-export const SCHEDULES_NAV_LINK = "/automation/schedules";
-export const EVENTS_NAV_LINK = "/automation/events";
-export const INTEGRATIONS_NAV_LINK = "/integrations";
-export const SKILLS_NAV_LINK = "/skills";
-export const API_KEYS_NAV_LINK = "/api-keys";
+const BRAND_IDENTITY_NAV_LINK = "/brand/identity";
+const SCHEDULES_NAV_LINK = "/automation/schedules";
+const EVENTS_NAV_LINK = "/automation/events";
+const INTEGRATIONS_NAV_LINK = "/integrations";
+const SKILLS_NAV_LINK = "/skills";
+const API_KEYS_NAV_LINK = "/api-keys";
 export const GEO_OVERVIEW_NAV_LINK = "/geo";
-export const GEO_TRAFFIC_NAV_LINK = "/geo/traffic";
-export const GEO_COMPETITORS_NAV_LINK = "/geo/competitors";
-export const GEO_SHELF_SPACE_NAV_LINK = "/geo/shelf-space";
+const GEO_TRAFFIC_NAV_LINK = "/geo/traffic";
+const GEO_COMPETITORS_NAV_LINK = "/geo/competitors";
+const GEO_SHELF_SPACE_NAV_LINK = "/geo/shelf-space";
 export const GEO_SETTINGS_NAV_LINK = "/geo/settings";
 
 export const SIDEBAR_DEFAULT_MODE: SidebarMode = "geo";

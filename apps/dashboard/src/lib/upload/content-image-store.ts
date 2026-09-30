@@ -26,7 +26,7 @@ const CONTENT_MEDIA_MIME_EXTENSIONS = {
 
 type ContentMediaMimeType = ContentImageMimeType | ContentVideoMimeType;
 
-export interface StoredContentImage {
+interface StoredContentImage {
   bytes: Uint8Array;
   mimeType: ContentMediaMimeType;
 }

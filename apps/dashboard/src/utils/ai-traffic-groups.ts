@@ -42,7 +42,7 @@ export function resolveTrafficSourceBand(
   return "crawler";
 }
 
-export function resolveTrafficSourceGroup(
+function resolveTrafficSourceGroup(
   source: string,
   band: GeoTrafficSourceBand
 ): GeoTrafficSourceGroupDefinition {

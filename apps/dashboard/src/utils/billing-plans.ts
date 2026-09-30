@@ -355,7 +355,7 @@ export function zdrAddonPlanId(
   return isAnnualPlanId(activePlanId) ? `${base}${ANNUAL_ADDON_SUFFIX}` : base;
 }
 
-export function isZdrAddonPlanId(planId: string | undefined): boolean {
+function isZdrAddonPlanId(planId: string | undefined): boolean {
   return Boolean(planId?.startsWith(ZDR_ADDON_PREFIX));
 }
 

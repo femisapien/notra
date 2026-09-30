@@ -242,7 +242,7 @@ export function toShelfRows(
   });
 }
 
-export function mergeShelfOpportunity(
+function mergeShelfOpportunity(
   existing: GeoShelfOpportunity | null,
   changes: Partial<GeoShelfOpportunityWrite>,
   nowIso: string

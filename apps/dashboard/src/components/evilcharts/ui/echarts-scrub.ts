@@ -68,7 +68,7 @@ export function nearestCategoryIndex(
 }
 
 /** True for generated companion IDs (`__reveal-key`, `__loading`), not user keys. */
-export function isScrubSkipSeries(
+function isScrubSkipSeries(
   id: string,
   prefixes: readonly string[],
   keySet: ReadonlySet<string> | null = null
@@ -81,7 +81,7 @@ export function isScrubSkipSeries(
 }
 
 /** Pixel-space Y on a packed [x0,y0,x1,y1,…] polyline. NaN breaks the segment. */
-export function yAtXOnPackedPoints(
+function yAtXOnPackedPoints(
   packed: ArrayLike<number>,
   x: number
 ): number | null {

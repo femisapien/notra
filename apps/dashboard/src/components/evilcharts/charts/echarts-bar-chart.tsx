@@ -193,7 +193,7 @@ const BRUSH_FILLER_OPACITY = 0; // selected-range wash — evil-brush draws none
 // Public types
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type BarVariant =
+type BarVariant =
   | "default"
   | "hatched"
   | "duotone"
@@ -202,9 +202,9 @@ export type BarVariant =
   | "stripped"
   | "blocks"
   | "expandable";
-export type StackType = "default" | "stacked" | "percent";
-export type BarLayout = "vertical" | "horizontal";
-export type BarAnimationType =
+type StackType = "default" | "stacked" | "percent";
+type BarLayout = "vertical" | "horizontal";
+type BarAnimationType =
   | "none"
   | "left-to-right"
   | "right-to-left"
@@ -248,7 +248,7 @@ export interface EChartsBarChartProps<TData extends Record<string, unknown>> {
 // not render. These are never mounted into the tree — they only carry props.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface BarProps {
+interface BarProps {
   dataKey: string; // series key — must exist on the data + config
   variant?: BarVariant; // fill style for this bar only
   radius?: number; // corner radius — falls back to the root barRadius
@@ -266,7 +266,7 @@ export interface BarProps {
  */
 const Bar: FC<BarProps> = () => null;
 
-export interface XAxisProps {
+interface XAxisProps {
   dataKey?: string; // category key — overrides the root xDataKey (vertical layout)
   // Category values are stringified, so the formatter always sees a string —
   // letting examples share `(value) => value.substring(0, 3)` with the Recharts twin.
@@ -281,7 +281,7 @@ export interface XAxisProps {
  */
 const XAxis: FC<XAxisProps> = () => null;
 
-export interface YAxisProps {
+interface YAxisProps {
   dataKey?: string; // category key — overrides the root xDataKey (horizontal layout)
   tickFormatter?: (value: string, index: number) => string; // formats y tick labels
   label?: string; // axis title, rotated alongside the y-position tick labels
@@ -297,7 +297,7 @@ const YAxis: FC<YAxisProps> = () => null;
 /** Presence shows the dashed split lines on the value axis. Renders nothing. */
 const Grid: FC = () => null;
 
-export interface TooltipProps {
+interface TooltipProps {
   variant?: TooltipVariant; // visual style of the tooltip surface
   roundness?: TooltipRoundness; // border-radius of the tooltip
   defaultIndex?: number; // data index the tooltip shows by default, with no hover
@@ -311,7 +311,7 @@ export interface TooltipProps {
 /** Presence enables the hover tooltip. Renders nothing. */
 const Tooltip: FC<TooltipProps> = () => null;
 
-export interface LegendProps {
+interface LegendProps {
   variant?: LegendVariant; // visual style of the legend indicators
   align?: "left" | "center" | "right"; // horizontal placement
   verticalAlign?: "top" | "middle" | "bottom"; // vertical placement

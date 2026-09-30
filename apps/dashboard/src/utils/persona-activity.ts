@@ -22,7 +22,7 @@ function activityPointKey(
   return `${day}:${personaId}:${snapshotVersion}`;
 }
 
-export function personaActivityKey(personaId: string, snapshotVersion: string) {
+function personaActivityKey(personaId: string, snapshotVersion: string) {
   return chartKey(`${personaId}:${snapshotVersion}`);
 }
 

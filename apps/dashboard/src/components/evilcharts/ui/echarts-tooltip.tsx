@@ -36,10 +36,10 @@ export type TooltipAxisPointer = "none" | "line" | "shadow" | "cross";
 // Hover motion — the cursor line snaps to the hovered category (an eased line
 // trails the pointer and smears); the tooltip box and its bars get a short
 // ease so values do not pop.
-export const TOOLTIP_MOVE_DURATION_S = 0.16;
+const TOOLTIP_MOVE_DURATION_S = 0.16;
 const TOOLTIP_MOVE_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
-export const TOOLTIP_BAR_MOTION_STYLE = `transition:width ${TOOLTIP_MOVE_DURATION_S}s ${TOOLTIP_MOVE_EASING}`;
-export const TOOLTIP_VALUE_MOTION_STYLE =
+const TOOLTIP_BAR_MOTION_STYLE = `transition:width ${TOOLTIP_MOVE_DURATION_S}s ${TOOLTIP_MOVE_EASING}`;
+const TOOLTIP_VALUE_MOTION_STYLE =
   "transition:opacity 0.24s ease,transform 0.24s ease";
 
 const HTML_ESCAPE_PATTERN = /[&<>"']/g;
@@ -54,18 +54,18 @@ const HTML_ESCAPES: Record<string, string> = {
 // Tooltip markup is injected as an HTML string by ECharts, so every
 // user-derived string (series labels, axis labels, formatted values) must be
 // escaped before interpolation — competitor names etc. come from user/LLM input.
-export function escapeHtml(value: string): string {
+function escapeHtml(value: string): string {
   return value.replace(HTML_ESCAPE_PATTERN, (char) => HTML_ESCAPES[char] ?? char);
 }
 
-export const roundnessClass: Record<TooltipRoundness, string> = {
+const roundnessClass: Record<TooltipRoundness, string> = {
   sm: "rounded-sm",
   md: "rounded-md",
   lg: "rounded-lg",
   xl: "rounded-xl",
 };
 
-export const tooltipVariantClass: Record<TooltipVariant, string> = {
+const tooltipVariantClass: Record<TooltipVariant, string> = {
   default: "bg-popover",
   "frosted-glass": "bg-popover/70 backdrop-blur-md",
 };
@@ -73,7 +73,7 @@ export const tooltipVariantClass: Record<TooltipVariant, string> = {
 // The standard series indicator swatch — a rounded square filled with the
 // series' solid var or multi-stop gradient (indicatorBackground). A chart drops
 // this into a tooltipRow's `indicatorHtml`.
-export function tooltipIndicatorHtml(key: string, colorsCount: number): string {
+function tooltipIndicatorHtml(key: string, colorsCount: number): string {
   return `<div class="h-2.5 w-2.5 shrink-0 rounded-[2px]" style="background:${indicatorBackground(key, colorsCount)}"></div>`;
 }
 
@@ -85,7 +85,7 @@ export function tooltipColorSwatchHtml(color: string): string {
 // One tooltip row: indicator swatch + label/value pair. `dimmed` is a class
 // fragment (e.g. " opacity-30") appended to the row so the selection/hover dim
 // stays byte-identical to the inlined markup.
-export function tooltipRow({
+function tooltipRow({
   indicatorHtml,
   labelText,
   valueText,
@@ -129,7 +129,7 @@ export function formatTooltipValue(
   return { numeric: null, text: String(value) };
 }
 
-export function tooltipBarWidth(value: number, max: number): number {
+function tooltipBarWidth(value: number, max: number): number {
   if (value <= 0 || max <= 0) {
     return 0;
   }
@@ -149,7 +149,7 @@ export function configIndicatorHtml(
   return typeof html === "string" && html.length > 0 ? html : undefined;
 }
 
-export function tooltipBarRow({
+function tooltipBarRow({
   key,
   colorsCount,
   labelText,

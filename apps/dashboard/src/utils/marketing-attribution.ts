@@ -3,7 +3,7 @@ import { parseAsString, parseAsStringLiteral } from "nuqs";
 import { sessionStorageKeys } from "@/constants/storage";
 import { isAnnualPlanId, planTierId } from "@/utils/billing-plans";
 
-export const MARKETING_ATTRIBUTION_STORAGE_KEY =
+const MARKETING_ATTRIBUTION_STORAGE_KEY =
   sessionStorageKeys.marketingAttribution;
 
 export const marketingAttributionSearchParams = {
@@ -50,7 +50,7 @@ export function readMarketingAttributionFromSearchParams(
   });
 }
 
-export function readMarketingAttributionFromStorage(): MarketingAttribution {
+function readMarketingAttributionFromStorage(): MarketingAttribution {
   if (typeof window === "undefined") {
     return {};
   }
@@ -95,7 +95,7 @@ export function persistMarketingAttribution(
   return nextValue;
 }
 
-export function normalizeSignupMethod(
+function normalizeSignupMethod(
   value?: string
 ): MarketingAttribution["signupMethod"] {
   if (value === "email" || value === "google" || value === "github") {

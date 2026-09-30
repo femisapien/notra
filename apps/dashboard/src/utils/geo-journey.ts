@@ -77,7 +77,7 @@ function startsWithPrefix(path: string, prefixes: readonly string[]): boolean {
   );
 }
 
-export function classifyGeoJourneyPath(path: string): GeoJourneyPathKind {
+function classifyGeoJourneyPath(path: string): GeoJourneyPathKind {
   const normalized = normalizeGeoJourneyPath(path);
   if (
     SEARCH_QUERY.test(path) ||
@@ -97,7 +97,7 @@ export function classifyGeoJourneyPath(path: string): GeoJourneyPathKind {
   return "page";
 }
 
-export function formatGeoJourneyPathLabel(path: string): string {
+function formatGeoJourneyPathLabel(path: string): string {
   const kind = classifyGeoJourneyPath(path);
   if (kind === "home") {
     return "home";

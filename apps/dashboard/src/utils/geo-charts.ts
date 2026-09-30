@@ -616,13 +616,13 @@ export function withTrackedMentionEngines(
  * the workspace never narrowed its engines, so everything counts as tracked —
  * filtering on it would blank the surface instead of trimming it.
  */
-export function trackedEngineFamilies(
+function trackedEngineFamilies(
   trackedEngines: readonly string[] = []
 ): ReadonlySet<string> {
   return new Set(trackedEngines.map((engine) => engineFamilyOf(engine)));
 }
 
-export function isTrackedFamily(
+function isTrackedFamily(
   family: string,
   tracked: ReadonlySet<string>
 ): boolean {

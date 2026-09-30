@@ -23,7 +23,7 @@ export function getPreviousUtcDayWindow(now: Date): DailySummaryWindow {
   return { start, end };
 }
 
-export function formatUtcDateLabel(date: Date) {
+function formatUtcDateLabel(date: Date) {
   return date.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
@@ -87,7 +87,7 @@ export function aggregateMentionTotals(
   };
 }
 
-export function formatMentionRate(rate: number | null) {
+function formatMentionRate(rate: number | null) {
   if (rate === null) {
     return "—";
   }
@@ -95,7 +95,7 @@ export function formatMentionRate(rate: number | null) {
   return `${Math.round(rate * 100)}%`;
 }
 
-export function formatMentionRateDelta(
+function formatMentionRateDelta(
   yesterday: number | null,
   previousDay: number | null
 ) {
@@ -144,7 +144,7 @@ export function isUnchangedDailySummary({
   return !hasChanges && !mentionRateMoved(yesterday.rate, previousDay.rate);
 }
 
-export function buildDailySummaryHeadline({
+function buildDailySummaryHeadline({
   gained,
   lost,
   mentionRateLabel,
@@ -173,7 +173,7 @@ export function buildDailySummaryHeadline({
     : `Yesterday's visibility: ${mentionRateLabel}.`;
 }
 
-export function emptyChangesSummary(): GeoChangesSummary {
+function emptyChangesSummary(): GeoChangesSummary {
   return {
     gained: 0,
     lost: 0,

@@ -66,7 +66,7 @@ export function useBrandGuidelines(organizationId: string, voiceId: string) {
   });
 }
 
-export function useRefreshBrandGuidelines(
+function useRefreshBrandGuidelines(
   organizationId: string,
   voiceId: string
 ) {

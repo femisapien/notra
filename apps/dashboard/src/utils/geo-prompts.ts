@@ -150,7 +150,7 @@ export function buildPromptTableRows(
     .map((entry) => entry.row);
 }
 
-export function bestMentionedResult(
+function bestMentionedResult(
   results: readonly GeoPromptResultSummary[]
 ): GeoPromptResultSummary | null {
   let best: GeoPromptResultSummary | null = null;

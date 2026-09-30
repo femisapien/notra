@@ -57,7 +57,7 @@ export function isOwnBrandName(
   return key.length > 0 && ownBrandKeys(companyName, aliases).has(key);
 }
 
-export function competitorSliceColor(index: number): ChartColorPair {
+function competitorSliceColor(index: number): ChartColorPair {
   const hex =
     RIVAL_SWATCHES[index % RIVAL_SWATCHES.length] ?? FALLBACK_SLICE_COLOR;
   return { light: hex, dark: hex };

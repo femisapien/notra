@@ -9,10 +9,10 @@ import type { MandatePolicy } from "@notra/ai/schemas/autonomy/mandate";
 import type { CommonLabelKey } from "@/types/i18n";
 import type { IrisMessageKey } from "@/types/iris";
 
-export const IRIS_DEFAULT_MAX_ACTIONS_PER_DAY = 10;
-export const IRIS_DEFAULT_MAX_COST_CENTS_PER_DAY = 500;
-export const IRIS_DEFAULT_MAX_TASKS_PER_PLAN = 6;
-export const IRIS_DEFAULT_DESTINATIONS = ["slack"];
+const IRIS_DEFAULT_MAX_ACTIONS_PER_DAY = 10;
+const IRIS_DEFAULT_MAX_COST_CENTS_PER_DAY = 500;
+const IRIS_DEFAULT_MAX_TASKS_PER_PLAN = 6;
+const IRIS_DEFAULT_DESTINATIONS = ["slack"];
 
 export const IRIS_DEFAULT_POLICY: MandatePolicy = {
   allowedCapabilities: IRIS_CAPABILITY_CATALOG.map(
@@ -40,7 +40,7 @@ export const IRIS_SIGNAL_COMMIT_SUBJECT_MAX_LENGTH = 80;
 
 export const IRIS_RECENT_ACTION_LIMIT = 20;
 export const IRIS_RUNS_PAGE_SIZE = 20;
-export const IRIS_STATS_WINDOW_DAYS = 30;
+const IRIS_STATS_WINDOW_DAYS = 30;
 export const IRIS_STATS_WINDOW_MS =
   IRIS_STATS_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 

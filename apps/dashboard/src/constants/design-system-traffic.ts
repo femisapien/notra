@@ -24,7 +24,7 @@ function trafficSource(
   };
 }
 
-export const DESIGN_SYSTEM_TRAFFIC_SOURCES: GeoTrafficSource[] = [
+const DESIGN_SYSTEM_TRAFFIC_SOURCES: GeoTrafficSource[] = [
   trafficSource("meta-externalagent", "crawler", "training-crawler", 2),
   trafficSource("Amazonbot", "crawler", "training-crawler", 2),
   trafficSource("Applebot", "crawler", "search-index", 1),

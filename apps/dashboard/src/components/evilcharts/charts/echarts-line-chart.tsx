@@ -185,14 +185,14 @@ const BRUSH_FILLER_OPACITY = 0; // selected-range wash — evil-brush draws none
 // Public types
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type StrokeVariant = "solid" | "dashed" | "animated-dashed";
-export type LineAnimationType =
+type StrokeVariant = "solid" | "dashed" | "animated-dashed";
+type LineAnimationType =
   | "none"
   | "left-to-right"
   | "right-to-left"
   | "center-out"
   | "edges-in";
-export type CurveType =
+type CurveType =
   | "linear"
   | "smooth"
   | "bump"
@@ -231,7 +231,7 @@ export interface EChartsLineChartProps<TData extends Record<string, unknown>> {
 // not render. These are never mounted into the tree — they only carry props.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface LineProps {
+interface LineProps {
   dataKey: string; // series key — must exist on the data + config
   strokeVariant?: StrokeVariant; // stroke style for this line
   strokeWidth?: number; // stroke thickness in pixels for this line
@@ -251,7 +251,7 @@ export interface LineProps {
  */
 const Line: FC<LineProps> = () => null;
 
-export interface DotProps {
+interface DotProps {
   variant?: DotVariant; // visual style of the point marker
 }
 
@@ -261,7 +261,7 @@ const Dot: FC<DotProps> = () => null;
 /** Declares the hovered/active point marker for the enclosing <Line>. Renders nothing. */
 const ActiveDot: FC<DotProps> = () => null;
 
-export interface XAxisProps {
+interface XAxisProps {
   dataKey?: string; // x category key — overrides the root xDataKey
   // Category-axis values are always stringified, so the formatter sees a string —
   // letting examples share `(value) => value.substring(0, 3)` with the Recharts twin.
@@ -273,7 +273,7 @@ export interface XAxisProps {
 /** Presence shows the x-axis category labels. Renders nothing. */
 const XAxis: FC<XAxisProps> = () => null;
 
-export interface YAxisProps {
+interface YAxisProps {
   dataKey?: string; // reserved for parity with the Recharts twin
   tickFormatter?: (value: number, index: number) => string; // formats y tick labels
   label?: string; // axis title, rotated alongside the tick labels
@@ -286,7 +286,7 @@ const YAxis: FC<YAxisProps> = () => null;
 /** Presence shows the dashed horizontal split lines. Renders nothing. */
 const Grid: FC = () => null;
 
-export interface TooltipProps {
+interface TooltipProps {
   variant?: TooltipVariant; // visual style of the tooltip surface
   roundness?: TooltipRoundness; // border-radius of the tooltip
   cursor?: boolean; // whether the vertical cursor line follows the pointer
@@ -300,7 +300,7 @@ export interface TooltipProps {
 /** Presence enables the hover tooltip. Renders nothing. */
 const Tooltip: FC<TooltipProps> = () => null;
 
-export interface LegendProps {
+interface LegendProps {
   variant?: LegendVariant; // visual style of the legend indicators
   align?: "left" | "center" | "right"; // horizontal placement
   verticalAlign?: "top" | "middle" | "bottom"; // vertical placement

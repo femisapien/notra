@@ -4,7 +4,7 @@ import {
 } from "@/constants/agent-feedback";
 import type { AgentFeedbackClientBrand } from "@/types/agent-feedback";
 
-export function normalizeAgentClient(value: string): string {
+function normalizeAgentClient(value: string): string {
   return value
     .trim()
     .toLowerCase()

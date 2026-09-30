@@ -22,7 +22,7 @@ export type LegendVariant =
   | "vertical-bar"
   | "horizontal-bar";
 
-export function legendFillStyle(
+function legendFillStyle(
   key: string,
   colorsCount: number
 ): CSSProperties {
@@ -32,7 +32,7 @@ export function legendFillStyle(
 
 // Punches out the centre with a mask-composite so only the "border" shows —
 // works with gradients and border-radius, unlike plain border-color.
-export function legendOutlineStyle(
+function legendOutlineStyle(
   key: string,
   colorsCount: number
 ): CSSProperties {
@@ -46,7 +46,7 @@ export function legendOutlineStyle(
   return { ...legendFillStyle(key, colorsCount), ...mask };
 }
 
-export function LegendIndicator({
+function LegendIndicator({
   variant,
   dataKey,
   colorsCount,

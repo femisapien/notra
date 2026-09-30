@@ -68,7 +68,7 @@ function getR2Env() {
   } satisfies R2Env;
 }
 
-export function getR2Client() {
+function getR2Client() {
   if (cachedR2Client) {
     return cachedR2Client;
   }

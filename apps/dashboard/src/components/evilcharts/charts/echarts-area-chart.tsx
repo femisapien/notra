@@ -179,7 +179,7 @@ const BRUSH_FILLER_OPACITY = 0; // selected-range wash — evil-brush draws none
 // Public types
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type AreaVariant =
+type AreaVariant =
   | "gradient"
   | "gradient-reverse"
   | "solid"
@@ -187,16 +187,16 @@ export type AreaVariant =
   | "lines"
   | "hatched"
   | "none"; // stroke only — no fill at all
-export type StrokeVariant = "solid" | "dashed" | "animated-dashed";
-export type GridLineVariant = "dashed" | "solid";
-export type StackType = "default" | "stacked" | "expanded";
-export type AreaAnimationType =
+type StrokeVariant = "solid" | "dashed" | "animated-dashed";
+type GridLineVariant = "dashed" | "solid";
+type StackType = "default" | "stacked" | "expanded";
+type AreaAnimationType =
   | "none"
   | "left-to-right"
   | "right-to-left"
   | "center-out"
   | "edges-in";
-export type CurveType =
+type CurveType =
   | "linear"
   | "smooth"
   | "bump"
@@ -237,7 +237,7 @@ export interface EChartsAreaChartProps<TData extends Record<string, unknown>> {
 // not render. These are never mounted into the tree — they only carry props.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface AreaProps {
+interface AreaProps {
   dataKey: string; // series key — must exist on the data + config
   variant?: AreaVariant; // fill style for this area only
   strokeVariant?: StrokeVariant; // stroke style for this area
@@ -259,7 +259,7 @@ export interface AreaProps {
  */
 const Area: FC<AreaProps> = () => null;
 
-export interface DotProps {
+interface DotProps {
   variant?: DotVariant; // visual style of the point marker
   indices?: readonly number[]; // restrict resting markers to these data indices
 }
@@ -270,7 +270,7 @@ const Dot: FC<DotProps> = () => null;
 /** Declares the hovered/active point marker for the enclosing <Area>. Renders nothing. */
 const ActiveDot: FC<DotProps> = () => null;
 
-export interface XAxisProps {
+interface XAxisProps {
   dataKey?: string; // x category key — overrides the root xDataKey
   // Category-axis values are always stringified, so the formatter sees a string —
   // letting examples share `(value) => value.substring(0, 3)` with the Recharts twin.
@@ -282,7 +282,7 @@ export interface XAxisProps {
 /** Presence shows the x-axis category labels. Renders nothing. */
 const XAxis: FC<XAxisProps> = () => null;
 
-export interface YAxisProps {
+interface YAxisProps {
   min?: number;
   max?: number;
   interval?: number;
@@ -296,7 +296,7 @@ export interface YAxisProps {
 /** Presence shows the y value axis. Renders nothing. */
 const YAxis: FC<YAxisProps> = () => null;
 
-export interface GridProps {
+interface GridProps {
   variant?: GridLineVariant; // "dashed" (default) or unbroken "solid" split lines
   lineType?: GridLineVariant; // alias used by the shared chart API
 }
@@ -304,7 +304,7 @@ export interface GridProps {
 /** Presence shows the horizontal split lines. Renders nothing. */
 const Grid: FC<GridProps> = () => null;
 
-export interface TooltipProps {
+interface TooltipProps {
   variant?: TooltipVariant; // visual style of the tooltip surface
   roundness?: TooltipRoundness; // border-radius of the tooltip
   cursor?: boolean; // whether the vertical cursor line follows the pointer
@@ -335,7 +335,7 @@ export interface TooltipProps {
 /** Presence enables the hover tooltip. Renders nothing. */
 const Tooltip: FC<TooltipProps> = () => null;
 
-export interface LegendProps {
+interface LegendProps {
   variant?: LegendVariant; // visual style of the legend indicators
   align?: "left" | "center" | "right"; // horizontal placement
   verticalAlign?: "top" | "middle" | "bottom"; // vertical placement

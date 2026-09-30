@@ -4,7 +4,7 @@ import type {
 } from "@notra/ui/components/ai-skins/chatgpt/chatgpt-activity";
 import type { ChatgptMessageRole } from "@notra/ui/types/chatgpt";
 
-export interface ChatgptStorySearch {
+interface ChatgptStorySearch {
   websites: number;
   sites: ChatgptActivitySite[];
   sources: ChatgptActivitySource[];
