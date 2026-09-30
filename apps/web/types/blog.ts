@@ -59,19 +59,7 @@ export interface NotraBlogPost {
   authors: NotraBlogAuthor[];
 }
 
-interface BlogPageHeaderProps {
-  eyebrow?: string;
-  title: ReactNode;
-  description: ReactNode;
-}
 
-interface BlogTimelineItem {
-  id: string;
-  title: string;
-  description: string;
-  href: string;
-  date: string;
-}
 
 export interface BlogCardAuthor {
   name: string;
@@ -112,15 +100,7 @@ export interface BlogPostCardProps {
   item: BlogCardItem;
 }
 
-interface BlogTimelineProps {
-  items: BlogTimelineItem[];
-  emptyTitle?: string;
-  emptyDescription?: string;
-}
 
-interface BlogHtmlArticleProps {
-  html: string;
-}
 
 export interface BlogEntryPageProps {
   params: Promise<{ slug: string }>;
