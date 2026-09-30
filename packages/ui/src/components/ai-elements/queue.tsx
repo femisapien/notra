@@ -12,25 +12,8 @@ import { ScrollArea } from "@notra/ui/components/ui/scroll-area";
 import type { ComponentProps } from "react";
 import { cn } from "@notra/ui/lib/utils";
 
-export interface QueueMessagePart {
-  type: string;
-  text?: string;
-  url?: string;
-  filename?: string;
-  mediaType?: string;
-}
 
-export interface QueueMessage {
-  id: string;
-  parts: QueueMessagePart[];
-}
 
-export interface QueueTodo {
-  id: string;
-  title: string;
-  description?: string;
-  status?: "pending" | "completed";
-}
 
 export type QueueItemProps = ComponentProps<"li">;
 

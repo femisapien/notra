@@ -3,7 +3,6 @@ export type FrostGlassVariant =
   | "frosted"
   | "subtle"
   | "liquid-refract";
-export type FrostGlassVariantProp = { glassVariant?: FrostGlassVariant };
 
 export const glassVariantStyles: Record<FrostGlassVariant, string> = {
   clear: [
