@@ -726,22 +726,7 @@ export interface GeoScanFinishTotals {
   usageByRole: GeoScanUsageByRole;
 }
 
-export interface GeoScanProgramOptions {
-  projectId?: string;
-  claimedAt?: Date;
-  scanId?: string;
-  /** Explicit project subset for a retry pass; overrides `projectId` scoping. */
-  projectIds?: readonly string[];
-  promptIds?: readonly string[];
-  /** This-run engine selection from the catalog. Omitted runs every tracked engine. */
-  engines?: readonly string[];
-}
 
-export interface GeoProjectScanOutcome {
-  checks: number;
-  mentions: number;
-  usage: AgentTokenUsage;
-}
 
 export interface GeoPromptDefinition {
   id: string;
