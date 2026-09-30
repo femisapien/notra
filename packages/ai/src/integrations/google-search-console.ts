@@ -333,22 +333,6 @@ export async function upsertGscIntegration(
   return row;
 }
 
-export async function updateGscIntegration(
-  organizationId: string,
-  updates: GscIntegrationUpdate
-): Promise<GscIntegrationRow | null> {
-  const [row] = await db
-    .update(googleSearchConsoleIntegrations)
-    .set(updates)
-    .where(
-      and(
-        eq(googleSearchConsoleIntegrations.organizationId, organizationId),
-        isNull(googleSearchConsoleIntegrations.disconnectingAt)
-      )
-    )
-    .returning();
-  return row ?? null;
-}
 
 export async function claimOrConfirmGscSchedule(
   integration: GscIntegrationRow,

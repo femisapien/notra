@@ -139,8 +139,3 @@ export function getEvaluationClient(): EvaluationClient {
   defaultClient ??= createEvaluationClient();
   return defaultClient;
 }
-
-/** Test/ops hook: replace the singleton (pass `null` to rebuild from env). */
-export function setEvaluationClient(next: EvaluationClient | null): void {
-  defaultClient = next;
-}

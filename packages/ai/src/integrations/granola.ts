@@ -132,23 +132,6 @@ export async function deleteGranolaIntegration(integrationId: string) {
     .where(eq(granolaIntegrations.id, integrationId));
 }
 
-export async function getDecryptedGranolaApiKey(
-  integrationId: string
-): Promise<string | undefined> {
-  const [integration] = await db
-    .select({
-      encryptedApiKey: granolaIntegrations.encryptedApiKey,
-    })
-    .from(granolaIntegrations)
-    .where(eq(granolaIntegrations.id, integrationId))
-    .limit(1);
-
-  if (!integration?.encryptedApiKey) {
-    return undefined;
-  }
-
-  return decryptToken(integration.encryptedApiKey);
-}
 
 export async function getGranolaToolContextByIntegrationId(
   integrationId: string,

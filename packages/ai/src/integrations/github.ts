@@ -43,7 +43,6 @@ import type {
   CreateGitHubIntegrationParams,
   ErrorWithStatus,
   GitHubOrgMembershipCheck,
-  RepositoryOutputType,
   SetRepositoryOutputConfigParams,
   ValidateRepositoryBranchExistsParams,
   WebhookConfig,
@@ -820,16 +819,6 @@ export async function upsertGitHubAppInstallation(params: {
   return record;
 }
 
-export async function getGitHubAppInstallationByOrganization(
-  organizationId: string
-) {
-  return db.query.githubAppInstallations.findFirst({
-    where: and(
-      eq(githubAppInstallations.organizationId, organizationId),
-      eq(githubAppInstallations.enabled, true)
-    ),
-  });
-}
 
 export async function listGitHubAppInstallationsByOrganization(
   organizationId: string
@@ -1420,18 +1409,6 @@ export async function setRepositoryOutputConfig(
   return output;
 }
 
-export async function toggleGitHubIntegration(
-  integrationId: string,
-  enabled: boolean
-) {
-  const [updated] = await db
-    .update(githubIntegrations)
-    .set({ enabled })
-    .where(eq(githubIntegrations.id, integrationId))
-    .returning();
-
-  return updated;
-}
 
 export async function updateGitHubIntegration(
   integrationId: string,
@@ -1622,53 +1599,6 @@ export async function listAvailableRepositories(
   }));
 }
 
-export async function getTokenForRepository(
-  owner: string,
-  repo: string,
-  options?: { organizationId?: string }
-) {
-  const whereClauses = [
-    sql`lower(${githubIntegrations.owner}) = ${owner.toLowerCase()}`,
-    sql`lower(${githubIntegrations.repo}) = ${repo.toLowerCase()}`,
-  ];
-
-  if (options?.organizationId) {
-    whereClauses.push(
-      eq(githubIntegrations.organizationId, options.organizationId)
-    );
-  }
-
-  const [integration] = await db
-    .select({
-      id: githubIntegrations.id,
-      organizationId: githubIntegrations.organizationId,
-      encryptedToken: githubIntegrations.encryptedToken,
-      githubAppInstallationId: githubIntegrations.githubAppInstallationId,
-      integrationEnabled: githubIntegrations.enabled,
-      repositoryEnabled: githubIntegrations.repositoryEnabled,
-    })
-    .from(githubIntegrations)
-    .where(and(...whereClauses))
-    .limit(1)
-    .$withCache(false);
-
-  if (!(integration?.integrationEnabled && integration.repositoryEnabled)) {
-    return undefined;
-  }
-
-  return runGitHubEffect(
-    resolveGitHubCredentials(
-      integration.id,
-      integration,
-      githubCredentialDependencies
-    ).pipe(
-      Effect.catchTag("GitHubCredentialsMissingError", () =>
-        Effect.succeed(undefined)
-      ),
-      Effect.catchTag("GitHubRequestError", (error) => Effect.fail(error.cause))
-    )
-  );
-}
 
 const githubCredentialDependencies: GitHubCredentialDependencies = {
   findInstallation: (recordId, organizationId) =>
@@ -1918,16 +1848,6 @@ export async function getWebhookConfigForRepository(
   };
 }
 
-export async function hasWebhookConfigured(repositoryId: string) {
-  const integration = await db.query.githubIntegrations.findFirst({
-    where: eq(githubIntegrations.id, repositoryId),
-    columns: {
-      encryptedWebhookSecret: true,
-    },
-  });
-
-  return !!integration?.encryptedWebhookSecret;
-}
 
 export async function getWebhookSecretByRepositoryId(repositoryId: string) {
   const integration = await db.query.githubIntegrations.findFirst({
