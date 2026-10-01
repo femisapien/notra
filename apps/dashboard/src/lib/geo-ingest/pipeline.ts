@@ -11,6 +11,7 @@ import { acceptsIngestHost } from "@notra/geo-core/utils/geo-project-domains";
 import { Effect } from "effect";
 import { after, type NextRequest } from "next/server";
 
+import { GEO_INGEST_WRITE_TIMEOUT_MS } from "@/constants/geo-ingest";
 import { trackGeoIngestAnalytics } from "@/lib/geo-ingest/analytics";
 import { classifyVisitor } from "@/lib/geo-ingest/classify-visitor";
 import {
@@ -94,7 +95,7 @@ const ingestEvent = Effect.fn("geoIngest.ingest")(function* (
   event: GeoTrafficEventRow
 ) {
   yield* Effect.tryPromise({
-    try: () => ingestGeoTrafficEvents([event]),
+    try: () => ingestGeoTrafficEvents([event], GEO_INGEST_WRITE_TIMEOUT_MS),
     catch: (cause) => new GeoIngestFailedError({ cause }),
   });
 });

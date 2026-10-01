@@ -1,0 +1,1 @@
+export const GEO_INGEST_WRITE_TIMEOUT_MS = 5_000;

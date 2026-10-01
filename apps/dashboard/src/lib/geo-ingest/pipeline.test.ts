@@ -20,7 +20,9 @@ const HUMAN_CLASSIFICATION: GeoVisitorClassification = {
   confidence: "",
 };
 
-const ingestGeoTrafficEvents = mock(async () => null);
+const ingestGeoTrafficEvents = mock(
+  async (_rows: unknown[], _timeoutMs?: number) => null
+);
 const isGeoIngestIdentityActive = mock(async () => true);
 const loadIngestAllowedHosts = mock(async (): Promise<string[] | null> => [
   "example.com",
@@ -159,6 +161,15 @@ describe("runGeoIngest ordering", () => {
     await after.mock.calls[0]?.[0]();
 
     expect(ingestGeoTrafficEvents).toHaveBeenCalledTimes(1);
+    expect(ingestGeoTrafficEvents).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          organization_id: "org_1",
+          project_id: "proj_1",
+        }),
+      ]),
+      5_000
+    );
     expect(trackGeoIngestAnalytics).toHaveBeenCalledTimes(1);
     expect(geoLogInfo).toHaveBeenCalledWith(
       expect.objectContaining({ event: "geo.ingest", outcome: "ingested" })
@@ -166,32 +177,38 @@ describe("runGeoIngest ordering", () => {
     expect(flushGeoLog).toHaveBeenCalledTimes(1);
   });
 
-  test("logs deferred write failures without reporting ingestion success", async () => {
-    ingestGeoTrafficEvents.mockImplementation(async () => {
-      throw new Error("Tinybird unavailable");
-    });
-    const logError = spyOn(console, "error").mockImplementation(() => {});
-    try {
-      const outcome = await run(ingestRequest());
+  test.each([
+    new Error("Tinybird unavailable"),
+    new DOMException("Tinybird write timed out", "TimeoutError"),
+  ])(
+    "logs deferred write failures without reporting ingestion success: %s",
+    async (error) => {
+      ingestGeoTrafficEvents.mockImplementation(async () => {
+        throw error;
+      });
+      const logError = spyOn(console, "error").mockImplementation(() => {});
+      try {
+        const outcome = await run(ingestRequest());
 
-      expect(outcome._tag).toBe("Success");
-      expect(after).toHaveBeenCalledTimes(1);
-      await after.mock.calls[0]?.[0]();
+        expect(outcome._tag).toBe("Success");
+        expect(after).toHaveBeenCalledTimes(1);
+        await after.mock.calls[0]?.[0]();
 
-      expect(logError).toHaveBeenCalledWith(
-        "[geo-ingest] Deferred ingest failed",
-        expect.objectContaining({
-          organizationId: "org_1",
-          projectId: "proj_1",
-        })
-      );
-      expect(trackGeoIngestAnalytics).not.toHaveBeenCalled();
-      expect(geoLogInfo).not.toHaveBeenCalled();
-      expect(flushGeoLog).toHaveBeenCalledTimes(1);
-    } finally {
-      logError.mockRestore();
+        expect(logError).toHaveBeenCalledWith(
+          "[geo-ingest] Deferred ingest failed",
+          expect.objectContaining({
+            organizationId: "org_1",
+            projectId: "proj_1",
+          })
+        );
+        expect(trackGeoIngestAnalytics).not.toHaveBeenCalled();
+        expect(geoLogInfo).not.toHaveBeenCalled();
+        expect(flushGeoLog).toHaveBeenCalledTimes(1);
+      } finally {
+        logError.mockRestore();
+      }
     }
-  });
+  );
 
   test("rejects rate-limited traffic before scheduling a write", async () => {
     ratelimitLimit.mockImplementation(async () => ({ success: false }));

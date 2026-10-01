@@ -238,13 +238,15 @@ export function ingestSocialPostSources(
 }
 
 export function ingestGeoTrafficEvents(
-  rows: GeoTrafficEventRow[]
+  rows: GeoTrafficEventRow[],
+  timeoutMs?: number
 ): Promise<IngestResult | null> {
   return ingestRows(
     rows,
     "geo",
     rows.map((row) => row.organization_id),
-    (client, batch) => client.geoTrafficEvents.ingestBatch(batch)
+    (client, batch) =>
+      client.geoTrafficEvents.ingestBatch(batch, { timeout: timeoutMs })
   );
 }
 
