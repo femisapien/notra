@@ -210,32 +210,39 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
   });
 
   yield* enforceRateLimit(identity.organizationId);
-  const ingestStartedAt = Date.now();
-  yield* ingestEvent(event);
-  const ingestMs = Date.now() - ingestStartedAt;
-  yield* Effect.sync(() =>
-    emitIngestLog({
-      outcome: "ingested",
-      visitorType: classification.visitorType,
-      source: classification.source,
-      ingestMs,
-      organizationId: identity.organizationId,
-      projectId: identity.projectId ?? "",
-    })
-  );
-  // Analytics must not hold the 202 open for the site that sent the event.
+  // Best-effort delivery: 202 acknowledges validation, not durable storage.
+  // Tinybird and analytics must not hold the response open for the sender.
   yield* Effect.sync(() =>
     after(async () => {
       try {
-        await Effect.runPromise(trackGeoIngestAnalytics({ identity, event }));
+        const ingestStartedAt = Date.now();
+        await Effect.runPromise(ingestEvent(event));
+        emitIngestLog({
+          outcome: "ingested",
+          visitorType: classification.visitorType,
+          source: classification.source,
+          ingestMs: Date.now() - ingestStartedAt,
+          organizationId: identity.organizationId,
+          projectId: identity.projectId ?? "",
+        });
+        try {
+          await Effect.runPromise(trackGeoIngestAnalytics({ identity, event }));
+        } catch (error) {
+          console.error("[geo-ingest] Deferred analytics failed", {
+            error,
+            organizationId: identity.organizationId,
+            projectId: identity.projectId,
+          });
+        }
       } catch (error) {
-        console.error("[geo-ingest] Deferred analytics failed", {
+        console.error("[geo-ingest] Deferred ingest failed", {
           error,
           organizationId: identity.organizationId,
           projectId: identity.projectId,
         });
+      } finally {
+        await flushGeoLog().catch(() => null);
       }
-      await flushGeoLog().catch(() => null);
     })
   );
 });

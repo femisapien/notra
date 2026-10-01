@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 
 import type { GeoIngestIdentity } from "@notra/geo-core/types/geo";
 
@@ -26,9 +26,10 @@ const loadIngestAllowedHosts = mock(async (): Promise<string[] | null> => [
   "example.com",
 ]);
 const ratelimitLimit = mock(async () => ({ success: true }));
-const trackGeoIngestAnalytics = mock(async () => {});
+const trackGeoIngestAnalytics = mock(() => Effect.void);
 const geoLogInfo = mock(() => {});
 const flushGeoLog = mock(async () => {});
+const after = mock((_task: () => Promise<void>) => {});
 const verifyGeoIngestToken = mock((): GeoIngestIdentity => ({
   organizationId: "org_1",
   projectId: "proj_1",
@@ -70,7 +71,7 @@ mock.module("@/utils/ratelimit", () => ({
   ratelimit: { geoIngest: { limit: ratelimitLimit } },
 }));
 mock.module("next/server", () => ({
-  after: () => {},
+  after,
 }));
 
 const { Effect } = await import("effect");
@@ -79,6 +80,7 @@ const {
   GeoIngestInvalidPayloadError,
   GeoIngestInvalidTokenError,
   GeoIngestFailedError,
+  GeoIngestRateLimitedError,
   GeoIngestUnparseableUrlError,
 } = await import("./errors");
 
@@ -110,6 +112,7 @@ describe("runGeoIngest ordering", () => {
       trackGeoIngestAnalytics,
       geoLogInfo,
       flushGeoLog,
+      after,
     ]) {
       m.mockClear();
     }
@@ -125,6 +128,8 @@ describe("runGeoIngest ordering", () => {
     isGeoIngestIdentityActive.mockImplementation(async () => true);
     loadIngestAllowedHosts.mockImplementation(async () => ["example.com"]);
     ratelimitLimit.mockImplementation(async () => ({ success: true }));
+    ingestGeoTrafficEvents.mockImplementation(async () => null);
+    trackGeoIngestAnalytics.mockImplementation(() => Effect.void);
   });
 
   test("drops untracked visitors without any Redis/DB/Tinybird I/O", async () => {
@@ -137,16 +142,97 @@ describe("runGeoIngest ordering", () => {
     expect(loadIngestAllowedHosts).not.toHaveBeenCalled();
     expect(ratelimitLimit).not.toHaveBeenCalled();
     expect(ingestGeoTrafficEvents).not.toHaveBeenCalled();
+    expect(after).not.toHaveBeenCalled();
   });
 
-  test("ingests tracked traffic after identity and host checks", async () => {
+  test("defers tracked traffic writes until after validation completes", async () => {
     const outcome = await run(ingestRequest());
 
     expect(outcome._tag).toBe("Success");
     expect(isGeoIngestIdentityActive).toHaveBeenCalledTimes(1);
     expect(loadIngestAllowedHosts).toHaveBeenCalledTimes(1);
     expect(ratelimitLimit).toHaveBeenCalledTimes(1);
+    expect(ingestGeoTrafficEvents).not.toHaveBeenCalled();
+    expect(trackGeoIngestAnalytics).not.toHaveBeenCalled();
+    expect(after).toHaveBeenCalledTimes(1);
+
+    await after.mock.calls[0]?.[0]();
+
     expect(ingestGeoTrafficEvents).toHaveBeenCalledTimes(1);
+    expect(trackGeoIngestAnalytics).toHaveBeenCalledTimes(1);
+    expect(geoLogInfo).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "geo.ingest", outcome: "ingested" })
+    );
+    expect(flushGeoLog).toHaveBeenCalledTimes(1);
+  });
+
+  test("logs deferred write failures without reporting ingestion success", async () => {
+    ingestGeoTrafficEvents.mockImplementation(async () => {
+      throw new Error("Tinybird unavailable");
+    });
+    const logError = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const outcome = await run(ingestRequest());
+
+      expect(outcome._tag).toBe("Success");
+      expect(after).toHaveBeenCalledTimes(1);
+      await after.mock.calls[0]?.[0]();
+
+      expect(logError).toHaveBeenCalledWith(
+        "[geo-ingest] Deferred ingest failed",
+        expect.objectContaining({
+          organizationId: "org_1",
+          projectId: "proj_1",
+        })
+      );
+      expect(trackGeoIngestAnalytics).not.toHaveBeenCalled();
+      expect(geoLogInfo).not.toHaveBeenCalled();
+      expect(flushGeoLog).toHaveBeenCalledTimes(1);
+    } finally {
+      logError.mockRestore();
+    }
+  });
+
+  test("rejects rate-limited traffic before scheduling a write", async () => {
+    ratelimitLimit.mockImplementation(async () => ({ success: false }));
+
+    const outcome = await run(ingestRequest());
+
+    expect(outcome._tag).toBe("Failure");
+    if (outcome._tag === "Failure") {
+      expect(outcome.failure).toBeInstanceOf(GeoIngestRateLimitedError);
+    }
+    expect(after).not.toHaveBeenCalled();
+    expect(ingestGeoTrafficEvents).not.toHaveBeenCalled();
+  });
+
+  test("flushes ingestion logs when deferred analytics fails", async () => {
+    trackGeoIngestAnalytics.mockImplementation(() =>
+      Effect.die(new Error("Analytics unavailable"))
+    );
+    const logError = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const outcome = await run(ingestRequest());
+
+      expect(outcome._tag).toBe("Success");
+      expect(after).toHaveBeenCalledTimes(1);
+      await after.mock.calls[0]?.[0]();
+
+      expect(logError).toHaveBeenCalledTimes(1);
+      expect(logError).toHaveBeenCalledWith(
+        "[geo-ingest] Deferred analytics failed",
+        expect.objectContaining({
+          organizationId: "org_1",
+          projectId: "proj_1",
+        })
+      );
+      expect(geoLogInfo).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "geo.ingest", outcome: "ingested" })
+      );
+      expect(flushGeoLog).toHaveBeenCalledTimes(1);
+    } finally {
+      logError.mockRestore();
+    }
   });
 
   test("rejects revoked identities for tracked traffic with 401", async () => {
@@ -159,6 +245,7 @@ describe("runGeoIngest ordering", () => {
       expect(outcome.failure).toBeInstanceOf(GeoIngestInvalidTokenError);
     }
     expect(ingestGeoTrafficEvents).not.toHaveBeenCalled();
+    expect(after).not.toHaveBeenCalled();
   });
 
   test("drops tracked events for hosts outside the allowed list", async () => {
@@ -168,6 +255,7 @@ describe("runGeoIngest ordering", () => {
 
     expect(outcome._tag).toBe("Success");
     expect(ingestGeoTrafficEvents).not.toHaveBeenCalled();
+    expect(after).not.toHaveBeenCalled();
   });
 
   test("legacy organization tokens do not ingest a sibling project's host", async () => {
