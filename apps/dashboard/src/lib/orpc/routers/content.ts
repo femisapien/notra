@@ -791,6 +791,15 @@ export const contentRouter = {
         input
       );
 
+      if (input.status === "draft") {
+        updateData.publishedAt = null;
+      } else if (
+        input.status === "published" &&
+        existingPost.status !== "published"
+      ) {
+        updateData.publishedAt = new Date();
+      }
+
       if (input.slug !== undefined) {
         if (!supportsPostSlug(existingPost.contentType)) {
           const tErrors = await getTranslations("errors.content");

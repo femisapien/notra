@@ -355,6 +355,7 @@ export const createPost = Effect.fn("posts.create")(function* (
             markdown,
             contentType: body.contentType,
             status: body.status,
+            publishedAt: body.status === "published" ? now : null,
             sourceMetadata: null,
             createdAt: now,
             updatedAt: now,
@@ -449,6 +450,11 @@ export const preparePatchPost = Effect.fn("posts.preparePatch")(function* (
 
   if (body.status !== undefined) {
     updateData.status = body.status;
+    if (body.status === "draft") {
+      updateData.publishedAt = null;
+    } else if (existingPost.status !== "published") {
+      updateData.publishedAt = new Date();
+    }
   }
 
   return {

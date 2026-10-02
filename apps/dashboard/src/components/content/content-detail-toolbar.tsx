@@ -20,6 +20,7 @@ import { Button } from "@/components/button";
 import { ImageExportTargetIcon } from "@/components/content/image-export-target-icon";
 import { PostSocialButton } from "@/components/content/post-social-button";
 import { PublishContentToGitHubDialog } from "@/components/content/publish-content-to-github-dialog";
+import { ContentScheduleButton } from "@/components/content/schedule/content-schedule-button";
 import { WriterExecute } from "@/components/geo/writer/writer-execute";
 import { IMAGE_EXPORT_TARGETS } from "@/constants/image-export";
 import { IMAGE_EXPORT_DOWNLOAD_TARGET } from "@/constants/studio-analytics";
@@ -178,6 +179,7 @@ function ContentDetailPublishActions({
   organizationSlug,
 }: ContentDetailToolbarProps) {
   const tCommon2 = useTranslations("common");
+  const tSchedule = useTranslations("content.calendar.schedule");
   let publishLabel = tCommon2("labels.publish");
   if (document.isTogglingStatus) {
     publishLabel = tCommon2("labels.updating");
@@ -227,6 +229,18 @@ function ContentDetailPublishActions({
           title={document.title}
         />
       ) : null}
+      {document.isGeoArticleLoading ? null : (
+        <ContentScheduleButton
+          contentId={contentId}
+          contentType={content.contentType}
+          disabled={document.hasChanges || document.isSaving}
+          disabledReason={tSchedule("saveFirst")}
+          organizationId={organizationId}
+          organizationSlug={organizationSlug}
+          published={content.status === "published"}
+          title={document.title}
+        />
+      )}
       <Button
         disabled={
           document.isTogglingStatus ||

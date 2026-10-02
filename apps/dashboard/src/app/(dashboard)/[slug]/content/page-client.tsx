@@ -1,9 +1,14 @@
 "use client";
 
-import { GridViewIcon, ListViewIcon } from "@hugeicons/core-free-icons";
+import {
+  Calendar03Icon,
+  GridViewIcon,
+  ListViewIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@notra/ui/components/ui/button";
 import { useTranslations } from "next-intl";
+import dynamic from "next/dynamic";
 import { parseAsInteger, parseAsStringLiteral, useQueryState } from "nuqs";
 import { useMemo } from "react";
 
@@ -13,7 +18,7 @@ import { EmptyState } from "@/components/empty-state";
 import { EmptyStateTablePreview } from "@/components/empty-state-preview";
 import { PageContainer } from "@/components/layout/container";
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
-import { CONTENT_COLLECTION_VIEWS } from "@/constants/content-collections";
+import { CONTENT_LIST_VIEWS } from "@/constants/content-collections";
 import {
   EMPTY_STATE_TABLE_COLUMNS,
   EMPTY_STATE_TABLE_ROWS,
@@ -24,6 +29,22 @@ import type { ContentListPageClientProps } from "@/types/content/collection";
 import type { TablePaginationState } from "@/types/table";
 
 import { CollectionsPageSkeleton } from "./skeleton";
+
+// Days, "today" and times depend on the browser's time zone, so the
+// calendar renders on the client only.
+const ContentCalendarView = dynamic(
+  () =>
+    import("@/components/content/calendar/content-calendar-view").then(
+      (module) => module.ContentCalendarView
+    ),
+  { ssr: false }
+);
+
+const VIEW_ICONS = {
+  list: ListViewIcon,
+  grid: GridViewIcon,
+  calendar: Calendar03Icon,
+} as const;
 
 export default function PageClient({
   organizationSlug,
@@ -47,11 +68,13 @@ export default function PageClient({
   const page = Math.max(1, rawPage);
   const [view, setView] = useQueryState(
     "view",
-    parseAsStringLiteral(CONTENT_COLLECTION_VIEWS).withDefault("list")
+    parseAsStringLiteral(CONTENT_LIST_VIEWS).withDefault("list")
   );
+  const isCalendar = view === "calendar";
+  const collectionView = view === "grid" ? "grid" : "list";
 
   const { data, isPending, isError, isPlaceholderData, refetch } =
-    useCollections(organizationId, page, initialProjectId);
+    useCollections(organizationId, page, initialProjectId, !isCalendar);
 
   const collections = useMemo(
     () => data?.collections ?? [],
@@ -68,8 +91,48 @@ export default function PageClient({
     setPage: (next) => setPage(Math.min(Math.max(1, next), pageCount)),
   };
 
+  const viewToggle = (
+    <div
+      aria-label={t("viewToggle")}
+      className="bg-muted inline-flex items-center rounded-lg p-0.5"
+      role="group"
+    >
+      {CONTENT_LIST_VIEWS.map((option) => {
+        const selected = view === option;
+
+        return (
+          <button
+            aria-pressed={selected}
+            className={cn(
+              "focus-visible:ring-ring/50 duration-fast inline-flex h-7 items-center gap-1 rounded-md px-2 text-[0.8rem] font-medium transition-colors ease-out focus-visible:ring-2 focus-visible:outline-none",
+              selected
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            key={option}
+            onClick={() => {
+              void setView(option);
+            }}
+            type="button"
+          >
+            <HugeiconsIcon
+              aria-hidden="true"
+              className="size-3.5"
+              icon={VIEW_ICONS[option]}
+            />
+            {option === "list" ? tCommon2("labels.list") : null}
+            {option === "grid" ? t("viewGrid") : null}
+            {option === "calendar" ? t("viewCalendar") : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const isEmpty =
-    !(isPending || isError) && collections.length === 0 && page === 1;
+    !(isPending || isError || isCalendar) &&
+    collections.length === 0 &&
+    page === 1;
 
   return (
     <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
@@ -91,48 +154,26 @@ export default function PageClient({
         </header>
 
         <div className="space-y-3">
-          <div className="flex min-h-8 flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-medium">{t("allContent")}</h2>
-            <div
-              aria-label={t("viewToggle")}
-              className="bg-muted inline-flex items-center rounded-lg p-0.5"
-              role="group"
-            >
-              {CONTENT_COLLECTION_VIEWS.map((option) => {
-                const selected = view === option;
-
-                return (
-                  <button
-                    aria-pressed={selected}
-                    className={cn(
-                      "focus-visible:ring-ring/50 duration-fast inline-flex h-7 items-center gap-1 rounded-md px-2 text-[0.8rem] font-medium transition-colors ease-out focus-visible:ring-2 focus-visible:outline-none",
-                      selected
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    key={option}
-                    onClick={() => {
-                      void setView(option);
-                    }}
-                    type="button"
-                  >
-                    <HugeiconsIcon
-                      aria-hidden="true"
-                      className="size-3.5"
-                      icon={option === "list" ? ListViewIcon : GridViewIcon}
-                    />
-                    {option === "list"
-                      ? tCommon2("labels.list")
-                      : t("viewGrid")}
-                  </button>
-                );
-              })}
+          {isCalendar ? null : (
+            <div className="flex min-h-8 flex-wrap items-center justify-between gap-3">
+              <h2 className="text-sm font-medium">{t("allContent")}</h2>
+              {viewToggle}
             </div>
-          </div>
+          )}
 
-          {isPending ? <CollectionsPageSkeleton view={view} /> : null}
+          {isCalendar ? (
+            <ContentCalendarView
+              organizationId={organizationId}
+              organizationSlug={organizationSlug}
+              toolbarEnd={viewToggle}
+            />
+          ) : null}
 
-          {isError ? (
+          {isPending && !isCalendar ? (
+            <CollectionsPageSkeleton view={collectionView} />
+          ) : null}
+
+          {isError && !isCalendar ? (
             <EmptyState
               action={
                 <Button
@@ -162,14 +203,14 @@ export default function PageClient({
             />
           ) : null}
 
-          {!(isPending || isEmpty || isError) ? (
+          {!(isPending || isEmpty || isError || isCalendar) ? (
             <CollectionsView
               collections={collections}
               loading={isPlaceholderData}
               organizationId={organizationId}
               organizationSlug={organizationSlug}
               pagination={pagination}
-              view={view}
+              view={collectionView}
             />
           ) : null}
         </div>

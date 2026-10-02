@@ -18,7 +18,9 @@ const GENERATING_POLL_INTERVAL = 4000;
 export function useCollections(
   organizationId: string,
   page: number,
-  initialProjectId: string | null
+  initialProjectId: string | null,
+  /** The calendar view shows no collections; skip the request there. */
+  enabled = true
 ) {
   const tToast = useTranslations("content.toasts");
   const { projectId, isResolved } = useActiveProject();
@@ -39,7 +41,10 @@ export function useCollections(
         pageSize: COLLECTIONS_PAGE_SIZE,
       },
     }),
-    enabled: !!organizationId && (isResolved || initialProjectId !== undefined),
+    enabled:
+      enabled &&
+      !!organizationId &&
+      (isResolved || initialProjectId !== undefined),
     placeholderData,
     refetchInterval: (query) =>
       query.state.data?.collections.some(

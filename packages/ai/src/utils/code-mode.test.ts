@@ -21,6 +21,7 @@ const ORGANIZATION_ID = "org_code_mode_test";
 // has to be added here or to STANDALONE_CODE_MODE_TOOL_NAMES.
 const DIRECT_TOOL_NAMES = [
   "addBrandReference",
+  "cancelPostSchedule",
   "createBlogPost",
   "createChangelog",
   "createImage",
@@ -34,6 +35,7 @@ const DIRECT_TOOL_NAMES = [
   "getGeoOverview",
   "getGeoTimeseries",
   "listBrandIdentities",
+  "schedulePost",
   "updatePost",
 ];
 
