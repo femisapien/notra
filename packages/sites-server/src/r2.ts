@@ -8,6 +8,7 @@ import {
 } from "@aws-sdk/client-s3";
 
 import { getSitesR2Env } from "./env";
+import type { R2PutOptions, R2TextObject } from "./types/r2";
 
 let client: S3Client | undefined;
 
@@ -41,9 +42,7 @@ export class R2PreconditionFailedError extends Error {
   readonly name = "R2PreconditionFailedError";
 }
 
-export async function r2GetText(
-  key: string
-): Promise<{ text: string; etag: string } | null> {
+export async function r2GetText(key: string): Promise<R2TextObject | null> {
   try {
     const result = await getClient().send(
       new GetObjectCommand({ Bucket: bucket(), Key: key })
@@ -81,13 +80,7 @@ export async function r2GetBytes(key: string): Promise<Uint8Array | null> {
 export async function r2Put(
   key: string,
   body: Uint8Array | string,
-  options: {
-    contentType?: string;
-    cacheControl?: string;
-    /** `"*"` = create only; an ETag = compare-and-swap. */
-    ifMatch?: string;
-    ifNoneMatch?: "*";
-  } = {}
+  options: R2PutOptions = {}
 ): Promise<string> {
   try {
     const result = await getClient().send(

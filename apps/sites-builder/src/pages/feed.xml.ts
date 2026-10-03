@@ -8,13 +8,7 @@ import {
   href,
   params,
 } from "../lib/params";
-
-const escapeXml = (value: string) =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+import { escapeXml } from "../utils/xml";
 
 export const GET: APIRoute = async () => {
   const entries =

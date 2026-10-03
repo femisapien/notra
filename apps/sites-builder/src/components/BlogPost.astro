@@ -1,7 +1,10 @@
 ---
 import { render } from "astro:content";
-import { authorsOf, type BlogEntry, formatDate, getBlogEntries, isoDate, readingMinutes } from "../lib/entries";
+import { authorsOf, getBlogEntries } from "../lib/entries";
 import { areaTitle, assetUrl, href } from "../lib/params";
+import type { BlogEntry } from "../types/entries";
+import { formatDate, isoDate } from "../utils/dates";
+import { readingMinutes } from "../utils/reading-time";
 import PostCard from "./PostCard.astro";
 
 interface Props {

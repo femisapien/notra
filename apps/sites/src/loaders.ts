@@ -1,37 +1,24 @@
 import { SITE_R2_KEYS } from "@notra/sites-core/constants/sites";
 import {
-  type SiteHostRecord,
-  type SiteManifest,
-  type SiteManifestFile,
-  type SiteServingState,
   siteHostRecordSchema,
   siteManifestSchema,
   siteServingStateSchema,
 } from "@notra/sites-core/schemas/deployment";
+import type {
+  SiteHostRecord,
+  SiteServingState,
+} from "@notra/sites-core/types/deployment";
 
-import type { SitesDeps } from "./types";
+import {
+  HOST_TTL_MS,
+  MANIFEST_CACHE_LIMIT,
+  STATE_TTL_MS,
+} from "./constants/cache";
+import type { LoadedManifest, TimedCacheEntry } from "./types/serving";
+import type { SitesDeps } from "./types/worker";
 
-/**
- * Serving state is re-read at most this often per isolate. It bounds how long
- * a takedown or a new release takes to show up, independent of any edge cache.
- */
-const STATE_TTL_MS = 5000;
-const HOST_TTL_MS = 30_000;
-const MANIFEST_CACHE_LIMIT = 32;
-
-export interface LoadedManifest {
-  manifest: SiteManifest;
-  files: Map<string, SiteManifestFile>;
-}
-
-const hostCache = new Map<
-  string,
-  { value: SiteHostRecord | null; at: number }
->();
-const stateCache = new Map<
-  string,
-  { value: SiteServingState | null; at: number }
->();
+const hostCache = new Map<string, TimedCacheEntry<SiteHostRecord | null>>();
+const stateCache = new Map<string, TimedCacheEntry<SiteServingState | null>>();
 /** Deployments are immutable, so a manifest never needs revalidation. */
 const manifestCache = new Map<string, LoadedManifest>();
 

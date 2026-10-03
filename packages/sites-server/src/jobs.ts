@@ -3,14 +3,13 @@ import { siteJobs } from "@notra/db/schema";
 import { SITE_BUILD_LIMITS } from "@notra/sites-core/constants/sites";
 import { and, asc, eq, gt, isNull, lt, lte, or, sql } from "drizzle-orm";
 
-const DEFAULT_LEASE_MS = 15 * 60 * 1000;
-/** A dispatched job that has not been claimed after this long is dispatched again. */
-const REDISPATCH_AFTER_MS = 2 * 60 * 1000;
-const RETRY_BASE_MS = 30 * 1000;
-
-export type SiteJob = typeof siteJobs.$inferSelect;
-
-const CAPACITY_RETRY_MS = 20 * 1000;
+import {
+  CAPACITY_RETRY_MS,
+  DEFAULT_LEASE_MS,
+  REDISPATCH_AFTER_MS,
+  RETRY_BASE_MS,
+} from "./constants/jobs";
+import type { FailSiteJobOptions, SiteJob } from "./types/jobs";
 
 /**
  * Builds wait (instead of failing) when the global or per-site sandbox budget
@@ -94,7 +93,7 @@ export async function completeSiteJob(jobId: string): Promise<void> {
 export async function failSiteJob(
   job: SiteJob,
   error: unknown,
-  options: { permanent?: boolean } = {}
+  options: FailSiteJobOptions = {}
 ): Promise<"retrying" | "failed"> {
   const message = error instanceof Error ? error.message : String(error);
   const exhausted =

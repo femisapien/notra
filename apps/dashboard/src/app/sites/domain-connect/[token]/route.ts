@@ -8,6 +8,7 @@ import { after, type NextRequest } from "next/server";
 
 import { assertOrganizationAccess } from "@/lib/auth/organization";
 import { dispatchSiteJobs } from "@/lib/sites/dispatch";
+import type { SiteDomainConnectRouteContext } from "@/types/sites";
 
 /**
  * Domain Connect sends the browser back here after the customer approved (or
@@ -16,7 +17,7 @@ import { dispatchSiteJobs } from "@/lib/sites/dispatch";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ token: string }> }
+  { params }: SiteDomainConnectRouteContext
 ) {
   const claims = verifyDomainConnectCallback((await params).token);
   if (!claims) {

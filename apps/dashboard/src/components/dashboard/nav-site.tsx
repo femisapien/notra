@@ -13,30 +13,15 @@ import { usePathname } from "next/navigation";
 
 import { SITE_SECTIONS } from "@/constants/sites";
 import { useSiteDetail, useSitesOrganizationId } from "@/lib/hooks/use-sites";
-import type { SiteDetail, SiteSection } from "@/types/sites";
+import type { NavSiteProps } from "@/types/components/nav";
 import { siteHref } from "@/utils/site-links";
+import { siteSectionCount } from "@/utils/site-sections";
 
 import { SidebarLabel } from "./sidebar-label";
 import { SidebarNavLink } from "./sidebar-nav-link";
 
-function sectionCount(
-  section: SiteSection,
-  detail: SiteDetail | undefined
-): number {
-  if (!detail) {
-    return 0;
-  }
-  if (section === "previews") {
-    return detail.previews.length;
-  }
-  if (section === "domains") {
-    return detail.domains.length;
-  }
-  return section === "editor" ? detail.draftCount : 0;
-}
-
 /** The site's own navigation, shown in place of the main sidebar on every page of a site. */
-export function NavSite({ slug }: { slug: string }) {
+export function NavSite({ slug }: NavSiteProps) {
   const t = useTranslations("sites.detail.tabs");
   const pathname = usePathname();
   const siteId = pathname.split("/").filter(Boolean)[2] ?? "";
@@ -58,7 +43,7 @@ export function NavSite({ slug }: { slug: string }) {
       <SidebarMenu>
         {SITE_SECTIONS.map((item) => {
           const label = t(item.section);
-          const count = sectionCount(item.section, detail);
+          const count = siteSectionCount(item.section, detail);
           return (
             <SidebarMenuItem key={item.section}>
               <SidebarMenuButton

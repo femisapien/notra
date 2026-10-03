@@ -1,5 +1,3 @@
-export type { SiteDiagnostic } from "@notra/sites-core/schemas/build";
-
 export interface SiteSourceFile {
   /** Relative to the site root, forward slashes, no leading slash. */
   path: string;

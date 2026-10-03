@@ -1,13 +1,14 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 
+import {
+  SITE_PREVIEW_VIEWPORT_HEIGHT,
+  SITE_PREVIEW_VIEWPORT_WIDTH,
+} from "@/constants/sites";
 import { cn } from "@/lib/utils";
-
-/** Rendered width of the page inside the thumbnail; the frame scales it down to fit. */
-const VIEWPORT_WIDTH = 1280;
-const VIEWPORT_HEIGHT = 800;
+import type { SitePreviewFrameProps } from "@/types/components/sites";
 
 /**
  * A live, non-interactive thumbnail of a deployed page (Vercel/Mintlify style).
@@ -17,16 +18,11 @@ export function SitePreviewFrame({
   url,
   className,
   fallback,
-}: {
-  url: string | null;
-  className?: string;
-  /** Shown instead of "Preview unavailable" when there is no URL, e.g. while the first build runs. */
-  fallback?: ReactNode;
-}) {
+}: SitePreviewFrameProps) {
   const t = useTranslations("sites.previewFrame");
   const [loaded, setLoaded] = useState(false);
   const [width, setWidth] = useState(0);
-  const scale = width > 0 ? width / VIEWPORT_WIDTH : 0;
+  const scale = width > 0 ? width / SITE_PREVIEW_VIEWPORT_WIDTH : 0;
 
   return (
     <div
@@ -57,8 +53,8 @@ export function SitePreviewFrame({
           sandbox="allow-same-origin"
           src={url}
           style={{
-            width: VIEWPORT_WIDTH,
-            height: VIEWPORT_HEIGHT,
+            width: SITE_PREVIEW_VIEWPORT_WIDTH,
+            height: SITE_PREVIEW_VIEWPORT_HEIGHT,
             transform: `scale(${scale})`,
           }}
           tabIndex={-1}

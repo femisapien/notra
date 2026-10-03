@@ -8,15 +8,19 @@ import { useState } from "react";
 
 import { Button } from "@/components/button";
 import { SiteCopyButton } from "@/components/sites/site-copy-button";
+import {
+  SITE_CLOUDFLARE_PROVIDER_PATTERN,
+  SITE_DNS_RECORD_GRID,
+} from "@/constants/sites";
 import { useSiteDomainConnect } from "@/lib/hooks/use-site-domain-connect";
-import type { SiteDnsSetupProps, SiteDomainRecord } from "@/types/sites";
+import type {
+  SiteDnsConnectRowProps,
+  SiteDnsRecordValueProps,
+  SiteDnsRecordsTableProps,
+  SiteDnsSetupProps,
+} from "@/types/components/sites";
 
-const CLOUDFLARE_PROVIDER = /cloudflare/i;
-
-const RECORD_GRID =
-  "grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-4 gap-y-1 sm:grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1.3fr)]";
-
-function RecordValue({ value, label }: { value: string; label: string }) {
+function RecordValue({ value, label }: SiteDnsRecordValueProps) {
   return (
     <span className="flex min-w-0 items-center gap-1">
       <span className="min-w-0 truncate font-mono text-xs" title={value}>
@@ -31,11 +35,7 @@ function RecordValue({ value, label }: { value: string; label: string }) {
  * Type | Name | Value with a copy button per value. It lives inside the
  * domains table, so it is a plain grid rather than another framed table.
  */
-export function SiteDnsRecordsTable({
-  records,
-}: {
-  records: SiteDomainRecord[];
-}) {
+export function SiteDnsRecordsTable({ records }: SiteDnsRecordsTableProps) {
   const t = useTranslations("sites.domainsPage.dns");
   if (records.length === 0) {
     return <p className="text-muted-foreground text-sm">{t("noRecords")}</p>;
@@ -43,7 +43,7 @@ export function SiteDnsRecordsTable({
   return (
     <div className="min-w-0 text-sm" role="table">
       <div
-        className={`${RECORD_GRID} text-muted-foreground pb-1.5 text-xs max-sm:hidden`}
+        className={`${SITE_DNS_RECORD_GRID} text-muted-foreground pb-1.5 text-xs max-sm:hidden`}
         role="row"
       >
         <span role="columnheader">{t("type")}</span>
@@ -52,7 +52,7 @@ export function SiteDnsRecordsTable({
       </div>
       {records.map((record) => (
         <div
-          className={`${RECORD_GRID} border-border/60 items-center border-t py-1.5`}
+          className={`${SITE_DNS_RECORD_GRID} border-border/60 items-center border-t py-1.5`}
           key={`${record.type}:${record.name}:${record.value}`}
           role="row"
         >
@@ -71,13 +71,7 @@ export function SiteDnsRecordsTable({
   );
 }
 
-function ConnectRow({
-  providerName,
-  applyUrl,
-}: {
-  providerName: string;
-  applyUrl: string;
-}) {
+function ConnectRow({ providerName, applyUrl }: SiteDnsConnectRowProps) {
   const t = useTranslations("sites.domainsPage.dns");
   const [navigating, setNavigating] = useState(false);
   return (
@@ -97,7 +91,7 @@ function ConnectRow({
         }}
         size="sm"
       >
-        {CLOUDFLARE_PROVIDER.test(providerName) ? (
+        {SITE_CLOUDFLARE_PROVIDER_PATTERN.test(providerName) ? (
           <Cloudflare aria-hidden="true" data-icon="inline-start" />
         ) : null}
         {t("connect", { provider: providerName })}
@@ -124,7 +118,7 @@ export function SiteDnsSetup({
   const knownProvider =
     result && result.status !== "unavailable" ? result.providerName : undefined;
   const showCloudflareHint =
-    !knownProvider || CLOUDFLARE_PROVIDER.test(knownProvider);
+    !knownProvider || SITE_CLOUDFLARE_PROVIDER_PATTERN.test(knownProvider);
 
   return (
     <div className="space-y-5">

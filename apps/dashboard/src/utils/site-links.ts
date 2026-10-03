@@ -1,5 +1,5 @@
 import { SITE_SECTIONS } from "@/constants/sites";
-import type { SiteSection } from "@/types/sites";
+import type { SiteRepositoryRef, SiteSection } from "@/types/sites";
 
 export function siteHref(
   organizationSlug: string,
@@ -33,7 +33,7 @@ export function hostFromOrigin(origin: string): string {
 }
 
 export function githubCommitUrl(
-  repository: { owner: string; name: string } | null,
+  repository: SiteRepositoryRef | null,
   sha: string
 ): string | null {
   if (!repository) {
@@ -43,7 +43,7 @@ export function githubCommitUrl(
 }
 
 export function githubPullRequestUrl(
-  repository: { owner: string; name: string } | null,
+  repository: SiteRepositoryRef | null,
   pullRequestNumber: number | null
 ): string | null {
   if (!(repository && pullRequestNumber)) {

@@ -1,7 +1,10 @@
 import type {
   SiteManifest,
   SiteManifestFile,
-} from "@notra/sites-core/schemas/deployment";
+} from "@notra/sites-core/types/deployment";
+
+import { HTML_TYPES, MARKDOWN_TYPES } from "../constants/routing";
+import type { RedirectMatch } from "../types/serving";
 
 /** `/a/../b`, encoded slashes and NUL bytes never reach the bucket. */
 export function normalizeRequestPath(pathname: string): string | null {
@@ -53,7 +56,7 @@ export function resolveFile(
 export function matchRedirect(
   manifest: SiteManifest,
   path: string
-): { location: string; status: number } | null {
+): RedirectMatch | null {
   const bare = path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
   for (const rule of manifest.redirects) {
     if (rule.source.endsWith("/*")) {
@@ -94,9 +97,6 @@ export function markdownTwin(
     ? (files.get(`${file.path.slice(0, -".html".length)}.md`) ?? null)
     : null;
 }
-
-const MARKDOWN_TYPES = new Set(["text/markdown", "text/x-markdown"]);
-const HTML_TYPES = new Set(["text/html", "application/xhtml+xml"]);
 
 /** True when the client asks for Markdown at least as much as for HTML (agents do; browsers never). */
 export function prefersMarkdown(accept: string | null): boolean {

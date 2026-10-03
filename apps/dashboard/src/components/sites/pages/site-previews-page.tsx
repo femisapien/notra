@@ -40,7 +40,7 @@ import { SitePreviewsTable } from "@/components/sites/site-previews-table";
 import { SITE_SHARE_LINK_DAYS } from "@/constants/sites";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
-import type { SiteScope } from "@/types/sites";
+import type { SitePreviewBranchDialogProps } from "@/types/components/sites";
 import { toErrorMessage } from "@/utils/error-message";
 import { siteHref } from "@/utils/site-links";
 import { sitePreviewRows } from "@/utils/site-previews";
@@ -50,7 +50,7 @@ function PreviewBranchDialog({
   siteId,
   open,
   onOpenChange,
-}: SiteScope & { open: boolean; onOpenChange: (open: boolean) => void }) {
+}: SitePreviewBranchDialogProps) {
   const t = useTranslations("sites.previewsPage");
   const tCommon = useTranslations("common");
   const id = useId();

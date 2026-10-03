@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/button";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
-import type { SiteRollbackDialogProps } from "@/types/sites";
+import type { SiteRollbackDialogProps } from "@/types/components/sites";
 import { toErrorMessage } from "@/utils/error-message";
 import { commitTitle, shortSha } from "@/utils/site-deployments";
 

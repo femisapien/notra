@@ -13,68 +13,23 @@ import {
 import { and, eq, inArray } from "drizzle-orm";
 
 import { readLiveDeployments } from "./activation";
+import { PREVIEW_PR_ACTIONS, SITES_WEBHOOK_EVENTS } from "./constants/webhooks";
 import {
-  type EnqueueDeploymentInput,
   enqueuePreviewRemoval,
   enqueueSiteDeployment,
   getDeployment,
   SiteNotBuildableError,
 } from "./deployments";
+import type { EnqueueDeploymentInput } from "./types/deployments";
+import type {
+  CheckRunPayload,
+  PullRequestPayload,
+  PushPayload,
+  SitesWebhookParams,
+  SitesWebhookResult,
+} from "./types/webhooks";
 
-export const SITES_WEBHOOK_EVENTS = new Set([
-  "push",
-  "pull_request",
-  "check_run",
-]);
 const ZERO_SHA = /^0+$/;
-const PREVIEW_PR_ACTIONS = new Set([
-  "opened",
-  "reopened",
-  "synchronize",
-  "ready_for_review",
-]);
-
-export interface SitesWebhookResult {
-  httpStatus: number;
-  body: Record<string, unknown>;
-  /** Outbox jobs to dispatch after the response is decided. */
-  jobIds: string[];
-}
-
-interface RepositoryPayload {
-  id: number;
-  full_name: string;
-}
-
-interface PushPayload {
-  ref: string;
-  after: string;
-  deleted?: boolean;
-  repository: RepositoryPayload;
-  installation?: { id: number };
-  head_commit?: { message?: string; author?: { name?: string } } | null;
-}
-
-interface PullRequestPayload {
-  action: string;
-  number: number;
-  repository: RepositoryPayload;
-  installation?: { id: number };
-  pull_request: {
-    head: { sha: string; ref: string; repo: { id: number } | null };
-    base: { ref: string };
-    title: string;
-    user?: { login?: string };
-    draft?: boolean;
-  };
-}
-
-interface CheckRunPayload {
-  action: string;
-  installation?: { id: number };
-  repository: RepositoryPayload;
-  check_run: { external_id: string | null; head_sha: string };
-}
 
 /** A suspended site or an exhausted quota skips that site instead of failing (and redelivering) the webhook. */
 async function enqueueOrSkip(
@@ -269,13 +224,9 @@ async function handleCheckRun(payload: CheckRunPayload): Promise<string[]> {
  * claim: a redelivered webhook is acknowledged without queueing twice, and a
  * failed attempt releases the claim so GitHub's retry can run again.
  */
-export async function handleSitesWebhook(params: {
-  event: string;
-  deliveryId: string | null;
-  signature: string | null;
-  rawBody: string;
-  secret: string;
-}): Promise<SitesWebhookResult | null> {
+export async function handleSitesWebhook(
+  params: SitesWebhookParams
+): Promise<SitesWebhookResult | null> {
   if (!SITES_WEBHOOK_EVENTS.has(params.event)) {
     return null;
   }

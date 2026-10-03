@@ -35,7 +35,11 @@ import { SitePublishDialog } from "@/components/sites/site-publish-dialog";
 import { SITE_NEW_FILE_FOLDERS } from "@/constants/sites";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
-import type { SiteEditorJump, SiteEditorSaveState } from "@/types/site-editor";
+import type {
+  SiteEditorJump,
+  SiteEditorNewFile,
+  SiteEditorSaveState,
+} from "@/types/site-editor";
 import type { SiteDiagnostic } from "@/types/sites";
 import { toErrorMessage } from "@/utils/error-message";
 import { listSiteEditorFiles, siteEditorLanguage } from "@/utils/site-editor";
@@ -185,7 +189,7 @@ export function SiteEditorPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (file: { path: string; content: string }) =>
+    mutationFn: (file: SiteEditorNewFile) =>
       dashboardOrpc.sites.editor.saveDraft.call({
         organizationId,
         siteId,

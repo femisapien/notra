@@ -32,10 +32,8 @@ import {
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import { cn } from "@/lib/utils";
-import type {
-  SiteDetail,
-  SiteSettingsForm as SiteSettingsFormValues,
-} from "@/types/sites";
+import type { SiteSettingsFormProps } from "@/types/components/sites";
+import type { SiteSettingsForm as SiteSettingsFormValues } from "@/types/sites";
 import { toErrorMessage } from "@/utils/error-message";
 import {
   siteSettingsFormFromSite,
@@ -60,12 +58,7 @@ function SiteSettingsForm({
   organizationSlug,
   siteId,
   detail,
-}: {
-  organizationId: string;
-  organizationSlug: string;
-  siteId: string;
-  detail: SiteDetail;
-}) {
+}: SiteSettingsFormProps) {
   const t = useTranslations("sites.settings");
   const tPage = useTranslations("sites.settingsPage");
   const tNew = useTranslations("sites.new");

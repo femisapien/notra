@@ -8,11 +8,11 @@ import {
   SITE_PUBLISH_MODES,
   SITE_STATUSES,
 } from "@notra/sites-core/constants/sites";
-import type { SiteDiagnostic } from "@notra/sites-core/schemas/build";
+import type { SiteDiagnostic } from "@notra/sites-core/types/build";
 import type {
   SiteBuildTarget,
   SiteMounts,
-} from "@notra/sites-core/schemas/deployment";
+} from "@notra/sites-core/types/deployment";
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,

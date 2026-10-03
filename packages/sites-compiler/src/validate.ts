@@ -2,14 +2,21 @@ import { SITE_CONFIG_FILENAME } from "@notra/sites-core/constants/sites";
 import {
   blogFrontmatterSchema,
   changelogFrontmatterSchema,
-  type SiteConfig,
   siteConfigSchema,
 } from "@notra/sites-core/schemas/site-config";
+import type { SiteDiagnostic } from "@notra/sites-core/types/build";
+import type { SiteConfig } from "@notra/sites-core/types/site-config";
 import { parse as parseYaml } from "yaml";
 
 import { analyzeJsxSnippet } from "./jsx";
-import { analyzeMdxFile, type MdxAnalysis } from "./mdx";
-import type { SiteDiagnostic, SiteEntry } from "./types/diagnostics";
+import { analyzeMdxFile } from "./mdx";
+import type { SiteEntry } from "./types/diagnostics";
+import type { MdxAnalysis } from "./types/mdx";
+import type {
+  EntryCandidate,
+  SiteValidationInput,
+  SiteValidationResult,
+} from "./types/validate";
 
 const TEXT_EXTENSIONS = /\.(?:mdx?|jsx?|json|txt|css|svg)$/i;
 const ENTRY_FILE = /^(blog|changelog)\/(.+)\.(mdx?)$/;
@@ -20,25 +27,7 @@ export function isTextSourceFile(path: string): boolean {
   return TEXT_EXTENSIONS.test(path);
 }
 
-export interface SiteValidationInput {
-  /** Site-relative path → text content (null for binary files). */
-  files: ReadonlyMap<string, string | null>;
-}
-
-export interface SiteValidationResult {
-  diagnostics: SiteDiagnostic[];
-  config: SiteConfig | null;
-  entries: SiteEntry[];
-  /** Transformed MDX/JSX sources plus generated inline modules, keyed by site path. */
-  outputs: Map<string, string>;
-  ok: boolean;
-}
-
-function entryCandidate(path: string): {
-  area: SiteEntry["area"];
-  slug: string;
-  format: SiteEntry["format"];
-} | null {
+function entryCandidate(path: string): EntryCandidate | null {
   const match = ENTRY_FILE.exec(path);
   if (!match) {
     return null;

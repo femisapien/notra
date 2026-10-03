@@ -1,52 +1,29 @@
 "use client";
 
-import {
-  ArrowRight01Icon,
-  CancelCircleIcon,
-  CheckmarkCircle02Icon,
-  DashedLineCircleIcon,
-  Loading03Icon,
-  MinusSignCircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Shimmer } from "@notra/ui/components/ai-elements/shimmer";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@notra/ui/components/ui/collapsible";
-import type { ReactNode } from "react";
 
+import {
+  SITE_DEPLOYMENT_STEP_ICON_STYLES,
+  SITE_DEPLOYMENT_STEP_ICONS,
+  SITE_DEPLOYMENT_STEP_PANEL_CLASS,
+} from "@/constants/sites";
 import { cn } from "@/lib/utils";
-import type { SiteDeploymentStepState } from "@/types/sites";
-
-const STEP_ICONS: Record<SiteDeploymentStepState, IconSvgElement> = {
-  pending: DashedLineCircleIcon,
-  active: Loading03Icon,
-  done: CheckmarkCircle02Icon,
-  failed: CancelCircleIcon,
-  skipped: MinusSignCircleIcon,
-};
-
-/** Status color lives on the icon only: amber running, green done, red failed. */
-const STEP_ICON_STYLES: Record<SiteDeploymentStepState, string> = {
-  pending: "text-muted-foreground/50",
-  active: "text-warning motion-safe:animate-spin",
-  done: "text-success",
-  failed: "text-destructive",
-  skipped: "text-muted-foreground/50",
-};
-
-const COLLAPSIBLE_PANEL =
-  "h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-[ending-style]:h-0 data-[starting-style]:h-0 motion-reduce:transition-none";
+import type {
+  SiteDeploymentTimelineProps,
+  SiteDeploymentTimelineStepProps,
+} from "@/types/components/sites";
 
 export function SiteDeploymentTimeline({
   label,
   children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+}: SiteDeploymentTimelineProps) {
   return (
     <ol aria-label={label} className="min-w-0">
       {children}
@@ -67,17 +44,7 @@ export function SiteDeploymentTimelineStep({
   last = false,
   collapsible,
   children,
-}: {
-  state: SiteDeploymentStepState;
-  label: string;
-  /** Muted text after the label, e.g. "Waiting for a builder". */
-  note?: ReactNode;
-  /** How long the step took, or when it happened. */
-  time?: ReactNode;
-  last?: boolean;
-  collapsible?: { open: boolean; onOpenChange: (open: boolean) => void };
-  children?: ReactNode;
-}) {
+}: SiteDeploymentTimelineStepProps) {
   const quiet = state === "pending" || state === "skipped";
   const header = (
     <>
@@ -128,9 +95,9 @@ export function SiteDeploymentTimelineStep({
         <HugeiconsIcon
           className={cn(
             "relative z-10 mt-0.5 size-5 shrink-0 transition-colors duration-300",
-            STEP_ICON_STYLES[state]
+            SITE_DEPLOYMENT_STEP_ICON_STYLES[state]
           )}
-          icon={STEP_ICONS[state]}
+          icon={SITE_DEPLOYMENT_STEP_ICONS[state]}
           strokeWidth={1.5}
         />
         {last ? null : (
@@ -153,7 +120,9 @@ export function SiteDeploymentTimelineStep({
             >
               {header}
             </CollapsibleTrigger>
-            <CollapsibleContent render={<div className={COLLAPSIBLE_PANEL} />}>
+            <CollapsibleContent
+              render={<div className={SITE_DEPLOYMENT_STEP_PANEL_CLASS} />}
+            >
               {body}
             </CollapsibleContent>
           </Collapsible>

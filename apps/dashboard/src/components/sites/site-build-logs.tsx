@@ -26,9 +26,18 @@ import {
 } from "react";
 
 import { Button } from "@/components/button";
-import { SITE_BUILD_LOG_FOLLOW_THRESHOLD } from "@/constants/sites";
+import {
+  SITE_BUILD_LOG_FOLLOW_THRESHOLD,
+  SITE_BUILD_LOG_ROW_GRID,
+} from "@/constants/sites";
 import { cn } from "@/lib/utils";
-import type { SiteBuildLogEntry, SiteBuildLogLine } from "@/types/sites";
+import type {
+  SiteBuildLogFoldRowProps,
+  SiteBuildLogHighlightProps,
+  SiteBuildLogLineProps,
+  SiteBuildLogLineTextProps,
+  SiteBuildLogsProps,
+} from "@/types/components/sites";
 import { copyTextToClipboard } from "@/utils/copy-to-clipboard";
 import { formatCount } from "@/utils/format";
 import {
@@ -41,11 +50,7 @@ import {
 } from "@/utils/site-build-log";
 import { stripAnsi } from "@/utils/site-deployments";
 
-/** Grid shared by every row so offsets, markers and text line up. */
-const ROW_GRID =
-  "grid grid-cols-[2rem_0.875rem_minmax(0,1fr)] gap-x-2 px-2 sm:grid-cols-[2.5rem_0.875rem_minmax(0,1fr)] sm:gap-x-2.5 sm:px-3";
-
-function Highlighted({ text, query }: { text: string; query: string }) {
+function Highlighted({ text, query }: SiteBuildLogHighlightProps) {
   const ranges = findMatches(text, query);
   if (ranges.length === 0) {
     return text;
@@ -67,7 +72,7 @@ function Highlighted({ text, query }: { text: string; query: string }) {
   return parts;
 }
 
-function LineText({ line, query }: { line: SiteBuildLogLine; query: string }) {
+function LineText({ line, query }: SiteBuildLogLineTextProps) {
   if (line.continued) {
     return <Highlighted query={query} text={line.text} />;
   }
@@ -83,21 +88,13 @@ function LineText({ line, query }: { line: SiteBuildLogLine; query: string }) {
   );
 }
 
-function LogLine({
-  line,
-  offset,
-  query,
-}: {
-  line: SiteBuildLogLine;
-  offset: string | undefined;
-  query: string;
-}) {
+function LogLine({ line, offset, query }: SiteBuildLogLineProps) {
   const marked =
     !line.continued && (line.tone === "error" || line.tone === "warning");
   return (
     <div
       className={cn(
-        ROW_GRID,
+        SITE_BUILD_LOG_ROW_GRID,
         "[contain-intrinsic-size:auto_1.25rem] [content-visibility:auto]",
         line.tone === "error" && "bg-destructive/[0.04]",
         (line.continued || line.tone === "muted") && "text-muted-foreground"
@@ -131,13 +128,7 @@ function LogLine({
   );
 }
 
-function FoldRow({
-  entry,
-  offsets,
-}: {
-  entry: Extract<SiteBuildLogEntry, { kind: "fold" }>;
-  offsets: Map<number, string>;
-}) {
+function FoldRow({ entry, offsets }: SiteBuildLogFoldRowProps) {
   const t = useTranslations("sites.deploymentPage.log");
   const [open, setOpen] = useState(false);
   if (open) {
@@ -151,7 +142,7 @@ function FoldRow({
     ));
   }
   return (
-    <div className={ROW_GRID}>
+    <div className={SITE_BUILD_LOG_ROW_GRID}>
       <span aria-hidden="true" />
       <span aria-hidden="true" />
       <button
@@ -177,14 +168,7 @@ export function SiteBuildLogs({
   inProgress,
   queued,
   startAtEnd = false,
-}: {
-  log: string | null;
-  inProgress: boolean;
-  /** Still waiting for a builder; the log starts once the sandbox boots. */
-  queued: boolean;
-  /** Open scrolled to the end, e.g. for a failed build whose error is last. */
-  startAtEnd?: boolean;
-}) {
+}: SiteBuildLogsProps) {
   const t = useTranslations("sites.deploymentPage.log");
   const locale = useLocale();
   const scrollRef = useRef<HTMLDivElement>(null);

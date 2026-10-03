@@ -1,7 +1,7 @@
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
-import type { ReactNode } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 import { cn } from "@/lib/utils";
+import type { SiteMetaProps } from "@/types/components/sites";
 
 /** One piece of metadata with its icon: a branch, a commit, an author, a domain. */
 export function SiteMeta({
@@ -9,13 +9,7 @@ export function SiteMeta({
   children,
   mono = false,
   className,
-}: {
-  icon: IconSvgElement;
-  children: ReactNode;
-  /** For SHAs and branch names. */
-  mono?: boolean;
-  className?: string;
-}) {
+}: SiteMetaProps) {
   return (
     <span
       className={cn(

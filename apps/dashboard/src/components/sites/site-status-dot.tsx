@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { SITE_STATUS_DOT_STYLES } from "@/constants/sites";
 import { cn } from "@/lib/utils";
-import type { SiteDeploymentStatus } from "@/types/sites";
+import type { SiteStatusDotProps } from "@/types/components/sites";
 import { isDeploymentInProgress } from "@/utils/site-deployments";
 
 /**
@@ -19,14 +19,7 @@ export function SiteStatusDot({
   duration,
   live = false,
   className,
-}: {
-  status: SiteDeploymentStatus;
-  /** A ready build that visitors see right now reads "Live". */
-  live?: boolean;
-  /** Shown muted after the label, e.g. "17s". */
-  duration?: string | null;
-  className?: string;
-}) {
+}: SiteStatusDotProps) {
   const t = useTranslations("sites.status");
   let label = t(status === "uploading" ? "building" : status);
   if (live && status === "ready") {

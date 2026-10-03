@@ -37,32 +37,20 @@ import { SITE_DOMAIN_STATUS_DOTS } from "@/constants/sites";
 import { useSiteDomainCheck } from "@/lib/hooks/use-site-domain-check";
 import { cn } from "@/lib/utils";
 import type {
-  SiteDomain,
-  SiteDomainChipStatus,
-  SiteDomainRow,
+  SiteDomainCheckButtonProps,
+  SiteDomainRowMenuProps,
   SiteDomainSetupProps,
-  SiteMounts,
-  SiteScope,
-} from "@/types/sites";
+  SiteDomainStatusDotProps,
+  SiteDomainsTableProps,
+} from "@/types/components/sites";
+import type { SiteDomainRow } from "@/types/sites";
 import { copyTextToClipboard } from "@/utils/copy-to-clipboard";
+import { siteDomainChipStatus, siteDomainUrl } from "@/utils/site-domains";
 import { displayUrl } from "@/utils/site-links";
 import { mountedPaths } from "@/utils/site-proxy-recipes";
 import { tableHeightFor } from "@/utils/table";
 
-function domainStatus(domain: SiteDomain): SiteDomainChipStatus {
-  if (domain.status === "pending") {
-    return domain.kind === "proxy" ? "proxyRequired" : "dnsRequired";
-  }
-  return domain.status;
-}
-
-function domainUrl(domain: SiteDomain, mounts: SiteMounts): string {
-  const firstPath = mountedPaths(mounts)[0];
-  const path = domain.kind === "proxy" && firstPath !== "/" ? firstPath : "";
-  return `https://${domain.hostname}${path ?? ""}`;
-}
-
-function StatusDot({ status }: { status: SiteDomainChipStatus }) {
+function StatusDot({ status }: SiteDomainStatusDotProps) {
   const t = useTranslations("sites.domainsPage.status");
   return (
     <span className="inline-flex items-center gap-2 text-sm whitespace-nowrap">
@@ -78,13 +66,7 @@ function StatusDot({ status }: { status: SiteDomainChipStatus }) {
   );
 }
 
-function CheckButton({
-  scope,
-  domain,
-}: {
-  scope: SiteScope;
-  domain: SiteDomain;
-}) {
+function CheckButton({ scope, domain }: SiteDomainCheckButtonProps) {
   const t = useTranslations("sites.domainsPage");
   const check = useSiteDomainCheck({ ...scope, domainId: domain.id });
   return (
@@ -116,17 +98,7 @@ function CheckButton({
   );
 }
 
-function RowMenu({
-  hostname,
-  url,
-  canOpen,
-  onRemove,
-}: {
-  hostname: string;
-  url: string;
-  canOpen: boolean;
-  onRemove?: () => void;
-}) {
+function RowMenu({ hostname, url, canOpen, onRemove }: SiteDomainRowMenuProps) {
   const t = useTranslations("sites.domainsPage");
   const tCommon = useTranslations("common");
   return (
@@ -265,12 +237,7 @@ export function SiteDomainsTable({
   mounts,
   domains,
   onRemove,
-}: SiteScope & {
-  aliasOrigin: string;
-  mounts: SiteMounts;
-  domains: SiteDomain[];
-  onRemove: (domain: SiteDomain) => void;
-}) {
+}: SiteDomainsTableProps) {
   const t = useTranslations("sites.domainsPage");
   const scope = { organizationId, siteId };
   // Rows the reader toggled away from their default (pending open, active closed).
@@ -339,7 +306,7 @@ export function SiteDomainsTable({
             {/* Narrow screens drop the status column; keep the status here. */}
             <span className="@min-[30rem]/main:hidden">
               <StatusDot
-                status={isAlias ? "active" : domainStatus(row.domain)}
+                status={isAlias ? "active" : siteDomainChipStatus(row.domain)}
               />
             </span>
           </span>
@@ -354,7 +321,9 @@ export function SiteDomainsTable({
       cell: (row) => (
         <span className="flex h-5 items-center">
           <StatusDot
-            status={row.kind === "alias" ? "active" : domainStatus(row.domain)}
+            status={
+              row.kind === "alias" ? "active" : siteDomainChipStatus(row.domain)
+            }
           />
         </span>
       ),
@@ -388,7 +357,9 @@ export function SiteDomainsTable({
       align: "right",
       cell: (row) => {
         const url =
-          row.kind === "alias" ? aliasOrigin : domainUrl(row.domain, mounts);
+          row.kind === "alias"
+            ? aliasOrigin
+            : siteDomainUrl(row.domain, mounts);
         const hostname =
           row.kind === "alias" ? displayUrl(aliasOrigin) : row.domain.hostname;
         return (

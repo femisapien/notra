@@ -1,26 +1,25 @@
 import { createScopedGitHubAppInstallationToken } from "@notra/ai/integrations/github";
 import { createOctokit } from "@notra/ai/utils/octokit";
-import { SITE_BUILD_LIMITS } from "@notra/sites-core/constants/sites";
 
+import {
+  GITHUB_API_VERSION_HEADER,
+  MAX_TARBALL_BYTES,
+} from "./constants/github";
 import { SitePermanentBuildError } from "./errors";
-
-const API_VERSION = { "X-GitHub-Api-Version": "2022-11-28" } as const;
-/** Compressed tarball budget; the uncompressed source limit is enforced again in the sandbox. */
-const MAX_TARBALL_BYTES = SITE_BUILD_LIMITS.maxSourceBytes;
-
-export interface SiteRepository {
-  installationId: string;
-  owner: string;
-  repo: string;
-}
+import type {
+  BranchHead,
+  CompleteCheckRunParams,
+  CreateCheckRunParams,
+  SiteRepository,
+  SiteRepositoryColumns,
+  SiteRepositoryPermissions,
+} from "./types/github";
 
 export class SiteRepositoryNotConnectedError extends SitePermanentBuildError {}
 
-export function requireSiteRepository(site: {
-  githubInstallationId: string | null;
-  repositoryOwner: string | null;
-  repositoryName: string | null;
-}): SiteRepository {
+export function requireSiteRepository(
+  site: SiteRepositoryColumns
+): SiteRepository {
   if (
     !(site.githubInstallationId && site.repositoryOwner && site.repositoryName)
   ) {
@@ -38,11 +37,7 @@ export function requireSiteRepository(site: {
 /** Least-privilege token: one repository, only what the operation needs. */
 export async function siteRepositoryToken(
   repository: SiteRepository,
-  permissions: {
-    contents?: "read" | "write";
-    checks?: "write";
-    pull_requests?: "read" | "write";
-  }
+  permissions: SiteRepositoryPermissions
 ): Promise<string> {
   return await createScopedGitHubAppInstallationToken(
     repository.installationId,
@@ -64,7 +59,7 @@ export async function downloadRepositoryTarball(
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/vnd.github+json",
-        ...API_VERSION,
+        ...GITHUB_API_VERSION_HEADER,
       },
       redirect: "follow",
     }
@@ -109,12 +104,7 @@ export async function getBranchHead(
   repository: SiteRepository,
   token: string,
   branch: string
-): Promise<{
-  sha: string;
-  protected: boolean;
-  message: string | null;
-  author: string | null;
-}> {
+): Promise<BranchHead> {
   const octokit = createOctokit(token);
   const { data } = await octokit.request(
     "GET /repos/{owner}/{repo}/branches/{branch}",
@@ -122,7 +112,7 @@ export async function getBranchHead(
       owner: repository.owner,
       repo: repository.repo,
       branch,
-      headers: API_VERSION,
+      headers: GITHUB_API_VERSION_HEADER,
     }
   );
   return {
@@ -134,24 +124,10 @@ export async function getBranchHead(
   };
 }
 
-export type CheckRunConclusion =
-  | "success"
-  | "failure"
-  | "cancelled"
-  | "neutral"
-  | "skipped";
-
 export async function createCheckRun(
   repository: SiteRepository,
   token: string,
-  params: {
-    name: string;
-    headSha: string;
-    detailsUrl: string;
-    externalId: string;
-    title: string;
-    summary: string;
-  }
+  params: CreateCheckRunParams
 ): Promise<string> {
   const octokit = createOctokit(token);
   const { data } = await octokit.request(
@@ -166,7 +142,7 @@ export async function createCheckRun(
       status: "in_progress",
       started_at: new Date().toISOString(),
       output: { title: params.title, summary: params.summary },
-      headers: API_VERSION,
+      headers: GITHUB_API_VERSION_HEADER,
     }
   );
   return String(data.id);
@@ -175,21 +151,7 @@ export async function createCheckRun(
 export async function completeCheckRun(
   repository: SiteRepository,
   token: string,
-  params: {
-    checkRunId: string;
-    conclusion: CheckRunConclusion;
-    title: string;
-    summary: string;
-    text?: string;
-    detailsUrl?: string;
-    annotations?: Array<{
-      path: string;
-      start_line: number;
-      end_line: number;
-      annotation_level: "failure" | "warning" | "notice";
-      message: string;
-    }>;
-  }
+  params: CompleteCheckRunParams
 ): Promise<void> {
   const octokit = createOctokit(token);
   await octokit.request(
@@ -210,7 +172,7 @@ export async function completeCheckRun(
           ? { annotations: params.annotations.slice(0, 50) }
           : {}),
       },
-      headers: API_VERSION,
+      headers: GITHUB_API_VERSION_HEADER,
     }
   );
 }

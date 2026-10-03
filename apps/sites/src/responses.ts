@@ -1,20 +1,13 @@
-import {
-  SITE_ASSETS_DIR,
-  SITE_R2_KEYS,
-} from "@notra/sites-core/constants/sites";
-import type {
-  SiteManifest,
-  SiteManifestFile,
-} from "@notra/sites-core/schemas/deployment";
+import { SITE_R2_KEYS } from "@notra/sites-core/constants/sites";
+import type { SiteManifest } from "@notra/sites-core/types/deployment";
 import {
   joinMountPath,
   listMountedAreas,
 } from "@notra/sites-core/utils/mounts";
 
+import { AI_USER_AGENTS, ASSET_SEGMENT } from "./constants/responses";
 import { serviceErrorPage } from "./pages";
-import type { SitesDeps } from "./types";
-
-const ASSET_SEGMENT = `/${SITE_ASSETS_DIR}/`;
+import type { ServeFileParams } from "./types/serving";
 
 export function html(
   body: string,
@@ -31,23 +24,6 @@ export function html(
     },
   });
 }
-
-/** AI crawlers and agents are named explicitly so a site's stance is unambiguous to them. */
-const AI_USER_AGENTS = [
-  "GPTBot",
-  "OAI-SearchBot",
-  "ChatGPT-User",
-  "ClaudeBot",
-  "Claude-SearchBot",
-  "Claude-User",
-  "PerplexityBot",
-  "Perplexity-User",
-  "Google-Extended",
-  "Applebot-Extended",
-  "Meta-ExternalAgent",
-  "MistralAI-User",
-  "DuckAssistBot",
-];
 
 export function robotsTxt(
   manifest: SiteManifest | null,
@@ -79,16 +55,7 @@ export function robotsTxt(
   });
 }
 
-export async function serveFile(params: {
-  deps: SitesDeps;
-  request: Request;
-  siteId: string;
-  deploymentId: string;
-  file: SiteManifestFile;
-  status: number;
-  isPreview: boolean;
-  extraHeaders?: Record<string, string>;
-}): Promise<Response> {
+export async function serveFile(params: ServeFileParams): Promise<Response> {
   const { deps, request, siteId, deploymentId, file, status, isPreview } =
     params;
   const etag = `"${file.sha256}"`;

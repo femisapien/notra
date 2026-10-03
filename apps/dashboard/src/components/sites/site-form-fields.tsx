@@ -20,8 +20,9 @@ import { useId } from "react";
 import { cn } from "@/lib/utils";
 import type {
   SiteChoiceGroupProps,
+  SiteSectionRowProps,
   SiteSectionsFieldsProps,
-} from "@/types/sites";
+} from "@/types/components/sites";
 
 /** Radio cards for explicit either/or settings (preview visibility, publish mode). */
 export function SiteChoiceGroup<T extends string>({
@@ -84,15 +85,7 @@ function SectionRow({
   path,
   onEnabledChange,
   onPathChange,
-}: {
-  id: string;
-  title: string;
-  description: string;
-  enabled: boolean;
-  path: string;
-  onEnabledChange: (value: boolean) => void;
-  onPathChange: (value: string) => void;
-}) {
+}: SiteSectionRowProps) {
   const t = useTranslations("sites.sections");
   return (
     <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center">

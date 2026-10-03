@@ -1,6 +1,4 @@
-const URL_ATTRIBUTE =
-  /\b(src|href|poster|content|data-src)=(["'])(\/[^"']*)\2/g;
-const SRCSET_ATTRIBUTE = /\bsrcset=(["'])([^"']*)\1/g;
+import { SRCSET_ATTRIBUTE, URL_ATTRIBUTE } from "../constants/public-assets";
 
 /**
  * Files from `public/` are served below each mount (`/images/a.png` →

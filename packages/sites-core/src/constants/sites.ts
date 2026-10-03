@@ -1,3 +1,5 @@
+import type { SiteDeploymentStatus } from "@notra/sites-core/types/sites";
+
 export const SITE_AREAS = ["blog", "changelog"] as const;
 
 export const SITE_CONFIG_FILENAME = "notra.json";
@@ -12,6 +14,24 @@ export const SITE_PREVIEW_HOST_SEPARATOR = "--";
 export const SITE_PREVIEW_KEY_MAX_LENGTH = 40;
 export const SITE_SLUG_MIN_LENGTH = 3;
 export const SITE_SLUG_MAX_LENGTH = 40;
+export const DNS_LABEL_MAX_LENGTH = 63;
+export const SITE_RESERVED_SLUGS = new Set([
+  "www",
+  "app",
+  "api",
+  "admin",
+  "assets",
+  "cdn",
+  "docs",
+  "mail",
+  "notra",
+  "preview",
+  "previews",
+  "static",
+  "status",
+]);
+export const SITE_MOUNT_MAX_SEGMENTS = 3;
+export const SITE_MAX_REMOVED_PREVIEWS = 200;
 
 export const SITE_PREVIEW_COOKIE = "__notra_preview";
 export const SITE_PREVIEW_AUTH_PATH = "/_notra/auth";
@@ -103,8 +123,6 @@ export const SITE_DEPLOYMENT_STATUSES = [
   "canceled",
   "expired",
 ] as const;
-
-type SiteDeploymentStatus = (typeof SITE_DEPLOYMENT_STATUSES)[number];
 
 /** Allowed previous statuses per target status; every status write goes through this table. */
 export const SITE_DEPLOYMENT_TRANSITIONS: Record<

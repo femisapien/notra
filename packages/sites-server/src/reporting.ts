@@ -1,28 +1,18 @@
 import { db } from "@notra/db/drizzle";
 import { organizations, siteDeployments } from "@notra/db/schema";
-import type { SiteDiagnostic } from "@notra/sites-core/schemas/build";
 import { eq } from "drizzle-orm";
 
-import type { Site, SiteDeployment } from "./deployments";
+import { CHECK_RUN_NAME } from "./constants/github";
 import {
-  type CheckRunConclusion,
   completeCheckRun,
   createCheckRun,
   requireSiteRepository,
   siteRepositoryToken,
 } from "./github";
+import type { DeploymentOutcome, SiteDeployment } from "./types/deployments";
+import type { CheckReport } from "./types/reporting";
+import type { Site } from "./types/sites";
 import { deploymentDashboardUrl, primaryMountUrl } from "./urls";
-
-const CHECK_RUN_NAME = "Notra Sites";
-
-/** How a deployment ended. Every path reports through `reportOutcome`, nowhere else. */
-export type DeploymentOutcome =
-  | { kind: "live" }
-  /** Built and stored, but a newer deployment was already live. */
-  | { kind: "not_live" }
-  /** Not built: suspended site, newer commit, or preview closed. */
-  | { kind: "skipped"; reason: string }
-  | { kind: "failed"; summary: string; diagnostics: SiteDiagnostic[] };
 
 /** Reporting never fails a deployment: GitHub being slow or a missing `checks` permission is not a build problem. */
 async function safely<T>(
@@ -56,24 +46,6 @@ async function dashboardUrl(
   });
 }
 
-export function summarizeDiagnostics(diagnostics: SiteDiagnostic[]): string {
-  const errors = diagnostics.filter(
-    (diagnostic) => diagnostic.severity === "error"
-  );
-  if (errors.length === 0) {
-    return "The build failed. See the log for details.";
-  }
-  return errors
-    .slice(0, 10)
-    .map((diagnostic) => {
-      const location = diagnostic.file
-        ? `\`${diagnostic.file}${diagnostic.line ? `:${diagnostic.line}` : ""}\``
-        : "Site";
-      return `- ${location}: ${diagnostic.message.split("\n")[0]}`;
-    })
-    .join("\n");
-}
-
 /** Opens the "in progress" GitHub check for a deployment once; returns the deployment with its check id. */
 export async function openCheckRun(
   site: Site,
@@ -105,13 +77,6 @@ export async function openCheckRun(
     .set({ checkRunId })
     .where(eq(siteDeployments.id, deployment.id));
   return { ...deployment, checkRunId };
-}
-
-interface CheckReport {
-  conclusion: CheckRunConclusion;
-  title: string;
-  summary: string;
-  liveUrl: string | null;
 }
 
 function checkFor(

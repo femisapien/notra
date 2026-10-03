@@ -35,8 +35,8 @@ import { cn } from "@/lib/utils";
 import type {
   SiteEditorDraftChipProps,
   SiteEditorFileBarProps,
-  SiteEditorMode,
-} from "@/types/site-editor";
+} from "@/types/components/site-editor";
+import type { SiteEditorMode } from "@/types/site-editor";
 import { copyTextToClipboard } from "@/utils/copy-to-clipboard";
 import { formatRelative } from "@/utils/format-relative";
 import { siteFileGithubUrl, siteFileLiveUrl } from "@/utils/site-editor";

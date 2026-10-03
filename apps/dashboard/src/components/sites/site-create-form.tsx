@@ -48,6 +48,7 @@ import {
 } from "@/lib/hooks/use-site-choice-options";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
+import type { SiteCreateFormProps } from "@/types/components/sites";
 import type {
   SitePreviewVisibility,
   SitePublishMode,
@@ -63,11 +64,7 @@ export function SiteCreateForm({
   organizationId,
   organizationSlug,
   hostingDomain,
-}: {
-  organizationId: string;
-  organizationSlug: string;
-  hostingDomain: string | null;
-}) {
+}: SiteCreateFormProps) {
   const t = useTranslations("sites.new");
   const tCommon = useTranslations("common");
   const id = useId();

@@ -1,12 +1,8 @@
 import type { APIRoute } from "astro";
 
-import {
-  authorsOf,
-  getBlogEntries,
-  getChangelogEntries,
-  isoDate,
-} from "../lib/entries";
+import { authorsOf, getBlogEntries, getChangelogEntries } from "../lib/entries";
 import { areaDescription, areaTitle, href, params } from "../lib/params";
+import { isoDate } from "../utils/dates";
 
 /**
  * Build-time page list for the notra-sites CLI, which turns every page into

@@ -7,14 +7,15 @@ import { useLocale, useTranslations } from "next-intl";
 import { Table, type TableColumn } from "@/components/motion/table";
 import { SITE_PROPERTY_ROW_HEIGHT } from "@/constants/sites";
 import type {
-  SiteDeploymentPropertyRow,
-  SiteDeploymentRecord,
-} from "@/types/sites";
+  SiteDeploymentPropertiesProps,
+  SiteDeploymentUrlValueProps,
+} from "@/types/components/sites";
+import type { SiteDeploymentPropertyRow } from "@/types/sites";
 import { formatBytes } from "@/utils/format";
 import { displayUrl } from "@/utils/site-links";
 import { paginatedTableHeightFor } from "@/utils/table";
 
-function UrlValue({ url, live }: { url: string; live: boolean }) {
+function UrlValue({ url, live }: SiteDeploymentUrlValueProps) {
   const t = useTranslations("sites.deploymentPage");
   if (!live) {
     return (
@@ -57,11 +58,7 @@ export function SiteDeploymentProperties({
   deployment,
   live,
   urls,
-}: {
-  deployment: SiteDeploymentRecord;
-  live: boolean;
-  urls: string[];
-}) {
+}: SiteDeploymentPropertiesProps) {
   const t = useTranslations("sites.deploymentPage");
   const tKinds = useTranslations("sites.kinds");
   const locale = useLocale();

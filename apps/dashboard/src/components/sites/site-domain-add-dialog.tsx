@@ -23,13 +23,13 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/button";
 import { SiteChoiceGroup } from "@/components/sites/site-form-fields";
+import { SITE_DOMAIN_URL_SCHEME_PATTERN } from "@/constants/sites";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
-import type { SiteDomainAddDialogProps, SiteDomainKind } from "@/types/sites";
+import type { SiteDomainAddDialogProps } from "@/types/components/sites";
+import type { SiteDomainKind } from "@/types/sites";
 import { toErrorMessage } from "@/utils/error-message";
 import { mountedPaths } from "@/utils/site-proxy-recipes";
-
-const URL_SCHEME = /^https?:\/\//i;
 
 export function SiteDomainAddDialog({
   organizationId,
@@ -116,7 +116,12 @@ export function SiteDomainAddDialog({
                 id={`${id}-domain`}
                 inputMode="url"
                 onChange={(event) =>
-                  setValue(event.target.value.replace(URL_SCHEME, ""))
+                  setValue(
+                    event.target.value.replace(
+                      SITE_DOMAIN_URL_SCHEME_PATTERN,
+                      ""
+                    )
+                  )
                 }
                 placeholder={
                   kind === "subdomain" ? "blog.acme.com" : "acme.com"

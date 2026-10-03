@@ -51,6 +51,12 @@ export type SitePublishMode = SiteRecord["publishMode"];
 export type SiteMounts = SiteRecord["mounts"];
 export type SiteDomainKind = SiteDomain["kind"];
 
+/** A GitHub repository as the site links to it. */
+export interface SiteRepositoryRef {
+  owner: string;
+  name: string;
+}
+
 export interface SiteProxyRecipe {
   id: SiteProxyRecipeId;
   filename: string;
@@ -61,9 +67,25 @@ export interface SitesPageClientProps {
   organizationSlug: string;
 }
 
-export interface SitePageClientProps {
-  organizationSlug: string;
-  siteId: string;
+/** `/[slug]/sites` and `/[slug]/sites/new`. */
+export interface SitesRoutePageProps {
+  params: Promise<{ slug: string }>;
+}
+
+/** `/[slug]/sites/[siteId]` layout. */
+export interface SiteRouteLayoutProps {
+  children: ReactNode;
+  params: Promise<{ slug: string; siteId: string }>;
+}
+
+/** `/[slug]/sites/[siteId]/deployments/[deploymentId]`. */
+export interface SiteDeploymentRoutePageProps {
+  params: Promise<{ slug: string; siteId: string; deploymentId: string }>;
+}
+
+/** Route context of the Domain Connect callback `/sites/domain-connect/[token]`. */
+export interface SiteDomainConnectRouteContext {
+  params: Promise<{ token: string }>;
 }
 
 export interface SiteScope {
@@ -71,10 +93,12 @@ export interface SiteScope {
   siteId: string;
 }
 
-export interface SiteTabProps extends SiteScope {
+export interface SiteContextValue {
+  organizationId: string;
   organizationSlug: string;
+  siteId: string;
   detail: SiteDetail;
-  onTabChange: (tab: SiteDetailTab) => void;
+  liveDeployment: SiteDeployment | null;
 }
 
 export interface SitePreviewRow extends Omit<
@@ -90,15 +114,6 @@ export interface SitePreviewRow extends Omit<
   /** The deployment the row links to: the newest build worth looking at. */
   latestDeploymentId: string;
   updatedAt: Date | string;
-}
-
-export interface SitePreviewsTableProps extends SiteScope {
-  organizationSlug: string;
-  rows: SitePreviewRow[];
-  repository: SiteRecord["repository"];
-  /** Overview variant: fewer columns, no row menu. */
-  compact?: boolean;
-  emptyState?: React.ReactNode;
 }
 
 export interface SiteSettingsForm {
@@ -124,37 +139,6 @@ export interface SiteSettingsPatch {
   publishMode?: SitePublishMode;
 }
 
-export interface SiteRollbackDialogProps extends SiteScope {
-  deployment: SiteDeployment | null;
-  onOpenChange: (open: boolean) => void;
-}
-
-export interface SiteRepositoryLayoutProps {
-  className?: string;
-}
-
-export interface SitePublishDialogProps extends SiteScope {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  site: SiteRecord;
-  draftCount: number;
-  /** Listed in the dialog so it's clear what goes out. */
-  drafts: SiteEditorDraft[];
-  /** Files on GitHub today; drafts outside it are new files. */
-  sourcePaths: ReadonlySet<string>;
-  onPublished: () => void;
-  onConflict: (paths: string[]) => void;
-}
-
-export interface SiteNewFileDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  existingPaths: ReadonlySet<string>;
-  folders: readonly SiteNewFileFolder[];
-  isCreating: boolean;
-  onCreate: (path: string, content: string) => void;
-}
-
 export type SiteDomainRecord = SiteDomain["records"][number];
 export type SiteDomainConnectResult = SitesOutputs["domains"]["connect"];
 export type SiteDomainConnectOutcome =
@@ -167,58 +151,10 @@ export type SiteDomainChipStatus =
   | "verifying"
   | "failed";
 
-export interface SiteProxySetupProps {
-  aliasOrigin: string;
-  mounts: SiteMounts;
-  /** Off where a surrounding toggle already names the section. */
-  showHeading?: boolean;
-}
-
-export interface SiteDnsSetupProps extends SiteScope {
-  domain: SiteDomain;
-}
-
 /** A row of the domains table: the Notra address or one custom domain. */
 export type SiteDomainRow =
   | { id: string; kind: "alias"; isPrimary: boolean }
   | { id: string; kind: "domain"; domain: SiteDomain };
-
-export interface SiteDomainSetupProps extends SiteScope {
-  domain: SiteDomain;
-  aliasOrigin: string;
-  mounts: SiteMounts;
-}
-
-export interface SiteDomainAddDialogProps extends SiteScope {
-  mounts: SiteMounts;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-export interface SiteDomainRemoveDialogProps extends SiteScope {
-  domain: SiteDomain | null;
-  aliasOrigin: string;
-  onOpenChange: (open: boolean) => void;
-}
-
-export interface SiteCopyButtonProps {
-  value: string;
-  /** What is copied, for the accessible name: "Copy {label}". */
-  label: string;
-  className?: string;
-}
-
-export interface SiteSectionsFieldsProps {
-  idPrefix: string;
-  blogEnabled: boolean;
-  changelogEnabled: boolean;
-  blogPath: string;
-  changelogPath: string;
-  onBlogEnabledChange: (value: boolean) => void;
-  onChangelogEnabledChange: (value: boolean) => void;
-  onBlogPathChange: (value: string) => void;
-  onChangelogPathChange: (value: string) => void;
-}
 
 export interface SiteChoiceOption<T extends string> {
   value: T;
@@ -226,26 +162,6 @@ export interface SiteChoiceOption<T extends string> {
   description: string;
   badge?: string;
   disabled?: boolean;
-}
-
-export interface SiteChoiceGroupProps<T extends string> {
-  label: string;
-  value: T;
-  options: SiteChoiceOption<T>[];
-  onValueChange: (value: T) => void;
-  disabled?: boolean;
-}
-
-export interface SiteDeleteDialogProps extends SiteScope {
-  organizationSlug: string;
-  siteName: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-export interface SitesTableProps {
-  organizationSlug: string;
-  sites: SiteListItem[];
 }
 
 export type SiteBuildLogTone =
@@ -282,6 +198,14 @@ export type SiteBuildLogEntry =
       /** Code frames fold under their warning or error and take its tone. */
       tone: SiteBuildLogTone;
     };
+
+export type SiteBuildLogFold = Extract<SiteBuildLogEntry, { kind: "fold" }>;
+
+/** A build log line split into its tool tag (`[build]`) and the message. */
+export interface SiteBuildLogTagParts {
+  tag: string | null;
+  rest: string;
+}
 
 export type SiteDeploymentKind = SiteDeployment["kind"];
 export type SiteDeploymentTrigger = SiteDeployment["trigger"];
@@ -321,3 +245,9 @@ export interface SiteDeploymentStep {
   /** How long the step took, or has taken so far; null when unknown. */
   durationMs: number | null;
 }
+
+/** The deployment fields the lifecycle steps are derived from. */
+export type SiteDeploymentStepInput = Pick<
+  SiteDeployment,
+  "status" | "createdAt" | "startedAt" | "finishedAt" | "buildDurationMs"
+>;

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
-import type { SiteScope } from "@/types/sites";
+import type { UseSiteDomainCheckParams } from "@/types/hooks/sites";
 import { toErrorMessage } from "@/utils/error-message";
 
 /** Re-checks a custom domain now and toasts whether it verified. */
@@ -12,7 +12,7 @@ export function useSiteDomainCheck({
   organizationId,
   siteId,
   domainId,
-}: SiteScope & { domainId: string }) {
+}: UseSiteDomainCheckParams) {
   const t = useTranslations("sites.domainsPage");
   const invalidateSites = useInvalidateSites();
   return useMutation({

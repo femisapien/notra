@@ -25,7 +25,8 @@ import {
   SITE_NEW_FILE_EXTENSION,
   SITE_NEW_FILE_SLUG_PATTERN,
 } from "@/constants/sites";
-import type { SiteNewFileDialogProps, SiteNewFileFolder } from "@/types/sites";
+import type { SiteNewFileDialogProps } from "@/types/components/sites";
+import type { SiteNewFileFolder } from "@/types/sites";
 import { siteNewFileTemplate, slugifyFileName } from "@/utils/site-editor";
 
 export function SiteNewFileDialog({

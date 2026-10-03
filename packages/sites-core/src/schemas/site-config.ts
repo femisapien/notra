@@ -136,8 +136,6 @@ export const siteConfigSchema = z.object({
   redirects: z.array(redirectSchema).max(500).default([]),
 });
 
-export type SiteConfig = z.infer<typeof siteConfigSchema>;
-
 export const blogFrontmatterSchema = z.object({
   title: z.string().trim().min(1),
   description: z.string().trim().optional(),

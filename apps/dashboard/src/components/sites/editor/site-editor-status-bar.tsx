@@ -11,7 +11,7 @@ import { useTranslations } from "next-intl";
 
 import { SITE_EDITOR_LANGUAGE_LABELS } from "@/constants/site-editor";
 import { cn } from "@/lib/utils";
-import type { SiteEditorStatusBarProps } from "@/types/site-editor";
+import type { SiteEditorStatusBarProps } from "@/types/components/site-editor";
 
 function ProblemsSummary({
   diagnostics,

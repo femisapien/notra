@@ -1,9 +1,10 @@
-import { SITE_INJECTED_REACT_HOOKS } from "@notra/sites-core/constants/sites";
+import type { SiteDiagnostic } from "@notra/sites-core/types/build";
 import { Parser } from "acorn";
 import jsx from "acorn-jsx";
 import type { Program } from "estree";
 
-import type { SiteDiagnostic } from "./types/diagnostics";
+import { INJECTED_HOOK_NAMES } from "./constants/builtins";
+import type { JsxSnippetAnalysis } from "./types/jsx";
 import {
   declaredNames,
   findForbiddenSyntax,
@@ -13,7 +14,6 @@ import {
 import { offsetToLineColumn } from "./utils/paths";
 
 const JsxParser = Parser.extend(jsx());
-const INJECTED_HOOKS = new Set<string>(SITE_INJECTED_REACT_HOOKS);
 
 export function parseJsxModule(source: string): Program {
   return JsxParser.parse(source, {
@@ -29,17 +29,14 @@ export function missingHookImports(
 ): string[] {
   const missing = new Set<string>();
   for (const reference of referencedIdentifiers(program as never)) {
-    if (INJECTED_HOOKS.has(reference.name) && !ownNames.has(reference.name)) {
+    if (
+      INJECTED_HOOK_NAMES.has(reference.name) &&
+      !ownNames.has(reference.name)
+    ) {
       missing.add(reference.name);
     }
   }
   return [...missing].sort();
-}
-
-export interface JsxSnippetAnalysis {
-  diagnostics: SiteDiagnostic[];
-  exportedNames: string[];
-  output: string | null;
 }
 
 /**

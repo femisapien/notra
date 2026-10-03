@@ -11,17 +11,15 @@ import Link from "next/link";
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
 import { useSiteDetail } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
-import type { SiteSection } from "@/types/sites";
+import type {
+  DeploymentTopbarTitleProps,
+  SiteSectionTopbarTitleProps,
+  SiteTopbarTitleProps,
+} from "@/types/components/sites";
 import { shortSha } from "@/utils/site-deployments";
 
 /** Site name for the top bar; shares the page's `sites.get` cache. */
-export function SiteTopbarTitle({
-  siteId,
-  href,
-}: {
-  siteId: string;
-  href: string | null;
-}) {
+export function SiteTopbarTitle({ siteId, href }: SiteTopbarTitleProps) {
   const tCommon = useTranslations("common");
   const { activeOrganization } = useOrganizationsContext();
   const { data } = useSiteDetail(activeOrganization?.id ?? "", siteId);
@@ -45,10 +43,7 @@ export function SiteTopbarTitle({
 export function DeploymentTopbarTitle({
   siteId,
   deploymentId,
-}: {
-  siteId: string;
-  deploymentId: string;
-}) {
+}: DeploymentTopbarTitleProps) {
   const t = useTranslations("sites.deployments");
   const { activeOrganization } = useOrganizationsContext();
   const organizationId = activeOrganization?.id ?? "";
@@ -69,10 +64,7 @@ export function DeploymentTopbarTitle({
 export function SiteSectionTopbarTitle({
   section,
   href,
-}: {
-  section: SiteSection;
-  href: string | null;
-}) {
+}: SiteSectionTopbarTitleProps) {
   const t = useTranslations("sites.detail.tabs");
   if (href) {
     return <BreadcrumbLink render={<Link href={href}>{t(section)}</Link>} />;

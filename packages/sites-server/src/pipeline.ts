@@ -2,11 +2,10 @@ import { SITE_R2_KEYS } from "@notra/sites-core/constants/sites";
 
 import { activateDeployment } from "./activation";
 import { runSandboxBuild } from "./box-build";
+import { CANCELED_OUTCOME } from "./constants/deployments";
 import {
   getDeployment,
   hasNewerDeployment,
-  type Site,
-  type SiteDeployment,
   transitionDeployment,
 } from "./deployments";
 import {
@@ -17,12 +16,10 @@ import {
 } from "./github";
 import { publishDeploymentFiles } from "./publish";
 import { r2Put } from "./r2";
-import {
-  type DeploymentOutcome,
-  openCheckRun,
-  reportOutcome,
-  summarizeDiagnostics,
-} from "./reporting";
+import { openCheckRun, reportOutcome } from "./reporting";
+import type { DeploymentOutcome, SiteDeployment } from "./types/deployments";
+import type { Site } from "./types/sites";
+import { summarizeDiagnostics } from "./utils/diagnostics";
 
 /** The same object is overwritten while the build runs, so the dashboard can tail it. */
 async function writeBuildLog(
@@ -34,11 +31,6 @@ async function writeBuildLog(
     contentType: "text/plain; charset=utf-8",
   });
 }
-
-const CANCELED: DeploymentOutcome = {
-  kind: "skipped",
-  reason: "The preview was closed while it was building.",
-};
 
 /**
  * Webhooks arrive late, out of order or redelivered. A push/PR build whose
@@ -118,7 +110,7 @@ async function buildAndPublish(
       startedAt: deployment.startedAt ?? new Date(),
     }))
   ) {
-    return CANCELED;
+    return CANCELED_OUTCOME;
   }
 
   const sourceArchive = await downloadRepositoryTarball(
@@ -164,7 +156,7 @@ async function buildAndPublish(
   }
 
   if (!(await transitionDeployment(deployment.id, "uploading"))) {
-    return CANCELED;
+    return CANCELED_OUTCOME;
   }
   const manifest = await publishDeploymentFiles({
     site,
@@ -181,7 +173,7 @@ async function buildAndPublish(
     diagnostics: result.diagnostics,
     finishedAt: new Date(),
   });
-  return ready ? null : CANCELED;
+  return ready ? null : CANCELED_OUTCOME;
 }
 
 /**

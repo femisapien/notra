@@ -32,16 +32,3 @@ export const ICONS = {
   globe:
     '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
 } as const;
-
-export type IconName = keyof typeof ICONS;
-
-export function socialIcon(name: string): IconName {
-  const key = name.toLowerCase();
-  if (key === "twitter" || key === "x") {
-    return "x";
-  }
-  if (key in ICONS) {
-    return key as IconName;
-  }
-  return "globe";
-}

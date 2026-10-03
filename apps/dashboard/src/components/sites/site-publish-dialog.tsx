@@ -21,23 +21,10 @@ import { Button } from "@/components/button";
 import { SitePublishChange } from "@/components/sites/editor/site-publish-change";
 import { SiteChoiceGroup } from "@/components/sites/site-form-fields";
 import { dashboardOrpc } from "@/lib/orpc/query";
-import type {
-  SiteEditorDraft,
-  SitePublishDialogProps,
-  SitePublishMode,
-} from "@/types/sites";
+import type { SitePublishDialogProps } from "@/types/components/sites";
+import type { SitePublishMode } from "@/types/sites";
 import { toErrorMessage } from "@/utils/error-message";
-import { publishConflictPaths } from "@/utils/site-editor";
-
-function draftChange(
-  draft: SiteEditorDraft,
-  sourcePaths: ReadonlySet<string>
-): "added" | "modified" | "deleted" {
-  if (draft.deleted) {
-    return "deleted";
-  }
-  return sourcePaths.has(draft.path) ? "modified" : "added";
-}
+import { publishConflictPaths, siteDraftChange } from "@/utils/site-editor";
 
 export function SitePublishDialog({
   organizationId,
@@ -125,7 +112,7 @@ export function SitePublishDialog({
               <div className="divide-border max-h-[45dvh] divide-y overflow-y-auto overscroll-contain rounded-lg border">
                 {drafts.map((draft, index) => (
                   <SitePublishChange
-                    change={draftChange(draft, sourcePaths)}
+                    change={siteDraftChange(draft, sourcePaths)}
                     defaultOpen={index === 0}
                     key={draft.path}
                     organizationId={organizationId}

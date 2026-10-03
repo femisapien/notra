@@ -2,8 +2,9 @@
 import BlogPost from "../components/BlogPost.astro";
 import ChangelogEntry from "../components/ChangelogEntry.astro";
 import Base from "../layouts/Base.astro";
-import { authorsOf, type BlogEntry, type ChangelogEntry as ChangelogEntryType, getBlogEntries, getChangelogEntries } from "../lib/entries";
+import { authorsOf, getBlogEntries, getChangelogEntries } from "../lib/entries";
 import { absoluteUrl, areaTitle, assetUrl, config, href, markdownHref, params } from "../lib/params";
+import type { BlogEntry, ChangelogEntry as ChangelogEntryType } from "../types/entries";
 
 export async function getStaticPaths() {
   if (params.area === "blog") {

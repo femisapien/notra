@@ -1,24 +1,15 @@
 import { lstat, readdir } from "node:fs/promises";
 import { extname, join } from "node:path";
 
-import type {
-  SiteDiagnostic,
-  SiteSourceFile,
-} from "@notra/sites-compiler/types/diagnostics";
+import type { SiteSourceFile } from "@notra/sites-compiler/types/diagnostics";
 import {
   SITE_BUILD_LIMITS,
-  SITE_SOURCE_EXTENSIONS,
   SITE_SOURCE_ROOT_ENTRIES,
 } from "@notra/sites-core/constants/sites";
+import type { SiteDiagnostic } from "@notra/sites-core/types/build";
 
-const ALLOWED_EXTENSIONS = new Set<string>(SITE_SOURCE_EXTENSIONS);
-const SAFE_SEGMENT = /^[A-Za-z0-9._@()+ -]+$/;
-
-export interface CollectedSource {
-  files: SiteSourceFile[];
-  totalBytes: number;
-  diagnostics: SiteDiagnostic[];
-}
+import { ALLOWED_EXTENSIONS, SAFE_SEGMENT } from "./constants/source";
+import type { CollectedSource } from "./types/source";
 
 /**
  * Lists the files a site may use. Only the known top-level entries are read;

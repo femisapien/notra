@@ -10,27 +10,25 @@ import {
 } from "@notra/sites-core/constants/sites";
 import { and, eq } from "drizzle-orm";
 
-import type { Site } from "./deployments";
-import {
-  requireSiteRepository,
-  type SiteRepository,
-  siteRepositoryToken,
-} from "./github";
+import { MAX_DRAFT_BYTES } from "./constants/editor";
+import { GITHUB_API_VERSION_HEADER } from "./constants/github";
+import { requireSiteRepository, siteRepositoryToken } from "./github";
 import { SiteInputError } from "./sites";
+import type {
+  PublishSiteDraftsInput,
+  PublishSiteDraftsResult,
+  SaveSiteDraftInput,
+  SiteDraft,
+  SiteRepositoryReadAccess,
+  SiteSourceEntry,
+  SiteSourceFileContent,
+  SiteSourceListing,
+} from "./types/editor";
+import type { SiteRepository } from "./types/github";
+import type { Site } from "./types/sites";
 
-const API_VERSION = { "X-GitHub-Api-Version": "2022-11-28" } as const;
 const EDITABLE_TEXT = /\.(?:mdx?|jsx?|json|css)$/i;
-const MAX_DRAFT_BYTES = 512 * 1024;
 const PATH_SEGMENT = /^[A-Za-z0-9._@()+ -]+$/;
-
-export type SiteDraft = typeof siteDrafts.$inferSelect;
-
-export interface SiteSourceEntry {
-  /** Relative to the site root. */
-  path: string;
-  sha: string;
-  size: number;
-}
 
 export class SitePublishConflictError extends Error {
   readonly name = "SitePublishConflictError";
@@ -71,9 +69,7 @@ export function assertEditablePath(path: string): void {
   }
 }
 
-async function readToken(
-  site: Site
-): Promise<{ repository: SiteRepository; token: string }> {
+async function readToken(site: Site): Promise<SiteRepositoryReadAccess> {
   const repository = requireSiteRepository(site);
   return {
     repository,
@@ -84,7 +80,7 @@ async function readToken(
 /** The site's files on the production branch head, from one recursive tree call. */
 export async function listSiteSourceFiles(
   site: Site
-): Promise<{ commitSha: string; files: SiteSourceEntry[] }> {
+): Promise<SiteSourceListing> {
   const { repository, token } = await readToken(site);
   const octokit = createOctokit(token);
   const { data: branch } = await octokit.request(
@@ -93,7 +89,7 @@ export async function listSiteSourceFiles(
       owner: repository.owner,
       repo: repository.repo,
       branch: site.productionBranch,
-      headers: API_VERSION,
+      headers: GITHUB_API_VERSION_HEADER,
     }
   );
   const { data: tree } = await octokit.request(
@@ -103,7 +99,7 @@ export async function listSiteSourceFiles(
       repo: repository.repo,
       tree_sha: branch.commit.sha,
       recursive: "1",
-      headers: API_VERSION,
+      headers: GITHUB_API_VERSION_HEADER,
     }
   );
   const prefix = site.rootDirectory ? `${site.rootDirectory}/` : "";
@@ -133,7 +129,7 @@ export async function listSiteSourceFiles(
 export async function readSiteSourceFile(
   site: Site,
   path: string
-): Promise<{ content: string; sha: string } | null> {
+): Promise<SiteSourceFileContent | null> {
   assertEditablePath(path);
   const { repository, token } = await readToken(site);
   const octokit = createOctokit(token);
@@ -145,7 +141,7 @@ export async function readSiteSourceFile(
         repo: repository.repo,
         path: repoPath(site, path),
         ref: site.productionBranch,
-        headers: API_VERSION,
+        headers: GITHUB_API_VERSION_HEADER,
       }
     );
     if (Array.isArray(data) || data.type !== "file" || !("content" in data)) {
@@ -173,14 +169,7 @@ export async function listSiteDrafts(siteId: string): Promise<SiteDraft[]> {
 /** Drafts are stored in Notra only; the live site and the repository do not change until publish. */
 export async function saveSiteDraft(
   site: Site,
-  input: {
-    path: string;
-    content: string;
-    baseBlobSha: string | null;
-    baseCommitSha: string | null;
-    deleted?: boolean;
-    userId: string;
-  }
+  input: SaveSiteDraftInput
 ): Promise<SiteDraft> {
   assertEditablePath(input.path);
   if (Buffer.byteLength(input.content, "utf8") > MAX_DRAFT_BYTES) {
@@ -298,7 +287,7 @@ async function requiresPullRequest(
       owner: repository.owner,
       repo: repository.repo,
       branch,
-      headers: API_VERSION,
+      headers: GITHUB_API_VERSION_HEADER,
     }
   );
   if (data.protected) {
@@ -311,7 +300,7 @@ async function requiresPullRequest(
       owner: repository.owner,
       repo: repository.repo,
       branch,
-      headers: API_VERSION,
+      headers: GITHUB_API_VERSION_HEADER,
     }
   );
   return rules.some((rule) =>
@@ -332,12 +321,8 @@ async function requiresPullRequest(
  */
 export async function publishSiteDrafts(
   site: Site,
-  input: { message: string; mode: "direct" | "pull_request"; userId: string }
-): Promise<{
-  mode: "direct" | "pull_request";
-  commitSha: string;
-  pullRequestUrl: string | null;
-}> {
+  input: PublishSiteDraftsInput
+): Promise<PublishSiteDraftsResult> {
   const drafts = await listSiteDrafts(site.id);
   if (drafts.length === 0) {
     throw new SiteInputError("There are no changes to publish");
@@ -398,7 +383,7 @@ export async function publishSiteDrafts(
       repo: repository.repo,
       ref: `refs/heads/${branch}`,
       sha: headSha,
-      headers: API_VERSION,
+      headers: GITHUB_API_VERSION_HEADER,
     });
   }
 
@@ -452,7 +437,7 @@ export async function publishSiteDrafts(
         head: branch,
         base: site.productionBranch,
         body: `Edited in Notra.\n\n${drafts.map((draft) => `- ${draft.deleted ? "Delete" : "Update"} \`${draft.path}\``).join("\n")}`,
-        headers: API_VERSION,
+        headers: GITHUB_API_VERSION_HEADER,
       }
     );
     pullRequestUrl = pullRequest.html_url;

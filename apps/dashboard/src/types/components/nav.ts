@@ -192,3 +192,7 @@ export interface NavRecentContentItemProps {
     title: string;
   };
 }
+
+export interface NavSiteProps {
+  slug: string;
+}

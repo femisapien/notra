@@ -3,16 +3,18 @@ import { createPublicKey, generateKeyPairSync, verify } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import {
-  buildApplyUrl,
-  discoverDomainConnect,
   DOMAIN_CONNECT_CNAME_TARGET,
   DOMAIN_CONNECT_OWNERSHIP_VARIABLE,
-  type DomainConnectDeps,
+} from "../src/constants/domain-connect";
+import {
+  buildApplyUrl,
+  discoverDomainConnect,
   getDomainConnectConfig,
   publicKeyTxtRecords,
   signDomainConnectCallback,
   verifyDomainConnectCallback,
 } from "../src/domain-connect";
+import type { DomainConnectDeps } from "../src/types/domain-connect";
 
 /** What a DNS provider does (Domain-Connect/domainconnectzone sigutil.get_publickey). */
 function publicKeyFromTxt(records: string[]): string {

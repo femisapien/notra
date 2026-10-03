@@ -1,4 +1,4 @@
-import type { SiteBuildTarget } from "@notra/sites-core/schemas/deployment";
+import type { SiteBuildTarget } from "@notra/sites-core/types/deployment";
 import { normalizeSiteMounts } from "@notra/sites-core/utils/mounts";
 
 function stableStringify(value: unknown): string {

@@ -5,20 +5,20 @@ import {
 } from "@notra/sites-core/constants/sites";
 import { signSitePreviewToken } from "@notra/sites-core/utils/preview-token";
 
-import type { Site } from "./deployments";
 import { getSitesPreviewSecret } from "./env";
+import type {
+  PreviewAccessUrl,
+  PreviewAccessUrlParams,
+} from "./types/preview-access";
 import { sitePreviewOrigin } from "./urls";
 
 /**
  * URL that signs a member into a protected preview: the worker verifies the
  * token, sets an HttpOnly cookie for that preview host and redirects to `next`.
  */
-export async function previewAccessUrl(params: {
-  site: Pick<Site, "id" | "slug">;
-  previewKey: string;
-  next?: string;
-  kind: "member" | "share";
-}): Promise<{ url: string; expiresAt: Date }> {
+export async function previewAccessUrl(
+  params: PreviewAccessUrlParams
+): Promise<PreviewAccessUrl> {
   const lifetime =
     params.kind === "share"
       ? SITE_PREVIEW_SHARE_LINK_SECONDS

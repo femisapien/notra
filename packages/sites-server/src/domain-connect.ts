@@ -10,12 +10,33 @@ import { Resolver } from "node:dns/promises";
 import { db } from "@notra/db/drizzle";
 import { siteDomains } from "@notra/db/schema";
 import { and, eq } from "drizzle-orm";
-import z from "zod";
 
-import type { Site } from "./deployments";
+import {
+  CALLBACK_TOKEN_LABEL,
+  CALLBACK_TOKEN_SECONDS,
+  DOMAIN_CONNECT_CALLBACK_PATH,
+  DOMAIN_CONNECT_CNAME_TARGET,
+  DOMAIN_CONNECT_DNS_TIMEOUT_MS,
+  DOMAIN_CONNECT_HTTP_TIMEOUT_MS,
+  DOMAIN_CONNECT_OWNERSHIP_VARIABLE,
+  DOMAIN_CONNECT_RESERVED_PARAMS,
+  OWNERSHIP_RECORD_PREFIX,
+  PUBLIC_KEY_CHUNK_LENGTH,
+} from "./constants/domain-connect";
 import { siteCnameTarget } from "./domains";
 import { getDashboardUrl, getSitesPreviewSecret } from "./env";
+import { domainConnectSettingsSchema } from "./schemas/domain-connect";
 import { SiteInputError } from "./sites";
+import type {
+  BuildApplyUrlParams,
+  DomainConnectCallbackClaims,
+  DomainConnectConfig,
+  DomainConnectDeps,
+  DomainConnectForDomainParams,
+  DomainConnectJsonResponse,
+  DomainConnectResult,
+  DomainConnectSettings,
+} from "./types/domain-connect";
 
 /**
  * Domain Connect (synchronous flow, signed requests): the customer's DNS provider
@@ -23,86 +44,13 @@ import { SiteInputError } from "./sites";
  * Spec: https://github.com/Domain-Connect/spec/blob/master/Domain%20Connect%20Spec%20Draft.adoc
  */
 
-/** Fixed in the published template; Domain Connect is only offered when this environment uses it. */
-export const DOMAIN_CONNECT_CNAME_TARGET = "cname.notra.site";
-/** Name of the template variable carrying the Cloudflare for SaaS ownership token. */
-export const DOMAIN_CONNECT_OWNERSHIP_VARIABLE = "ownership";
-/** Dashboard route the DNS provider redirects back to: `{path}/{token}`. */
-export const DOMAIN_CONNECT_CALLBACK_PATH = "/sites/domain-connect";
-
-const OWNERSHIP_RECORD_PREFIX = "_cf-custom-hostname.";
-const HTTP_TIMEOUT_MS = 5000;
-const DNS_TIMEOUT_MS = 3000;
-const CALLBACK_TOKEN_SECONDS = 2 * 60 * 60;
-const CALLBACK_TOKEN_LABEL = "domain-connect.";
-const PUBLIC_KEY_CHUNK_LENGTH = 200;
-/** Query parameters with protocol meaning; template variables must not use these names. */
-const RESERVED_PARAMS = new Set([
-  "domain",
-  "host",
-  "redirect_uri",
-  "state",
-  "key",
-  "sig",
-  "providerName",
-  "serviceName",
-  "groupId",
-]);
 const DISCOVERY_HOST = /^[a-z0-9.-]+(?::\d+)?(?:\/[\w.~%/-]*)?$/i;
 
-export interface DomainConnectConfig {
-  providerId: string;
-  serviceId: string;
-  keyHost: string;
-  privateKey: KeyObject;
-}
-
-export interface DomainConnectSettings {
-  providerId: string;
-  providerName: string;
-  providerDisplayName?: string;
-  urlSyncUX?: string;
-  urlAPI: string;
-  /** Zone the provider hosts (`acme.com`). */
-  domain: string;
-  /** Label(s) below the zone (`blog`); never empty, a CNAME cannot sit at the apex. */
-  host: string;
-}
-
-export type DomainConnectResult =
-  | {
-      status: "unavailable";
-      reason:
-        | "not_configured"
-        | "not_subdomain"
-        | "already_active"
-        | "missing_records"
-        | "target_mismatch";
-    }
-  | { status: "unsupported"; providerName?: string }
-  | { status: "ready"; providerName: string; applyUrl: string };
-
-export interface DomainConnectCallbackClaims {
-  siteId: string;
-  domainId: string;
-  exp: number;
-}
-
-export interface DomainConnectDeps {
-  resolveTxt: (name: string) => Promise<string[][]>;
-  fetch: typeof fetch;
-}
-
-const settingsSchema = z.object({
-  providerId: z.string().min(1),
-  providerName: z.string().min(1),
-  providerDisplayName: z.string().min(1).optional(),
-  urlSyncUX: z.url({ protocol: /^https$/ }).optional(),
-  urlAPI: z.url({ protocol: /^https$/ }),
-});
-
 function defaultDeps(): DomainConnectDeps {
-  const resolver = new Resolver({ timeout: DNS_TIMEOUT_MS, tries: 2 });
+  const resolver = new Resolver({
+    timeout: DOMAIN_CONNECT_DNS_TIMEOUT_MS,
+    tries: 2,
+  });
   return {
     resolveTxt: (name) => resolver.resolveTxt(name),
     fetch: globalThis.fetch,
@@ -171,10 +119,10 @@ async function lookupDiscoveryHost(
 async function fetchJson(
   url: string,
   deps: DomainConnectDeps
-): Promise<{ status: number; body: unknown }> {
+): Promise<DomainConnectJsonResponse> {
   const response = await deps.fetch(url, {
     headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
+    signal: AbortSignal.timeout(DOMAIN_CONNECT_HTTP_TIMEOUT_MS),
   });
   const body: unknown = response.ok
     ? await response.json().catch(() => null)
@@ -202,7 +150,7 @@ export async function discoverDomainConnect(
         `https://${discoveryHost}/v2/${zone}/settings`,
         deps
       );
-      const parsed = settingsSchema.safeParse(body);
+      const parsed = domainConnectSettingsSchema.safeParse(body);
       if (parsed.success) {
         return {
           ...parsed.data,
@@ -226,7 +174,7 @@ export async function isTemplateSupported(
   const url = `${settings.urlAPI.replace(/\/+$/, "")}/v2/domainTemplates/providers/${encodeURIComponent(template.providerId)}/services/${encodeURIComponent(template.serviceId)}`;
   try {
     const response = await deps.fetch(url, {
-      signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
+      signal: AbortSignal.timeout(DOMAIN_CONNECT_HTTP_TIMEOUT_MS),
     });
     return response.ok;
   } catch {
@@ -238,15 +186,7 @@ export async function isTemplateSupported(
  * Signed apply URL. The signature (RSA-SHA256, base64) covers exactly the query
  * string before `&key=`; `sig` is last because Cloudflare requires it.
  */
-export function buildApplyUrl(params: {
-  settings: Pick<DomainConnectSettings, "urlSyncUX">;
-  config: DomainConnectConfig;
-  domain: string;
-  host: string;
-  variables: Record<string, string>;
-  redirectUri?: string;
-  state?: string;
-}): string {
+export function buildApplyUrl(params: BuildApplyUrlParams): string {
   const { settings, config } = params;
   if (!settings.urlSyncUX) {
     throw new Error("DNS provider does not support the synchronous flow");
@@ -256,7 +196,7 @@ export function buildApplyUrl(params: {
     host: params.host,
   };
   for (const [name, value] of Object.entries(params.variables)) {
-    if (RESERVED_PARAMS.has(name)) {
+    if (DOMAIN_CONNECT_RESERVED_PARAMS.has(name)) {
       throw new Error(`Template variable "${name}" collides with a parameter`);
     }
     query[name] = value;
@@ -360,11 +300,9 @@ export function verifyDomainConnectCallback(
  * the Domains tab lists, applied by the customer's DNS provider when it supports
  * Domain Connect and has onboarded our template.
  */
-export async function domainConnectForDomain(params: {
-  site: Pick<Site, "id">;
-  domainId: string;
-  deps?: DomainConnectDeps;
-}): Promise<DomainConnectResult> {
+export async function domainConnectForDomain(
+  params: DomainConnectForDomainParams
+): Promise<DomainConnectResult> {
   const config = getDomainConnectConfig();
   if (!config) {
     return { status: "unavailable", reason: "not_configured" };

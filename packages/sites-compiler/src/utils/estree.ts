@@ -1,6 +1,9 @@
 import type { Node as EstreeNode, Program } from "estree";
 import { EXIT, visit as visitEstree } from "estree-util-visit";
 
+import { NODE_ONLY_GLOBALS } from "../constants/builtins";
+import type { ForbiddenSyntax, IdentifierReference } from "../types/estree";
+
 /** Names bound by a declaration pattern (`const { a, b: [c] } = …` → a, c). */
 export function patternNames(pattern: EstreeNode | null | undefined): string[] {
   if (!pattern) {
@@ -71,10 +74,8 @@ export function declaredNames(root: EstreeNode): Set<string> {
  * names). Over-approximates scope on purpose: callers only use it to decide
  * whether something might reference an outer binding.
  */
-export function referencedIdentifiers(
-  root: EstreeNode
-): Array<{ name: string; start: number; end: number }> {
-  const references: Array<{ name: string; start: number; end: number }> = [];
+export function referencedIdentifiers(root: EstreeNode): IdentifierReference[] {
+  const references: IdentifierReference[] = [];
   visitEstree(root, (node, key, _index, ancestors) => {
     const current = node as EstreeNode & { start?: number; end?: number };
     const parent = ancestors.at(-1) as EstreeNode | undefined;
@@ -138,11 +139,6 @@ export function containsJsxOrFunction(root: EstreeNode | Program): boolean {
   return found;
 }
 
-export interface ForbiddenSyntax {
-  message: string;
-  start: number;
-}
-
 /** Dynamic imports, `require`, `eval` and `new Function` are never allowed in site code. */
 export function findForbiddenSyntax(
   root: EstreeNode | Program
@@ -185,18 +181,6 @@ export function findForbiddenSyntax(
   });
   return found;
 }
-
-const NODE_ONLY_GLOBALS = new Set([
-  "process",
-  "require",
-  "module",
-  "exports",
-  "__dirname",
-  "__filename",
-  "Bun",
-  "Deno",
-  "Buffer",
-]);
 
 /**
  * Site components run in the browser (and once at build time in the sandbox).

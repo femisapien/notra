@@ -1,3 +1,4 @@
+// Not a convenience barrel: astro.config.mjs aliases `@notra/builtins` here, and the MDX compiler auto-imports every builtin from it.
 export { default as Accordion } from "./Accordion.astro";
 export { default as AccordionGroup } from "./AccordionGroup.astro";
 export { default as Badge } from "./Badge.astro";

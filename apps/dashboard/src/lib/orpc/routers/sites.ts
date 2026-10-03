@@ -28,7 +28,6 @@ import {
   getDeployment,
   getSite,
   listSiteDeployments,
-  type Site,
 } from "@notra/sites-server/deployments";
 import { domainConnectForDomain } from "@notra/sites-server/domain-connect";
 import {
@@ -66,6 +65,7 @@ import {
   updateSiteSettings,
 } from "@notra/sites-server/sites";
 import { readServingState } from "@notra/sites-server/state";
+import type { Site } from "@notra/sites-server/types/sites";
 import {
   buildTargetForDeployment,
   primaryMountUrl,
@@ -75,6 +75,7 @@ import {
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { after } from "next/server";
 
+import { SITE_ADMIN_ROLES } from "@/constants/sites";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
 import { authorizedProcedure } from "@/lib/orpc/base";
 import {
@@ -92,8 +93,12 @@ import {
   serializePreviews,
   serializeSite,
 } from "@/lib/sites/serialize";
-
-const ADMIN_ROLES = new Set(["owner", "admin"]);
+import type { SiteScope } from "@/types/sites";
+import type {
+  SiteAccess,
+  SiteAccessOptions,
+  SiteRequestContext,
+} from "@/types/sites-server";
 
 /** Every site procedure: Sites must be configured, and domain errors become UI errors. */
 const sitesProcedure = authorizedProcedure.use(async ({ next }) => {
@@ -117,15 +122,15 @@ function dispatchLater(jobIds: Array<string | null>) {
 }
 
 async function requireSite(
-  context: { headers: Headers },
-  input: { organizationId: string; siteId: string },
-  options: { admin?: boolean } = {}
-): Promise<{ site: Site; userId: string }> {
+  context: SiteRequestContext,
+  input: SiteScope,
+  options: SiteAccessOptions = {}
+): Promise<SiteAccess> {
   const access = await assertOrganizationAccess({
     headers: context.headers,
     organizationId: input.organizationId,
   });
-  if (options.admin && !ADMIN_ROLES.has(access.membership.role)) {
+  if (options.admin && !SITE_ADMIN_ROLES.has(access.membership.role)) {
     throw forbidden("Only owners and admins can do this");
   }
   const site = await getSite(input.siteId);

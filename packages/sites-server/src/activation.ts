@@ -2,17 +2,15 @@ import { db } from "@notra/db/drizzle";
 import { SITE_R2_KEYS } from "@notra/sites-core/constants/sites";
 import { referencedDeploymentIds } from "@notra/sites-core/utils/serving-state";
 
-import {
-  allocateGeneration,
-  type Site,
-  type SiteDeployment,
-} from "./deployments";
+import { allocateGeneration } from "./deployments";
 import { r2GetText } from "./r2";
 import {
   activatePreviewDeployment,
   activateProductionDeployment,
   readServingState,
 } from "./state";
+import type { LiveDeployments, SiteDeployment } from "./types/deployments";
+import type { Site } from "./types/sites";
 
 /**
  * Points the serving state at a finished deployment. The R2 state is the only
@@ -62,13 +60,9 @@ export async function restoreProductionDeployment(
 }
 
 /** What the site serves right now: the production deployment and every open preview. */
-export async function readLiveDeployments(siteId: string): Promise<{
-  productionId: string | null;
-  previews: NonNullable<
-    Awaited<ReturnType<typeof readServingState>>
-  >["state"]["previews"];
-  ids: Set<string>;
-}> {
+export async function readLiveDeployments(
+  siteId: string
+): Promise<LiveDeployments> {
   const serving = await readServingState(siteId);
   return {
     productionId: serving?.state.production?.deploymentId ?? null,

@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/button";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
-import type { SiteDeleteDialogProps } from "@/types/sites";
+import type { SiteDeleteDialogProps } from "@/types/components/sites";
 import { toErrorMessage } from "@/utils/error-message";
 
 export function SiteDeleteDialog({

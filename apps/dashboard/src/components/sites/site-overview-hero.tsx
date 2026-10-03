@@ -9,7 +9,7 @@ import {
   Globe02Icon,
   Link04Icon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -18,9 +18,14 @@ import { InstrumentModule } from "@/components/instrument/instrument-module";
 import { useSite } from "@/components/sites/site-context";
 import { SitePreviewFrame } from "@/components/sites/site-preview-frame";
 import { SiteStatusDot } from "@/components/sites/site-status-dot";
+import { SITE_OVERVIEW_LINK_CLASS } from "@/constants/sites";
 import { useNow } from "@/lib/hooks/use-now";
 import { cn } from "@/lib/utils";
-import type { SiteDeployment } from "@/types/sites";
+import type {
+  SiteOverviewExternalLinkProps,
+  SiteOverviewInfoRowProps,
+  SitePendingProductionProps,
+} from "@/types/components/sites";
 import {
   deploymentElapsedMs,
   formatBuildDuration,
@@ -33,18 +38,7 @@ import {
   siteUrlOnOrigin,
 } from "@/utils/site-links";
 
-const LINK_CLASS =
-  "text-foreground decoration-foreground/25 hover:decoration-foreground min-w-0 truncate underline underline-offset-4 transition-colors duration-150";
-
-function InfoRow({
-  icon,
-  label,
-  children,
-}: {
-  icon: IconSvgElement;
-  label: string;
-  children: ReactNode;
-}) {
+function InfoRow({ icon, label, children }: SiteOverviewInfoRowProps) {
   return (
     <li className="flex min-w-0 items-center gap-2.5 text-sm">
       <HugeiconsIcon
@@ -65,11 +59,7 @@ function ExternalLink({
   href,
   children,
   muted = false,
-}: {
-  href: string;
-  children: ReactNode;
-  muted?: boolean;
-}) {
+}: SiteOverviewExternalLinkProps) {
   return (
     <a
       className="group inline-flex min-w-0 items-center gap-1"
@@ -77,7 +67,12 @@ function ExternalLink({
       rel="noopener noreferrer"
       target="_blank"
     >
-      <span className={cn(LINK_CLASS, muted && "text-muted-foreground")}>
+      <span
+        className={cn(
+          SITE_OVERVIEW_LINK_CLASS,
+          muted && "text-muted-foreground"
+        )}
+      >
         {children}
       </span>
       <HugeiconsIcon
@@ -91,7 +86,7 @@ function ExternalLink({
 }
 
 /** The production build that runs now or failed after the live one, as a link in the module header. */
-function PendingProduction({ deployment }: { deployment: SiteDeployment }) {
+function PendingProduction({ deployment }: SitePendingProductionProps) {
   const t = useTranslations("sites.overviewPage");
   const { organizationSlug, siteId } = useSite();
   const inProgress = isDeploymentInProgress(deployment.status);
@@ -238,7 +233,10 @@ export function SiteOverviewHero() {
                   {displayUrl(aliasUrl)}
                 </ExternalLink>
                 <Link
-                  className={cn(LINK_CLASS, "text-muted-foreground")}
+                  className={cn(
+                    SITE_OVERVIEW_LINK_CLASS,
+                    "text-muted-foreground"
+                  )}
                   href={siteHref(organizationSlug, siteId, "domains")}
                 >
                   {t("addCustomDomain")}

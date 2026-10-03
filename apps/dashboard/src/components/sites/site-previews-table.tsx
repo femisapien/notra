@@ -51,7 +51,11 @@ import {
 } from "@/constants/sites";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
-import type { SitePreviewRow, SitePreviewsTableProps } from "@/types/sites";
+import type {
+  SiteOpenPreviewButtonProps,
+  SitePreviewsTableProps,
+} from "@/types/components/sites";
+import type { SitePreviewRow } from "@/types/sites";
 import { copyTextToClipboard } from "@/utils/copy-to-clipboard";
 import { toErrorMessage } from "@/utils/error-message";
 import { commitTitle, shortSha } from "@/utils/site-deployments";
@@ -66,12 +70,7 @@ function OpenPreviewButton({
   tooltip,
   disabled,
   onOpen,
-}: {
-  label: string;
-  tooltip: string;
-  disabled: boolean;
-  onOpen: () => void;
-}) {
+}: SiteOpenPreviewButtonProps) {
   return (
     <Tooltip>
       <TooltipTrigger

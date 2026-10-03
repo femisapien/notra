@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/button";
 import { SITE_COPY_FEEDBACK_MS } from "@/constants/sites";
 import { cn } from "@/lib/utils";
-import type { SiteCopyButtonProps } from "@/types/sites";
+import type { SiteCopyButtonProps } from "@/types/components/sites";
 
 /** Icon button that copies a value and confirms with a check and a "Copied" tooltip. */
 export function SiteCopyButton({

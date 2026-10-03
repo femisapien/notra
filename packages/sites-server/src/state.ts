@@ -1,14 +1,19 @@
 import { SITE_R2_KEYS } from "@notra/sites-core/constants/sites";
 import {
-  type SiteHostRecord,
-  type SitePreviewPointer,
-  type SiteServingState,
   siteHostRecordSchema,
   siteServingStateSchema,
 } from "@notra/sites-core/schemas/deployment";
+import type {
+  SiteHostRecord,
+  SitePreviewPointer,
+  SiteServingState,
+} from "@notra/sites-core/types/deployment";
+import type {
+  PreviewActivationResult,
+  ProductionActivationResult,
+  ProductionPointerInput,
+} from "@notra/sites-core/types/serving-state";
 import {
-  type PreviewActivationResult,
-  type ProductionActivationResult,
   activatePreviewInState,
   activateProductionInState,
   createInitialServingState,
@@ -16,10 +21,13 @@ import {
   setPreviewVisibilityInState,
 } from "@notra/sites-core/utils/serving-state";
 
+import { CAS_ATTEMPTS, JSON_CONTENT_TYPE } from "./constants/state";
 import { R2PreconditionFailedError, r2DeleteKey, r2GetText, r2Put } from "./r2";
-
-const CAS_ATTEMPTS = 6;
-const JSON_TYPE = "application/json; charset=utf-8";
+import type {
+  ServingSiteRef,
+  ServingStateMutation,
+  ServingStateObject,
+} from "./types/state";
 
 export class SiteHostConflictError extends Error {
   readonly name = "SiteHostConflictError";
@@ -27,7 +35,7 @@ export class SiteHostConflictError extends Error {
 
 export async function readServingState(
   siteId: string
-): Promise<{ state: SiteServingState; etag: string } | null> {
+): Promise<ServingStateObject | null> {
   const object = await r2GetText(SITE_R2_KEYS.state(siteId));
   if (!object) {
     return null;
@@ -38,18 +46,14 @@ export async function readServingState(
   };
 }
 
-type MutationResult<T> =
-  | { write: SiteServingState; result: T }
-  | { skip: true; result: T };
-
 /**
  * Read-modify-write of `state.json` guarded by the object's ETag. Concurrent
  * writers (two builds finishing, a rollback during a deploy) retry on 412
  * instead of overwriting each other.
  */
 export async function mutateServingState<T>(
-  site: { id: string; slug: string },
-  mutate: (state: SiteServingState) => MutationResult<T>
+  site: ServingSiteRef,
+  mutate: (state: SiteServingState) => ServingStateMutation<T>
 ): Promise<T> {
   for (let attempt = 0; attempt < CAS_ATTEMPTS; attempt += 1) {
     const current = await readServingState(site.id);
@@ -66,7 +70,7 @@ export async function mutateServingState<T>(
     }
     try {
       await r2Put(SITE_R2_KEYS.state(site.id), JSON.stringify(outcome.write), {
-        contentType: JSON_TYPE,
+        contentType: JSON_CONTENT_TYPE,
         cacheControl: "no-store",
         ...(current
           ? { ifMatch: current.etag }
@@ -86,8 +90,8 @@ export async function mutateServingState<T>(
 }
 
 export async function activateProductionDeployment(
-  site: { id: string; slug: string },
-  pointer: { deploymentId: string; generation: number }
+  site: ServingSiteRef,
+  pointer: ProductionPointerInput
 ) {
   return await mutateServingState<ProductionActivationResult>(site, (state) => {
     const outcome = activateProductionInState(state, pointer, new Date());
@@ -99,7 +103,7 @@ export async function activateProductionDeployment(
 }
 
 export async function activatePreviewDeployment(
-  site: { id: string; slug: string },
+  site: ServingSiteRef,
   previewKey: string,
   pointer: Omit<SitePreviewPointer, "activatedAt">
 ) {
@@ -118,7 +122,7 @@ export async function activatePreviewDeployment(
 }
 
 export async function removePreviewDeployment(
-  site: { id: string; slug: string },
+  site: ServingSiteRef,
   previewKey: string,
   generation: number
 ) {
@@ -129,7 +133,7 @@ export async function removePreviewDeployment(
 }
 
 export async function setServingStatus(
-  site: { id: string; slug: string },
+  site: ServingSiteRef,
   status: SiteServingState["status"]
 ) {
   await mutateServingState(site, (state) => {
@@ -149,7 +153,7 @@ export async function setServingStatus(
 }
 
 export async function setServingPreviewVisibility(
-  site: { id: string; slug: string },
+  site: ServingSiteRef,
   visibility: SitePreviewPointer["visibility"]
 ) {
   await mutateServingState(site, (state) => ({
@@ -173,7 +177,7 @@ export async function claimHostRecord(
   } satisfies SiteHostRecord);
   try {
     await r2Put(key, body, {
-      contentType: JSON_TYPE,
+      contentType: JSON_CONTENT_TYPE,
       cacheControl: "no-store",
       ifNoneMatch: "*",
     });

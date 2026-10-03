@@ -1,5 +1,5 @@
 import { handleSiteRequest } from "./handler";
-import type { SitesEnv } from "./types";
+import type { SitesEnv } from "./types/worker";
 
 export default {
   async fetch(

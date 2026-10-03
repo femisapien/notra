@@ -14,7 +14,7 @@ import { Skeleton } from "@notra/ui/components/ui/skeleton";
 import { ORPCError } from "@orpc/client";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { buttonVariants } from "@/components/button";
 import { EmptyState } from "@/components/empty-state";
@@ -33,90 +33,46 @@ import { SiteRelativeTime } from "@/components/sites/site-relative-time";
 import { SiteRollbackDialog } from "@/components/sites/site-rollback-dialog";
 import { SiteStatusDot } from "@/components/sites/site-status-dot";
 import { SITE_TRIGGER_ICONS } from "@/constants/sites";
+import { useNow } from "@/lib/hooks/use-now";
 import {
-  useNow,
   useRedeployDeployment,
   useSiteDeployment,
 } from "@/lib/hooks/use-site-deployments";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { cn } from "@/lib/utils";
 import type {
-  SiteDeployment,
-  SiteDeploymentRecord,
-  SiteDeploymentStep,
-  SiteDiagnostic,
-  SiteDetail,
-} from "@/types/sites";
+  SiteDeploymentDetailPageProps,
+  SiteDeploymentDetailProps,
+  SiteDeploymentMetaLinkProps,
+  SiteDeploymentMetaProps,
+  SiteDeploymentRecordProps,
+  SiteLiveSiteProps,
+} from "@/types/components/sites";
+import type { SiteDeployment, SiteDeploymentStep } from "@/types/sites";
 import { deploymentSteps } from "@/utils/site-deployment-steps";
 import {
   commitTitle,
   deploymentElapsedMs,
+  deploymentServedUrls,
   formatBuildDuration,
   isDeploymentInProgress,
+  isDeploymentLive,
   shortSha,
 } from "@/utils/site-deployments";
+import {
+  siteDiagnosticLocation,
+  siteDiagnosticSeverityRank,
+} from "@/utils/site-diagnostics";
 import {
   displayUrl,
   githubCommitUrl,
   githubPullRequestUrl,
-  hostFromOrigin,
   siteHref,
 } from "@/utils/site-links";
 
-/** Whether visitors see this deployment right now, from the site's serving state. */
-function isLive(deployment: SiteDeploymentRecord, detail: SiteDetail): boolean {
-  if (deployment.kind === "production") {
-    return detail.site.liveDeploymentId === deployment.id;
-  }
-  return detail.previews.some(
-    (preview) => preview.deploymentId === deployment.id
-  );
-}
-
-/** Every URL a live deployment answers on; the first is the primary one. */
-function servedUrls(
-  deployment: SiteDeploymentRecord,
-  detail: SiteDetail,
-  live: boolean
-): string[] {
-  if (!(live && deployment.kind === "production")) {
-    return [deployment.url];
-  }
-  const urls = [detail.site.liveUrl];
-  const hosts = new Set([hostFromOrigin(detail.site.liveUrl)]);
-  const candidates = [
-    ...detail.domains
-      .filter((domain) => domain.status === "active")
-      .map((domain) => `https://${domain.hostname}`),
-    detail.site.aliasOrigin,
-  ];
-  for (const url of candidates) {
-    const host = hostFromOrigin(url);
-    if (!hosts.has(host)) {
-      hosts.add(host);
-      urls.push(url);
-    }
-  }
-  return urls;
-}
-
-function diagnosticLocation(diagnostic: SiteDiagnostic): string | null {
-  if (!diagnostic.file) {
-    return null;
-  }
-  if (diagnostic.line === undefined) {
-    return diagnostic.file;
-  }
-  return diagnostic.column === undefined
-    ? `${diagnostic.file}:${diagnostic.line}`
-    : `${diagnostic.file}:${diagnostic.line}:${diagnostic.column}`;
-}
-
 export function SiteDeploymentDetailPage({
   deploymentId,
-}: {
-  deploymentId: string;
-}) {
+}: SiteDeploymentDetailPageProps) {
   const { organizationId, organizationSlug, siteId, detail } = useSite();
   const t = useTranslations("sites.deployment");
   const query = useSiteDeployment({ organizationId, siteId, deploymentId });
@@ -161,13 +117,7 @@ function DeploymentDetail({
   detail,
   deployment,
   log,
-}: {
-  organizationId: string;
-  siteId: string;
-  detail: SiteDetail;
-  deployment: SiteDeploymentRecord;
-  log: string | null;
-}) {
+}: SiteDeploymentDetailProps) {
   const t = useTranslations("sites.deploymentPage");
   const tStatus = useTranslations("sites.status");
   const tLegacy = useTranslations("sites.deployment");
@@ -175,7 +125,7 @@ function DeploymentDetail({
   const redeploy = useRedeployDeployment({ organizationId, siteId });
   const inProgress = isDeploymentInProgress(deployment.status);
   const now = useNow(inProgress);
-  const live = isLive(deployment, detail);
+  const live = isDeploymentLive(deployment, detail);
   const listEntry: SiteDeployment | null =
     detail.deployments.find((entry) => entry.id === deployment.id) ?? null;
   const [rollbackTarget, setRollbackTarget] = useState<SiteDeployment | null>(
@@ -194,7 +144,7 @@ function DeploymentDetail({
   }, [inProgress, invalidateSites]);
 
   const steps = deploymentSteps(deployment, now);
-  const urls = servedUrls(deployment, detail, live);
+  const urls = deploymentServedUrls(deployment, detail, live);
   const primaryUrl = urls[0] ?? deployment.url;
   const title = commitTitle(deployment.commitMessage);
   const visibility =
@@ -378,13 +328,7 @@ function DeploymentDetail({
 }
 
 /** Branch, commit, pull request, who started it and when: one line with icons. */
-function DeploymentMeta({
-  deployment,
-  detail,
-}: {
-  deployment: SiteDeploymentRecord;
-  detail: SiteDetail;
-}) {
+function DeploymentMeta({ deployment, detail }: SiteDeploymentMetaProps) {
   const t = useTranslations("sites.deploymentPage");
   const repository = detail.site.repository;
   const commitUrl = githubCommitUrl(repository, deployment.commitSha);
@@ -425,15 +369,7 @@ function DeploymentMeta({
   );
 }
 
-function MetaLink({
-  href,
-  title,
-  children,
-}: {
-  href: string | null;
-  title?: string;
-  children: ReactNode;
-}) {
+function MetaLink({ href, title, children }: SiteDeploymentMetaLinkProps) {
   if (!href) {
     return (
       <span className="min-w-0" title={title}>
@@ -455,7 +391,7 @@ function MetaLink({
 }
 
 /** Why a deployment stopped short, in one quiet line. */
-function DeploymentNote({ deployment }: { deployment: SiteDeploymentRecord }) {
+function DeploymentNote({ deployment }: SiteDeploymentRecordProps) {
   const t = useTranslations("sites.deploymentPage.notice");
   if (
     deployment.status !== "canceled" &&
@@ -481,13 +417,11 @@ function DeploymentNote({ deployment }: { deployment: SiteDeploymentRecord }) {
 }
 
 /** The error a failed build ended with, then what the checks found, by file and line. */
-function FailureSummary({ deployment }: { deployment: SiteDeploymentRecord }) {
+function FailureSummary({ deployment }: SiteDeploymentRecordProps) {
   const t = useTranslations("sites.deploymentPage");
   const tDiagnostics = useTranslations("sites.diagnostics");
-  const errorsFirst = (diagnostic: SiteDiagnostic) =>
-    diagnostic.severity === "error" ? 0 : 1;
   const diagnostics = [...deployment.diagnostics].sort(
-    (a, b) => errorsFirst(a) - errorsFirst(b)
+    (a, b) => siteDiagnosticSeverityRank(a) - siteDiagnosticSeverityRank(b)
   );
   const failed = deployment.status === "failed";
 
@@ -506,7 +440,7 @@ function FailureSummary({ deployment }: { deployment: SiteDeploymentRecord }) {
       {diagnostics.length > 0 ? (
         <ul aria-label={t("diagnostics.title")} className="space-y-2">
           {diagnostics.map((diagnostic, index) => {
-            const where = diagnosticLocation(diagnostic);
+            const where = siteDiagnosticLocation(diagnostic);
             const isError = diagnostic.severity === "error";
             return (
               <li
@@ -550,7 +484,7 @@ function FailureSummary({ deployment }: { deployment: SiteDeploymentRecord }) {
 }
 
 /** The end of the story: a small look at the live page and where it lives. */
-function LiveSite({ url }: { url: string }) {
+function LiveSite({ url }: SiteLiveSiteProps) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
       <a

@@ -1,7 +1,7 @@
 import type {
   SiteBuildTarget,
   SiteMounts,
-} from "@notra/sites-core/schemas/deployment";
+} from "@notra/sites-core/types/deployment";
 import { siteAliasHost, sitePreviewHost } from "@notra/sites-core/utils/hosts";
 import { listMountedAreas } from "@notra/sites-core/utils/mounts";
 
@@ -11,6 +11,10 @@ import {
   getSitesHostingPortSuffix,
   getSitesHostingProtocol,
 } from "./env";
+import type {
+  BuildTargetForDeploymentParams,
+  DeploymentDashboardUrlParams,
+} from "./types/urls";
 
 export function siteAliasOrigin(slug: string): string {
   return `${getSitesHostingProtocol()}://${siteAliasHost(slug, getSitesHostingDomain())}${getSitesHostingPortSuffix()}`;
@@ -26,11 +30,9 @@ export function primaryMountUrl(origin: string, mounts: SiteMounts): string {
   return `${origin}${first && first.mount !== "/" ? first.mount : "/"}`;
 }
 
-export function buildTargetForDeployment(params: {
-  site: { slug: string; publicOrigin: string; mounts: SiteMounts };
-  kind: "production" | "preview";
-  previewKey: string | null;
-}): SiteBuildTarget {
+export function buildTargetForDeployment(
+  params: BuildTargetForDeploymentParams
+): SiteBuildTarget {
   if (params.kind === "preview" && params.previewKey) {
     return {
       publicOrigin: sitePreviewOrigin(params.site.slug, params.previewKey),
@@ -45,10 +47,8 @@ export function buildTargetForDeployment(params: {
   };
 }
 
-export function deploymentDashboardUrl(params: {
-  organizationSlug: string;
-  siteId: string;
-  deploymentId: string;
-}): string {
+export function deploymentDashboardUrl(
+  params: DeploymentDashboardUrlParams
+): string {
   return `${getDashboardUrl()}/${params.organizationSlug}/sites/${params.siteId}/deployments/${params.deploymentId}`;
 }

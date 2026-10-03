@@ -13,7 +13,8 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { CodeSnippet } from "@/components/geo/code-snippet";
-import type { SiteProxyRecipeId, SiteProxySetupProps } from "@/types/sites";
+import type { SiteProxySetupProps } from "@/types/components/sites";
+import type { SiteProxyRecipeId } from "@/types/sites";
 import { displayUrl } from "@/utils/site-links";
 import { buildProxyRecipes, mountedPaths } from "@/utils/site-proxy-recipes";
 

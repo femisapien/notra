@@ -9,11 +9,6 @@ import {
   InputGroupInput,
 } from "@notra/ui/components/ui/input-group";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
-import type {
-  FileTree as FileTreeModel,
-  FileTreeDirectoryHandle,
-  GitStatusEntry,
-} from "@pierre/trees";
 import {
   FileTree,
   useFileTree,
@@ -24,72 +19,16 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef } from "react";
 
 import {
-  SITE_EDITOR_COLLAPSED_FOLDERS,
   SITE_FILE_TREE_CSS,
+  SITE_FILE_TREE_SKELETON_ROWS,
 } from "@/constants/site-editor";
-import type { SiteFileTreeFile, SiteFileTreeProps } from "@/types/site-editor";
-
-const SKELETON_ROWS = [
-  "w-1/2",
-  "w-3/4",
-  "w-2/3",
-  "w-2/5",
-  "w-3/5",
-  "w-5/6",
-  "w-1/3",
-] as const;
-
-function ancestorsOf(path: string): string[] {
-  const parts = path.split("/");
-  return parts
-    .slice(0, -1)
-    .map((_, index) => parts.slice(0, index + 1).join("/"));
-}
-
-function folderHandle(
-  model: FileTreeModel,
-  path: string
-): FileTreeDirectoryHandle | null {
-  const item = model.getItem(path);
-  return item && "expand" in item ? item : null;
-}
-
-function isCollapsedByDefault(folder: string): boolean {
-  return SITE_EDITOR_COLLAPSED_FOLDERS.some(
-    (collapsed) => folder === collapsed || folder.startsWith(`${collapsed}/`)
-  );
-}
-
-/** Folders open on first render: everything but asset folders, plus the open file's. */
-function initialExpandedFolders(
-  paths: readonly string[],
-  selectedPath: string | null
-): string[] {
-  const folders = new Set<string>();
-  for (const path of paths) {
-    for (const folder of ancestorsOf(path)) {
-      if (!isCollapsedByDefault(folder)) {
-        folders.add(folder);
-      }
-    }
-  }
-  for (const folder of selectedPath ? ancestorsOf(selectedPath) : []) {
-    folders.add(folder);
-  }
-  return [...folders];
-}
-
-function gitStatusOf(files: readonly SiteFileTreeFile[]): GitStatusEntry[] {
-  const entries: GitStatusEntry[] = [];
-  for (const file of files) {
-    if (file.isNew) {
-      entries.push({ path: file.path, status: "added" });
-    } else if (file.hasDraft) {
-      entries.push({ path: file.path, status: "modified" });
-    }
-  }
-  return entries;
-}
+import type { SiteFileTreeProps } from "@/types/components/site-editor";
+import {
+  siteFileAncestors,
+  siteFileTreeFolderHandle,
+  siteFileTreeGitStatus,
+  siteFileTreeInitialExpandedFolders,
+} from "@/utils/site-editor";
 
 function SiteFileTreeView({
   files,
@@ -102,11 +41,14 @@ function SiteFileTreeView({
     () => new Set(files.filter((file) => file.editable).map((f) => f.path)),
     [files]
   );
-  const gitStatus = useMemo(() => gitStatusOf(files), [files]);
+  const gitStatus = useMemo(() => siteFileTreeGitStatus(files), [files]);
   const { model } = useFileTree({
     paths,
     initialExpansion: "closed",
-    initialExpandedPaths: initialExpandedFolders(paths, selectedPath),
+    initialExpandedPaths: siteFileTreeInitialExpandedFolders(
+      paths,
+      selectedPath
+    ),
     initialSelectedPaths: selectedPath ? [selectedPath] : [],
     flattenEmptyDirectories: false,
     fileTreeSearchMode: "hide-non-matches",
@@ -130,8 +72,8 @@ function SiteFileTreeView({
     appliedPathsKey.current = pathsKey;
     const expanded = new Set<string>();
     for (const path of previous) {
-      for (const folder of ancestorsOf(path)) {
-        if (folderHandle(model, folder)?.isExpanded()) {
+      for (const folder of siteFileAncestors(path)) {
+        if (siteFileTreeFolderHandle(model, folder)?.isExpanded()) {
           expanded.add(folder);
         }
       }
@@ -157,8 +99,8 @@ function SiteFileTreeView({
     for (const path of current) {
       model.getItem(path)?.deselect();
     }
-    for (const folder of ancestorsOf(selectedPath)) {
-      folderHandle(model, folder)?.expand();
+    for (const folder of siteFileAncestors(selectedPath)) {
+      siteFileTreeFolderHandle(model, folder)?.expand();
     }
     model.getItem(selectedPath)?.select();
     model.scrollToPath(selectedPath, { focus: false, offset: "nearest" });
@@ -258,7 +200,7 @@ export function SiteFileTree({
     return (
       <div aria-busy="true" className="space-y-2.5 px-3 pt-3">
         <Skeleton className="mb-4 h-8 w-full" />
-        {SKELETON_ROWS.map((width) => (
+        {SITE_FILE_TREE_SKELETON_ROWS.map((width) => (
           <Skeleton className={`h-3.5 ${width}`} key={width} />
         ))}
       </div>

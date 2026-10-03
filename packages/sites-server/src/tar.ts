@@ -1,17 +1,12 @@
 import { gunzipSync } from "node:zlib";
 
-const BLOCK = 512;
+import { TAR_BLOCK_SIZE } from "./constants/build";
+import { SitePermanentBuildError } from "./errors";
+import type { ArchiveFile, ArchiveLimits } from "./types/tar";
+
 const decoder = new TextDecoder();
 
-import { SitePermanentBuildError } from "./errors";
-
 export class UnsafeArchiveError extends SitePermanentBuildError {}
-
-export interface ArchiveFile {
-  /** Normalized relative path, forward slashes, no leading `./` or `/`. */
-  path: string;
-  data: Uint8Array<ArrayBuffer>;
-}
 
 function readString(block: Uint8Array, offset: number, length: number): string {
   const slice = block.subarray(offset, offset + length);
@@ -62,10 +57,13 @@ function normalizeArchivePath(raw: string): string | null {
  */
 export function readTarGz(
   archive: Uint8Array,
-  limits: { maxFiles: number; maxBytes: number; maxFileBytes: number }
+  limits: ArchiveLimits
 ): ArchiveFile[] {
   const tar = gunzipSync(archive, {
-    maxOutputLength: limits.maxBytes + limits.maxFiles * BLOCK * 2 + BLOCK * 4,
+    maxOutputLength:
+      limits.maxBytes +
+      limits.maxFiles * TAR_BLOCK_SIZE * 2 +
+      TAR_BLOCK_SIZE * 4,
   });
   const files: ArchiveFile[] = [];
   let offset = 0;
@@ -73,16 +71,16 @@ export function readTarGz(
   let longName: string | null = null;
   let paxPath: string | null = null;
 
-  while (offset + BLOCK <= tar.length) {
-    const header = tar.subarray(offset, offset + BLOCK);
+  while (offset + TAR_BLOCK_SIZE <= tar.length) {
+    const header = tar.subarray(offset, offset + TAR_BLOCK_SIZE);
     if (header.every((byte) => byte === 0)) {
       break;
     }
     const size = readOctal(header, 124, 12);
     const type = String.fromCharCode(header[156] ?? 48);
-    const dataStart = offset + BLOCK;
+    const dataStart = offset + TAR_BLOCK_SIZE;
     const data = tar.subarray(dataStart, dataStart + size);
-    offset = dataStart + Math.ceil(size / BLOCK) * BLOCK;
+    offset = dataStart + Math.ceil(size / TAR_BLOCK_SIZE) * TAR_BLOCK_SIZE;
 
     if (type === "L") {
       longName = readString(data, 0, data.length);

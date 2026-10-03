@@ -14,6 +14,26 @@ import type { SiteEditorLanguage } from "@/types/site-editor";
 /** Folders that start collapsed in the file tree (assets nobody edits here). */
 export const SITE_EDITOR_COLLAPSED_FOLDERS: readonly string[] = ["public"];
 
+/** Placeholder line widths while a file loads in the editor pane. */
+export const SITE_EDITOR_LOADING_LINES = [
+  "w-1/3",
+  "w-2/3",
+  "w-1/2",
+  "w-3/5",
+  "w-1/4",
+] as const;
+
+/** Placeholder row widths while the file tree loads. */
+export const SITE_FILE_TREE_SKELETON_ROWS = [
+  "w-1/2",
+  "w-3/4",
+  "w-2/3",
+  "w-2/5",
+  "w-3/5",
+  "w-5/6",
+  "w-1/3",
+] as const;
+
 /** How the "saved 3s ago" label refreshes. */
 export const SITE_EDITOR_SAVED_TICK_MS = 5000;
 

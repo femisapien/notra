@@ -1,47 +1,32 @@
 import { BOX_BASE_URL } from "@notra/ai/constants/repo-image";
 import { SITE_BUILD_LIMITS } from "@notra/sites-core/constants/sites";
 import {
-  type SiteBuildRequestInput,
-  type SiteBuildResult,
   siteBuildRequestSchema,
   siteBuildResultSchema,
 } from "@notra/sites-core/schemas/build";
 import { EphemeralBox } from "@upstash/box";
 
+import {
+  BOX_TTL_SECONDS,
+  BOX_WORKDIR,
+  BUILD_LOG_POLL_MS,
+} from "./constants/build";
 import { getBoxApiKey, getSitesBuilderSnapshotId } from "./env";
-
-const WORKDIR = "/workspace/home";
-const BOX_TTL_SECONDS = SITE_BUILD_LIMITS.buildTimeoutSeconds + 5 * 60;
-const ROOT_DIRECTORY = /^(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]*$/;
-
-export interface SandboxBuildResult {
-  /** Validated against the shared contract; null when the sandbox produced no (valid) result. */
-  result: SiteBuildResult | null;
-  /** Human-readable reason when `result` is null. */
-  crash: string | null;
-  log: string;
-  outputArchive: Uint8Array<ArrayBuffer> | null;
-  toolchainVersion: string | null;
-  durationMs: number;
-}
-
-export function isSafeRootDirectory(rootDirectory: string): boolean {
-  return (
-    ROOT_DIRECTORY.test(rootDirectory) &&
-    !rootDirectory
-      .split("/")
-      .some((segment) => segment === ".." || segment.startsWith("."))
-  );
-}
+import type {
+  BuildLogFollower,
+  SandboxBuildParams,
+  SandboxBuildResult,
+  SandboxUploadFile,
+} from "./types/build";
+import { safeJson } from "./utils/json";
+import { isSafeRootDirectory } from "./utils/root-directory";
+import { shellQuote } from "./utils/shell";
 
 function boxHeaders(): Record<string, string> {
   return { "X-Box-Api-Key": getBoxApiKey() };
 }
 
-async function uploadBytes(
-  boxId: string,
-  files: Array<{ path: string; data: Uint8Array<ArrayBuffer> }>
-) {
+async function uploadBytes(boxId: string, files: SandboxUploadFile[]) {
   const form = new FormData();
   for (const file of files) {
     form.append("paths", file.path);
@@ -90,35 +75,21 @@ async function downloadBytes(
   return bytes;
 }
 
-function safeJson(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", "'\\''")}'`;
-}
-
-const LOG_POLL_MS = 2000;
-
 /** Reads the growing build log out of the box until stopped; each new version goes to `onLog`. */
 function followBuildLog(
   box: EphemeralBox,
   onLog: (log: string) => Promise<void>
-): { stop: () => Promise<void> } {
+): BuildLogFollower {
   const stopped = new AbortController();
   let last = "";
   const loop = (async () => {
     while (!stopped.signal.aborted) {
-      await new Promise((resolve) => setTimeout(resolve, LOG_POLL_MS));
+      await new Promise((resolve) => setTimeout(resolve, BUILD_LOG_POLL_MS));
       if (stopped.signal.aborted) {
         break;
       }
       const log = await box.files
-        .read(`${WORKDIR}/build.log`)
+        .read(`${BOX_WORKDIR}/build.log`)
         .catch(() => null);
       if (log && log !== last) {
         last = log;
@@ -142,13 +113,9 @@ function followBuildLog(
  * archive goes in, a tarball of static files comes out. Customer components
  * may run arbitrary JavaScript during the build, but only in here.
  */
-export async function runSandboxBuild(params: {
-  sourceArchive: Uint8Array<ArrayBuffer>;
-  rootDirectory: string;
-  target: SiteBuildRequestInput;
-  /** Receives the build log while the build runs, so the dashboard can follow it live. */
-  onLog?: (log: string) => Promise<void>;
-}): Promise<SandboxBuildResult> {
+export async function runSandboxBuild(
+  params: SandboxBuildParams
+): Promise<SandboxBuildResult> {
   if (!isSafeRootDirectory(params.rootDirectory)) {
     throw new Error(`Invalid root directory "${params.rootDirectory}"`);
   }
@@ -164,9 +131,9 @@ export async function runSandboxBuild(params: {
   });
   try {
     await uploadBytes(box.id, [
-      { path: `${WORKDIR}/source.tgz`, data: params.sourceArchive },
+      { path: `${BOX_WORKDIR}/source.tgz`, data: params.sourceArchive },
       {
-        path: `${WORKDIR}/target.json`,
+        path: `${BOX_WORKDIR}/target.json`,
         data: new TextEncoder().encode(
           JSON.stringify(siteBuildRequestSchema.parse(params.target))
         ),
@@ -177,7 +144,7 @@ export async function runSandboxBuild(params: {
       ? `../src/${params.rootDirectory}`
       : "../src";
     const script = [
-      `cd ${WORKDIR} || exit 3`,
+      `cd ${BOX_WORKDIR} || exit 3`,
       "rm -rf src out out.tgz result.json build.log exit-code",
       "mkdir -p src",
       // GitHub tarballs wrap everything in one owner-repo-sha/ directory.
@@ -200,10 +167,10 @@ export async function runSandboxBuild(params: {
     const runOutput = String(run.result ?? "");
 
     const [resultText, logText, versionText, exitText] = await Promise.all([
-      box.files.read(`${WORKDIR}/result.json`).catch(() => null),
-      box.files.read(`${WORKDIR}/build.log`).catch(() => ""),
-      box.files.read(`${WORKDIR}/toolchain/VERSION`).catch(() => null),
-      box.files.read(`${WORKDIR}/exit-code`).catch(() => null),
+      box.files.read(`${BOX_WORKDIR}/result.json`).catch(() => null),
+      box.files.read(`${BOX_WORKDIR}/build.log`).catch(() => ""),
+      box.files.read(`${BOX_WORKDIR}/toolchain/VERSION`).catch(() => null),
+      box.files.read(`${BOX_WORKDIR}/exit-code`).catch(() => null),
     ]);
     const log = (logText || runOutput).slice(
       -SITE_BUILD_LIMITS.maxBuildLogBytes
@@ -233,7 +200,7 @@ export async function runSandboxBuild(params: {
     const outputArchive = parsed.data.ok
       ? await downloadBytes(
           box.id,
-          `${WORKDIR}/out.tgz`,
+          `${BOX_WORKDIR}/out.tgz`,
           SITE_BUILD_LIMITS.maxOutputBytes
         )
       : null;

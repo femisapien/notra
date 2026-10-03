@@ -1,8 +1,6 @@
 import { SITE_PREVIEW_AUTH_PATH } from "@notra/sites-core/constants/sites";
-import {
-  type ParsedSiteHost,
-  parseSiteHost,
-} from "@notra/sites-core/utils/hosts";
+import type { ParsedSiteHost } from "@notra/sites-core/types/hosts";
+import { parseSiteHost } from "@notra/sites-core/utils/hosts";
 import {
   joinMountPath,
   resolveAreaForPath,
@@ -23,6 +21,8 @@ import {
 } from "./pages";
 import { handlePreviewAuth, previewAccessDenied } from "./preview-auth";
 import { html, markdownNotFound, robotsTxt, serveFile } from "./responses";
+import type { ResolvedDeployment } from "./types/serving";
+import type { SitesDeps } from "./types/worker";
 import {
   markdownTwin,
   matchRedirect,
@@ -30,16 +30,9 @@ import {
   prefersMarkdown,
   resolveFile,
   resolveMarkdownFile,
-} from "./routing";
-import type { SitesDeps } from "./types";
+} from "./utils/routing";
 
 export { resetCachesForTests } from "./loaders";
-
-interface ResolvedDeployment {
-  siteId: string;
-  deploymentId: string;
-  isPreview: boolean;
-}
 
 /** Resolves which host a request is for. The dev override exists only when its secret is configured. */
 function requestHost(deps: SitesDeps, request: Request, url: URL): string {

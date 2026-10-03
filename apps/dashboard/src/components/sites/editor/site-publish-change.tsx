@@ -17,7 +17,7 @@ import { SiteFileDiff } from "@/components/sites/editor/site-file-diff";
 import { useSiteCodeHighlighter } from "@/lib/hooks/use-site-code-highlighter";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import { cn } from "@/lib/utils";
-import type { SitePublishChangeProps } from "@/types/site-editor";
+import type { SitePublishChangeProps } from "@/types/components/site-editor";
 import { toErrorMessage } from "@/utils/error-message";
 import { diffLineCounts, siteFileIcon } from "@/utils/site-editor";
 

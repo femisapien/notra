@@ -26,6 +26,7 @@ import { useSite } from "@/components/sites/site-context";
 import { SiteDeploymentsTable } from "@/components/sites/site-deployments-table";
 import {
   SITE_DEPLOYMENT_ENVIRONMENT_FILTERS,
+  SITE_DEPLOYMENT_NO_FILTERS,
   SITE_DEPLOYMENT_STATUS_FILTERS,
 } from "@/constants/sites";
 import {
@@ -38,48 +39,11 @@ import type {
   SiteDeploymentFilters,
   SiteDeploymentStatusFilter,
 } from "@/types/sites";
-
-const NO_FILTERS: SiteDeploymentFilters = {
-  environment: "all",
-  status: "all",
-};
-
-function matchesStatus(
-  deployment: SiteDeployment,
-  filter: SiteDeploymentStatusFilter | "all"
-): boolean {
-  if (filter === "all") {
-    return true;
-  }
-  // Uploading takes a second; it reads as part of the build.
-  if (filter === "building") {
-    return (
-      deployment.status === "building" || deployment.status === "uploading"
-    );
-  }
-  return deployment.status === filter;
-}
-
-function matchesFilters(
-  deployment: SiteDeployment,
-  filters: SiteDeploymentFilters
-): boolean {
-  const environmentOk =
-    filters.environment === "all" || filters.environment === deployment.kind;
-  return environmentOk && matchesStatus(deployment, filters.status);
-}
-
-function isEnvironmentFilter(
-  value: string | null
-): value is SiteDeploymentEnvironmentFilter {
-  return SITE_DEPLOYMENT_ENVIRONMENT_FILTERS.some((option) => option === value);
-}
-
-function isStatusFilter(
-  value: string | null
-): value is SiteDeploymentStatusFilter | "all" {
-  return SITE_DEPLOYMENT_STATUS_FILTERS.some((option) => option === value);
-}
+import {
+  deploymentMatchesFilters,
+  isDeploymentEnvironmentFilter,
+  isDeploymentStatusFilter,
+} from "@/utils/site-deployments";
 
 export function SiteDeploymentsPage() {
   const { organizationId, organizationSlug, siteId, detail } = useSite();
@@ -89,11 +53,13 @@ export function SiteDeploymentsPage() {
   const scope = { organizationId, siteId };
   const listQuery = useSiteDeploymentsList(scope);
   const deployLatest = useDeployLatest(scope);
-  const [filters, setFilters] = useState<SiteDeploymentFilters>(NO_FILTERS);
+  const [filters, setFilters] = useState<SiteDeploymentFilters>(
+    SITE_DEPLOYMENT_NO_FILTERS
+  );
   // The site layout already holds the latest 30; show those until the full list arrives.
   const deployments: SiteDeployment[] = listQuery.data ?? detail.deployments;
   const visible = deployments.filter((deployment) =>
-    matchesFilters(deployment, filters)
+    deploymentMatchesFilters(deployment, filters)
   );
   const filtered = filters.environment !== "all" || filters.status !== "all";
   const suspended = detail.site.status === "suspended";
@@ -124,7 +90,7 @@ export function SiteDeploymentsPage() {
       </EmptyHeader>
       <EmptyContent>
         <Button
-          onClick={() => setFilters(NO_FILTERS)}
+          onClick={() => setFilters(SITE_DEPLOYMENT_NO_FILTERS)}
           size="sm"
           variant="outline"
         >
@@ -164,7 +130,7 @@ export function SiteDeploymentsPage() {
         >
           <Select
             onValueChange={(value: string | null) => {
-              if (isEnvironmentFilter(value)) {
+              if (isDeploymentEnvironmentFilter(value)) {
                 setFilters((previous) => ({ ...previous, environment: value }));
               }
             }}
@@ -176,7 +142,9 @@ export function SiteDeploymentsPage() {
             >
               <SelectValue>
                 {(value: string) =>
-                  isEnvironmentFilter(value) ? environmentLabel(value) : value
+                  isDeploymentEnvironmentFilter(value)
+                    ? environmentLabel(value)
+                    : value
                 }
               </SelectValue>
             </SelectTrigger>
@@ -190,7 +158,7 @@ export function SiteDeploymentsPage() {
           </Select>
           <Select
             onValueChange={(value: string | null) => {
-              if (isStatusFilter(value)) {
+              if (isDeploymentStatusFilter(value)) {
                 setFilters((previous) => ({ ...previous, status: value }));
               }
             }}
@@ -202,7 +170,7 @@ export function SiteDeploymentsPage() {
             >
               <SelectValue>
                 {(value: string) =>
-                  isStatusFilter(value) ? statusLabel(value) : value
+                  isDeploymentStatusFilter(value) ? statusLabel(value) : value
                 }
               </SelectValue>
             </SelectTrigger>

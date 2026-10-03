@@ -1,16 +1,18 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
   SITE_ACTIVE_POLL_INTERVAL_MS,
   SITE_DEPLOYMENTS_PAGE_LIMIT,
-  SITE_ELAPSED_TICK_MS,
   SITE_IDLE_POLL_INTERVAL_MS,
 } from "@/constants/sites";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
+import type {
+  SitePollingQuery,
+  UseSiteDeploymentParams,
+} from "@/types/hooks/sites";
 import type {
   SiteDeployment,
   SiteDeploymentDetail,
@@ -22,30 +24,13 @@ import {
   isDeploymentInProgress,
 } from "@/utils/site-deployments";
 
-/** Current time, re-rendered every second while `active`, for ticking build timers. */
-export function useNow(active: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!active) {
-      return;
-    }
-    setNow(Date.now());
-    const timer = window.setInterval(
-      () => setNow(Date.now()),
-      SITE_ELAPSED_TICK_MS
-    );
-    return () => window.clearInterval(timer);
-  }, [active]);
-  return now;
-}
-
 /** Full deployment history for the deployments page; polls every 2s while a build runs. */
 export function useSiteDeploymentsList({ organizationId, siteId }: SiteScope) {
   return useQuery(
     dashboardOrpc.sites.deployments.list.queryOptions({
       input: { organizationId, siteId, limit: SITE_DEPLOYMENTS_PAGE_LIMIT },
       enabled: organizationId.length > 0,
-      refetchInterval: (query: { state: { data?: SiteDeployment[] } }) =>
+      refetchInterval: (query: SitePollingQuery<SiteDeployment[]>) =>
         hasDeploymentInProgress(query.state.data ?? [])
           ? SITE_ACTIVE_POLL_INTERVAL_MS
           : SITE_IDLE_POLL_INTERVAL_MS,
@@ -63,12 +48,12 @@ export function useSiteDeployment({
   organizationId,
   siteId,
   deploymentId,
-}: SiteScope & { deploymentId: string }) {
+}: UseSiteDeploymentParams) {
   return useQuery(
     dashboardOrpc.sites.deployments.get.queryOptions({
       input: { organizationId, siteId, deploymentId },
       enabled: organizationId.length > 0,
-      refetchInterval: (query: { state: { data?: SiteDeploymentDetail } }) => {
+      refetchInterval: (query: SitePollingQuery<SiteDeploymentDetail>) => {
         const status = query.state.data?.deployment.status;
         return status && !isDeploymentInProgress(status)
           ? false

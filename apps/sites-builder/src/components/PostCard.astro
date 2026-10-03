@@ -1,6 +1,8 @@
 ---
-import { authorsOf, type BlogEntry, formatDate, isoDate } from "../lib/entries";
+import { authorsOf } from "../lib/entries";
 import { assetUrl, href } from "../lib/params";
+import type { BlogEntry } from "../types/entries";
+import { formatDate, isoDate } from "../utils/dates";
 import PostCover from "./PostCover.astro";
 
 interface Props {

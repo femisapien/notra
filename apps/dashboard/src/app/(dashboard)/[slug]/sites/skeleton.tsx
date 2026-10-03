@@ -6,8 +6,7 @@ import { useTranslations } from "next-intl";
 import { GeoTableSkeleton } from "@/components/geo/skeleton-parts";
 import { PageHeading } from "@/components/layout/page-heading";
 import { SitesPageShell } from "@/components/sites/sites-page-shell";
-
-const SITE_SKELETON_ROWS = 3;
+import { SITES_PAGE_SKELETON_ROWS } from "@/constants/sites";
 
 export function SitesPageSkeleton() {
   const t = useTranslations("sites");
@@ -16,7 +15,7 @@ export function SitesPageSkeleton() {
       <PageHeading description={t("description")} title={t("title")}>
         <Skeleton className="h-8 w-24 rounded-lg" />
       </PageHeading>
-      <GeoTableSkeleton rows={SITE_SKELETON_ROWS} />
+      <GeoTableSkeleton rows={SITES_PAGE_SKELETON_ROWS} />
     </SitesPageShell>
   );
 }

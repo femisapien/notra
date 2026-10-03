@@ -32,11 +32,14 @@ import {
   SITE_TABLE_COMPACT_EMPTY_HEIGHT,
 } from "@/constants/sites";
 import { useDeployLatest } from "@/lib/hooks/use-site-deployments";
-import type { SiteDeployment } from "@/types/sites";
+import type {
+  SiteUpdatedLineProps,
+  SiteViewAllLinkProps,
+} from "@/types/components/sites";
 import { siteHref } from "@/utils/site-links";
 import { sitePreviewRows } from "@/utils/site-previews";
 
-function ViewAllLink({ href, label }: { href: string; label: string }) {
+function ViewAllLink({ href, label }: SiteViewAllLinkProps) {
   return (
     <Link
       className={buttonVariants({ size: "sm", variant: "ghost" })}
@@ -53,7 +56,7 @@ function ViewAllLink({ href, label }: { href: string; label: string }) {
   );
 }
 
-function UpdatedLine({ deployment }: { deployment: SiteDeployment | null }) {
+function UpdatedLine({ deployment }: SiteUpdatedLineProps) {
   const t = useTranslations("sites.overviewPage");
   const tTriggers = useTranslations("sites.triggers");
   if (!deployment) {

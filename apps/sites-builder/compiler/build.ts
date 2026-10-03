@@ -1,40 +1,31 @@
 import { spawn } from "node:child_process";
-import {
-  cp,
-  mkdir,
-  readdir,
-  readFile,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
+import { cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 
-import {
-  type SiteBuildRequest,
-  type SiteBuildResult,
-  siteBuildRequestSchema,
-} from "@notra/sites-core/schemas/build";
+import { siteBuildRequestSchema } from "@notra/sites-core/schemas/build";
+import type {
+  SiteBuildRequest,
+  SiteBuildResult,
+} from "@notra/sites-core/types/build";
 import {
   listMountedAreas,
   normalizeSiteMounts,
   pathCollidesWithOtherMount,
 } from "@notra/sites-core/utils/mounts";
 
-import { type AreaPages, writeAgentFiles } from "./agent-files";
+import { writeAgentFiles } from "./agent-files";
+import { AREA_PAGES_FILE } from "./constants/build";
 import { prepareSite } from "./prepare";
+import type { AreaPages } from "./types/agent-files";
+import type { AstroPackageJson, BuildSiteOptions } from "./types/build";
+import { listFiles } from "./utils/fs";
 import { rewritePublicAssetUrls } from "./utils/public-assets";
-
-/** Page list the theme emits for {@link writeAgentFiles}; consumed here, never deployed. */
-const AREA_PAGES_FILE = "notra-pages.json";
 
 function astroBin(toolchainRoot: string): string {
   const require = createRequire(join(toolchainRoot, "package.json"));
   const packageJsonPath = require.resolve("astro/package.json");
-  const packageJson = require(packageJsonPath) as {
-    bin: string | Record<string, string>;
-  };
+  const packageJson = require(packageJsonPath) as AstroPackageJson;
   const bin =
     typeof packageJson.bin === "string"
       ? packageJson.bin
@@ -71,33 +62,13 @@ export function runAstro(
   });
 }
 
-async function listFiles(root: string): Promise<string[]> {
-  const result: string[] = [];
-  const walk = async (dir: string) => {
-    for (const entry of await readdir(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(path);
-      } else if (entry.isFile()) {
-        result.push(path);
-      }
-    }
-  };
-  await walk(root);
-  return result;
-}
-
 /**
  * Builds every mounted area with its own `base`, then merges the outputs into
  * `outDir` at their mount paths (`out/blog/**`, `out/changelog/**`).
  */
-export async function buildSite(options: {
-  toolchainRoot: string;
-  siteRoot: string;
-  target: SiteBuildRequest;
-  outDir: string;
-  workDir?: string;
-}): Promise<SiteBuildResult> {
+export async function buildSite(
+  options: BuildSiteOptions
+): Promise<SiteBuildResult> {
   const workDir =
     options.workDir ?? join(options.toolchainRoot, ".notra", "work");
   const mounts = normalizeSiteMounts(options.target.mounts);

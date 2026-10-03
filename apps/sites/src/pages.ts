@@ -1,9 +1,4 @@
-const escapeHtml = (value: string) =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+import { escapeHtml } from "./utils/html";
 
 function page(title: string, body: string): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(title)}</title><style>:root{color-scheme:light dark}body{margin:0;min-height:100dvh;display:grid;place-items:center;font:16px/1.6 ui-sans-serif,system-ui,sans-serif;background:light-dark(#fafaf9,#0d0d0f);color:light-dark(#18181b,#f2f2f3)}main{max-width:28rem;padding:2rem;text-align:center}h1{font-size:1.4rem;margin:0 0 .5rem;letter-spacing:-.01em}p{margin:0 0 1.25rem;color:light-dark(#5f5f66,#a0a0a8)}a{display:inline-block;padding:.55rem 1rem;border-radius:999px;background:light-dark(#18181b,#f2f2f3);color:light-dark(#fff,#18181b);text-decoration:none;font-weight:500}</style></head><body><main>${body}</main></body></html>`;

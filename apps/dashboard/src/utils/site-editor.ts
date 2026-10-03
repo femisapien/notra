@@ -1,15 +1,26 @@
 import type { IconSvgElement } from "@hugeicons/react";
 import { ORPCError } from "@orpc/client";
 import type { FileDiffMetadata, ThemeTypes } from "@pierre/diffs";
+import type {
+  FileTree as FileTreeModel,
+  FileTreeDirectoryHandle,
+  GitStatusEntry,
+} from "@pierre/trees";
 
 import {
+  SITE_EDITOR_COLLAPSED_FOLDERS,
   SITE_EDITOR_EDIT_STATE_PREFIX,
   SITE_EDITOR_FILE_ICONS,
   SITE_EDITOR_IMAGE_EXTENSIONS,
   SITE_EDITOR_LANGUAGES,
 } from "@/constants/site-editor";
 import { SITE_EDITABLE_FILE_PATTERN } from "@/constants/sites";
-import type { SiteEditorLanguage, SiteFileTreeFile } from "@/types/site-editor";
+import type {
+  SiteDiffLineCounts,
+  SiteDraftChange,
+  SiteEditorLanguage,
+  SiteFileTreeFile,
+} from "@/types/site-editor";
 import type {
   SiteEditorDraft,
   SiteEditorFile,
@@ -159,10 +170,7 @@ export function siteEditStateKey(siteId: string, path: string): string {
 }
 
 /** Lines added and removed across a diff's hunks. */
-export function diffLineCounts(fileDiff: FileDiffMetadata): {
-  additions: number;
-  deletions: number;
-} {
+export function diffLineCounts(fileDiff: FileDiffMetadata): SiteDiffLineCounts {
   let additions = 0;
   let deletions = 0;
   for (const hunk of fileDiff.hunks) {
@@ -180,4 +188,70 @@ export function siteCodeThemeType(
     return resolvedTheme;
   }
   return "system";
+}
+
+/** How publishing a draft changes the repository. */
+export function siteDraftChange(
+  draft: SiteEditorDraft,
+  sourcePaths: ReadonlySet<string>
+): SiteDraftChange {
+  if (draft.deleted) {
+    return "deleted";
+  }
+  return sourcePaths.has(draft.path) ? "modified" : "added";
+}
+
+/** Every folder above a file path, outermost first. */
+export function siteFileAncestors(path: string): string[] {
+  const parts = path.split("/");
+  return parts
+    .slice(0, -1)
+    .map((_, index) => parts.slice(0, index + 1).join("/"));
+}
+
+export function siteFileTreeFolderHandle(
+  model: FileTreeModel,
+  path: string
+): FileTreeDirectoryHandle | null {
+  const item = model.getItem(path);
+  return item && "expand" in item ? item : null;
+}
+
+function isSiteFolderCollapsedByDefault(folder: string): boolean {
+  return SITE_EDITOR_COLLAPSED_FOLDERS.some(
+    (collapsed) => folder === collapsed || folder.startsWith(`${collapsed}/`)
+  );
+}
+
+/** Folders open on first render: everything but asset folders, plus the open file's. */
+export function siteFileTreeInitialExpandedFolders(
+  paths: readonly string[],
+  selectedPath: string | null
+): string[] {
+  const folders = new Set<string>();
+  for (const path of paths) {
+    for (const folder of siteFileAncestors(path)) {
+      if (!isSiteFolderCollapsedByDefault(folder)) {
+        folders.add(folder);
+      }
+    }
+  }
+  for (const folder of selectedPath ? siteFileAncestors(selectedPath) : []) {
+    folders.add(folder);
+  }
+  return [...folders];
+}
+
+export function siteFileTreeGitStatus(
+  files: readonly SiteFileTreeFile[]
+): GitStatusEntry[] {
+  const entries: GitStatusEntry[] = [];
+  for (const file of files) {
+    if (file.isNew) {
+      entries.push({ path: file.path, status: "added" });
+    } else if (file.hasDraft) {
+      entries.push({ path: file.path, status: "modified" });
+    }
+  }
+  return entries;
 }

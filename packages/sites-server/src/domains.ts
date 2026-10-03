@@ -9,7 +9,6 @@ import {
 import { and, eq, ne } from "drizzle-orm";
 
 import {
-  type CloudflareCustomHostname,
   cloudflareSaasConfig,
   createCustomHostname,
   deleteCustomHostname,
@@ -17,15 +16,20 @@ import {
   findCustomHostname,
   getCustomHostname,
 } from "./cloudflare-saas";
-import type { Site } from "./deployments";
+import { PROBE_TIMEOUT_MS } from "./constants/domains";
 import { getSitesHostingDomain } from "./env";
 import { setSitePublicOrigin, SiteInputError } from "./sites";
 import { claimHostRecord, releaseHostRecord } from "./state";
+import type { CloudflareCustomHostname } from "./types/cloudflare-saas";
+import type {
+  AddSiteDomainInput,
+  ProxyProbeResult,
+  RefreshSiteDomainResult,
+  SiteDomain,
+} from "./types/domains";
+import type { Site } from "./types/sites";
 
-const PROBE_TIMEOUT_MS = 10_000;
 const IP_LITERAL = /^(?:\d{1,3}\.){3}\d{1,3}$|^\[?[0-9a-f:]+\]?$/i;
-
-export type SiteDomain = typeof siteDomains.$inferSelect;
 
 /** CNAME target customers point their subdomain at. */
 export function siteCnameTarget(): string {
@@ -90,7 +94,7 @@ function assertPublicHostname(hostname: string) {
  */
 export async function addSiteDomain(
   site: Site,
-  input: { kind: SiteDomain["kind"]; value: string }
+  input: AddSiteDomainInput
 ): Promise<SiteDomain> {
   const raw = input.value
     .trim()
@@ -183,7 +187,7 @@ async function fetchWithTimeout(url: string): Promise<Response> {
 export async function probeProxyOrigin(
   site: Site,
   origin: string
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<ProxyProbeResult> {
   for (const { area, mount } of listMountedAreas(site.mounts)) {
     const probeUrl = `${origin}${joinMountPath(mount, "_notra/probe.txt")}`;
     try {
@@ -225,7 +229,7 @@ export async function refreshSiteDomain(
   site: Site,
   domainId: string,
   userId: string | null
-): Promise<{ domain: SiteDomain; rebuildJobId: string | null }> {
+): Promise<RefreshSiteDomainResult> {
   const [domain] = await db
     .select()
     .from(siteDomains)

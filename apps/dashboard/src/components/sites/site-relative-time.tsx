@@ -3,18 +3,14 @@
 import { useLocale, useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
+import type { SiteRelativeTimeProps } from "@/types/components/sites";
 import { formatRelative } from "@/utils/format-relative";
 
 export function SiteRelativeTime({
   date,
   className,
   inline = false,
-}: {
-  date: Date | string;
-  className?: string;
-  /** Mid-sentence use: "Live since just now", not "Just now". */
-  inline?: boolean;
-}) {
+}: SiteRelativeTimeProps) {
   const locale = useLocale();
   const tCommon = useTranslations("common");
   const value = new Date(date);

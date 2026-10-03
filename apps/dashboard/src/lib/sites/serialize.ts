@@ -1,17 +1,16 @@
-import type { siteDeployments, siteDomains } from "@notra/db/schema";
-import type { SiteServingState } from "@notra/sites-core/schemas/deployment";
-import type { Site } from "@notra/sites-server/deployments";
+import type { SiteServingState } from "@notra/sites-core/types/deployment";
+import type { Site } from "@notra/sites-server/types/sites";
 import {
   primaryMountUrl,
   siteAliasOrigin,
   sitePreviewOrigin,
 } from "@notra/sites-server/urls";
 
-type DeploymentRow = typeof siteDeployments.$inferSelect;
-type DomainRow = typeof siteDomains.$inferSelect;
-
-/** What the serving state says is live, keyed by deployment id → since when. */
-export type LiveDeployments = Map<string, string>;
+import type {
+  LiveDeployments,
+  SiteDeploymentDbRow,
+  SiteDomainDbRow,
+} from "@/types/sites-server";
 
 export function liveDeploymentsFromState(
   state: SiteServingState | null | undefined
@@ -55,7 +54,7 @@ export function serializeSite(
 }
 
 export function serializeDeployment(
-  deployment: DeploymentRow,
+  deployment: SiteDeploymentDbRow,
   live: LiveDeployments
 ) {
   return {
@@ -89,7 +88,7 @@ export function serializeDeployment(
   };
 }
 
-export function serializeDomain(site: Site, domain: DomainRow) {
+export function serializeDomain(site: Site, domain: SiteDomainDbRow) {
   return {
     id: domain.id,
     hostname: domain.hostname,
@@ -106,7 +105,7 @@ export function serializeDomain(site: Site, domain: DomainRow) {
 export function serializePreviews(
   site: Site,
   state: SiteServingState | null | undefined,
-  deployments: DeploymentRow[]
+  deployments: SiteDeploymentDbRow[]
 ) {
   return Object.entries(state?.previews ?? {}).map(([previewKey, pointer]) => {
     const deployment = deployments.find(

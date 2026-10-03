@@ -53,8 +53,3 @@ export const siteBuildResultSchema = z.object({
   /** From notra.json. */
   redirects: z.array(siteBuildRedirectSchema).max(500),
 });
-
-export type SiteDiagnostic = z.infer<typeof siteDiagnosticSchema>;
-export type SiteBuildRequest = z.infer<typeof siteBuildRequestSchema>;
-export type SiteBuildRequestInput = z.input<typeof siteBuildRequestSchema>;
-export type SiteBuildResult = z.infer<typeof siteBuildResultSchema>;

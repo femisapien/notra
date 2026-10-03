@@ -11,23 +11,11 @@ import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/button";
 import { cn } from "@/lib/utils";
-import type { SiteEditorProblemsProps } from "@/types/site-editor";
-import type { SiteDiagnostic } from "@/types/sites";
-
-function diagnosticLocation(diagnostic: SiteDiagnostic): string | null {
-  if (!diagnostic.file) {
-    return null;
-  }
-  if (diagnostic.line === undefined) {
-    return diagnostic.file;
-  }
-  return diagnostic.column === undefined
-    ? `${diagnostic.file}:${diagnostic.line}`
-    : `${diagnostic.file}:${diagnostic.line}:${diagnostic.column}`;
-}
-
-const severityRank = (diagnostic: SiteDiagnostic): number =>
-  diagnostic.severity === "error" ? 0 : 1;
+import type { SiteEditorProblemsProps } from "@/types/components/site-editor";
+import {
+  siteDiagnosticLocation,
+  siteDiagnosticSeverityRank,
+} from "@/utils/site-diagnostics";
 
 /** Validation results docked under the editor; a row with a file opens it at the line. */
 export function SiteEditorProblems({
@@ -38,7 +26,7 @@ export function SiteEditorProblems({
   const t = useTranslations("sites.editorPage.problems");
   const tDiagnostics = useTranslations("sites.diagnostics");
   const sorted = [...diagnostics].sort(
-    (a, b) => severityRank(a) - severityRank(b)
+    (a, b) => siteDiagnosticSeverityRank(a) - siteDiagnosticSeverityRank(b)
   );
 
   return (
@@ -78,7 +66,7 @@ export function SiteEditorProblems({
         <ul className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
           {sorted.map((diagnostic, index) => {
             const isError = diagnostic.severity === "error";
-            const where = diagnosticLocation(diagnostic);
+            const where = siteDiagnosticLocation(diagnostic);
             const row = (
               <>
                 <HugeiconsIcon

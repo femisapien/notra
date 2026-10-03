@@ -5,7 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/button";
-import type { SiteEditorConflictBannerProps } from "@/types/site-editor";
+import type { SiteEditorConflictBannerProps } from "@/types/components/site-editor";
 
 /** Shown when publishing failed because someone pushed to the same files. */
 export function SiteEditorConflictBanner({

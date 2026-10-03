@@ -4,11 +4,11 @@ import { SITE_PREVIEW_COOKIE } from "@notra/sites-core/constants/sites";
 import type {
   SiteManifest,
   SiteServingState,
-} from "@notra/sites-core/schemas/deployment";
+} from "@notra/sites-core/types/deployment";
 import { signSitePreviewToken } from "@notra/sites-core/utils/preview-token";
 
 import { handleSiteRequest, resetCachesForTests } from "../src/handler";
-import type { SitesDeps } from "../src/types";
+import type { SitesDeps } from "../src/types/worker";
 
 const SECRET = "test-secret";
 const DOMAIN = "notra.site";

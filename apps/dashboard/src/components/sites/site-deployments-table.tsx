@@ -3,7 +3,7 @@
 import { GitBranchIcon, GitCommitIcon } from "@hugeicons/core-free-icons";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 
 import { Table, type TableColumn } from "@/components/motion/table";
 import { SiteDeploymentMenu } from "@/components/sites/site-deployment-menu";
@@ -12,11 +12,10 @@ import { SiteRelativeTime } from "@/components/sites/site-relative-time";
 import { SiteRollbackDialog } from "@/components/sites/site-rollback-dialog";
 import { SiteStatusDot } from "@/components/sites/site-status-dot";
 import { SITE_TABLE_EMPTY_HEIGHT } from "@/constants/sites";
-import {
-  useNow,
-  useRedeployDeployment,
-} from "@/lib/hooks/use-site-deployments";
+import { useNow } from "@/lib/hooks/use-now";
+import { useRedeployDeployment } from "@/lib/hooks/use-site-deployments";
 import { cn } from "@/lib/utils";
+import type { SiteDeploymentsTableProps } from "@/types/components/sites";
 import type { SiteDeployment } from "@/types/sites";
 import {
   commitTitle,
@@ -41,18 +40,7 @@ export function SiteDeploymentsTable({
   withActions = false,
   highlightNewRows = false,
   emptyHeight = SITE_TABLE_EMPTY_HEIGHT,
-}: {
-  organizationId: string;
-  organizationSlug: string;
-  siteId: string;
-  deployments: SiteDeployment[];
-  emptyState?: ReactNode;
-  /** Row menu with Redeploy and Restore. */
-  withActions?: boolean;
-  /** Glow rows that arrive after the first render, e.g. a build that just started. */
-  highlightNewRows?: boolean;
-  emptyHeight?: number;
-}) {
+}: SiteDeploymentsTableProps) {
   const t = useTranslations("sites.deploymentsPage");
   const tKinds = useTranslations("sites.kinds");
   const tTriggers = useTranslations("sites.triggers");

@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 
 import { InstrumentModule } from "@/components/instrument/instrument-module";
 import { SITE_REPOSITORY_LAYOUT } from "@/constants/sites";
-import type { SiteRepositoryLayoutProps } from "@/types/sites";
+import type { SiteRepositoryLayoutProps } from "@/types/components/sites";
 
 export function SiteRepositoryLayout({ className }: SiteRepositoryLayoutProps) {
   const t = useTranslations("sites.layout");

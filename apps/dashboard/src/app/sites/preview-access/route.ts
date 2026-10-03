@@ -2,9 +2,8 @@ import { getSite } from "@notra/sites-server/deployments";
 import { previewAccessUrl } from "@notra/sites-server/preview-access";
 import type { NextRequest } from "next/server";
 
+import { SITE_PREVIEW_KEY_PATTERN } from "@/constants/sites";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
-
-const PREVIEW_KEY = /^(?:pr|br)-[a-z0-9-]{1,40}$/;
 
 /**
  * Protected previews send signed-out visitors here. The proxy already forced a
@@ -15,7 +14,9 @@ export async function GET(request: NextRequest) {
   const siteId = request.nextUrl.searchParams.get("site") ?? "";
   const previewKey = request.nextUrl.searchParams.get("preview") ?? "";
   const next = request.nextUrl.searchParams.get("next") ?? "/";
-  if (!(siteId.startsWith("site_") && PREVIEW_KEY.test(previewKey))) {
+  if (
+    !(siteId.startsWith("site_") && SITE_PREVIEW_KEY_PATTERN.test(previewKey))
+  ) {
     return new Response("Invalid preview link", { status: 400 });
   }
   const site = await getSite(siteId);

@@ -1,7 +1,8 @@
 import type { APIRoute } from "astro";
 
-import { getBlogEntries, getChangelogEntries, isoDate } from "../lib/entries";
+import { getBlogEntries, getChangelogEntries } from "../lib/entries";
 import { absoluteUrl, href, params } from "../lib/params";
+import { isoDate } from "../utils/dates";
 
 /** One sitemap per area; the customer references it from their root sitemap or robots.txt. */
 export const GET: APIRoute = async () => {

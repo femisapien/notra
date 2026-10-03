@@ -6,6 +6,7 @@ import {
   SITE_IDLE_POLL_INTERVAL_MS,
 } from "@/constants/sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
+import type { SitePollingQuery } from "@/types/hooks/sites";
 import type { SiteDetail, SiteListResult } from "@/types/sites";
 import { hasDeploymentInProgress } from "@/utils/site-deployments";
 
@@ -34,7 +35,7 @@ export function useSitesList(organizationId: string) {
     dashboardOrpc.sites.list.queryOptions({
       input: { organizationId },
       enabled: organizationId.length > 0,
-      refetchInterval: (query: { state: { data?: SiteListResult } }) => {
+      refetchInterval: (query: SitePollingQuery<SiteListResult>) => {
         const latest = (query.state.data?.sites ?? []).flatMap((site) =>
           site.latestDeployment ? [site.latestDeployment] : []
         );
@@ -53,7 +54,7 @@ export function useSiteDetail(organizationId: string, siteId: string) {
     dashboardOrpc.sites.get.queryOptions({
       input: { organizationId, siteId },
       enabled: organizationId.length > 0,
-      refetchInterval: (query: { state: { data?: SiteDetail } }) =>
+      refetchInterval: (query: SitePollingQuery<SiteDetail>) =>
         hasDeploymentInProgress(query.state.data?.deployments ?? [])
           ? SITE_ACTIVE_POLL_INTERVAL_MS
           : SITE_IDLE_POLL_INTERVAL_MS,

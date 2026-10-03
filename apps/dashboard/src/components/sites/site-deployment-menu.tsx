@@ -21,7 +21,7 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/button";
 import { cn } from "@/lib/utils";
-import type { SiteDeploymentRecord } from "@/types/sites";
+import type { SiteDeploymentMenuProps } from "@/types/components/sites";
 import { copyTextToClipboard } from "@/utils/copy-to-clipboard";
 import { isDeploymentInProgress, shortSha } from "@/utils/site-deployments";
 
@@ -39,22 +39,7 @@ export function SiteDeploymentMenu({
   triggerVariant = "ghost",
   showVisit = true,
   className,
-}: {
-  deployment: Pick<
-    SiteDeploymentRecord,
-    "id" | "live" | "status" | "url" | "commitSha"
-  >;
-  canRollback: boolean;
-  /** Adds "View details"; for lists. */
-  detailHref?: string;
-  redeployPending: boolean;
-  onRedeploy: () => void;
-  onRollback: () => void;
-  triggerVariant?: "ghost" | "outline";
-  /** Off where a Visit button already sits next to the menu. */
-  showVisit?: boolean;
-  className?: string;
-}) {
+}: SiteDeploymentMenuProps) {
   const t = useTranslations("sites.deployments.actions");
   const tPage = useTranslations("sites.deploymentsPage.actions");
   const router = useRouter();

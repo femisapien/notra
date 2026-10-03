@@ -38,6 +38,7 @@ import {
 } from "@/constants/workflow-analytics";
 import { trackWorkflowStarted } from "@/lib/analytics/workflow-lifecycle";
 import type { BrandAnalysisPayload } from "@/types/brand-analysis";
+import type { SiteJobRunHandle } from "@/types/sites-server";
 import { agentReadinessWorkflow } from "@/workflows/agent-readiness";
 import {
   brandAnalysisPayloadSchema,
@@ -61,7 +62,7 @@ import { socialAnalyticsSyncWorkflow } from "@/workflows/social-analytics-sync";
 
 export async function startSiteJobRun(
   jobId: string
-): Promise<{ runId: string }> {
+): Promise<SiteJobRunHandle> {
   const run = await start(siteJobWorkflow, [jobId]);
   return { runId: run.runId };
 }

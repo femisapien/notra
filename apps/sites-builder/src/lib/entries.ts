@@ -1,11 +1,9 @@
-import { type CollectionEntry, getCollection } from "astro:content";
+import { getCollection } from "astro:content";
 
+import type { BlogEntry, ChangelogEntry, DatedEntry } from "../types/entries";
 import { params } from "./params";
 
-export type BlogEntry = CollectionEntry<"blog">;
-export type ChangelogEntry = CollectionEntry<"changelog">;
-
-const byDateDesc = (a: { data: { date: Date } }, b: { data: { date: Date } }) =>
+const byDateDesc = (a: DatedEntry, b: DatedEntry) =>
   b.data.date.getTime() - a.data.date.getTime();
 
 export async function getBlogEntries(): Promise<BlogEntry[]> {
@@ -30,30 +28,4 @@ export function authorsOf(entry: BlogEntry): string[] {
     return [];
   }
   return Array.isArray(author) ? author : [author];
-}
-
-const WORDS_PER_MINUTE = 220;
-
-export function readingMinutes(body: string | undefined): number {
-  const words = (body ?? "")
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/<[^>]+>/g, " ")
-    .split(/\s+/)
-    .filter(Boolean).length;
-  return Math.max(1, Math.round(words / WORDS_PER_MINUTE));
-}
-
-const dateFormat = new Intl.DateTimeFormat("en", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  timeZone: "UTC",
-});
-
-export function formatDate(date: Date): string {
-  return dateFormat.format(date);
-}
-
-export function isoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
 }

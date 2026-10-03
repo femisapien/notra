@@ -2,6 +2,7 @@ import { db } from "@notra/db/drizzle";
 import { siteJobs } from "@notra/db/schema";
 import { eq } from "drizzle-orm";
 
+import { BUILDABLE_STATUSES } from "./constants/jobs";
 import {
   allocateGeneration,
   cancelPreviewBuilds,
@@ -14,24 +15,11 @@ import {
   completeSiteJob,
   failSiteJob,
   reserveBuildCapacity,
-  type SiteJob,
   takeExhaustedSiteJobs,
 } from "./jobs";
 import { failDeployment, runDeploymentPipeline } from "./pipeline";
-import type { DeploymentOutcome } from "./reporting";
 import { removePreviewDeployment } from "./state";
-
-const BUILDABLE_STATUSES = new Set([
-  "queued",
-  "building",
-  "uploading",
-  "ready",
-]);
-
-export interface SiteJobOutcome {
-  status: "done" | "retrying" | "failed" | "skipped";
-  outcome?: DeploymentOutcome["kind"];
-}
+import type { SiteJob, SiteJobOutcome } from "./types/jobs";
 
 async function runBuildJob(job: SiteJob): Promise<SiteJobOutcome> {
   const deployment = job.deploymentId

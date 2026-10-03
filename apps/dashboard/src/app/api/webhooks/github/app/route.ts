@@ -6,12 +6,10 @@ import {
 import { handleSitesWebhook } from "@notra/sites-server/webhooks";
 import { after, type NextRequest } from "next/server";
 
+import { SITES_ONLY_GITHUB_EVENTS } from "@/constants/sites";
 import { dispatchSiteJobs } from "@/lib/sites/dispatch";
 import { writeMentionWebhookLog } from "@/lib/webhooks/github-mention-log";
 import { startGitHubMentionRun } from "@/lib/workflows/start";
-
-/** Events only Sites consumes; `pull_request` goes to both Sites and mentions. */
-const SITES_ONLY_EVENTS = new Set(["push", "check_run"]);
 
 export const POST = withEvlog(async (request: NextRequest) => {
   const rawBody = await request.text();
@@ -38,7 +36,7 @@ export const POST = withEvlog(async (request: NextRequest) => {
           const jobIds = sites.jobIds;
           after(() => dispatchSiteJobs(jobIds));
         }
-        if (SITES_ONLY_EVENTS.has(event) || sites.httpStatus >= 400) {
+        if (SITES_ONLY_GITHUB_EVENTS.has(event) || sites.httpStatus >= 400) {
           return Response.json(sites.body, { status: sites.httpStatus });
         }
       }
@@ -48,7 +46,7 @@ export const POST = withEvlog(async (request: NextRequest) => {
         event,
         error: error instanceof Error ? error.message : error,
       });
-      if (event && SITES_ONLY_EVENTS.has(event)) {
+      if (event && SITES_ONLY_GITHUB_EVENTS.has(event)) {
         return Response.json(
           { error: "Sites webhook failed" },
           { status: 500 }

@@ -12,19 +12,18 @@ import { Button } from "@/components/button";
 import { SiteCodeEditor } from "@/components/sites/editor/site-code-editor";
 import { SiteEditorFileBar } from "@/components/sites/editor/site-editor-file-bar";
 import { SiteFileDiff } from "@/components/sites/editor/site-file-diff";
+import { SITE_EDITOR_LOADING_LINES } from "@/constants/site-editor";
 import { SITE_EDITOR_AUTOSAVE_MS } from "@/constants/sites";
 import { useSiteCodeHighlighter } from "@/lib/hooks/use-site-code-highlighter";
 import { dashboardOrpc } from "@/lib/orpc/query";
+import type { SiteEditorPaneProps } from "@/types/components/site-editor";
 import type {
   SiteDiffStyle,
   SiteEditorMode,
-  SiteEditorPaneProps,
   SiteEditorSaveState,
 } from "@/types/site-editor";
 import { toErrorMessage } from "@/utils/error-message";
 import { siteEditStateKey } from "@/utils/site-editor";
-
-const LOADING_LINES = ["w-1/3", "w-2/3", "w-1/2", "w-3/5", "w-1/4"] as const;
 
 /** One open file: loads it, autosaves edits as a draft, compares it with what's live. */
 export function SiteEditorPane({
@@ -199,7 +198,7 @@ export function SiteEditorPane({
   if (readQuery.isPending || !highlighterReady) {
     body = (
       <div aria-busy="true" className="space-y-3 py-4 ps-14 pe-6">
-        {LOADING_LINES.map((width) => (
+        {SITE_EDITOR_LOADING_LINES.map((width) => (
           <Skeleton className={`h-3 ${width}`} key={width} />
         ))}
       </div>

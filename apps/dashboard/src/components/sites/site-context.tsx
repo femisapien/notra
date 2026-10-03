@@ -2,15 +2,7 @@
 
 import { createContext, useContext } from "react";
 
-import type { SiteDeployment, SiteDetail } from "@/types/sites";
-
-export interface SiteContextValue {
-  organizationId: string;
-  organizationSlug: string;
-  siteId: string;
-  detail: SiteDetail;
-  liveDeployment: SiteDeployment | null;
-}
+import type { SiteContextValue } from "@/types/sites";
 
 export const SiteContext = createContext<SiteContextValue | null>(null);
 

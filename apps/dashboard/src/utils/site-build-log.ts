@@ -1,6 +1,12 @@
+import {
+  SITE_BUILD_LOG_FRAME_FOLD_MIN,
+  SITE_BUILD_LOG_NOISE_FOLD_MIN,
+  SITE_BUILD_LOG_NOISE_KEEP,
+} from "@/constants/sites";
 import type {
   SiteBuildLogEntry,
   SiteBuildLogLine,
+  SiteBuildLogTagParts,
   SiteBuildLogTone,
 } from "@/types/sites";
 import { stripAnsi } from "@/utils/site-deployments";
@@ -96,11 +102,6 @@ const CLOCK = /^(\d{2}):(\d{2}):(\d{2})/;
 const SECONDS_PER_MINUTE = 60;
 const SECONDS_PER_HOUR = 3600;
 const SECONDS_PER_DAY = 86_400;
-/** Code frames shorter than this stay inline. */
-const FRAME_FOLD_MIN = 3;
-/** Noise runs longer than this keep their first lines and fold the rest. */
-const NOISE_FOLD_MIN = 6;
-const NOISE_KEEP = 2;
 
 const STACK_FRAME = /^\s+at\s/;
 
@@ -126,7 +127,7 @@ function foldStackFrames(
     if (first) {
       entries.push({ kind: "line", line: first });
     }
-    if (rest.length >= FRAME_FOLD_MIN - 1) {
+    if (rest.length >= SITE_BUILD_LOG_FRAME_FOLD_MIN - 1) {
       entries.push({
         kind: "fold",
         id: `fold-${rest[0]?.number}`,
@@ -165,7 +166,7 @@ export function groupBuildLog(
       if (line.tone === "error") {
         // An error's frame is the point of the log: keep it, fold only its stack.
         entries.push(...foldStackFrames(run));
-      } else if (run.length >= FRAME_FOLD_MIN) {
+      } else if (run.length >= SITE_BUILD_LOG_FRAME_FOLD_MIN) {
         entries.push({
           kind: "fold",
           id: `fold-${run[0]?.number}`,
@@ -189,7 +190,10 @@ export function groupBuildLog(
         run.push(lines[index] as SiteBuildLogLine);
         index += 1;
       }
-      const kept = run.length > NOISE_FOLD_MIN ? NOISE_KEEP : run.length;
+      const kept =
+        run.length > SITE_BUILD_LOG_NOISE_FOLD_MIN
+          ? SITE_BUILD_LOG_NOISE_KEEP
+          : run.length;
       for (const item of run.slice(0, kept)) {
         entries.push({ kind: "line", line: item });
       }
@@ -211,10 +215,7 @@ export function groupBuildLog(
 }
 
 /** Splits `[build] Collecting…` into its tool tag and the message. */
-export function splitLogTag(text: string): {
-  tag: string | null;
-  rest: string;
-} {
+export function splitLogTag(text: string): SiteBuildLogTagParts {
   const match = TAG_PREFIX.exec(text);
   return match
     ? { tag: match[1] ?? null, rest: match[2] ?? "" }

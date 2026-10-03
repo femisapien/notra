@@ -9,7 +9,8 @@ import { Table, type TableColumn } from "@/components/motion/table";
 import { SiteRelativeTime } from "@/components/sites/site-relative-time";
 import { SiteStatusDot } from "@/components/sites/site-status-dot";
 import { SITE_LIST_TABLE_ROW_HEIGHT } from "@/constants/sites";
-import type { SiteListItem, SitesTableProps } from "@/types/sites";
+import type { SitesTableProps } from "@/types/components/sites";
+import type { SiteListItem } from "@/types/sites";
 import { displayUrl } from "@/utils/site-links";
 import { tableHeightFor } from "@/utils/table";
 

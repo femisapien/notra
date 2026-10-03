@@ -1,13 +1,18 @@
+import { SITE_MAX_REMOVED_PREVIEWS } from "@notra/sites-core/constants/sites";
 import type {
   SitePreviewPointer,
   SiteServingState,
-} from "@notra/sites-core/schemas/deployment";
+} from "@notra/sites-core/types/deployment";
+import type {
+  InitialServingStateParams,
+  PreviewActivationResult,
+  ProductionActivationResult,
+  ProductionPointerInput,
+} from "@notra/sites-core/types/serving-state";
 
-export function createInitialServingState(params: {
-  siteId: string;
-  slug: string;
-  now: Date;
-}): SiteServingState {
+export function createInitialServingState(
+  params: InitialServingStateParams
+): SiteServingState {
   return {
     version: 1,
     siteId: params.siteId,
@@ -20,11 +25,6 @@ export function createInitialServingState(params: {
   };
 }
 
-export type ProductionActivationResult =
-  | { outcome: "activated"; state: SiteServingState }
-  | { outcome: "already_active"; state: SiteServingState }
-  | { outcome: "superseded"; activeGeneration: number };
-
 /**
  * A pointer only ever moves forward. A late build of an older push, or a
  * retried activation after a crash, can therefore never undo a newer release
@@ -32,7 +32,7 @@ export type ProductionActivationResult =
  */
 export function activateProductionInState(
   state: SiteServingState,
-  pointer: { deploymentId: string; generation: number },
+  pointer: ProductionPointerInput,
   now: Date
 ): ProductionActivationResult {
   const current = state.production;
@@ -58,10 +58,6 @@ export function activateProductionInState(
     },
   };
 }
-
-export type PreviewActivationResult =
-  | { outcome: "activated"; state: SiteServingState }
-  | { outcome: "superseded"; activeSequence: number };
 
 /** Previews are ordered per key by a sequence (the DB row counter), same forward-only rule. */
 export function activatePreviewInState(
@@ -92,8 +88,6 @@ export function activatePreviewInState(
   };
 }
 
-const MAX_REMOVED_PREVIEWS = 200;
-
 /**
  * Removes a preview and leaves a tombstone at `generation`, so a build of that
  * preview that was still running cannot re-activate it afterwards.
@@ -111,7 +105,7 @@ export function removePreviewFromState(
     [previewKey]: generation,
   })
     .sort(([, a], [, b]) => b - a)
-    .slice(0, MAX_REMOVED_PREVIEWS);
+    .slice(0, SITE_MAX_REMOVED_PREVIEWS);
   return {
     ...state,
     previews,

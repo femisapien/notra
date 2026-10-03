@@ -12,7 +12,7 @@ import {
   SITE_CODE_THEME,
 } from "@/constants/site-editor";
 import { cn } from "@/lib/utils";
-import type { SiteFileDiffProps } from "@/types/site-editor";
+import type { SiteFileDiffProps } from "@/types/components/site-editor";
 import { siteCodeThemeType } from "@/utils/site-editor";
 
 /** One file's draft against its published version, rendered by Pierre. */

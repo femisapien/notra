@@ -3,11 +3,7 @@
 import { Alert02Icon, CancelCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { FileContents, LineAnnotation } from "@pierre/diffs";
-import type {
-  Editor,
-  EditorChangeEvent,
-  EditorOptions,
-} from "@pierre/diffs/edit";
+import type { EditorChangeEvent, EditorOptions } from "@pierre/diffs/edit";
 import { EditStateManager } from "@pierre/diffs/edit";
 import { File } from "@pierre/diffs/react";
 import type { FileOptions } from "@pierre/diffs/react";
@@ -23,12 +19,11 @@ import {
 } from "@/constants/site-editor";
 import { cn } from "@/lib/utils";
 import type {
-  SiteCodeAnnotation,
+  SiteCodeAnnotationRowProps,
   SiteCodeEditorProps,
-} from "@/types/site-editor";
+} from "@/types/components/site-editor";
+import type { SiteCodeAnnotation, SiteFileEditor } from "@/types/site-editor";
 import { siteCodeThemeType } from "@/utils/site-editor";
-
-type SiteFileEditor = Editor<"file", SiteCodeAnnotation>;
 
 /** Puts the caret on a line and centers it, so the diagnostic under it shows too. */
 function focusLine(
@@ -43,11 +38,7 @@ function focusLine(
     ?.scrollIntoView({ block: "center" });
 }
 
-function SiteCodeAnnotationRow({
-  annotation,
-}: {
-  annotation: SiteCodeAnnotation;
-}) {
+function SiteCodeAnnotationRow({ annotation }: SiteCodeAnnotationRowProps) {
   const t = useTranslations("sites.diagnostics");
   const isError = annotation.severity === "error";
   return (

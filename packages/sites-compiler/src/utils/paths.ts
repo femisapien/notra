@@ -1,12 +1,7 @@
 import { posix } from "node:path";
 
-const IMPORTABLE_EXTENSIONS = [".mdx", ".md", ".jsx", ".js"] as const;
-
-export type ImportKind = "content" | "component";
-
-export type ResolvedImport =
-  | { ok: true; path: string; kind: ImportKind }
-  | { ok: false; message: string };
+import { IMPORTABLE_EXTENSIONS } from "../constants/builtins";
+import type { LineColumn, ResolvedImport } from "../types/paths";
 
 /**
  * Resolves a Mintlify-style import (`/snippets/a.jsx`, `./b.mdx`, `../c`) to a
@@ -67,10 +62,7 @@ export function resolveSiteImport(
   return { ok: false, message: `Cannot import "${source}": file not found` };
 }
 
-export function offsetToLineColumn(
-  source: string,
-  offset: number
-): { line: number; column: number } {
+export function offsetToLineColumn(source: string, offset: number): LineColumn {
   let line = 1;
   let lastBreak = -1;
   const end = Math.min(offset, source.length);

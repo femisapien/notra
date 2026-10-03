@@ -1,8 +1,13 @@
 import {
+  CancelCircleIcon,
+  CheckmarkCircle02Icon,
   DashboardSquare01Icon,
+  DashedLineCircleIcon,
   FileEditIcon,
   GitPullRequestIcon,
   Globe02Icon,
+  Loading03Icon,
+  MinusSignCircleIcon,
   RefreshIcon,
   Rocket01Icon,
   Settings01Icon,
@@ -12,7 +17,10 @@ import {
 import type { IconSvgElement } from "@hugeicons/react";
 
 import type {
+  SiteDeploymentFilters,
   SiteDeploymentStatus,
+  SiteDeploymentStepKey,
+  SiteDeploymentStepState,
   SiteDeploymentTrigger,
   SiteDomainChipStatus,
   SiteSectionConfig,
@@ -155,8 +163,85 @@ export const SITE_DEPLOYMENT_STATUS_FILTERS = [
   "expired",
 ] as const;
 
-/** Ticks the elapsed time of a running build. */
-export const SITE_ELAPSED_TICK_MS = 1000;
-
 /** Distance from the bottom (px) within which the build log keeps following new output. */
 export const SITE_BUILD_LOG_FOLLOW_THRESHOLD = 32;
+
+/** Owner and admin may change a site's settings, domains and lifecycle. */
+export const SITE_ADMIN_ROLES: ReadonlySet<string> = new Set([
+  "owner",
+  "admin",
+]);
+
+/** GitHub App events only Sites consumes; `pull_request` goes to both Sites and mentions. */
+export const SITES_ONLY_GITHUB_EVENTS: ReadonlySet<string> = new Set([
+  "push",
+  "check_run",
+]);
+
+/** Preview keys the preview-access route accepts: `pr-…` for pull requests, `br-…` for branches. */
+export const SITE_PREVIEW_KEY_PATTERN = /^(?:pr|br)-[a-z0-9-]{1,40}$/;
+
+/** Rows in the sites list skeleton. */
+export const SITES_PAGE_SKELETON_ROWS = 3;
+
+/** Rendered width of the page inside the preview thumbnail; the frame scales it down to fit. */
+export const SITE_PREVIEW_VIEWPORT_WIDTH = 1280;
+export const SITE_PREVIEW_VIEWPORT_HEIGHT = 800;
+
+export const SITE_OVERVIEW_LINK_CLASS =
+  "text-foreground decoration-foreground/25 hover:decoration-foreground min-w-0 truncate underline underline-offset-4 transition-colors duration-150";
+
+/** Grid shared by every build log row so offsets, markers and text line up. */
+export const SITE_BUILD_LOG_ROW_GRID =
+  "grid grid-cols-[2rem_0.875rem_minmax(0,1fr)] gap-x-2 px-2 sm:grid-cols-[2.5rem_0.875rem_minmax(0,1fr)] sm:gap-x-2.5 sm:px-3";
+
+/** Code frames shorter than this stay inline. */
+export const SITE_BUILD_LOG_FRAME_FOLD_MIN = 3;
+/** Noise runs longer than this keep their first lines and fold the rest. */
+export const SITE_BUILD_LOG_NOISE_FOLD_MIN = 6;
+export const SITE_BUILD_LOG_NOISE_KEEP = 2;
+
+export const SITE_DEPLOYMENT_STEP_KEYS: readonly SiteDeploymentStepKey[] = [
+  "queued",
+  "building",
+  "uploading",
+  "ready",
+];
+
+export const SITE_DEPLOYMENT_STEP_ICONS: Record<
+  SiteDeploymentStepState,
+  IconSvgElement
+> = {
+  pending: DashedLineCircleIcon,
+  active: Loading03Icon,
+  done: CheckmarkCircle02Icon,
+  failed: CancelCircleIcon,
+  skipped: MinusSignCircleIcon,
+};
+
+/** Status color lives on the icon only: amber running, green done, red failed. */
+export const SITE_DEPLOYMENT_STEP_ICON_STYLES: Record<
+  SiteDeploymentStepState,
+  string
+> = {
+  pending: "text-muted-foreground/50",
+  active: "text-warning motion-safe:animate-spin",
+  done: "text-success",
+  failed: "text-destructive",
+  skipped: "text-muted-foreground/50",
+};
+
+export const SITE_DEPLOYMENT_STEP_PANEL_CLASS =
+  "h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-[ending-style]:h-0 data-[starting-style]:h-0 motion-reduce:transition-none";
+
+export const SITE_DEPLOYMENT_NO_FILTERS: SiteDeploymentFilters = {
+  environment: "all",
+  status: "all",
+};
+
+export const SITE_DOMAIN_URL_SCHEME_PATTERN = /^https?:\/\//i;
+
+export const SITE_CLOUDFLARE_PROVIDER_PATTERN = /cloudflare/i;
+
+export const SITE_DNS_RECORD_GRID =
+  "grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-4 gap-y-1 sm:grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1.3fr)]";

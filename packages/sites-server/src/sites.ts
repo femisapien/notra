@@ -10,7 +10,7 @@ import {
   SITE_BUILD_LIMITS,
   SITE_DEPLOYMENT_IN_PROGRESS_STATUSES,
 } from "@notra/sites-core/constants/sites";
-import type { SiteMounts } from "@notra/sites-core/schemas/deployment";
+import type { SiteMounts } from "@notra/sites-core/types/deployment";
 import { hashBuildTarget } from "@notra/sites-core/utils/build-target";
 import {
   branchPreviewKey,
@@ -22,14 +22,13 @@ import { normalizeSiteMounts } from "@notra/sites-core/utils/mounts";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 
 import { readLiveDeployments, restoreProductionDeployment } from "./activation";
-import { isSafeRootDirectory } from "./box-build";
 import { deleteCustomHostnameQuietly } from "./cloudflare-saas";
+import { ROLLBACK_HISTORY } from "./constants/deployments";
 import {
   enqueuePreviewRemoval,
   enqueueSiteDeployment,
   getDeployment,
   getSite,
-  type Site,
   transitionDeployment,
 } from "./deployments";
 import { getSitesHostingDomain } from "./env";
@@ -46,10 +45,18 @@ import {
   setServingPreviewVisibility,
   setServingStatus,
 } from "./state";
+import type {
+  BranchPreviewResult,
+  CreateSiteInput,
+  CreateSiteResult,
+  DeployBranchHeadOptions,
+  Site,
+  SiteCleanupResult,
+  SiteSettingsPatch,
+  UpdateSiteSettingsResult,
+} from "./types/sites";
 import { buildTargetForDeployment, siteAliasOrigin } from "./urls";
-
-/** How many superseded production deployments stay around for rollback. */
-const ROLLBACK_HISTORY = 10;
+import { isSafeRootDirectory } from "./utils/root-directory";
 
 export class SiteInputError extends Error {
   readonly name = "SiteInputError";
@@ -85,19 +92,9 @@ async function uniqueSlug(base: string): Promise<string> {
  * Creates a site bound to a repository the organization already connected
  * through the GitHub App, claims its alias host and queues the first build.
  */
-export async function createSite(input: {
-  organizationId: string;
-  userId: string;
-  projectId?: string | null;
-  name: string;
-  slug?: string;
-  repositoryId: string;
-  productionBranch?: string;
-  rootDirectory?: string;
-  mounts?: SiteMounts;
-  previewVisibility?: Site["previewVisibility"];
-  publishMode?: Site["publishMode"];
-}): Promise<{ site: Site; jobId: string | null }> {
+export async function createSite(
+  input: CreateSiteInput
+): Promise<CreateSiteResult> {
   const [repository] = await db
     .select({
       integration: githubIntegrations,
@@ -210,12 +207,7 @@ export async function createSite(input: {
 /** Builds the current head of the production branch (manual deploy / first deploy / config change). */
 export async function deployBranchHead(
   site: Site,
-  options: {
-    trigger: "manual" | "config" | "redeploy";
-    userId?: string | null;
-    branch?: string;
-    previewKey?: string | null;
-  }
+  options: DeployBranchHeadOptions
 ): Promise<string> {
   const repository = requireSiteRepository(site);
   const token = await siteRepositoryToken(repository, { contents: "read" });
@@ -240,7 +232,7 @@ export async function createBranchPreview(
   site: Site,
   branch: string,
   userId: string
-): Promise<{ jobId: string; previewKey: string }> {
+): Promise<BranchPreviewResult> {
   if (branch === site.productionBranch) {
     throw new SiteInputError("The production branch is already deployed live");
   }
@@ -349,17 +341,9 @@ export async function setSiteSuspended(
 
 export async function updateSiteSettings(
   site: Site,
-  patch: {
-    name?: string;
-    productionBranch?: string;
-    rootDirectory?: string;
-    mounts?: SiteMounts;
-    previewsEnabled?: boolean;
-    previewVisibility?: Site["previewVisibility"];
-    publishMode?: Site["publishMode"];
-  },
+  patch: SiteSettingsPatch,
   userId: string
-): Promise<{ site: Site; rebuildJobId: string | null }> {
+): Promise<UpdateSiteSettingsResult> {
   const values: Partial<typeof sites.$inferInsert> = {};
   if (patch.name !== undefined) {
     values.name = patch.name.trim();
@@ -465,7 +449,7 @@ export async function deleteSite(site: Site): Promise<void> {
  */
 export async function cleanupSiteDeployments(
   siteId: string
-): Promise<{ deleted: string[] }> {
+): Promise<SiteCleanupResult> {
   const site = await getSite(siteId);
   if (!site) {
     return { deleted: [] };

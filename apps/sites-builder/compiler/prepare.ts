@@ -1,25 +1,12 @@
-import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import type {
-  SiteDiagnostic,
-  SiteEntry,
-} from "@notra/sites-compiler/types/diagnostics";
-import {
-  isTextSourceFile,
-  type SiteValidationResult,
-  validateSite,
-} from "@notra/sites-compiler/validate";
+import type { SiteEntry } from "@notra/sites-compiler/types/diagnostics";
+import { isTextSourceFile, validateSite } from "@notra/sites-compiler/validate";
 
 import { collectSiteSource } from "./collect";
-
-export interface PreparedSite {
-  validation: SiteValidationResult;
-  collectDiagnostics: SiteDiagnostic[];
-  /** Absolute URL paths of files in `public/`, e.g. `/images/logo.svg`. */
-  publicFiles: string[];
-  entries: SiteEntry[];
-}
+import type { PreparedSite, PrepareSiteParams } from "./types/source";
+import { writeFileEnsured } from "./utils/fs";
 
 export async function readSiteFiles(siteRoot: string) {
   const collected = await collectSiteSource(siteRoot);
@@ -35,21 +22,15 @@ export async function readSiteFiles(siteRoot: string) {
   return { collected, files };
 }
 
-async function writeFileEnsured(path: string, content: string) {
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, content);
-}
-
 /**
  * Validates the customer site and lays it out for Astro:
  * `work/site/**` mirrors the repo (with transformed MDX/JSX) and is what `@site/…`
  * imports resolve to; `work/entries/<area>/<slug>.mdx` holds only real entries.
  * Drafts are copied too; the theme hides them unless the build includes drafts.
  */
-export async function prepareSite(params: {
-  siteRoot: string;
-  workDir: string;
-}): Promise<PreparedSite> {
+export async function prepareSite(
+  params: PrepareSiteParams
+): Promise<PreparedSite> {
   const { collected, files } = await readSiteFiles(params.siteRoot);
   const validation = validateSite({ files });
   const publicFiles = collected.files

@@ -8,25 +8,15 @@ import {
 import { hashBuildTarget } from "@notra/sites-core/utils/build-target";
 import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 
+import type {
+  DeploymentExecutor,
+  EnqueueDeploymentInput,
+  EnqueuedDeployment,
+  SiteDeployment,
+  SiteDeploymentStatus,
+} from "./types/deployments";
+import type { Site } from "./types/sites";
 import { buildTargetForDeployment } from "./urls";
-
-export type Site = typeof sites.$inferSelect;
-export type SiteDeployment = typeof siteDeployments.$inferSelect;
-export type SiteDeploymentStatus = SiteDeployment["status"];
-type Executor = Pick<typeof db, "update">;
-
-export interface EnqueueDeploymentInput {
-  siteId: string;
-  kind: "production" | "preview";
-  previewKey: string | null;
-  trigger: SiteDeployment["trigger"];
-  branch: string;
-  commitSha: string;
-  commitMessage?: string | null;
-  commitAuthor?: string | null;
-  pullRequestNumber?: number | null;
-  requestedByUserId?: string | null;
-}
 
 export class SiteNotBuildableError extends Error {
   readonly name = "SiteNotBuildableError";
@@ -38,7 +28,7 @@ export class SiteNotBuildableError extends Error {
  * lock makes concurrent callers get distinct, ordered values.
  */
 export async function allocateGeneration(
-  executor: Executor,
+  executor: DeploymentExecutor,
   siteId: string
 ): Promise<Site> {
   const [site] = await executor
@@ -101,7 +91,7 @@ export async function cancelPreviewBuilds(
  */
 export async function enqueueSiteDeployment(
   input: EnqueueDeploymentInput
-): Promise<{ deployment: SiteDeployment; jobId: string }> {
+): Promise<EnqueuedDeployment> {
   return await db.transaction(async (tx) => {
     const site = await allocateGeneration(tx, input.siteId);
     if (site.status !== "active") {

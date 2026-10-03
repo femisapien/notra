@@ -1,4 +1,3 @@
-import { SITE_INJECTED_REACT_HOOKS } from "@notra/sites-core/constants/sites";
 import type {
   ImportDeclaration,
   ModuleDeclaration,
@@ -12,14 +11,24 @@ import { mdxjs } from "micromark-extension-mdxjs";
 import { visit } from "unist-util-visit";
 
 import {
-  BUILTIN_COMPONENTS,
+  BUILTIN_COMPONENT_NAMES,
   BUILTINS_IMPORT_SOURCE,
+  INJECTED_HOOK_NAMES,
   INLINE_MODULE_SUFFIX,
   KNOWN_GLOBALS,
   SITE_IMPORT_ALIAS,
 } from "./constants/builtins";
 import { missingHookImports, parseJsxModule } from "./jsx";
-import type { SiteDiagnostic } from "./types/diagnostics";
+import type {
+  BlankedFrontmatter,
+  EsmNode,
+  MdxAnalysis,
+  MdxAnalysisContext,
+  MdxPass,
+  ModuleScan,
+  SourceRange,
+  TextEdit,
+} from "./types/mdx";
 import {
   containsJsxOrFunction,
   declaredNames,
@@ -30,36 +39,9 @@ import {
 import { offsetToLineColumn, resolveSiteImport } from "./utils/paths";
 
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/;
-const BUILTINS = new Set<string>(BUILTIN_COMPONENTS);
-const INJECTED_HOOKS = new Set<string>(SITE_INJECTED_REACT_HOOKS);
-
-interface TextEdit {
-  start: number;
-  end: number;
-  text: string;
-}
-
-export interface MdxAnalysisContext {
-  /** Every file of the site, site-relative. */
-  files: ReadonlySet<string>;
-  /** Named exports of each `.jsx`/`.js` snippet, for import checks. */
-  componentExports: ReadonlyMap<string, readonly string[]>;
-  /** Entries (blog posts, changelog entries) get frontmatter; snippets get `{prop}` rewriting. */
-  isEntry: boolean;
-}
-
-export interface MdxAnalysis {
-  diagnostics: SiteDiagnostic[];
-  /** Transformed MDX, or null when there are errors. */
-  output: string | null;
-  /** Generated module holding inline components, so they can hydrate as islands. */
-  inlineModule: { path: string; source: string } | null;
-  /** Site-relative paths this file imports. */
-  imports: string[];
-}
 
 /** Replaces the frontmatter with same-length whitespace so parser offsets stay absolute. */
-function blankFrontmatter(source: string): { text: string; length: number } {
+function blankFrontmatter(source: string): BlankedFrontmatter {
   const match = FRONTMATTER.exec(source);
   if (!match) {
     return { text: source, length: 0 };
@@ -81,10 +63,7 @@ function applyEdits(source: string, edits: TextEdit[]): string {
   return output;
 }
 
-function statementRange(statement: Statement | ModuleDeclaration): {
-  start: number;
-  end: number;
-} {
+function statementRange(statement: Statement | ModuleDeclaration): SourceRange {
   const ranged = statement as unknown as { start: number; end: number };
   return { start: ranged.start, end: ranged.end };
 }
@@ -117,39 +96,6 @@ function hasClientDirective(
       typeof attribute.name === "string" &&
       attribute.name.startsWith("client:")
   );
-}
-
-type EsmNode = Extract<RootContent, { type: "mdxjsEsm" }>;
-
-/** Shared state of one file's analysis: where errors and text edits are collected. */
-interface MdxPass {
-  path: string;
-  source: string;
-  /** Source with the frontmatter blanked, so parser offsets are absolute. */
-  text: string;
-  context: MdxAnalysisContext;
-  diagnostics: SiteDiagnostic[];
-  edits: TextEdit[];
-}
-
-/** What the file's import/export statements declare. */
-interface ModuleScan {
-  imports: string[];
-  importedNames: Set<string>;
-  exportedNames: Set<string>;
-  /** React components from `.jsx` snippets or inline exports; they hydrate as islands. */
-  hydrated: Set<string>;
-  /** Default imports of `.mdx` snippets; rendered at build time. */
-  contentComponents: Set<string>;
-  /** `export const X = () => …`: moved into a generated module. */
-  inline: Array<{
-    names: string[];
-    source: string;
-    node: ModuleDeclaration;
-    start: number;
-  }>;
-  /** `export const x = "value"`: kept, and copied into the generated module. */
-  valueExports: string[];
 }
 
 function report(pass: MdxPass, code: string, message: string, offset: number) {
@@ -405,8 +351,8 @@ function snippetPropOffsets(
         !localNames.has(reference.name) &&
         !declared.has(reference.name) &&
         !KNOWN_GLOBALS.has(reference.name) &&
-        !BUILTINS.has(reference.name) &&
-        !INJECTED_HOOKS.has(reference.name) &&
+        !BUILTIN_COMPONENT_NAMES.has(reference.name) &&
+        !INJECTED_HOOK_NAMES.has(reference.name) &&
         !/^[A-Z]/.test(reference.name) &&
         !(reference.name in globalThis)
     )
@@ -444,7 +390,7 @@ function walkContent(pass: MdxPass, tree: Root, scan: ModuleScan): Set<string> {
         const at = start + 1 + name.length;
         pass.edits.push({ start: at, end: at, text: " client:load" });
       }
-    } else if (BUILTINS.has(root) && !localNames.has(root)) {
+    } else if (BUILTIN_COMPONENT_NAMES.has(root) && !localNames.has(root)) {
       usedBuiltins.add(root);
     } else if (!(localNames.has(root) || scan.contentComponents.has(root))) {
       report(

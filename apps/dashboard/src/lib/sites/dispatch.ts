@@ -5,6 +5,7 @@ import {
 import { reapExhaustedSiteJobs } from "@notra/sites-server/runner";
 
 import { startSiteJobRun } from "@/lib/workflows/start";
+import type { SiteJobSweepResult } from "@/types/sites-server";
 
 /**
  * Starts a workflow per outbox job. Losing this call is harmless: the job row
@@ -28,10 +29,7 @@ export async function dispatchSiteJobs(jobIds: string[]): Promise<void> {
   }
 }
 
-export async function sweepSiteJobs(): Promise<{
-  dispatched: number;
-  reaped: number;
-}> {
+export async function sweepSiteJobs(): Promise<SiteJobSweepResult> {
   const reaped = await reapExhaustedSiteJobs();
   const jobs = await listDispatchableSiteJobs();
   await dispatchSiteJobs(jobs.map((job) => job.id));

@@ -1,7 +1,8 @@
 ---
 import { render } from "astro:content";
-import { type ChangelogEntry, formatDate, isoDate } from "../lib/entries";
 import { assetUrl, href } from "../lib/params";
+import type { ChangelogEntry } from "../types/entries";
+import { formatDate, isoDate } from "../utils/dates";
 
 interface Props {
   entry: ChangelogEntry;

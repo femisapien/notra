@@ -21,27 +21,14 @@ import { PageHeader } from "@/components/layout/page-header";
 import { useSite } from "@/components/sites/site-context";
 import { SiteDomainAddDialog } from "@/components/sites/site-domain-add-dialog";
 import { SiteDomainsTable } from "@/components/sites/site-domains-table";
-import {
-  SITE_DOMAIN_CONNECT_OUTCOMES,
-  SITE_DOMAIN_CONNECT_PARAM,
-} from "@/constants/sites";
+import { SITE_DOMAIN_CONNECT_PARAM } from "@/constants/sites";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
-import type {
-  SiteDomain,
-  SiteDomainConnectOutcome,
-  SiteDomainRemoveDialogProps,
-} from "@/types/sites";
+import type { SiteDomainRemoveDialogProps } from "@/types/components/sites";
+import type { SiteDomain } from "@/types/sites";
 import { toErrorMessage } from "@/utils/error-message";
+import { parseSiteDomainConnectOutcome } from "@/utils/site-domains";
 import { displayUrl } from "@/utils/site-links";
-
-function parseConnectOutcome(
-  value: string | null
-): SiteDomainConnectOutcome | null {
-  return (
-    SITE_DOMAIN_CONNECT_OUTCOMES.find((outcome) => outcome === value) ?? null
-  );
-}
 
 /** Toasts the result of a Domain Connect round trip once, then drops the query parameter. */
 function useDomainConnectOutcomeToast() {
@@ -50,7 +37,7 @@ function useDomainConnectOutcomeToast() {
   const router = useRouter();
   const pathname = usePathname();
   const handled = useRef(false);
-  const outcome = parseConnectOutcome(
+  const outcome = parseSiteDomainConnectOutcome(
     searchParams.get(SITE_DOMAIN_CONNECT_PARAM)
   );
 

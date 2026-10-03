@@ -1,11 +1,14 @@
-import { SITE_AREAS } from "@notra/sites-core/constants/sites";
+import {
+  SITE_AREAS,
+  SITE_MOUNT_MAX_SEGMENTS,
+} from "@notra/sites-core/constants/sites";
 import type {
   SiteArea,
+  SiteMountedArea,
   SiteMounts,
-} from "@notra/sites-core/schemas/deployment";
+} from "@notra/sites-core/types/deployment";
 
 const MOUNT_SEGMENT = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
-const MAX_MOUNT_SEGMENTS = 3;
 
 export class SiteMountError extends Error {
   readonly name = "SiteMountError";
@@ -18,9 +21,9 @@ export function normalizeMountPath(input: string): string {
   if (segments.length === 0) {
     return "/";
   }
-  if (segments.length > MAX_MOUNT_SEGMENTS) {
+  if (segments.length > SITE_MOUNT_MAX_SEGMENTS) {
     throw new SiteMountError(
-      `Mount "${input}" is nested too deep (max ${MAX_MOUNT_SEGMENTS} segments)`
+      `Mount "${input}" is nested too deep (max ${SITE_MOUNT_MAX_SEGMENTS} segments)`
     );
   }
   for (const segment of segments) {
@@ -74,10 +77,8 @@ export function normalizeSiteMounts(mounts: SiteMounts): SiteMounts {
   return normalized;
 }
 
-export function listMountedAreas(
-  mounts: SiteMounts
-): Array<{ area: SiteArea; mount: string }> {
-  const areas: Array<{ area: SiteArea; mount: string }> = [];
+export function listMountedAreas(mounts: SiteMounts): SiteMountedArea[] {
+  const areas: SiteMountedArea[] = [];
   for (const area of SITE_AREAS) {
     const mount = mounts[area];
     if (mount) {
@@ -91,8 +92,8 @@ export function listMountedAreas(
 export function resolveAreaForPath(
   mounts: SiteMounts,
   pathname: string
-): { area: SiteArea; mount: string } | null {
-  let best: { area: SiteArea; mount: string } | null = null;
+): SiteMountedArea | null {
+  let best: SiteMountedArea | null = null;
   for (const entry of listMountedAreas(mounts)) {
     if (!isWithin(pathname, entry.mount)) {
       continue;

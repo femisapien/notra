@@ -1,27 +1,15 @@
 import {
+  DNS_LABEL_MAX_LENGTH,
   SITE_PREVIEW_HOST_SEPARATOR,
   SITE_PREVIEW_KEY_MAX_LENGTH,
+  SITE_RESERVED_SLUGS,
   SITE_SLUG_MAX_LENGTH,
   SITE_SLUG_MIN_LENGTH,
 } from "@notra/sites-core/constants/sites";
+import type { ParsedSiteHost } from "@notra/sites-core/types/hosts";
 
 const HOST_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const SLUG = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
-const RESERVED_SLUGS = new Set([
-  "www",
-  "app",
-  "api",
-  "admin",
-  "assets",
-  "cdn",
-  "docs",
-  "mail",
-  "notra",
-  "preview",
-  "previews",
-  "static",
-  "status",
-]);
 
 /** Lowercases, drops a trailing dot and a port. Returns null for anything that is not a plain DNS name. */
 export function normalizeHostname(input: string): string | null {
@@ -46,7 +34,7 @@ export function isValidSiteSlug(slug: string): boolean {
     slug.length <= SITE_SLUG_MAX_LENGTH &&
     SLUG.test(slug) &&
     !slug.includes(SITE_PREVIEW_HOST_SEPARATOR) &&
-    !RESERVED_SLUGS.has(slug)
+    !SITE_RESERVED_SLUGS.has(slug)
   );
 }
 
@@ -70,8 +58,6 @@ export function siteAliasHost(slug: string, hostingDomain: string): string {
 export function pullRequestPreviewKey(prNumber: number): string {
   return `pr-${prNumber}`;
 }
-
-const DNS_LABEL_MAX_LENGTH = 63;
 
 function shortHash(value: string): string {
   // FNV-1a, enough to keep two long branches with the same prefix apart.
@@ -113,11 +99,6 @@ export function sitePreviewHost(
 ): string {
   return `${previewKey}${SITE_PREVIEW_HOST_SEPARATOR}${slug}.${hostingDomain}`;
 }
-
-export type ParsedSiteHost =
-  | { kind: "alias"; slug: string }
-  | { kind: "preview"; slug: string; previewKey: string }
-  | { kind: "custom"; hostname: string };
 
 /**
  * Classifies a request host. Only hosts directly below the hosting domain are

@@ -5,22 +5,18 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
-import type { SiteDiagnostic } from "@notra/sites-compiler/types/diagnostics";
 import { validateSite } from "@notra/sites-compiler/validate";
+import type { SiteDiagnostic } from "@notra/sites-core/types/build";
 import {
   listMountedAreas,
   normalizeSiteMounts,
 } from "@notra/sites-core/utils/mounts";
 
 import { buildSite, readBuildTarget, runAstro } from "./build";
+import { USAGE } from "./constants/cli";
 import { prepareSite, readSiteFiles } from "./prepare";
 
 const TOOLCHAIN_ROOT = fileURLToPath(new URL("..", import.meta.url));
-const USAGE = `notra-sites <command>
-
-  validate [--source <dir>] [--json]        Check notra.json, MDX and snippets
-  build --source <dir> --target <file> --out <dir> [--json]
-  dev [--source <dir>] [--area blog|changelog] [--port 4321]`;
 
 function formatDiagnostic(diagnostic: SiteDiagnostic): string {
   const location = diagnostic.file

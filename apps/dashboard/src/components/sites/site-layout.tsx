@@ -3,11 +3,11 @@
 import { ORPCError } from "@orpc/client";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import type { ReactNode } from "react";
 
 import { buttonVariants } from "@/components/button";
 import { EmptyState } from "@/components/empty-state";
 import { useSiteDetail, useSitesOrganizationId } from "@/lib/hooks/use-sites";
+import type { SiteLayoutProps } from "@/types/components/sites";
 import { siteHref } from "@/utils/site-links";
 
 import { SiteContext } from "./site-context";
@@ -19,11 +19,7 @@ export function SiteLayout({
   organizationSlug,
   siteId,
   children,
-}: {
-  organizationSlug: string;
-  siteId: string;
-  children: ReactNode;
-}) {
+}: SiteLayoutProps) {
   const t = useTranslations("sites.detail");
   const organizationId = useSitesOrganizationId(organizationSlug);
   const detailQuery = useSiteDetail(organizationId, siteId);

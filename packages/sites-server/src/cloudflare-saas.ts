@@ -1,27 +1,9 @@
-const API = "https://api.cloudflare.com/client/v4/zones";
-
-export interface CloudflareSaasConfig {
-  zoneId: string;
-  apiToken: string;
-}
-
-export interface CloudflareCustomHostname {
-  id: string;
-  hostname: string;
-  status: string;
-  verification_errors?: string[];
-  ownership_verification?: { type: string; name: string; value: string };
-  ssl?: {
-    status?: string;
-    validation_errors?: Array<{ message: string }>;
-    validation_records?: Array<{
-      txt_name?: string;
-      txt_value?: string;
-      http_url?: string;
-      http_body?: string;
-    }>;
-  };
-}
+import { CLOUDFLARE_ZONES_API } from "./constants/domains";
+import type {
+  CloudflareApiResponse,
+  CloudflareCustomHostname,
+  CloudflareSaasConfig,
+} from "./types/cloudflare-saas";
 
 export function cloudflareSaasConfig(): CloudflareSaasConfig | null {
   const zoneId = process.env.CLOUDFLARE_SAAS_ZONE_ID?.trim();
@@ -43,19 +25,18 @@ async function request<T>(
   path: string,
   init: RequestInit = {}
 ): Promise<T> {
-  const response = await fetch(`${API}/${config.zoneId}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${config.apiToken}`,
-      "Content-Type": "application/json",
-      ...init.headers,
-    },
-  });
-  const body = (await response.json()) as {
-    success: boolean;
-    result: T;
-    errors?: Array<{ code: number; message: string }>;
-  };
+  const response = await fetch(
+    `${CLOUDFLARE_ZONES_API}/${config.zoneId}${path}`,
+    {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${config.apiToken}`,
+        "Content-Type": "application/json",
+        ...init.headers,
+      },
+    }
+  );
+  const body = (await response.json()) as CloudflareApiResponse<T>;
   if (!body.success) {
     throw new CloudflareApiError(
       `Cloudflare: ${body.errors?.map((error) => error.message).join("; ") ?? response.status}`,

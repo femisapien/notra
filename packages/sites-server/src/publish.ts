@@ -2,59 +2,27 @@ import {
   SITE_BUILD_LIMITS,
   SITE_R2_KEYS,
 } from "@notra/sites-core/constants/sites";
-import type { SiteBuildResult } from "@notra/sites-core/schemas/build";
 import type {
   SiteManifest,
   SiteManifestFile,
-} from "@notra/sites-core/schemas/deployment";
+} from "@notra/sites-core/types/deployment";
 
-import { contentTypeForPath } from "./content-types";
-import type { Site, SiteDeployment } from "./deployments";
+import { UPLOAD_CONCURRENCY } from "./constants/build";
 import { r2Put } from "./r2";
 import { readTarGz } from "./tar";
-
-const UPLOAD_CONCURRENCY = 16;
-
-async function sha256Hex(data: Uint8Array<ArrayBuffer>): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let next = 0;
-  const workers = Array.from(
-    { length: Math.min(limit, items.length) },
-    async () => {
-      while (next < items.length) {
-        const index = next;
-        next += 1;
-        results[index] = await fn(items[index] as T);
-      }
-    }
-  );
-  await Promise.all(workers);
-  return results;
-}
+import type { PublishDeploymentFilesParams } from "./types/deployments";
+import { mapWithConcurrency } from "./utils/concurrency";
+import { contentTypeForPath } from "./utils/content-types";
+import { sha256Hex } from "./utils/hash";
 
 /**
  * Uploads the sandbox output under the deployment's immutable prefix and
  * writes the manifest last: a deployment without a manifest is incomplete and
  * is never served. The manifest is computed here, not trusted from the sandbox.
  */
-export async function publishDeploymentFiles(params: {
-  site: Site;
-  deployment: SiteDeployment;
-  archive: Uint8Array<ArrayBuffer>;
-  result: SiteBuildResult;
-  toolchainVersion: string | null;
-}): Promise<SiteManifest> {
+export async function publishDeploymentFiles(
+  params: PublishDeploymentFilesParams
+): Promise<SiteManifest> {
   const { site, deployment } = params;
   const files = readTarGz(params.archive, {
     maxFiles: SITE_BUILD_LIMITS.maxOutputFiles,

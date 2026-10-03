@@ -1,28 +1,16 @@
+import { SITE_DEPLOYMENT_STEP_KEYS } from "@/constants/sites";
 import type {
-  SiteDeployment,
   SiteDeploymentStep,
-  SiteDeploymentStepKey,
+  SiteDeploymentStepInput,
   SiteDeploymentStepState,
 } from "@/types/sites";
-
-type StepDeployment = Pick<
-  SiteDeployment,
-  "status" | "createdAt" | "startedAt" | "finishedAt" | "buildDurationMs"
->;
-
-const STEP_KEYS: readonly SiteDeploymentStepKey[] = [
-  "queued",
-  "building",
-  "uploading",
-  "ready",
-];
 
 function msBetween(start: Date | string, end: Date | string | number): number {
   return new Date(end).getTime() - new Date(start).getTime();
 }
 
 /** Index of the step the deployment is in, or stopped in. */
-function reachedStep(deployment: StepDeployment): number {
+function reachedStep(deployment: SiteDeploymentStepInput): number {
   switch (deployment.status) {
     case "queued":
     case "superseded":
@@ -33,7 +21,7 @@ function reachedStep(deployment: StepDeployment): number {
       return 2;
     case "ready":
     case "expired":
-      return STEP_KEYS.length;
+      return SITE_DEPLOYMENT_STEP_KEYS.length;
     case "failed":
     case "canceled":
       // Without a start time the job never left the queue.
@@ -44,7 +32,7 @@ function reachedStep(deployment: StepDeployment): number {
 }
 
 function stateFor(
-  deployment: StepDeployment,
+  deployment: SiteDeploymentStepInput,
   index: number,
   reached: number
 ): SiteDeploymentStepState {
@@ -52,7 +40,7 @@ function stateFor(
     return "done";
   }
   if (index > reached) {
-    return reached === STEP_KEYS.length ||
+    return reached === SITE_DEPLOYMENT_STEP_KEYS.length ||
       deployment.status === "queued" ||
       deployment.status === "building" ||
       deployment.status === "uploading"
@@ -76,7 +64,7 @@ function stateFor(
  * shares the build's clock.
  */
 export function deploymentSteps(
-  deployment: StepDeployment,
+  deployment: SiteDeploymentStepInput,
   now: number
 ): SiteDeploymentStep[] {
   const reached = reachedStep(deployment);
@@ -85,7 +73,7 @@ export function deploymentSteps(
   const buildingMs = deployment.startedAt
     ? (deployment.buildDurationMs ?? msBetween(deployment.startedAt, end))
     : null;
-  return STEP_KEYS.map((key, index) => {
+  return SITE_DEPLOYMENT_STEP_KEYS.map((key, index) => {
     const state = stateFor(deployment, index, reached);
     let durationMs: number | null = null;
     if (key === "queued" && state !== "pending") {
