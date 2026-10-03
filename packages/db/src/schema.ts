@@ -2367,6 +2367,7 @@ export const scheduledPublications = pgTable(
     leaseUntil: timestamp("lease_until"),
     attempts: integer("attempts").default(0).notNull(),
     externalAttemptAt: timestamp("external_attempt_at"),
+    cancelRequestedAt: timestamp("cancel_requested_at"),
     errorCode: text("error_code"),
     lastError: text("last_error"),
     result: jsonb("result").$type<ScheduledPublicationResult>(),

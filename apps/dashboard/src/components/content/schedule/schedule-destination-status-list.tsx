@@ -7,16 +7,23 @@ import { Badge } from "@notra/ui/components/ui/badge";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/button";
+import { SCHEDULED_PUBLICATION_STATUS_BADGE_VARIANTS } from "@/constants/content-calendar";
 import { useRetryScheduledPublication } from "@/lib/hooks/use-content-calendar";
-import type { ScheduleDestinationStatusListProps } from "@/types/content/schedule";
+import type {
+  ScheduleDestinationStatusListProps,
+  ScheduledPublicationStatusBadgeProps,
+} from "@/types/content/schedule";
 
-const STATUS_BADGE_VARIANTS = {
-  scheduled: "info",
-  publishing: "warning",
-  published: "success",
-  failed: "destructive",
-  canceled: "outline",
-} as const;
+export function ScheduledPublicationStatusBadge({
+  status,
+}: ScheduledPublicationStatusBadgeProps) {
+  const t = useTranslations("content.calendar.schedule");
+  return (
+    <Badge variant={SCHEDULED_PUBLICATION_STATUS_BADGE_VARIANTS[status]}>
+      {t(`statuses.${status}`)}
+    </Badge>
+  );
+}
 
 function DestinationRow({
   contentId,
@@ -49,9 +56,7 @@ function DestinationRow({
               <HugeiconsIcon className="size-3" icon={ArrowUpRight01Icon} />
             </a>
           ) : null}
-          <Badge variant={STATUS_BADGE_VARIANTS[publication.status]}>
-            {t(`statuses.${publication.status}`)}
-          </Badge>
+          <ScheduledPublicationStatusBadge status={publication.status} />
         </div>
       </div>
       {publication.status === "failed" ? (

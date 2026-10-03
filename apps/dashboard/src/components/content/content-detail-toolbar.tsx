@@ -179,7 +179,6 @@ function ContentDetailPublishActions({
   organizationSlug,
 }: ContentDetailToolbarProps) {
   const tCommon2 = useTranslations("common");
-  const tSchedule = useTranslations("content.calendar.schedule");
   let publishLabel = tCommon2("labels.publish");
   if (document.isTogglingStatus) {
     publishLabel = tCommon2("labels.updating");
@@ -233,8 +232,7 @@ function ContentDetailPublishActions({
         <ContentScheduleButton
           contentId={contentId}
           contentType={content.contentType}
-          disabled={document.hasChanges || document.isSaving}
-          disabledReason={tSchedule("saveFirst")}
+          hasUnsavedChanges={document.hasChanges || document.isSaving}
           organizationId={organizationId}
           organizationSlug={organizationSlug}
           published={content.status === "published"}

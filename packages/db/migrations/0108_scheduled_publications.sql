@@ -14,6 +14,7 @@ CREATE TABLE "scheduled_publications" (
 	"lease_until" timestamp,
 	"attempts" integer DEFAULT 0 NOT NULL,
 	"external_attempt_at" timestamp,
+	"cancel_requested_at" timestamp,
 	"error_code" text,
 	"last_error" text,
 	"result" jsonb,

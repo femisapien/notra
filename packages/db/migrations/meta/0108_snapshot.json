@@ -1,5 +1,5 @@
 {
-  "id": "8dcc309d-ffc7-45bc-8694-c53b5714ff6a",
+  "id": "b315bc93-d1ff-4756-bb2f-e4f805e19673",
   "prevId": "ba2321e4-6324-4e25-b21e-29cbc66d198c",
   "version": "7",
   "dialect": "postgresql",
@@ -11973,6 +11973,12 @@
         },
         "external_attempt_at": {
           "name": "external_attempt_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancel_requested_at": {
+          "name": "cancel_requested_at",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false

@@ -38,7 +38,7 @@ export interface SendScheduledContentFailedEmailProps {
 }
 
 export interface SendScheduledPublicationFailedEmailProps extends ScheduledPublicationFailedEmailProps {
-  recipientEmail: string;
+  recipientEmails: string[];
   /** One email per failure: row id plus failure time. */
   failureKey: string;
 }

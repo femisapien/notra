@@ -520,6 +520,113 @@ if (process.env.NOTRA_SCHEDULED_PUBLICATIONS_SQL_WORKER !== "1") {
       expect(statuses).toContainEqual([false, "canceled"]);
     });
 
+    test("a destination canceled while publishing ends canceled instead of retrying", async () => {
+      await seedPost("p1");
+      await schedule("p1");
+      const [claim] = await lifecycle.claimDueScheduledPublications({
+        now: SLOT,
+      });
+      if (!claim) {
+        throw new Error("expected a claim");
+      }
+      await lifecycle.cancelPostSchedule({ organizationId: ORG, postId: "p1" });
+      expect(
+        await lifecycle.finishScheduledPublicationAttempt(
+          claim,
+          1,
+          {
+            kind: "error",
+            code: "github_merge_failed",
+            message: "checks pending",
+            retryable: true,
+          },
+          SLOT
+        )
+      ).toBe("canceled");
+      const [row] = await rowsFor("p1");
+      expect(row?.status).toBe("canceled");
+    });
+
+    test("a run that died after a cancel is not started again", async () => {
+      await seedPost("p1");
+      await schedule("p1");
+      await lifecycle.claimDueScheduledPublications({ now: SLOT });
+      await lifecycle.cancelPostSchedule({ organizationId: ORG, postId: "p1" });
+      const takeoverAt = new Date(
+        SLOT.getTime() + SCHEDULED_PUBLICATION_LEASE_MS + MINUTE
+      );
+      const [claim] = await lifecycle.claimDueScheduledPublications({
+        now: takeoverAt,
+      });
+      const attempt = claim
+        ? await lifecycle.beginScheduledPublicationAttempt(claim, takeoverAt)
+        : null;
+      if (!(claim && attempt)) {
+        throw new Error("expected the takeover attempt");
+      }
+      const precheck = lifecycle.precheckScheduledPublicationAttempt(attempt);
+      expect(precheck).toMatchObject({ code: "canceled" });
+      expect(
+        await lifecycle.finishScheduledPublicationAttempt(
+          claim,
+          attempt.attempts,
+          precheck ?? { kind: "published", result: {} },
+          takeoverAt
+        )
+      ).toBe("canceled");
+    });
+
+    test("a social post that may be live is neither canceled away nor replaced", async () => {
+      await seedPost("tweet", "twitter_post");
+      await schedule("tweet", {
+        destinations: [{ destination: "social", accountId: "x-1" }],
+      });
+      const claims = await lifecycle.claimDueScheduledPublications({
+        now: SLOT,
+      });
+      const social = claims.find((claim) => claim.destination === "social");
+      const notra = claims.find((claim) => claim.destination === "notra");
+      if (!(social && notra)) {
+        throw new Error("expected both claims");
+      }
+      await lifecycle.finishScheduledPublicationAttempt(
+        notra,
+        1,
+        { kind: "published", result: {} },
+        SLOT
+      );
+      await lifecycle.markScheduledPublicationExternalAttempt(social, SLOT);
+      await lifecycle.cancelPostSchedule({
+        organizationId: ORG,
+        postId: "tweet",
+      });
+      expect(
+        await lifecycle.finishScheduledPublicationAttempt(
+          social,
+          1,
+          {
+            kind: "error",
+            code: "outcome_unknown",
+            message: "unconfirmed",
+            retryable: false,
+          },
+          SLOT
+        )
+      ).toBe("failed");
+
+      // The API and chat pass no expected ids; they still must not repost.
+      expect(await schedule("tweet")).toEqual({
+        ok: false,
+        reason: "unconfirmed_social_post",
+      });
+      // Dismissing it is the explicit acknowledgement.
+      await lifecycle.cancelPostSchedule({
+        organizationId: ORG,
+        postId: "tweet",
+      });
+      expect((await schedule("tweet")).ok).toBe(true);
+    });
+
     test("publish now makes the schedule due immediately", async () => {
       await seedPost("p1");
       await schedule("p1");

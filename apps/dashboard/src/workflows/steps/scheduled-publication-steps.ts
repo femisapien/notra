@@ -47,8 +47,8 @@ export async function runScheduledPublicationStep(
       outcome = await publishScheduledDestination(attempt, input.claimToken);
     } catch (error) {
       // Only infrastructure errors get here; destination errors are returned.
-      // A social post marks its attempt before sending, so a retry of this
-      // attempt resolves to `outcome_unknown` instead of posting twice.
+      // The raw message stays in the log: it can carry SQL and parameters,
+      // and `lastError` is shown in the app, the API and the failure email.
       console.error("[ScheduledPublication] Unexpected publish error", {
         scheduledPublicationId: attempt.id,
         error,
@@ -56,10 +56,7 @@ export async function runScheduledPublicationStep(
       outcome = {
         kind: "error",
         code: SCHEDULED_PUBLICATION_ERROR_CODES.UNEXPECTED,
-        message:
-          error instanceof Error && error.message
-            ? error.message
-            : "Publishing failed unexpectedly.",
+        message: "Publishing failed unexpectedly.",
         retryable: true,
       };
     }

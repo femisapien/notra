@@ -1,7 +1,4 @@
-import type {
-  ContentCalendarEntry,
-  PostSchedule,
-} from "@notra/schemas/dashboard/content-calendar";
+import type { ContentCalendarEntry } from "@notra/schemas/dashboard/content-calendar";
 import type { ReactNode } from "react";
 
 import type { Trigger } from "@/types/triggers/triggers";
@@ -33,12 +30,8 @@ export type CalendarItem =
       trigger: Trigger;
     };
 
-export interface CalendarDragPayload {
-  postId: string;
-  contentType: string;
-  title: string;
-  schedule: PostSchedule;
-}
+/** A post dragged onto a day; the drag carries only the post's ID. */
+export type CalendarDropHandler = (postId: string, day: Date) => void;
 
 export interface ContentCalendarViewProps {
   organizationId: string;
@@ -52,7 +45,7 @@ export interface ContentCalendarGridProps {
   month: Date;
   itemsByDay: Map<string, CalendarItem[]>;
   organizationSlug: string;
-  onDropPost: (payload: CalendarDragPayload, day: Date) => void;
+  onDropPost: CalendarDropHandler;
 }
 
 export interface ContentCalendarDayProps {
@@ -60,7 +53,7 @@ export interface ContentCalendarDayProps {
   items: CalendarItem[];
   outside: boolean;
   organizationSlug: string;
-  onDropPost: (payload: CalendarDragPayload, day: Date) => void;
+  onDropPost: CalendarDropHandler;
 }
 
 export interface ContentCalendarItemChipProps {

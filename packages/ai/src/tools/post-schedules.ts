@@ -1,3 +1,4 @@
+import { SCHEDULE_POST_FAILURES } from "@notra/ai/constants/scheduled-publications";
 import {
   type PostScheduleToolInput,
   postScheduleToolInputSchema,
@@ -75,8 +76,12 @@ export function createSchedulePostTool(ctx: PostScheduleToolContext): Tool {
         userId: ctx.userId ?? null,
       });
       return outcome.ok
-        ? { status: "scheduled", schedule: outcome.schedule }
-        : { status: "rejected", reason: outcome.reason };
+        ? { success: true, schedule: outcome.schedule }
+        : {
+            success: false,
+            reason: outcome.reason,
+            error: SCHEDULE_POST_FAILURES[outcome.reason].message,
+          };
     },
   });
 }

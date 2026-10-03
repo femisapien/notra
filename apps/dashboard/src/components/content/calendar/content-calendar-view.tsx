@@ -2,17 +2,17 @@
 
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { startOfDay } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { isSameDay, startOfDay } from "date-fns";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/button";
 import { ContentCalendarGrid } from "@/components/content/calendar/content-calendar-grid";
 import { EmptyState } from "@/components/empty-state";
-import { useActiveProject } from "@/lib/hooks/use-active-project";
+import { SCHEDULE_SLOT_DATE_FORMAT } from "@/constants/content-calendar";
 import {
   useContentCalendar,
   useSchedulePost,
@@ -21,19 +21,21 @@ import { useLocalDateFormat } from "@/lib/hooks/use-local-date-format";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import { cn } from "@/lib/utils";
 import type {
-  CalendarDragPayload,
+  CalendarDropHandler,
   ContentCalendarViewProps,
 } from "@/types/content/calendar";
 import {
   calendarDayKey,
   calendarEntryItems,
-  getCalendarDays,
-  getCalendarRange,
+  combineDateAndTime,
+  findMovableEntry,
   groupCalendarItemsByDay,
   parseCalendarDayKey,
   projectAutomationRuns,
   scheduleDestinationsOf,
   shiftCalendarMonth,
+  summarizePostSchedule,
+  toTimeInputValue,
 } from "@/utils/content-calendar";
 import { getLocalTimezone } from "@/utils/schedule-summary";
 
@@ -53,12 +55,9 @@ export function ContentCalendarView({
     [anchorKey]
   );
 
-  const days = useMemo(() => getCalendarDays(anchor), [anchor]);
-  const range = useMemo(() => getCalendarRange(days), [days]);
-  const { data, isPending, isError, refetch } = useContentCalendar(
-    organizationId,
-    range
-  );
+  const { days, range, query } = useContentCalendar(organizationId, anchor);
+  const { data, isPending, isPlaceholderData, isError, refetch } = query;
+  const isLoading = isPending || isPlaceholderData;
   const { data: automation } = useQuery(
     dashboardOrpc.automation.schedules.list.queryOptions({
       input: { organizationId },
@@ -67,31 +66,6 @@ export function ContentCalendarView({
     })
   );
   const reschedule = useSchedulePost(organizationId);
-
-  // Warm the neighbouring months so paging is instant.
-  const queryClient = useQueryClient();
-  const { projectId, isResolved } = useActiveProject();
-  useEffect(() => {
-    if (!(organizationId && isResolved)) {
-      return;
-    }
-    for (const direction of [-1, 1] as const) {
-      const neighbour = getCalendarRange(
-        getCalendarDays(shiftCalendarMonth(anchor, direction))
-      );
-      void queryClient.prefetchQuery(
-        dashboardOrpc.contentCalendar.list.queryOptions({
-          input: {
-            organizationId,
-            projectId: projectId ?? undefined,
-            from: neighbour.from.toISOString(),
-            to: neighbour.to.toISOString(),
-          },
-          staleTime: 30_000,
-        })
-      );
-    }
-  }, [anchor, organizationId, projectId, isResolved, queryClient]);
 
   const itemsByDay = useMemo(
     () =>
@@ -107,38 +81,37 @@ export function ContentCalendarView({
     void setAnchorKey(key === calendarDayKey(new Date()) ? null : key);
   };
 
-  const handleDropPost = (payload: CalendarDragPayload, day: Date) => {
+  const handleDropPost: CalendarDropHandler = (postId, day) => {
+    const entry = findMovableEntry(data?.entries ?? [], postId);
+    if (!entry) {
+      return;
+    }
+    const { post, schedule } = entry;
+    const previous = new Date(schedule.scheduledAt);
+    if (isSameDay(previous, day)) {
+      return;
+    }
     // Moving keeps the time of day and every destination.
-    const previous = new Date(payload.schedule.scheduledAt);
-    const scheduledAt = new Date(day);
-    scheduledAt.setHours(previous.getHours(), previous.getMinutes(), 0, 0);
+    const scheduledAt = combineDateAndTime(day, toTimeInputValue(previous));
     if (scheduledAt.getTime() < Date.now()) {
       toast.error(t("toasts.moveIntoPast"));
       return;
     }
     reschedule.mutate(
       {
-        contentId: payload.postId,
+        contentId: post.id,
         scheduledAt,
         // The new wall-clock time was picked in this browser's zone.
         timeZone: getLocalTimezone(),
-        destinations: scheduleDestinationsOf(payload.schedule),
-        expectedScheduledIds: payload.schedule.publications.map(
-          (publication) => publication.id
-        ),
+        destinations: scheduleDestinationsOf(schedule),
+        expectedScheduledIds: summarizePostSchedule(schedule).scheduledIds,
       },
       {
         onSuccess: () => {
           toast.success(
             t("toasts.moved", {
-              title: payload.title,
-              date: formatDate(scheduledAt, {
-                weekday: "short",
-                day: "numeric",
-                month: "short",
-                hour: "numeric",
-                minute: "2-digit",
-              }),
+              title: post.title,
+              date: formatDate(scheduledAt, SCHEDULE_SLOT_DATE_FORMAT),
             })
           );
         },
@@ -203,10 +176,10 @@ export function ContentCalendarView({
         />
       ) : (
         <div
-          aria-busy={isPending}
+          aria-busy={isLoading}
           className={cn(
             "min-w-0 transition-opacity duration-150 ease-out",
-            isPending && "opacity-60"
+            isLoading && "opacity-60"
           )}
         >
           <ContentCalendarGrid

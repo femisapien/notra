@@ -16,6 +16,8 @@ export type ScheduledPublicationDestinationConfig =
 
 export interface ScheduledPublicationResult {
   alreadyPublished?: boolean;
+  /** The commit Notra pushed, so a retried merge never takes a later push. */
+  headSha?: string | null;
   merged?: boolean;
   platformPostId?: string | null;
   postUrl?: string | null;

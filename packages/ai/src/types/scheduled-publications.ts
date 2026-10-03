@@ -19,7 +19,8 @@ export interface SchedulePostParams {
   /**
    * IDs of the pending rows the caller is replacing (empty for a post with no
    * schedule). When set, the call fails with `conflict` if the post's pending
-   * or failed rows changed since the caller loaded them.
+   * or failed rows changed since the caller loaded them. Without it, failed
+   * rows are superseded, except a social post that may already be live.
    */
   expectedScheduledIds?: string[];
   now?: Date;
@@ -32,6 +33,7 @@ export type SchedulePostFailureReason =
   | "repository_not_found"
   | "account_not_found"
   | "publishing_in_progress"
+  | "unconfirmed_social_post"
   | "conflict";
 
 export type SchedulePostOutcome =
@@ -94,7 +96,9 @@ export interface ScheduledPublicationAttempt {
   scheduledAt: Date;
   attempts: number;
   externalAttemptAt: Date | null;
+  cancelRequestedAt: Date | null;
   createdByUserId: string | null;
+  createdAt: Date;
   /** What earlier attempts achieved, like a pull request already opened. */
   result: ScheduledPublicationResult | null;
 }
@@ -115,6 +119,7 @@ export type ScheduledPublicationFinish =
   | "published"
   | "retry_scheduled"
   | "failed"
+  | "canceled"
   | "superseded";
 
 export interface CalendarPostView {

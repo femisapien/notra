@@ -1,3 +1,5 @@
+import type { SchedulePostFailureReason } from "../types/scheduled-publications";
+
 const MINUTE_MS = 60 * 1000;
 
 /**
@@ -46,9 +48,50 @@ export const SCHEDULED_PUBLICATION_ERROR_CODES = {
   OUTCOME_UNKNOWN: "outcome_unknown",
   TOO_MANY_ATTEMPTS: "too_many_attempts",
   START_FAILED: "start_failed",
+  CANCELED: "canceled",
   EMPTY_CONTENT: "empty_content",
   GITHUB_PUBLISH_FAILED: "github_publish_failed",
   GITHUB_MERGE_FAILED: "github_merge_failed",
   SOCIAL_PUBLISH_FAILED: "social_publish_failed",
   UNEXPECTED: "unexpected",
 } as const;
+
+/**
+ * How a rejected schedule reaches API clients and the chat model. The
+ * dashboard maps the same reasons to translated copy, keyed by `status`.
+ */
+export const SCHEDULE_POST_FAILURES = {
+  post_not_found: { status: 404, message: "Post not found" },
+  invalid_time: {
+    status: 400,
+    message: "scheduledAt must be between now and one year ahead",
+  },
+  destination_not_supported: {
+    status: 400,
+    message: "This content type cannot be published to that destination",
+  },
+  repository_not_found: {
+    status: 400,
+    message: "GitHub repository not found or not enabled",
+  },
+  account_not_found: {
+    status: 400,
+    message: "Social account not found for this content type's platform",
+  },
+  publishing_in_progress: {
+    status: 409,
+    message: "The post is being published right now; retry in a minute",
+  },
+  unconfirmed_social_post: {
+    status: 409,
+    message:
+      "A social post of the current schedule may already be live. Check the account, then cancel the schedule before scheduling again",
+  },
+  conflict: {
+    status: 409,
+    message: "The schedule changed concurrently; retry the request",
+  },
+} as const satisfies Record<
+  SchedulePostFailureReason,
+  { status: 400 | 404 | 409; message: string }
+>;

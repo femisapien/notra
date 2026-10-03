@@ -1,3 +1,4 @@
+import { SCHEDULE_POST_FAILURES } from "@notra/ai/constants/scheduled-publications";
 import type { SchedulePostFailureReason } from "@notra/ai/types/scheduled-publications";
 import { listContentCalendar } from "@notra/ai/utils/content-calendar";
 import {
@@ -7,8 +8,6 @@ import {
   retryScheduledPublication,
   schedulePostPublication,
 } from "@notra/ai/utils/scheduled-publications";
-import { db } from "@notra/db/drizzle";
-import { posts } from "@notra/db/schema";
 import { isProjectInOrganization } from "@notra/db/utils/projects";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
 import { contentInputSchema } from "@notra/schemas/dashboard/content";
@@ -17,15 +16,14 @@ import {
   schedulePostInputSchema,
   scheduledPublicationIdInputSchema,
 } from "@notra/schemas/dashboard/content-calendar";
-import { and, eq } from "drizzle-orm";
 import { getTranslations } from "next-intl/server";
 import { after } from "next/server";
 
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
 import { assertActiveSubscription } from "@/lib/billing/subscription";
+import { openScheduledPullRequestAhead } from "@/lib/content/scheduled-publication-destinations";
 import { runScheduledPublicationSweep } from "@/lib/content/scheduled-publication-sweep";
-import { publishSavedContentToGitHub } from "@/lib/integrations/github/publish-saved-content";
 
 import { baseProcedure } from "../base";
 import { badRequest, conflict, notFound } from "../utils/errors";
@@ -33,24 +31,27 @@ import { badRequest, conflict, notFound } from "../utils/errors";
 /** A slot this close publishes right away instead of waiting for the cron. */
 const IMMEDIATE_PUBLISH_WINDOW_MS = 60 * 1000;
 
+const SCHEDULE_FAILURE_MESSAGE_KEYS = {
+  post_not_found: "postNotFound",
+  invalid_time: "invalidTime",
+  destination_not_supported: "destinationNotSupported",
+  repository_not_found: "repositoryNotFound",
+  account_not_found: "accountNotFound",
+  publishing_in_progress: "publishingInProgress",
+  unconfirmed_social_post: "unconfirmedSocialPost",
+  conflict: "conflict",
+} as const satisfies Record<SchedulePostFailureReason, string>;
+const ERROR_BY_STATUS = {
+  400: badRequest,
+  404: notFound,
+  409: conflict,
+} as const;
+
 async function toScheduleError(reason: SchedulePostFailureReason) {
   const t = await getTranslations("errors.contentCalendar");
-  switch (reason) {
-    case "post_not_found":
-      return notFound(t("postNotFound"));
-    case "invalid_time":
-      return badRequest(t("invalidTime"));
-    case "destination_not_supported":
-      return badRequest(t("destinationNotSupported"));
-    case "repository_not_found":
-      return badRequest(t("repositoryNotFound"));
-    case "account_not_found":
-      return badRequest(t("accountNotFound"));
-    case "publishing_in_progress":
-      return conflict(t("publishingInProgress"));
-    default:
-      return conflict(t("conflict"));
-  }
+  return ERROR_BY_STATUS[SCHEDULE_POST_FAILURES[reason].status](
+    t(SCHEDULE_FAILURE_MESSAGE_KEYS[reason])
+  );
 }
 
 /** Runs the sweep for one post right after the response, best effort. */
@@ -62,47 +63,6 @@ function publishDueNow(postId: string) {
       // The cron picks the rows up within a minute.
       console.error("[ScheduledPublication] Immediate sweep failed", {
         postId,
-        error,
-      });
-    }
-  });
-}
-
-/**
- * Opens the GitHub pull request when a post is scheduled, so reviews and CI
- * run before the slot. The scheduled run then only updates and merges it.
- * Best effort: without it the run opens the pull request itself.
- */
-function openPullRequestAhead(params: {
-  organizationId: string;
-  postId: string;
-  repositoryId: string;
-}) {
-  after(async () => {
-    try {
-      const post = await db.query.posts.findFirst({
-        columns: { contentType: true, githubPublish: true, markdown: true },
-        where: and(
-          eq(posts.id, params.postId),
-          eq(posts.organizationId, params.organizationId)
-        ),
-      });
-      if (
-        !post?.markdown ||
-        post.githubPublish ||
-        !(post.contentType === "changelog" || post.contentType === "blog_post")
-      ) {
-        return;
-      }
-      await publishSavedContentToGitHub({
-        organizationId: params.organizationId,
-        contentId: params.postId,
-        contentType: post.contentType,
-        repositoryId: params.repositoryId,
-      });
-    } catch (error) {
-      console.warn("[ScheduledPublication] Opening the PR ahead failed", {
-        postId: params.postId,
         error,
       });
     }
@@ -174,11 +134,13 @@ export const contentCalendarRouter = {
           (destination) => destination.destination === "github"
         );
         if (github?.destination === "github") {
-          openPullRequestAhead({
-            organizationId: input.organizationId,
-            postId: input.contentId,
-            repositoryId: github.repositoryId,
-          });
+          after(() =>
+            openScheduledPullRequestAhead({
+              organizationId: input.organizationId,
+              postId: input.contentId,
+              repositoryId: github.repositoryId,
+            })
+          );
         }
       }
 

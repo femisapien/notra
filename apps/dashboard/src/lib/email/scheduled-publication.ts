@@ -2,8 +2,7 @@ import { db } from "@notra/db/drizzle";
 import {
   connectedSocialAccounts,
   githubIntegrations,
-  organizationNotificationSettings,
-  organizations,
+  members,
   posts,
   scheduledPublications,
   users,
@@ -14,6 +13,7 @@ import { socialConnectPlatformSchema } from "@notra/schemas/dashboard/social-acc
 import { and, eq } from "drizzle-orm";
 
 import { SOCIAL_PLATFORM_LABELS } from "@/constants/social-connect";
+import { getNotificationData } from "@/lib/email/notification-data";
 import { sendScheduledPublicationFailedEmail } from "@/lib/email/send";
 
 async function describeDestination(
@@ -65,9 +65,11 @@ function formatScheduledFor(scheduledAt: Date, timeZone: string) {
 }
 
 /**
- * Emails whoever scheduled the post that one destination gave up. Honors the
- * organization's "scheduled content failed" setting, which defaults to on.
- * The Resend idempotency key makes a retried step send at most once.
+ * Emails that one destination gave up, gated by the organization's
+ * "scheduled content failed" setting like the other failure notices. It goes
+ * to the member who scheduled the post, or to the owners when it came from
+ * the API or that person left the organization. The Resend idempotency key
+ * makes a retried step send at most once.
  */
 export async function notifyScheduledPublicationFailed(
   scheduledPublicationId: string
@@ -84,34 +86,32 @@ export async function notifyScheduledPublicationFailed(
       status: scheduledPublications.status,
       failedAt: scheduledPublications.updatedAt,
       postTitle: posts.title,
-      organizationName: organizations.name,
-      organizationSlug: organizations.slug,
-      recipientEmail: users.email,
-      failedNotificationsEnabled:
-        organizationNotificationSettings.scheduledContentFailed,
+      // Only set while the person who scheduled it is still a member.
+      schedulerEmail: users.email,
     })
     .from(scheduledPublications)
     .innerJoin(posts, eq(posts.id, scheduledPublications.postId))
-    .innerJoin(
-      organizations,
-      eq(organizations.id, scheduledPublications.organizationId)
-    )
-    .leftJoin(users, eq(users.id, scheduledPublications.createdByUserId))
     .leftJoin(
-      organizationNotificationSettings,
-      eq(
-        organizationNotificationSettings.organizationId,
-        scheduledPublications.organizationId
+      members,
+      and(
+        eq(members.userId, scheduledPublications.createdByUserId),
+        eq(members.organizationId, scheduledPublications.organizationId)
       )
     )
+    .leftJoin(users, eq(users.id, members.userId))
     .where(eq(scheduledPublications.id, scheduledPublicationId))
     .limit(1);
-
-  if (
-    !row?.recipientEmail ||
-    row.status !== "failed" ||
-    row.failedNotificationsEnabled === false
-  ) {
+  if (row?.status !== "failed") {
+    return;
+  }
+  const notification = await getNotificationData({
+    organizationId: row.organizationId,
+    setting: "scheduledContentFailed",
+  });
+  const recipientEmails = row.schedulerEmail
+    ? [row.schedulerEmail]
+    : notification.ownerEmails;
+  if (!notification.enabled || recipientEmails.length === 0) {
     return;
   }
 
@@ -125,11 +125,11 @@ export async function notifyScheduledPublicationFailed(
   }
 
   const result = await sendScheduledPublicationFailedEmail(resend, {
-    recipientEmail: row.recipientEmail,
+    recipientEmails,
     // A row that fails again after a manual retry is a new failure.
     failureKey: `${row.id}:${row.failedAt.getTime()}`,
-    organizationName: row.organizationName,
-    organizationSlug: row.organizationSlug,
+    organizationName: notification.organizationName,
+    organizationSlug: notification.organizationSlug,
     postTitle: row.postTitle,
     destinationLabel: await describeDestination(
       row.organizationId,
@@ -137,7 +137,7 @@ export async function notifyScheduledPublicationFailed(
     ),
     scheduledFor: formatScheduledFor(row.scheduledAt, row.timeZone),
     reason: row.lastError ?? "Unknown error",
-    postLink: `${EMAIL_CONFIG.getAppUrl()}/${row.organizationSlug}/content/${row.postId}`,
+    postLink: `${EMAIL_CONFIG.getAppUrl()}/${notification.organizationSlug}/content/${row.postId}`,
   });
   if (result.error) {
     throw new Error(

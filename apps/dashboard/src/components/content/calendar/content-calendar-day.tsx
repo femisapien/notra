@@ -7,7 +7,7 @@ import {
 } from "@notra/ui/components/ui/popover";
 import { isToday, startOfDay } from "date-fns";
 import { useTranslations } from "next-intl";
-import { type DragEvent, useState } from "react";
+import { useState } from "react";
 
 import { ContentCalendarItemChip } from "@/components/content/calendar/content-calendar-item-chip";
 import {
@@ -16,22 +16,7 @@ import {
 } from "@/constants/content-calendar";
 import { useLocalDateFormat } from "@/lib/hooks/use-local-date-format";
 import { cn } from "@/lib/utils";
-import type {
-  CalendarDragPayload,
-  ContentCalendarDayProps,
-} from "@/types/content/calendar";
-
-function readDragPayload(event: DragEvent): CalendarDragPayload | null {
-  const raw = event.dataTransfer.getData(CONTENT_CALENDAR_DRAG_MIME);
-  if (!raw) {
-    return null;
-  }
-  try {
-    return JSON.parse(raw) as CalendarDragPayload;
-  } catch {
-    return null;
-  }
-}
+import type { ContentCalendarDayProps } from "@/types/content/calendar";
 
 /**
  * One month cell. The day number opens a popover with every entry of the
@@ -81,10 +66,10 @@ export function ContentCalendarDay({
       }}
       onDrop={(event) => {
         setIsDropTarget(false);
-        const payload = readDragPayload(event);
-        if (payload && !past) {
+        const postId = event.dataTransfer.getData(CONTENT_CALENDAR_DRAG_MIME);
+        if (postId && !past) {
           event.preventDefault();
-          onDropPost(payload, day);
+          onDropPost(postId, day);
         }
       }}
       role="group"

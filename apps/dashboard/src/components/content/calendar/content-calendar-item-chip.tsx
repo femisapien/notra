@@ -2,7 +2,6 @@
 
 import { RepeatIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Badge } from "@notra/ui/components/ui/badge";
 import {
   HoverCard,
   HoverCardContent,
@@ -12,15 +11,15 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import type { DragEvent } from "react";
 
+import { ScheduledPublicationStatusBadge } from "@/components/content/schedule/schedule-destination-status-list";
 import { CONTENT_CALENDAR_DRAG_MIME } from "@/constants/content-calendar";
 import { useLocalDateFormat } from "@/lib/hooks/use-local-date-format";
 import { cn } from "@/lib/utils";
 import type {
-  CalendarDragPayload,
   CalendarEntryState,
   ContentCalendarItemChipProps,
 } from "@/types/content/calendar";
-import { isScheduleEditable } from "@/utils/content-calendar";
+import { summarizePostSchedule } from "@/utils/content-calendar";
 import { OutputTypeIcon } from "@/utils/output-types";
 
 const STATE_ACCENTS: Record<CalendarEntryState, string> = {
@@ -31,22 +30,15 @@ const STATE_ACCENTS: Record<CalendarEntryState, string> = {
   partial: "before:bg-destructive",
 };
 
-const STATUS_BADGE_VARIANTS = {
-  scheduled: "info",
-  publishing: "warning",
-  published: "success",
-  failed: "destructive",
-  canceled: "outline",
-} as const;
-
 // Time on its own line and the title on up to two lines below it, so a
 // narrow month cell still shows most of the title.
 const chipBase =
   "relative flex w-full min-w-0 flex-col items-start rounded-md py-1 pr-1.5 pl-2.5 text-left text-xs leading-4 transition-colors duration-150 ease-out focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none";
 
-// Phones: a cell chip shrinks to a colored bar; tapping the day opens the
-// day list with full titles.
-const BAR_ON_PHONES = "max-sm:h-1.5 max-sm:overflow-hidden max-sm:p-0";
+// Phones: a cell chip shrinks to a colored bar and lets taps through to the
+// day, which opens the day list with full titles.
+const BAR_ON_PHONES =
+  "max-sm:pointer-events-none max-sm:h-1.5 max-sm:overflow-hidden max-sm:p-0";
 const HIDDEN_ON_PHONES = "max-sm:sr-only";
 
 export function ContentCalendarItemChip({
@@ -102,10 +94,9 @@ export function ContentCalendarItemChip({
   }
 
   const { entry, state } = item;
-  const draggableSchedule =
-    entry.kind === "scheduled" && isScheduleEditable(entry.schedule)
-      ? entry.schedule
-      : null;
+  const draggable =
+    entry.kind === "scheduled" &&
+    summarizePostSchedule(entry.schedule).editable;
   const stateLabel = t(`states.${state}`);
   const label = t("chip.entry", {
     state: stateLabel,
@@ -113,20 +104,12 @@ export function ContentCalendarItemChip({
     title: entry.post.title,
   });
 
+  // The drop target looks the schedule up again, so the drag carries the ID.
   const handleDragStart = (event: DragEvent<HTMLAnchorElement>) => {
-    if (!draggableSchedule) {
+    if (!draggable) {
       return;
     }
-    const payload: CalendarDragPayload = {
-      postId: entry.post.id,
-      contentType: entry.post.contentType,
-      title: entry.post.title,
-      schedule: draggableSchedule,
-    };
-    event.dataTransfer.setData(
-      CONTENT_CALENDAR_DRAG_MIME,
-      JSON.stringify(payload)
-    );
+    event.dataTransfer.setData(CONTENT_CALENDAR_DRAG_MIME, entry.post.id);
     event.dataTransfer.effectAllowed = "move";
   };
 
@@ -143,9 +126,9 @@ export function ContentCalendarItemChip({
               state === "published" && "text-muted-foreground",
               inCell &&
                 cn(BAR_ON_PHONES, "max-sm:before:inset-0 max-sm:before:w-full"),
-              draggableSchedule && "cursor-grab active:cursor-grabbing"
+              draggable && "cursor-grab active:cursor-grabbing"
             )}
-            draggable={Boolean(draggableSchedule)}
+            draggable={draggable}
             href={`/${organizationSlug}/content/${entry.post.id}`}
             onDragStart={handleDragStart}
           />
@@ -201,14 +184,12 @@ export function ContentCalendarItemChip({
                 <span>
                   {t(`schedule.destinations.${publication.destination}`)}
                 </span>
-                <Badge variant={STATUS_BADGE_VARIANTS[publication.status]}>
-                  {t(`schedule.statuses.${publication.status}`)}
-                </Badge>
+                <ScheduledPublicationStatusBadge status={publication.status} />
               </li>
             ))}
           </ul>
         ) : null}
-        {draggableSchedule ? (
+        {draggable ? (
           <p className="text-muted-foreground text-xs">
             {t("preview.dragHint")}
           </p>

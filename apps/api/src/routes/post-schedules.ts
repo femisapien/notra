@@ -1,16 +1,19 @@
 import { createRoute } from "@hono/zod-openapi";
-import type { SchedulePostFailureReason } from "@notra/ai/types/scheduled-publications";
+import { SCHEDULE_POST_FAILURES } from "@notra/ai/constants/scheduled-publications";
 import {
   cancelPostSchedule,
   getPostSchedule,
   schedulePostPublication,
 } from "@notra/ai/utils/scheduled-publications";
+import type { createDb } from "@notra/db/drizzle";
+import { posts } from "@notra/db/schema";
 import { getPostParamsSchema } from "@notra/schemas/api/content";
 import {
   cancelPostScheduleResponseSchema,
   postScheduleResponseSchema,
   schedulePostRequestSchema,
 } from "@notra/schemas/api/post-schedules";
+import { and, eq } from "drizzle-orm";
 
 import { getOrganizationId } from "../utils/auth";
 import { createOpenApiApp } from "../utils/openapi-app";
@@ -18,38 +21,9 @@ import { errorResponse, rateLimitResponse } from "../utils/openapi-responses";
 import { getOrganizationResponse } from "../utils/organizations";
 import { enforceRatelimit, RATE_LIMITS, ratelimit } from "../utils/ratelimit";
 
-export const postSchedulesRoutes = createOpenApiApp();
+type DbClient = ReturnType<typeof createDb>;
 
-const SCHEDULE_FAILURES: Record<
-  SchedulePostFailureReason,
-  { status: 400 | 404 | 409; error: string }
-> = {
-  post_not_found: { status: 404, error: "Post not found" },
-  invalid_time: {
-    status: 400,
-    error: "scheduledAt must be between now and one year ahead",
-  },
-  destination_not_supported: {
-    status: 400,
-    error: "This content type cannot be published to that destination",
-  },
-  repository_not_found: {
-    status: 400,
-    error: "GitHub repository not found or not enabled",
-  },
-  account_not_found: {
-    status: 400,
-    error: "Social account not found for this content type's platform",
-  },
-  publishing_in_progress: {
-    status: 409,
-    error: "The post is being published right now; retry in a minute",
-  },
-  conflict: {
-    status: 409,
-    error: "The schedule changed concurrently; retry the request",
-  },
-};
+export const postSchedulesRoutes = createOpenApiApp();
 
 const getPostScheduleRoute = createRoute({
   method: "get",
@@ -68,7 +42,7 @@ const getPostScheduleRoute = createRoute({
     400: errorResponse("Invalid path params"),
     401: errorResponse("Missing or invalid API key"),
     403: errorResponse("Forbidden"),
-    404: errorResponse("Organization not found"),
+    404: errorResponse("Organization or post not found"),
     503: errorResponse("Authentication service unavailable"),
   },
 });
@@ -114,7 +88,7 @@ const cancelPostScheduleRoute = createRoute({
   operationId: "cancelPostSchedule",
   summary: "Cancel a post's publishing schedule",
   description:
-    "Cancels every destination that has not started and clears failed ones. A destination that is already publishing finishes; inProgress reports it.",
+    "Cancels every destination that has not started and clears failed ones. A destination that is already publishing cannot be interrupted: it finishes if it succeeds and ends canceled instead of being retried. inProgress reports it.",
   request: { params: getPostParamsSchema },
   responses: {
     200: {
@@ -126,7 +100,7 @@ const cancelPostScheduleRoute = createRoute({
     400: errorResponse("Invalid path params"),
     401: errorResponse("Missing or invalid API key"),
     403: errorResponse("Forbidden"),
-    404: errorResponse("Organization not found"),
+    404: errorResponse("Organization or post not found"),
     429: rateLimitResponse(
       RATE_LIMITS.postUpdate.requests,
       RATE_LIMITS.postUpdate.window,
@@ -135,6 +109,22 @@ const cancelPostScheduleRoute = createRoute({
     503: errorResponse("Authentication service unavailable"),
   },
 });
+
+async function postExists(
+  database: DbClient,
+  organizationId: string,
+  postId: string
+) {
+  const post = await database.query.posts.findFirst({
+    columns: { id: true },
+    where: and(eq(posts.id, postId), eq(posts.organizationId, organizationId)),
+  });
+  return Boolean(post);
+}
+
+const POST_NOT_FOUND = {
+  error: SCHEDULE_POST_FAILURES.post_not_found.message,
+};
 
 const FORBIDDEN_UNSCOPED = {
   error: "Forbidden: API key must be scoped to an organization",
@@ -150,6 +140,9 @@ postSchedulesRoutes.openapi(getPostScheduleRoute, async (c) => {
     return c.json({ error: "Organization not found" }, 404);
   }
   const { postId } = c.req.valid("param");
+  if (!(await postExists(c.get("db"), orgId, postId))) {
+    return c.json(POST_NOT_FOUND, 404);
+  }
   const schedule = await getPostSchedule({ organizationId: orgId, postId });
   return c.json({ organization, schedule }, 200);
 });
@@ -178,8 +171,8 @@ postSchedulesRoutes.openapi(schedulePostRoute, async (c) => {
     userId: null,
   });
   if (!outcome.ok) {
-    const failure = SCHEDULE_FAILURES[outcome.reason];
-    return c.json({ error: failure.error }, failure.status);
+    const { status, message } = SCHEDULE_POST_FAILURES[outcome.reason];
+    return c.json({ error: message }, status);
   }
   return c.json({ organization, schedule: outcome.schedule }, 200);
 });
@@ -198,6 +191,9 @@ postSchedulesRoutes.openapi(cancelPostScheduleRoute, async (c) => {
     return rateLimited;
   }
   const { postId } = c.req.valid("param");
+  if (!(await postExists(c.get("db"), orgId, postId))) {
+    return c.json(POST_NOT_FOUND, 404);
+  }
   const result = await cancelPostSchedule({ organizationId: orgId, postId });
   return c.json({ organization, ...result }, 200);
 });

@@ -1042,6 +1042,7 @@
       "requestRejected": "Die Plattform hat diese Anfrage abgelehnt. Prüfe das Konto und versuche es erneut.",
       "duplicateContent": "Die Plattform hat diesen Beitrag abgelehnt, weil er einen früheren Beitrag dupliziert.",
       "notAuthorizedToPost": "Dieses Konto darf gerade nicht posten.",
+      "deliveryUnknown": "Der Post ist eventuell schon raus, die Plattform hat ihn aber nicht bestätigt. Prüfe den Account, bevor du es noch einmal versuchst.",
       "serviceUnavailable": "Der Social-Media-Dienst ist vorübergehend nicht verfügbar. Bitte versuch es in ein paar Minuten nochmal."
     },
     "brand": {
@@ -1101,6 +1102,7 @@
       "repositoryNotFound": "Das ausgewählte GitHub-Repository ist nicht mehr verbunden.",
       "accountNotFound": "Der ausgewählte Account ist nicht mehr verbunden.",
       "publishingInProgress": "Dieser Beitrag wird gerade veröffentlicht. Versuch es in einer Minute erneut.",
+      "unconfirmedSocialPost": "Ein Social-Post dieser Planung ist eventuell schon live. Prüfe den Account und versuche ihn erneut oder verwirf ihn, bevor du neu planst.",
       "conflict": "Die Planung hat sich zwischenzeitlich geändert. Lade neu und versuch es erneut.",
       "nothingScheduled": "Für diesen Beitrag ist nichts geplant."
     }
@@ -6201,12 +6203,12 @@
         "loadFailed": "Content-Kalender konnte nicht geladen werden",
         "scheduleFailed": "Beitrag konnte nicht geplant werden",
         "unscheduled": "Planung entfernt",
-        "unscheduledPartially": "Planung entfernt. Ein Ziel wurde bereits veröffentlicht und läuft zu Ende.",
+        "unscheduledPartially": "Planung entfernt. Ein Ziel wird gerade veröffentlicht und läuft noch zu Ende.",
         "unscheduleFailed": "Planung konnte nicht entfernt werden",
         "publishingNow": "Wird jetzt veröffentlicht",
         "publishNowFailed": "Beitrag konnte nicht veröffentlicht werden",
         "retrying": "Neuer Versuch läuft",
-        "retryFailed": "Erneuter Versuch fehlgeschlagen",
+        "retryFailed": "Erneuter Versuch konnte nicht gestartet werden",
         "moveIntoPast": "Dieser Zeitpunkt ist schon vorbei. Wähl einen späteren Tag.",
         "moved": "„{title}“ verschoben auf {date}"
       },
@@ -6238,7 +6240,9 @@
           "label": "Auf {platform} posten",
           "hint": "Postet den gespeicherten Text mit dem gewählten Account.",
           "noAccounts": "Noch kein Account verbunden. <link>Verbinde einen</link>, um automatisch zu posten.",
-          "account": "Account"
+          "account": "Account",
+          "accountMissing": "Der Account, über den dieser Beitrag geplant wurde, ist nicht mehr verbunden. Wähle einen anderen Account oder schalte dies aus.",
+          "loadFailed": "Deine verbundenen Accounts konnten nicht geladen werden. Versuche es später erneut oder schalte dies aus."
         },
         "notraAlways": "Geplante Beiträge werden auch in Notra veröffentlicht, selbst wenn ein anderes Ziel fehlschlägt.",
         "currentSlot": "Aktuell geplant für {date}.",

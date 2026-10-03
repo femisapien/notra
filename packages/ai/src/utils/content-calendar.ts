@@ -1,21 +1,7 @@
 import { db } from "@notra/db/drizzle";
-import {
-  postCollections,
-  posts,
-  scheduledPublications,
-} from "@notra/db/schema";
-import { projectScopeFilter } from "@notra/db/utils/projects";
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  gte,
-  inArray,
-  lt,
-  ne,
-  notExists,
-} from "drizzle-orm";
+import { posts, scheduledPublications } from "@notra/db/schema";
+import { projectScopedCollectionIds } from "@notra/db/utils/projects";
+import { and, asc, eq, gte, inArray, lt, ne } from "drizzle-orm";
 
 import type {
   CalendarPostView,
@@ -52,20 +38,6 @@ function toCalendarPostView(row: CalendarPostRow): CalendarPostView {
   };
 }
 
-function scopedCollectionIds(
-  organizationId: string,
-  projectId: string | null | undefined
-) {
-  const scope = projectScopeFilter(postCollections.projectId, projectId);
-  if (!scope) {
-    return;
-  }
-  return db
-    .select({ id: postCollections.id })
-    .from(postCollections)
-    .where(and(eq(postCollections.organizationId, organizationId), scope));
-}
-
 /**
  * Everything the calendar shows for `[from, to)`: scheduled slots (with the
  * state of every destination) and posts published in the range.
@@ -81,7 +53,7 @@ export async function listContentCalendar(params: {
 }): Promise<{
   entries: ContentCalendarEntryView[];
 }> {
-  const collectionScope = scopedCollectionIds(
+  const collectionScope = projectScopedCollectionIds(
     params.organizationId,
     params.projectId
   );

@@ -43,12 +43,8 @@ import type {
   SchedulePostOutcome,
   SchedulePostParams,
 } from "../types/scheduled-publications";
+import { scheduleDestinationsForContentType } from "./schedule-destinations";
 
-const GITHUB_DESTINATION_CONTENT_TYPES = new Set(["changelog", "blog_post"]);
-const SOCIAL_PROVIDER_BY_CONTENT_TYPE: Record<string, string> = {
-  twitter_post: "twitter",
-  linkedin_post: "linkedin",
-};
 const LAST_ERROR_MAX_LENGTH = 1000;
 
 const viewColumns = {
@@ -66,14 +62,6 @@ const viewColumns = {
   publishedAt: scheduledPublications.publishedAt,
   createdAt: scheduledPublications.createdAt,
 };
-
-/** Destinations a content type can go out to besides Notra itself. */
-export function scheduleDestinationsForContentType(contentType: string) {
-  return {
-    github: GITHUB_DESTINATION_CONTENT_TYPES.has(contentType),
-    socialProvider: SOCIAL_PROVIDER_BY_CONTENT_TYPE[contentType] ?? null,
-  };
-}
 
 function isUniqueViolation(error: unknown) {
   return (
@@ -204,7 +192,7 @@ async function validateDestinations(
       });
       continue;
     }
-    if (!supported.socialProvider) {
+    if (!supported.socialPlatform) {
       return { ok: false, reason: "destination_not_supported" };
     }
     const account = await db.query.connectedSocialAccounts.findFirst({
@@ -212,7 +200,7 @@ async function validateDestinations(
       where: and(
         eq(connectedSocialAccounts.id, destination.accountId),
         eq(connectedSocialAccounts.organizationId, organizationId),
-        eq(connectedSocialAccounts.provider, supported.socialProvider)
+        eq(connectedSocialAccounts.provider, supported.socialPlatform)
       ),
     });
     if (!account) {
@@ -271,6 +259,7 @@ export async function schedulePostPublication(
         .select({
           id: scheduledPublications.id,
           status: scheduledPublications.status,
+          externalAttemptAt: scheduledPublications.externalAttemptAt,
         })
         .from(scheduledPublications)
         .where(
@@ -288,6 +277,14 @@ export async function schedulePostPublication(
         return {
           ok: false as const,
           reason: "publishing_in_progress" as const,
+        };
+      }
+      // A social post that may already be live is never replaced silently:
+      // a person checks the account, then retries or cancels it.
+      if (current.some((row) => row.externalAttemptAt)) {
+        return {
+          ok: false as const,
+          reason: "unconfirmed_social_post" as const,
         };
       }
       // The caller states which pending rows it is replacing. Anything else
@@ -354,32 +351,39 @@ export async function schedulePostPublication(
 
 /**
  * Cancels whatever of a post's schedule has not started and clears failed
- * rows. A destination already publishing cannot be stopped and is reported.
+ * rows. A destination already publishing cannot be stopped; its attempt is
+ * told to end canceled instead of retrying, and it is reported in progress.
+ *
+ * One statement, so a row the sweep claims concurrently is re-read as
+ * `publishing` and still gets the cancel request.
  */
 export async function cancelPostSchedule(params: {
   organizationId: string;
   postId: string;
+  now?: Date;
 }): Promise<{ canceled: number; inProgress: boolean }> {
-  const canceled = await db
+  const rows = await db
     .update(scheduledPublications)
-    .set({ status: "canceled", claimToken: null, leaseUntil: null })
+    .set({
+      status: sql`case when ${scheduledPublications.status} = 'publishing' then ${scheduledPublications.status} else 'canceled' end`,
+      cancelRequestedAt: params.now ?? new Date(),
+    })
     .where(
       and(
         eq(scheduledPublications.organizationId, params.organizationId),
         eq(scheduledPublications.postId, params.postId),
-        inArray(scheduledPublications.status, ["scheduled", "failed"])
+        inArray(scheduledPublications.status, [
+          "scheduled",
+          "publishing",
+          "failed",
+        ])
       )
     )
-    .returning({ id: scheduledPublications.id });
-  const publishing = await db.query.scheduledPublications.findFirst({
-    columns: { id: true },
-    where: and(
-      eq(scheduledPublications.organizationId, params.organizationId),
-      eq(scheduledPublications.postId, params.postId),
-      eq(scheduledPublications.status, "publishing")
-    ),
-  });
-  return { canceled: canceled.length, inProgress: Boolean(publishing) };
+    .returning({ status: scheduledPublications.status });
+  return {
+    canceled: rows.filter((row) => row.status === "canceled").length,
+    inProgress: rows.some((row) => row.status === "publishing"),
+  };
 }
 
 /** Moves a post's pending schedule to now; the next sweep publishes it. */
@@ -424,6 +428,7 @@ export async function retryScheduledPublication(params: {
         nextAttemptAt: now,
         attempts: 0,
         externalAttemptAt: null,
+        cancelRequestedAt: null,
         errorCode: null,
         lastError: null,
         claimToken: null,
@@ -446,6 +451,20 @@ export async function retryScheduledPublication(params: {
     }
     throw error;
   }
+}
+
+/**
+ * The row as one run claimed it. Once a newer sweep took it over, or the run
+ * finished, the run's later writes match nothing.
+ */
+function claimFence(
+  claim: Pick<ClaimedScheduledPublication, "id" | "claimToken">
+) {
+  return and(
+    eq(scheduledPublications.id, claim.id),
+    eq(scheduledPublications.claimToken, claim.claimToken),
+    eq(scheduledPublications.status, "publishing")
+  );
 }
 
 function dueCondition(now: Date) {
@@ -528,11 +547,7 @@ export async function releaseScheduledPublicationClaim(
   claim: ClaimedScheduledPublication,
   now = new Date()
 ): Promise<"released" | "failed" | "superseded"> {
-  const fence = and(
-    eq(scheduledPublications.id, claim.id),
-    eq(scheduledPublications.claimToken, claim.claimToken),
-    eq(scheduledPublications.status, "publishing")
-  );
+  const fence = claimFence(claim);
   // A start that keeps failing (bad deploy, broken config) must surface
   // instead of cycling every minute forever.
   const givenUp = await db
@@ -586,13 +601,7 @@ export async function beginScheduledPublicationAttempt(
     .set({
       leaseUntil: new Date(now.getTime() + SCHEDULED_PUBLICATION_LEASE_MS),
     })
-    .where(
-      and(
-        eq(scheduledPublications.id, claim.id),
-        eq(scheduledPublications.claimToken, claim.claimToken),
-        eq(scheduledPublications.status, "publishing")
-      )
-    )
+    .where(claimFence(claim))
     .returning({
       id: scheduledPublications.id,
       organizationId: scheduledPublications.organizationId,
@@ -602,7 +611,9 @@ export async function beginScheduledPublicationAttempt(
       scheduledAt: scheduledPublications.scheduledAt,
       attempts: scheduledPublications.attempts,
       externalAttemptAt: scheduledPublications.externalAttemptAt,
+      cancelRequestedAt: scheduledPublications.cancelRequestedAt,
       createdByUserId: scheduledPublications.createdByUserId,
+      createdAt: scheduledPublications.createdAt,
       result: scheduledPublications.result,
     });
   return row ?? null;
@@ -620,12 +631,7 @@ export async function markScheduledPublicationExternalAttempt(
     .update(scheduledPublications)
     .set({ externalAttemptAt: now })
     .where(
-      and(
-        eq(scheduledPublications.id, claim.id),
-        eq(scheduledPublications.claimToken, claim.claimToken),
-        eq(scheduledPublications.status, "publishing"),
-        isNull(scheduledPublications.externalAttemptAt)
-      )
+      and(claimFence(claim), isNull(scheduledPublications.externalAttemptAt))
     )
     .returning({ id: scheduledPublications.id });
   return marked.length > 0;
@@ -638,7 +644,9 @@ export function scheduledPublicationRetryDelayMs(attempts: number) {
 
 /**
  * Writes an attempt's outcome under the claim token. A retryable error goes
- * back to `scheduled` with a back-off until the attempts run out.
+ * back to `scheduled` with a back-off until the attempts run out. A cancel
+ * requested meanwhile turns any error into `canceled`, unless a social post
+ * may already have gone out: that one stays failed for a person to check.
  */
 export async function finishScheduledPublicationAttempt(
   claim: Pick<ClaimedScheduledPublication, "id" | "claimToken">,
@@ -646,11 +654,7 @@ export async function finishScheduledPublicationAttempt(
   outcome: ScheduledPublicationOutcome,
   now = new Date()
 ): Promise<ScheduledPublicationFinish> {
-  const fence = and(
-    eq(scheduledPublications.id, claim.id),
-    eq(scheduledPublications.claimToken, claim.claimToken),
-    eq(scheduledPublications.status, "publishing")
-  );
+  const fence = claimFence(claim);
   const released = { claimToken: null, leaseUntil: null };
 
   if (outcome.kind === "published") {
@@ -671,11 +675,12 @@ export async function finishScheduledPublicationAttempt(
 
   const retry =
     outcome.retryable && attempts < SCHEDULED_PUBLICATION_MAX_ATTEMPTS;
-  const updated = await db
+  const status = retry ? "scheduled" : "failed";
+  const [updated] = await db
     .update(scheduledPublications)
     .set({
       ...released,
-      status: retry ? "scheduled" : "failed",
+      status: sql`case when ${scheduledPublications.cancelRequestedAt} is not null and ${scheduledPublications.externalAttemptAt} is null then 'canceled'::scheduled_publication_status else ${status}::scheduled_publication_status end`,
       nextAttemptAt: retry
         ? new Date(now.getTime() + scheduledPublicationRetryDelayMs(attempts))
         : undefined,
@@ -684,17 +689,21 @@ export async function finishScheduledPublicationAttempt(
       ...(outcome.result ? { result: outcome.result } : {}),
     })
     .where(fence)
-    .returning({ id: scheduledPublications.id });
-  if (updated.length === 0) {
+    .returning({ status: scheduledPublications.status });
+  if (!updated) {
     return "superseded";
+  }
+  if (updated.status === "canceled") {
+    return "canceled";
   }
   return retry ? "retry_scheduled" : "failed";
 }
 
 /**
- * Checks that decide an attempt before any destination is touched: a crash
- * loop that used up the attempts, or a social post whose earlier attempt went
- * out without a recorded outcome.
+ * Checks that decide an attempt before any destination is touched: a social
+ * post whose earlier attempt went out without a recorded outcome, a cancel
+ * that arrived after the row was claimed, or a crash loop that used up the
+ * attempts.
  */
 export function precheckScheduledPublicationAttempt(
   attempt: ScheduledPublicationAttempt
@@ -705,6 +714,14 @@ export function precheckScheduledPublicationAttempt(
       code: SCHEDULED_PUBLICATION_ERROR_CODES.OUTCOME_UNKNOWN,
       message:
         "An earlier attempt was interrupted after sending the post. Check the account before retrying so it is not posted twice.",
+      retryable: false,
+    };
+  }
+  if (attempt.cancelRequestedAt) {
+    return {
+      kind: "error",
+      code: SCHEDULED_PUBLICATION_ERROR_CODES.CANCELED,
+      message: "The schedule was canceled.",
       retryable: false,
     };
   }

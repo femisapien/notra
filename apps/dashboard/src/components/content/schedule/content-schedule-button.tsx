@@ -16,11 +16,12 @@ import { useState } from "react";
 
 import { Button } from "@/components/button";
 import { ScheduleContentDialog } from "@/components/content/schedule/schedule-content-dialog";
+import { SCHEDULE_SLOT_DATE_FORMAT } from "@/constants/content-calendar";
 import { usePostSchedule } from "@/lib/hooks/use-content-calendar";
 import { useLocalDateFormat } from "@/lib/hooks/use-local-date-format";
 import { cn } from "@/lib/utils";
 import type { ContentScheduleButtonProps } from "@/types/content/schedule";
-import { hasActiveSchedule } from "@/utils/content-calendar";
+import { summarizePostSchedule } from "@/utils/content-calendar";
 
 export function ContentScheduleButton({
   organizationId,
@@ -28,8 +29,7 @@ export function ContentScheduleButton({
   contentId,
   contentType,
   title,
-  disabled,
-  disabledReason,
+  hasUnsavedChanges,
   published,
 }: ContentScheduleButtonProps) {
   const t = useTranslations("content.calendar.schedule");
@@ -37,45 +37,34 @@ export function ContentScheduleButton({
   const [open, setOpen] = useState(false);
   const { data } = usePostSchedule(organizationId, contentId);
   const schedule = data?.schedule ?? null;
-  const active = hasActiveSchedule(schedule);
-  const publishing = Boolean(
-    schedule?.publications.some(
-      (publication) => publication.status === "publishing"
-    )
-  );
-  const failed = Boolean(
-    schedule?.publications.some(
-      (publication) => publication.status === "failed"
-    )
-  );
+  const { state, active, failed } = summarizePostSchedule(schedule);
+  // A schedule still going out, or one with failures to resolve.
+  const live = active || failed;
+
+  if (published && !live) {
+    return null;
+  }
 
   let icon = Calendar03Icon;
   let label = t("trigger");
-  if (publishing) {
+  if (state === "publishing") {
     icon = Loading03Icon;
     label = t("publishingTrigger");
   } else if (failed) {
     icon = Alert02Icon;
     label = t("failedTrigger");
-  } else if (active && schedule) {
+  } else if (state === "scheduled" && schedule) {
     label = t("scheduledTrigger", {
-      date: formatDate(new Date(schedule.scheduledAt), {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-        hour: "numeric",
-        minute: "2-digit",
-      }),
+      date: formatDate(
+        new Date(schedule.scheduledAt),
+        SCHEDULE_SLOT_DATE_FORMAT
+      ),
     });
   }
 
-  if (published && !(active || failed || publishing)) {
-    return null;
-  }
-
-  // Unsaved edits would not be part of what goes out, so they block the
-  // dialog; an existing schedule stays reachable to cancel or inspect it.
-  const blocked = Boolean(disabled) && !(active || failed);
+  // Unsaved edits would not be part of what goes out, so they block a new
+  // schedule; an existing one stays reachable to cancel or inspect it.
+  const blocked = hasUnsavedChanges && !live;
   const button = (
     <Button
       disabled={blocked}
@@ -86,7 +75,7 @@ export function ContentScheduleButton({
       <HugeiconsIcon
         className={cn(
           "size-4",
-          publishing && "animate-spin",
+          state === "publishing" && "animate-spin",
           failed && "text-destructive"
         )}
         icon={icon}
@@ -97,12 +86,12 @@ export function ContentScheduleButton({
 
   return (
     <>
-      {blocked && disabledReason ? (
+      {blocked ? (
         <Tooltip>
           <TooltipTrigger render={<span className="inline-flex" />}>
             {button}
           </TooltipTrigger>
-          <TooltipContent>{disabledReason}</TooltipContent>
+          <TooltipContent>{t("saveFirst")}</TooltipContent>
         </Tooltip>
       ) : (
         button
@@ -110,6 +99,7 @@ export function ContentScheduleButton({
       <ScheduleContentDialog
         contentId={contentId}
         contentType={contentType}
+        hasUnsavedChanges={hasUnsavedChanges}
         onOpenChange={setOpen}
         open={open}
         organizationId={organizationId}

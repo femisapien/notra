@@ -1,7 +1,9 @@
+import type { ScheduleSocialPlatform } from "@notra/ai/utils/schedule-destinations";
 import type {
   ContentCalendarEntry,
   PostSchedule,
   ScheduleDestinationInput,
+  ScheduledPublication,
 } from "@notra/schemas/dashboard/content-calendar";
 import {
   addDays,
@@ -10,19 +12,30 @@ import {
   endOfMonth,
   endOfWeek,
   format,
+  startOfDay,
   startOfMonth,
   startOfWeek,
 } from "date-fns";
 
 import {
+  CONTENT_CALENDAR_DEFAULT_HOUR,
   CONTENT_CALENDAR_MAX_PROJECTED_RUNS,
   CONTENT_CALENDAR_WEEK_STARTS_ON,
+  POST_SCHEDULE_IMMINENT_WINDOW_MS,
 } from "@/constants/content-calendar";
 import type {
   CalendarEntryState,
   CalendarItem,
   ContentCalendarRange,
 } from "@/types/content/calendar";
+import type {
+  PostScheduleSummary,
+  ScheduleDialogMode,
+  ScheduleFormState,
+  SchedulePollTier,
+  ScheduleSocialOption,
+} from "@/types/content/schedule";
+import type { ConnectedAccount } from "@/types/hooks/connected-accounts";
 import type { Trigger } from "@/types/triggers/triggers";
 import { computeNextRun } from "@/utils/schedule-summary";
 
@@ -75,49 +88,167 @@ export function toTimeInputValue(date: Date) {
   return format(date, "HH:mm");
 }
 
+function scheduleStateOf(
+  statuses: ReadonlySet<ScheduledPublication["status"]>
+): CalendarEntryState | null {
+  if (statuses.size === 0) {
+    return null;
+  }
+  if (statuses.has("publishing")) {
+    return "publishing";
+  }
+  if (statuses.has("failed")) {
+    return statuses.has("published") ? "partial" : "failed";
+  }
+  if (statuses.has("scheduled")) {
+    return "scheduled";
+  }
+  return "published";
+}
+
+/** The one place the UI reads a schedule's row statuses. */
+export function summarizePostSchedule(
+  schedule: PostSchedule | null
+): PostScheduleSummary {
+  const publications = schedule?.publications ?? [];
+  const statuses = new Set(
+    publications.map((publication) => publication.status)
+  );
+  const scheduled = statuses.has("scheduled");
+  const publishing = statuses.has("publishing");
+  return {
+    state: scheduleStateOf(statuses),
+    active: scheduled || publishing,
+    editable: scheduled && statuses.size === 1,
+    publishing,
+    failed: statuses.has("failed"),
+    hasOutcome: publications.some(
+      (publication) => publication.status !== "scheduled"
+    ),
+    scheduledIds: publications
+      .filter((publication) => publication.status === "scheduled")
+      .map((publication) => publication.id),
+  };
+}
+
 export function getCalendarEntryState(
   entry: ContentCalendarEntry
 ): CalendarEntryState {
   if (entry.kind === "published") {
     return "published";
   }
-  const statuses = entry.schedule.publications.map(
-    (publication) => publication.status
-  );
-  if (statuses.includes("publishing")) {
-    return "publishing";
-  }
-  const failed = statuses.includes("failed");
-  if (failed && statuses.includes("published")) {
-    return "partial";
-  }
-  if (failed) {
-    return "failed";
-  }
-  if (statuses.includes("scheduled")) {
-    return "scheduled";
-  }
-  return "published";
+  return summarizePostSchedule(entry.schedule).state ?? "published";
 }
 
-/** Whether a schedule can still be edited or moved as a whole. */
-export function isScheduleEditable(schedule: PostSchedule | null) {
-  return Boolean(
-    schedule?.publications.length &&
-    schedule.publications.every(
-      (publication) => publication.status === "scheduled"
-    )
+/** Fast polling near the slot or while publishing, slow while pending. */
+export function schedulePollTier(
+  schedule: PostSchedule | null | undefined,
+  now = Date.now()
+): SchedulePollTier | null {
+  const publications = schedule?.publications ?? [];
+  const imminent = publications.some(
+    (publication) =>
+      publication.status === "publishing" ||
+      (publication.status === "scheduled" &&
+        Date.parse(publication.scheduledAt) - now <
+          POST_SCHEDULE_IMMINENT_WINDOW_MS)
   );
+  if (imminent) {
+    return "active";
+  }
+  // TanStack evaluates the interval only after a fetch, so a page left open
+  // must keep polling to notice the slot approaching.
+  return publications.some((publication) => publication.status === "scheduled")
+    ? "idle"
+    : null;
 }
 
-export function hasActiveSchedule(schedule: PostSchedule | null) {
-  return Boolean(
-    schedule?.publications.some(
-      (publication) =>
-        publication.status === "scheduled" ||
-        publication.status === "publishing"
-    )
+export function getScheduleDialogMode({
+  active,
+  editable,
+  failed,
+}: PostScheduleSummary): ScheduleDialogMode {
+  if (active) {
+    return editable ? "edit" : "locked";
+  }
+  // Failed destinations are resolved first (retry or clear), so the dialog
+  // does not offer two competing actions at once.
+  return failed ? "failed" : "create";
+}
+
+function defaultScheduleSlot(now: Date) {
+  const slot = startOfDay(addDays(now, 1));
+  slot.setHours(CONTENT_CALENDAR_DEFAULT_HOUR);
+  return slot;
+}
+
+/** The form as the dialog opens: the active schedule, or tomorrow morning. */
+export function initialScheduleFormState({
+  schedule,
+  storedRepositoryId,
+  now = new Date(),
+}: {
+  schedule: PostSchedule | null;
+  storedRepositoryId: string | null;
+  now?: Date;
+}): ScheduleFormState {
+  const active = summarizePostSchedule(schedule).active ? schedule : null;
+  const slot = active ? new Date(active.scheduledAt) : defaultScheduleSlot(now);
+  const github = active?.publications.find(
+    (publication) => publication.destination === "github"
   );
+  const social = active?.publications.find(
+    (publication) => publication.destination === "social"
+  );
+  return {
+    date: slot,
+    time: toTimeInputValue(slot),
+    githubEnabled: Boolean(github),
+    repositoryId: github?.repositoryId ?? storedRepositoryId ?? "",
+    merge: github?.merge ?? true,
+    socialEnabled: active ? Boolean(social) : true,
+    accountId: social?.accountId ?? "",
+  };
+}
+
+/**
+ * The social destination of the schedule dialog. A saved account that is no
+ * longer connected stays selected as missing instead of silently posting
+ * from another account.
+ */
+export function resolveScheduleSocialOption({
+  platform,
+  connectedAccounts,
+  loaded,
+  loadFailed,
+  enabled,
+  accountId,
+}: {
+  platform: ScheduleSocialPlatform;
+  connectedAccounts: ConnectedAccount[];
+  loaded: boolean;
+  loadFailed: boolean;
+  enabled: boolean;
+  accountId: string;
+}): ScheduleSocialOption {
+  const accounts = connectedAccounts.filter(
+    (account) => account.provider === platform
+  );
+  const selectedAccount = accountId
+    ? (accounts.find((account) => account.id === accountId) ?? null)
+    : (accounts[0] ?? null);
+  const accountMissing = loaded && Boolean(accountId) && !selectedAccount;
+  const toggleable = accounts.length > 0 || accountMissing || loadFailed;
+  return {
+    platform,
+    accounts,
+    selectedAccount,
+    loaded,
+    loadFailed,
+    accountMissing,
+    toggleable,
+    checked: enabled && toggleable,
+  };
 }
 
 /** The external destinations of a schedule, as the schedule input takes them. */
@@ -141,6 +272,23 @@ export function scheduleDestinationsOf(
     }
   }
   return destinations;
+}
+
+/** The entry a calendar drag can move: the post's slot whose rows all still wait. */
+export function findMovableEntry(
+  entries: ContentCalendarEntry[],
+  postId: string
+) {
+  for (const entry of entries) {
+    if (
+      entry.kind === "scheduled" &&
+      entry.post.id === postId &&
+      summarizePostSchedule(entry.schedule).editable
+    ) {
+      return entry;
+    }
+  }
+  return null;
 }
 
 /**

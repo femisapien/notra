@@ -86,7 +86,7 @@ export async function sendScheduledContentFailedEmail(
 export async function sendScheduledPublicationFailedEmail(
   resend: Resend,
   {
-    recipientEmail,
+    recipientEmails,
     failureKey,
     ...props
   }: SendScheduledPublicationFailedEmailProps
@@ -96,7 +96,7 @@ export async function sendScheduledPublicationFailedEmail(
     {
       from: EMAIL_CONFIG.from,
       replyTo: EMAIL_CONFIG.replyTo,
-      to: recipientEmail,
+      to: recipientEmails,
       subject: `"${props.postTitle}" could not be published`,
       react: ScheduledPublicationFailedEmail(props),
       tags: [{ name: "category", value: "scheduled-publication-failed" }],

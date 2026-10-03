@@ -4,81 +4,96 @@ import type {
   ContentCalendarResponse,
   PostSchedule,
   PostScheduleResponse,
-  ScheduleDestinationInput,
 } from "@notra/schemas/dashboard/content-calendar";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
 import {
-  CONTENT_CALENDAR_ACTIVE_POLL_MS,
-  POST_SCHEDULE_ACTIVE_POLL_MS,
-  POST_SCHEDULE_IDLE_POLL_MS,
-  POST_SCHEDULE_IMMINENT_WINDOW_MS,
+  CONTENT_CALENDAR_POLL_MS,
+  CONTENT_CALENDAR_PREFETCH_STALE_MS,
+  POST_SCHEDULE_POLL_MS,
 } from "@/constants/content-calendar";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { ContentCalendarRange } from "@/types/content/calendar";
+import type { SchedulePostMutationInput } from "@/types/content/schedule";
+import {
+  getCalendarDays,
+  getCalendarRange,
+  schedulePollTier,
+  shiftCalendarMonth,
+} from "@/utils/content-calendar";
+import { toErrorMessage } from "@/utils/error-message";
 
 import { useActiveProject } from "./use-active-project";
+import { useScopedPreviousData } from "./use-scoped-previous-data";
 
-/** Poll interval for a schedule: fast near its slot, slow while pending. */
-function schedulePollInterval(schedule: PostSchedule | null | undefined) {
-  if (hasPendingWork(schedule)) {
-    return POST_SCHEDULE_ACTIVE_POLL_MS;
-  }
-  // TanStack evaluates this only after a fetch, so a page left open must
-  // keep polling to notice the slot approaching.
-  return schedule?.publications.some(
-    (publication) => publication.status === "scheduled"
-  )
-    ? POST_SCHEDULE_IDLE_POLL_MS
-    : false;
-}
-
-function hasPendingWork(schedule: PostSchedule | null | undefined) {
-  if (!schedule) {
-    return false;
-  }
-  return schedule.publications.some(
-    (publication) =>
-      publication.status === "publishing" ||
-      (publication.status === "scheduled" &&
-        Date.parse(publication.scheduledAt) - Date.now() <
-          POST_SCHEDULE_IMMINENT_WINDOW_MS)
-  );
-}
-
-export function useContentCalendar(
+function contentCalendarListOptions(
   organizationId: string,
+  projectId: string | undefined,
   range: ContentCalendarRange
 ) {
+  return dashboardOrpc.contentCalendar.list.queryOptions({
+    input: {
+      organizationId,
+      projectId,
+      from: range.from.toISOString(),
+      to: range.to.toISOString(),
+    },
+  });
+}
+
+/** The month grid around `anchor`, its entries, and warm neighbouring months. */
+export function useContentCalendar(organizationId: string, anchor: Date) {
   const tToast = useTranslations("content.calendar.toasts");
+  const queryClient = useQueryClient();
   const { projectId, isResolved } = useActiveProject();
-  return useQuery<ContentCalendarResponse>({
-    ...dashboardOrpc.contentCalendar.list.queryOptions({
-      input: {
-        organizationId,
-        projectId: projectId ?? undefined,
-        from: range.from.toISOString(),
-        to: range.to.toISOString(),
-      },
-    }),
-    enabled: !!organizationId && isResolved,
-    placeholderData: (previous) => previous,
-    refetchInterval: (query) => {
-      const schedules = (query.state.data?.entries ?? []).flatMap((entry) =>
-        entry.kind === "scheduled" ? [entry.schedule] : []
+  const scopedProjectId = projectId ?? undefined;
+  const days = useMemo(() => getCalendarDays(anchor), [anchor]);
+  const range = useMemo(() => getCalendarRange(days), [days]);
+  const enabled = Boolean(organizationId) && isResolved;
+  const placeholderData = useScopedPreviousData<ContentCalendarResponse>(
+    `${organizationId}:${scopedProjectId ?? ""}`
+  );
+
+  const query = useQuery<ContentCalendarResponse>({
+    ...contentCalendarListOptions(organizationId, scopedProjectId, range),
+    enabled,
+    placeholderData,
+    refetchInterval: (current) => {
+      const tiers = (current.state.data?.entries ?? []).map((entry) =>
+        entry.kind === "scheduled" ? schedulePollTier(entry.schedule) : null
       );
-      if (schedules.some(hasPendingWork)) {
-        return CONTENT_CALENDAR_ACTIVE_POLL_MS;
+      if (tiers.includes("active")) {
+        return CONTENT_CALENDAR_POLL_MS.active;
       }
-      return schedules.some((schedule) => schedulePollInterval(schedule))
-        ? POST_SCHEDULE_IDLE_POLL_MS
-        : false;
+      return tiers.includes("idle") ? CONTENT_CALENDAR_POLL_MS.idle : false;
     },
     meta: { errorMessage: tToast("loadFailed") },
   });
+
+  // Warm the neighbouring months so paging is instant.
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+    for (const direction of [-1, 1] as const) {
+      const neighbour = getCalendarRange(
+        getCalendarDays(shiftCalendarMonth(anchor, direction))
+      );
+      void queryClient.prefetchQuery({
+        ...contentCalendarListOptions(
+          organizationId,
+          scopedProjectId,
+          neighbour
+        ),
+        staleTime: CONTENT_CALENDAR_PREFETCH_STALE_MS,
+      });
+    }
+  }, [anchor, enabled, organizationId, scopedProjectId, queryClient]);
+
+  return { days, range, query };
 }
 
 export function usePostSchedule(organizationId: string, contentId: string) {
@@ -88,24 +103,29 @@ export function usePostSchedule(organizationId: string, contentId: string) {
       input: { organizationId, contentId },
     }),
     enabled: !!organizationId && !!contentId,
-    refetchInterval: (current) =>
-      schedulePollInterval(current.state.data?.schedule),
+    refetchInterval: (current) => {
+      const tier = schedulePollTier(current.state.data?.schedule);
+      return tier ? POST_SCHEDULE_POLL_MS[tier] : false;
+    },
   });
 
   // A destination that just went out changed the post (status, PR link) on
-  // the server; refresh what the page shows about it.
-  const publishedIds =
-    query.data?.schedule?.publications
-      .filter((publication) => publication.status === "published")
-      .map((publication) => publication.id)
-      .join(",") ?? "";
-  const seenPublishedIds = useRef(publishedIds);
+  // the server; refresh what the page shows about it. Null until the first
+  // response, so loading a schedule that already went out refreshes nothing.
+  const publishedIds = query.data
+    ? (query.data.schedule?.publications
+        .filter((publication) => publication.status === "published")
+        .map((publication) => publication.id)
+        .join(",") ?? "")
+    : null;
+  const seenPublishedIds = useRef<string | null>(null);
   useEffect(() => {
-    if (publishedIds === seenPublishedIds.current) {
+    if (publishedIds === null) {
       return;
     }
+    const previous = seenPublishedIds.current;
     seenPublishedIds.current = publishedIds;
-    if (!publishedIds) {
+    if (previous === null || previous === publishedIds || !publishedIds) {
       return;
     }
     // Status, PR link, recent-posts badges and collection counts all read
@@ -140,21 +160,11 @@ function useScheduleCacheUpdate(organizationId: string) {
   };
 }
 
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
-
 export function useSchedulePost(organizationId: string) {
   const t = useTranslations("content.calendar.toasts");
   const updateCache = useScheduleCacheUpdate(organizationId);
   return useMutation({
-    mutationFn: (input: {
-      contentId: string;
-      scheduledAt: Date;
-      timeZone: string;
-      destinations: ScheduleDestinationInput[];
-      expectedScheduledIds?: string[];
-    }) =>
+    mutationFn: (input: SchedulePostMutationInput) =>
       dashboardOrpc.contentCalendar.schedule.call({
         organizationId,
         contentId: input.contentId,
@@ -167,7 +177,7 @@ export function useSchedulePost(organizationId: string) {
       updateCache(input.contentId, result.schedule);
     },
     onError: (error) => {
-      toast.error(errorMessage(error, t("scheduleFailed")));
+      toast.error(toErrorMessage(error, t("scheduleFailed")));
     },
   });
 }
@@ -185,7 +195,7 @@ export function useCancelPostSchedule(organizationId: string) {
       );
     },
     onError: (error) => {
-      toast.error(errorMessage(error, t("unscheduleFailed")));
+      toast.error(toErrorMessage(error, t("unscheduleFailed")));
     },
   });
 }
@@ -204,7 +214,7 @@ export function usePublishScheduleNow(organizationId: string) {
       toast.success(t("publishingNow"));
     },
     onError: (error) => {
-      toast.error(errorMessage(error, t("publishNowFailed")));
+      toast.error(toErrorMessage(error, t("publishNowFailed")));
     },
   });
 }
@@ -226,7 +236,7 @@ export function useRetryScheduledPublication(organizationId: string) {
       toast.success(t("retrying"));
     },
     onError: (error) => {
-      toast.error(errorMessage(error, t("retryFailed")));
+      toast.error(toErrorMessage(error, t("retryFailed")));
     },
   });
 }

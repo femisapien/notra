@@ -10,6 +10,7 @@ import {
 } from "@notra/content-generation/jobs";
 import { postCollections, posts } from "@notra/db/schema";
 import { buildPostCollectionName } from "@notra/db/utils/post-collections";
+import { publishedAtForStatusChange } from "@notra/db/utils/post-published-at";
 import {
   ALL_POST_CONTENT_TYPES,
   ALL_POST_STATUSES,
@@ -450,10 +451,12 @@ export const preparePatchPost = Effect.fn("posts.preparePatch")(function* (
 
   if (body.status !== undefined) {
     updateData.status = body.status;
-    if (body.status === "draft") {
-      updateData.publishedAt = null;
-    } else if (existingPost.status !== "published") {
-      updateData.publishedAt = new Date();
+    const publishedAt = publishedAtForStatusChange(
+      existingPost.status,
+      body.status
+    );
+    if (publishedAt !== undefined) {
+      updateData.publishedAt = publishedAt;
     }
   }
 

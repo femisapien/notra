@@ -5,6 +5,7 @@ import type {
   ScheduledPublicationOutcome,
 } from "@notra/ai/types/scheduled-publications";
 import { createOctokit } from "@notra/ai/utils/octokit";
+import { isGitHubScheduleContentType } from "@notra/ai/utils/schedule-destinations";
 import { markScheduledPublicationExternalAttempt } from "@notra/ai/utils/scheduled-publications";
 import { db } from "@notra/db/drizzle";
 import { githubIntegrations, posts } from "@notra/db/schema";
@@ -19,19 +20,20 @@ import { Effect } from "effect";
 import { trackServerEventAndFlush } from "@/lib/analytics/posthog-server";
 import { resolveAiProductAccess } from "@/lib/billing/subscription";
 import { requestGeoRescanForPublishedPost } from "@/lib/geo/rescan";
+import {
+  type ContentPullRequestState,
+  getContentPullRequestState,
+  mergeContentPullRequest,
+} from "@/lib/integrations/github/content-pull-request";
 import { publishSavedContentToGitHub } from "@/lib/integrations/github/publish-saved-content";
+import { SocialConnectDeliveryUnknownError } from "@/lib/social-connect/errors";
 import { publishSocialPost } from "@/lib/social-connect/publish";
 import type { ScheduledPublicationPost } from "@/types/content/scheduled-publications";
-import { hasGitHubStatus } from "@/utils/github-publish-failure";
+import {
+  classifyGitHubPublishFailure,
+  hasGitHubStatus,
+} from "@/utils/github-publish-failure";
 
-const GITHUB_MERGE_METHODS = ["squash", "merge", "rebase"] as const;
-const MARK_READY_FOR_REVIEW_MUTATION = `
-  mutation MarkReadyForReview($pullRequestId: ID!) {
-    markPullRequestReadyForReview(input: { pullRequestId: $pullRequestId }) {
-      pullRequest { id }
-    }
-  }
-`;
 const RETRYABLE_ORPC_CODES = new Set([
   "INTERNAL_SERVER_ERROR",
   "BAD_GATEWAY",
@@ -43,6 +45,24 @@ const RETRYABLE_ORPC_CODES = new Set([
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+/** oRPC errors carry user-facing copy; anything else may carry internals. */
+function publicErrorMessage(error: unknown, fallback: string) {
+  return error instanceof ORPCError && error.message ? error.message : fallback;
+}
+
+/**
+ * Pending checks (405), rate limits and upstream errors clear up on their own.
+ * A missing pull request, lost access, a rejected request, or a branch that
+ * moved after Notra pushed it (409) needs a person.
+ */
+function isRetryableGitHubMergeError(error: unknown) {
+  if ([404, 409, 422].some((status) => hasGitHubStatus(error, status))) {
+    return false;
+  }
+  const kind = classifyGitHubPublishFailure(error);
+  return kind === "rate_limit" || kind === "unknown";
 }
 
 function failure(
@@ -117,123 +137,111 @@ async function publishInNotra(
   return { kind: "published", result: {} };
 }
 
-async function mergePullRequest(params: {
-  organizationId: string;
-  repositoryId: string;
-  pullRequestNumber: number;
-  pullRequestUrl: string;
-  headSha: string | null;
-}): Promise<ScheduledPublicationOutcome> {
+/** One authenticated client per attempt for the scheduled repository. */
+async function githubRepositoryClient(
+  organizationId: string,
+  repositoryId: string
+) {
   const repository = await db.query.githubIntegrations.findFirst({
     columns: { owner: true, repo: true },
     where: and(
-      eq(githubIntegrations.id, params.repositoryId),
-      eq(githubIntegrations.organizationId, params.organizationId)
+      eq(githubIntegrations.id, repositoryId),
+      eq(githubIntegrations.organizationId, organizationId)
     ),
   });
-  const partial = {
-    pullRequestNumber: params.pullRequestNumber,
-    pullRequestUrl: params.pullRequestUrl,
-  };
   if (!(repository?.owner && repository.repo)) {
+    return null;
+  }
+  const token = await getGitHubPublishToken(repositoryId, { organizationId });
+  return {
+    octokit: createOctokit(token ?? undefined),
+    owner: repository.owner,
+    repo: repository.repo,
+  };
+}
+
+type GitHubRepositoryClient = NonNullable<
+  Awaited<ReturnType<typeof githubRepositoryClient>>
+>;
+
+async function mergePullRequest(
+  client: GitHubRepositoryClient,
+  pullRequest: {
+    pullRequestNumber: number;
+    pullRequestUrl: string;
+    headSha: string | null;
+  }
+): Promise<ScheduledPublicationOutcome> {
+  const partial = { ...pullRequest };
+  const merged = {
+    kind: "published",
+    result: { ...partial, merged: true },
+  } as const;
+  const ref = {
+    owner: client.owner,
+    repo: client.repo,
+    pullNumber: pullRequest.pullRequestNumber,
+  };
+
+  let state: ContentPullRequestState;
+  try {
+    state = await getContentPullRequestState(client.octokit, ref);
+  } catch (error) {
     return failure(
       SCHEDULED_PUBLICATION_ERROR_CODES.GITHUB_MERGE_FAILED,
-      "The GitHub repository is no longer connected.",
+      `The pull request could not be loaded: ${errorMessage(error, "unknown error")}`,
+      isRetryableGitHubMergeError(error),
+      partial
+    );
+  }
+  if (state.status === "merged") {
+    return merged;
+  }
+  if (state.status === "closed") {
+    return failure(
+      SCHEDULED_PUBLICATION_ERROR_CODES.GITHUB_MERGE_FAILED,
+      "The pull request was closed without merging.",
       false,
       partial
     );
   }
-  const token = await getGitHubPublishToken(params.repositoryId, {
-    organizationId: params.organizationId,
-  });
-  const octokit = createOctokit(token ?? undefined);
-  const target = {
-    owner: repository.owner,
-    repo: repository.repo,
-    pull_number: params.pullRequestNumber,
-  };
 
-  let lastError: unknown = null;
   try {
-    const { data: pullRequest } = await octokit.request(
-      "GET /repos/{owner}/{repo}/pulls/{pull_number}",
-      target
+    await mergeContentPullRequest(
+      client.octokit,
+      ref,
+      state,
+      pullRequest.headSha
     );
-    if (pullRequest.merged) {
-      return { kind: "published", result: { ...partial, merged: true } };
-    }
-    // Notra opens content pull requests as drafts, which GitHub refuses to
-    // merge. Scheduling the merge is the author's go-ahead to leave draft.
-    if (pullRequest.draft) {
-      await octokit.graphql(MARK_READY_FOR_REVIEW_MUTATION, {
-        pullRequestId: pullRequest.node_id,
-      });
-    }
+    return merged;
   } catch (error) {
+    // Someone may have merged it by hand between the read and the merge.
+    const after = await getContentPullRequestState(client.octokit, ref).catch(
+      () => null
+    );
+    if (after?.status === "merged") {
+      return merged;
+    }
     return failure(
       SCHEDULED_PUBLICATION_ERROR_CODES.GITHUB_MERGE_FAILED,
-      `The pull request is open but could not be prepared for merging: ${errorMessage(error, "unknown error")}`,
-      !(hasGitHubStatus(error, 403) || hasGitHubStatus(error, 404)),
+      hasGitHubStatus(error, 409)
+        ? "The pull request changed after Notra pushed it. Review it and merge it on GitHub."
+        : `The pull request is open but could not be merged: ${errorMessage(error, "unknown error")}`,
+      isRetryableGitHubMergeError(error),
       partial
     );
   }
-
-  for (const mergeMethod of GITHUB_MERGE_METHODS) {
-    try {
-      await octokit.request(
-        "PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge",
-        {
-          ...target,
-          merge_method: mergeMethod,
-          // Merge exactly the commit this attempt pushed, never a later push.
-          ...(params.headSha ? { sha: params.headSha } : {}),
-        }
-      );
-      return { kind: "published", result: { ...partial, merged: true } };
-    } catch (error) {
-      lastError = error;
-      // 405 covers both "method not allowed in this repo" and "not
-      // mergeable yet"; only the first is worth trying the next method for.
-      const methodNotAllowed =
-        hasGitHubStatus(error, 405) &&
-        /merge method|not allowed/i.test(errorMessage(error, ""));
-      if (!methodNotAllowed) {
-        break;
-      }
-    }
-  }
-
-  // Someone merged it by hand between the push and our merge call.
-  try {
-    const { data } = await octokit.request(
-      "GET /repos/{owner}/{repo}/pulls/{pull_number}",
-      target
-    );
-    if (data.merged) {
-      return { kind: "published", result: { ...partial, merged: true } };
-    }
-  } catch {
-    // Report the merge error below.
-  }
-
-  const retryable =
-    hasGitHubStatus(lastError, 405) ||
-    hasGitHubStatus(lastError, 409) ||
-    !(hasGitHubStatus(lastError, 403) || hasGitHubStatus(lastError, 404));
-  return failure(
-    SCHEDULED_PUBLICATION_ERROR_CODES.GITHUB_MERGE_FAILED,
-    `The pull request is open but could not be merged: ${errorMessage(lastError, "unknown error")}`,
-    retryable,
-    partial
-  );
 }
 
 /**
- * Whether the post's linked pull request was merged already. A retry after a
- * merge whose outcome was lost must not try to publish the file again (the
- * target exists on the default branch now), so a merged link counts as done.
+ * The post's linked pull request when it was merged since this row was
+ * created. A retry after a merge whose outcome was lost must not publish the
+ * file again (it is on the default branch now), so such a merge counts as
+ * done. A merge from an earlier publication does not: the post was edited
+ * and scheduled again since.
  */
 async function findMergedLinkedPullRequest(
+  client: GitHubRepositoryClient,
   attempt: ScheduledPublicationAttempt,
   repositoryId: string,
   post: ScheduledPublicationPost
@@ -242,22 +250,16 @@ async function findMergedLinkedPullRequest(
   if (!(linked.success && linked.data.repositoryId === repositoryId)) {
     return null;
   }
-  try {
-    const token = await getGitHubPublishToken(repositoryId, {
-      organizationId: attempt.organizationId,
-    });
-    const { data } = await createOctokit(token ?? undefined).request(
-      "GET /repos/{owner}/{repo}/pulls/{pull_number}",
-      {
-        owner: linked.data.owner,
-        repo: linked.data.repo,
-        pull_number: linked.data.pullRequestNumber,
-      }
-    );
-    return data.merged ? linked.data : null;
-  } catch {
-    return null;
-  }
+  const state = await getContentPullRequestState(client.octokit, {
+    owner: client.owner,
+    repo: client.repo,
+    pullNumber: linked.data.pullRequestNumber,
+  }).catch(() => null);
+  const mergedSinceScheduled =
+    state?.status === "merged" &&
+    state.mergedAt !== null &&
+    state.mergedAt >= attempt.createdAt;
+  return mergedSinceScheduled ? linked.data : null;
 }
 
 async function publishToGitHub(
@@ -265,15 +267,29 @@ async function publishToGitHub(
   post: ScheduledPublicationPost,
   config: { repositoryId: string; merge: boolean }
 ): Promise<ScheduledPublicationOutcome> {
-  if (!(post.contentType === "changelog" || post.contentType === "blog_post")) {
+  if (!isGitHubScheduleContentType(post.contentType)) {
     return failure(
       SCHEDULED_PUBLICATION_ERROR_CODES.GITHUB_PUBLISH_FAILED,
       "This content type cannot be published to GitHub.",
       false
     );
   }
+  const client = await githubRepositoryClient(
+    attempt.organizationId,
+    config.repositoryId
+  );
+  if (!client) {
+    return failure(
+      SCHEDULED_PUBLICATION_ERROR_CODES.GITHUB_PUBLISH_FAILED,
+      "The GitHub repository is no longer connected.",
+      false,
+      attempt.result ?? undefined
+    );
+  }
+
   if (config.merge) {
     const merged = await findMergedLinkedPullRequest(
+      client,
       attempt,
       config.repositoryId,
       post
@@ -290,9 +306,9 @@ async function publishToGitHub(
     }
   }
 
-  // A retry after a failed merge goes straight back to merging. Pushing the
-  // content again would add a commit and restart CI on every attempt, so a
-  // repository with required checks could never be merged in time.
+  // A retry after a failed merge goes straight back to merging, pinned to
+  // the commit the first attempt pushed. Pushing again would restart CI on
+  // every attempt, so a repository with required checks never merges.
   const previous = attempt.result;
   if (
     config.merge &&
@@ -300,12 +316,10 @@ async function publishToGitHub(
     previous.pullRequestUrl &&
     !previous.merged
   ) {
-    return mergePullRequest({
-      organizationId: attempt.organizationId,
-      repositoryId: config.repositoryId,
-      headSha: null,
+    return mergePullRequest(client, {
       pullRequestNumber: previous.pullRequestNumber,
       pullRequestUrl: previous.pullRequestUrl,
+      headSha: previous.headSha ?? null,
     });
   }
 
@@ -320,7 +334,7 @@ async function publishToGitHub(
   } catch (error) {
     return failure(
       SCHEDULED_PUBLICATION_ERROR_CODES.GITHUB_PUBLISH_FAILED,
-      errorMessage(error, "Publishing to GitHub failed."),
+      publicErrorMessage(error, "Publishing to GitHub failed."),
       isRetryablePublishError(error)
     );
   }
@@ -328,16 +342,51 @@ async function publishToGitHub(
   const result = {
     pullRequestNumber: published.pullRequestNumber,
     pullRequestUrl: published.pullRequestUrl,
+    headSha: published.headSha ?? null,
   };
   if (!config.merge) {
     return { kind: "published", result };
   }
-  return mergePullRequest({
-    organizationId: attempt.organizationId,
-    repositoryId: config.repositoryId,
-    headSha: published.headSha ?? null,
-    ...result,
-  });
+  return mergePullRequest(client, result);
+}
+
+/**
+ * Opens the GitHub pull request when a post is scheduled, so reviews and CI
+ * run before the slot; the scheduled run then only updates and merges it.
+ * Best effort: without it the run opens the pull request itself.
+ */
+export async function openScheduledPullRequestAhead(params: {
+  organizationId: string;
+  postId: string;
+  repositoryId: string;
+}): Promise<void> {
+  try {
+    const post = await db.query.posts.findFirst({
+      columns: { contentType: true, githubPublish: true, markdown: true },
+      where: and(
+        eq(posts.id, params.postId),
+        eq(posts.organizationId, params.organizationId)
+      ),
+    });
+    if (
+      !post?.markdown ||
+      post.githubPublish ||
+      !isGitHubScheduleContentType(post.contentType)
+    ) {
+      return;
+    }
+    await publishSavedContentToGitHub({
+      organizationId: params.organizationId,
+      contentId: params.postId,
+      contentType: post.contentType,
+      repositoryId: params.repositoryId,
+    });
+  } catch (error) {
+    console.warn("[ScheduledPublication] Opening the PR ahead failed", {
+      postId: params.postId,
+      error,
+    });
+  }
 }
 
 async function publishToSocial(
@@ -366,16 +415,38 @@ async function publishToSocial(
       false
     );
   }
+  // A crash past this point may have happened after the post went out, so a
+  // defect counts as an unconfirmed send like a lost response does.
   const outcome = await Effect.runPromise(
     Effect.result(
       publishSocialPost({
         organizationId: attempt.organizationId,
         accountId,
         content,
-      })
+      }).pipe(
+        Effect.catchDefect((defect) =>
+          Effect.fail(
+            new SocialConnectDeliveryUnknownError({
+              message: "Publishing crashed after the post was sent",
+              cause: defect,
+            })
+          )
+        )
+      )
     )
   );
   if (outcome._tag === "Failure") {
+    if (outcome.failure._tag === "SocialConnectDeliveryUnknownError") {
+      console.error("[ScheduledPublication] Social send unconfirmed", {
+        scheduledPublicationId: attempt.id,
+        error: outcome.failure,
+      });
+      return failure(
+        SCHEDULED_PUBLICATION_ERROR_CODES.OUTCOME_UNKNOWN,
+        "The post may have gone out, but the platform did not confirm it. Check the account before retrying so it is not posted twice.",
+        false
+      );
+    }
     return failure(
       SCHEDULED_PUBLICATION_ERROR_CODES.SOCIAL_PUBLISH_FAILED,
       outcome.failure.message,
@@ -431,9 +502,13 @@ export async function publishScheduledDestination(
   try {
     ({ hasAccess } = await resolveAiProductAccess(attempt.organizationId));
   } catch (error) {
+    console.error("[ScheduledPublication] Subscription check failed", {
+      scheduledPublicationId: attempt.id,
+      error,
+    });
     return failure(
       SCHEDULED_PUBLICATION_ERROR_CODES.UNEXPECTED,
-      errorMessage(error, "Could not check the subscription."),
+      "Could not check the subscription.",
       true
     );
   }
