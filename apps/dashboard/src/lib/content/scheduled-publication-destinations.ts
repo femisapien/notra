@@ -26,14 +26,17 @@ import { trackServerEventAndFlush } from "@/lib/analytics/posthog-server";
 import { resolveAiProductAccess } from "@/lib/billing/subscription";
 import { requestGeoRescanForPublishedPost } from "@/lib/geo/rescan";
 import {
-  type ContentPullRequestState,
   getContentPullRequestState,
   mergeContentPullRequest,
 } from "@/lib/integrations/github/content-pull-request";
 import { publishSavedContentToGitHub } from "@/lib/integrations/github/publish-saved-content";
 import { SocialConnectDeliveryUnknownError } from "@/lib/social-connect/errors";
 import { publishSocialPost } from "@/lib/social-connect/publish";
-import type { ScheduledPublicationPost } from "@/types/content/scheduled-publications";
+import type {
+  ScheduledPublicationPost,
+  ScheduledPullRequest,
+} from "@/types/content/scheduled-publications";
+import type { ContentPullRequestState } from "@/types/integrations/github";
 import {
   classifyGitHubPublishFailure,
   hasGitHubStatus,
@@ -191,16 +194,11 @@ type GitHubRepositoryClient = NonNullable<
 
 async function mergePullRequest(
   client: GitHubRepositoryClient,
-  pullRequest: {
-    pullRequestNumber: number;
-    pullRequestUrl: string;
-    headSha: string | null;
-  }
+  pullRequest: ScheduledPullRequest
 ): Promise<ScheduledPublicationOutcome> {
-  const partial = { ...pullRequest };
   const merged = {
     kind: "published",
-    result: { ...partial, merged: true },
+    result: { ...pullRequest, merged: true },
   } as const;
   const ref = {
     owner: client.owner,
@@ -216,7 +214,7 @@ async function mergePullRequest(
       SCHEDULED_PUBLICATION_ERROR_CODES.GITHUB_MERGE_FAILED,
       `The pull request could not be loaded: ${errorMessage(error, "unknown error")}`,
       isRetryableGitHubMergeError(error),
-      partial
+      pullRequest
     );
   }
   if (state.status === "merged") {
@@ -227,7 +225,7 @@ async function mergePullRequest(
       SCHEDULED_PUBLICATION_ERROR_CODES.GITHUB_MERGE_FAILED,
       "The pull request was closed without merging.",
       false,
-      partial
+      pullRequest
     );
   }
 
@@ -253,9 +251,20 @@ async function mergePullRequest(
         ? "The pull request changed after Notra pushed it. Review it and merge it on GitHub."
         : `The pull request is open but could not be merged: ${errorMessage(error, "unknown error")}`,
       isRetryableGitHubMergeError(error),
-      partial
+      pullRequest
     );
   }
+}
+
+/** A pushed pull request is done once merged, or right away without merge. */
+function completePullRequest(
+  client: GitHubRepositoryClient,
+  merge: boolean,
+  pullRequest: ScheduledPullRequest
+): Promise<ScheduledPublicationOutcome> | ScheduledPublicationOutcome {
+  return merge
+    ? mergePullRequest(client, pullRequest)
+    : { kind: "published", result: pullRequest };
 }
 
 /**
@@ -312,19 +321,22 @@ async function publishToGitHub(
     );
   }
 
+  // What this schedule already pushed, like the pull request opened ahead
+  // of the slot or one whose merge failed, unless the post changed since.
   const previous = attempt.result;
-  const pushedContentIsCurrent =
-    previous?.contentHash === undefined ||
-    previous.contentHash === postContentHash(post);
-  // A merge since the schedule was created counts as done, unless the post
-  // changed after the pull request opened ahead was pushed.
-  if (config.merge && pushedContentIsCurrent) {
-    const merged = await findMergedLinkedPullRequest(
-      client,
-      attempt,
-      config.repositoryId,
-      post
-    );
+  const pushedIsStale =
+    previous?.contentHash !== undefined &&
+    previous.contentHash !== postContentHash(post);
+  if (!pushedIsStale) {
+    // A merge since the schedule was created counts as done.
+    const merged = config.merge
+      ? await findMergedLinkedPullRequest(
+          client,
+          attempt,
+          config.repositoryId,
+          post
+        )
+      : null;
     if (merged) {
       return {
         kind: "published",
@@ -335,26 +347,20 @@ async function publishToGitHub(
         },
       };
     }
-  }
-
-  // A pull request this schedule already pushed is merged as it is, pinned
-  // to that commit: a retry after a failed merge, or the one opened ahead of
-  // the slot while the post is unchanged. Pushing again would restart CI, so
-  // a repository with required checks could never merge in time.
-  if (
-    previous?.pullRequestNumber &&
-    previous.pullRequestUrl &&
-    !previous.merged &&
-    pushedContentIsCurrent
-  ) {
-    const pullRequest = {
-      pullRequestNumber: previous.pullRequestNumber,
-      pullRequestUrl: previous.pullRequestUrl,
-      headSha: previous.headSha ?? null,
-    };
-    return config.merge
-      ? mergePullRequest(client, pullRequest)
-      : { kind: "published", result: pullRequest };
+    // An open pull request is merged as it is, pinned to the pushed commit.
+    // Pushing again would restart CI, so a repository with required checks
+    // could never merge in time.
+    if (
+      previous?.pullRequestNumber &&
+      previous.pullRequestUrl &&
+      !previous.merged
+    ) {
+      return completePullRequest(client, config.merge, {
+        pullRequestNumber: previous.pullRequestNumber,
+        pullRequestUrl: previous.pullRequestUrl,
+        headSha: previous.headSha ?? null,
+      });
+    }
   }
 
   let published: Awaited<ReturnType<typeof publishSavedContentToGitHub>>;
@@ -372,16 +378,11 @@ async function publishToGitHub(
       isRetryablePublishError(error)
     );
   }
-
-  const result = {
+  return completePullRequest(client, config.merge, {
     pullRequestNumber: published.pullRequestNumber,
     pullRequestUrl: published.pullRequestUrl,
     headSha: published.headSha ?? null,
-  };
-  if (!config.merge) {
-    return { kind: "published", result };
-  }
-  return mergePullRequest(client, result);
+  });
 }
 
 /**
@@ -431,7 +432,8 @@ export async function openScheduledPullRequestAhead(params: {
         eq(posts.organizationId, params.organizationId)
       ),
     });
-    if (!after || postContentHash(after) !== postContentHash(post)) {
+    const contentHash = postContentHash(post);
+    if (!after || postContentHash(after) !== contentHash) {
       return;
     }
     await recordScheduledPullRequest({
@@ -442,7 +444,7 @@ export async function openScheduledPullRequestAhead(params: {
         pullRequestNumber: published.pullRequestNumber,
         pullRequestUrl: published.pullRequestUrl,
         headSha: published.headSha ?? null,
-        contentHash: postContentHash(post),
+        contentHash,
       },
     });
   } catch (error) {

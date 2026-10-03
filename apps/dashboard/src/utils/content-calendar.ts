@@ -1,10 +1,10 @@
-import type { ScheduleSocialPlatform } from "@notra/ai/utils/schedule-destinations";
 import type {
-  ContentCalendarEntry,
-  PostSchedule,
-  ScheduleDestinationInput,
-  ScheduledPublication,
-} from "@notra/schemas/dashboard/content-calendar";
+  ContentCalendarEntryView,
+  PostScheduleView,
+  ScheduleDestination,
+  ScheduledPublicationView,
+} from "@notra/ai/types/scheduled-publications";
+import type { ScheduleSocialPlatform } from "@notra/ai/utils/schedule-destinations";
 import {
   addDays,
   addMonths,
@@ -90,7 +90,7 @@ export function toTimeInputValue(date: Date) {
 }
 
 function scheduleStateOf(
-  statuses: ReadonlySet<ScheduledPublication["status"]>
+  statuses: ReadonlySet<ScheduledPublicationView["status"]>
 ): CalendarEntryState | null {
   if (statuses.size === 0) {
     return null;
@@ -109,7 +109,7 @@ function scheduleStateOf(
 
 /** The one place the UI reads a schedule's row statuses. */
 export function summarizePostSchedule(
-  schedule: PostSchedule | null
+  schedule: PostScheduleView | null
 ): PostScheduleSummary {
   const publications = schedule?.publications ?? [];
   const statuses = new Set(
@@ -133,7 +133,7 @@ export function summarizePostSchedule(
 }
 
 export function getCalendarEntryState(
-  entry: ContentCalendarEntry
+  entry: ContentCalendarEntryView
 ): CalendarEntryState {
   if (entry.kind === "published") {
     return "published";
@@ -143,7 +143,7 @@ export function getCalendarEntryState(
 
 /** Fast polling near the slot or while publishing, slow while pending. */
 export function schedulePollTier(
-  schedule: PostSchedule | null | undefined,
+  schedule: PostScheduleView | null | undefined,
   now = Date.now()
 ): SchedulePollTier | null {
   const publications = schedule?.publications ?? [];
@@ -189,18 +189,16 @@ export function initialScheduleFormState({
   storedRepositoryId,
   now = new Date(),
 }: {
-  schedule: PostSchedule | null;
+  schedule: PostScheduleView | null;
   storedRepositoryId: string | null;
   now?: Date;
 }): ScheduleFormState {
   const active = summarizePostSchedule(schedule).active ? schedule : null;
   const slot = active ? new Date(active.scheduledAt) : defaultScheduleSlot(now);
-  const github = active?.publications.find(
-    (publication) => publication.destination === "github"
-  );
-  const social = active?.publications.find(
-    (publication) => publication.destination === "social"
-  );
+  const configs =
+    active?.publications.map((publication) => publication.config) ?? [];
+  const github = configs.find((config) => config.destination === "github");
+  const social = configs.find((config) => config.destination === "social");
   return {
     date: slot,
     time: toTimeInputValue(slot),
@@ -270,8 +268,8 @@ export function buildScheduleDestinations({
     selectedPublishingEnabled: boolean;
   };
   social: ScheduleSocialOption | null;
-}): { destinations: ScheduleDestinationInput[]; blocked: boolean } {
-  const destinations: ScheduleDestinationInput[] = [];
+}): { destinations: ScheduleDestination[]; blocked: boolean } {
+  const destinations: ScheduleDestination[] = [];
   if (githubOn && github.selectedRepository) {
     destinations.push({
       destination: "github",
@@ -296,30 +294,16 @@ export function buildScheduleDestinations({
 
 /** The external destinations of a schedule, as the schedule input takes them. */
 export function scheduleDestinationsOf(
-  schedule: PostSchedule
-): ScheduleDestinationInput[] {
-  const destinations: ScheduleDestinationInput[] = [];
-  for (const publication of schedule.publications) {
-    if (publication.destination === "github" && publication.repositoryId) {
-      destinations.push({
-        destination: "github",
-        repositoryId: publication.repositoryId,
-        merge: publication.merge ?? true,
-      });
-    }
-    if (publication.destination === "social" && publication.accountId) {
-      destinations.push({
-        destination: "social",
-        accountId: publication.accountId,
-      });
-    }
-  }
-  return destinations;
+  schedule: PostScheduleView
+): ScheduleDestination[] {
+  return schedule.publications.flatMap(({ config }) =>
+    config.destination === "notra" ? [] : [config]
+  );
 }
 
 /** The entry a calendar drag can move: the post's slot whose rows all still wait. */
 export function findMovableEntry(
-  entries: ContentCalendarEntry[],
+  entries: ContentCalendarEntryView[],
   postId: string
 ) {
   for (const entry of entries) {
@@ -369,7 +353,7 @@ export function projectAutomationRuns(
 }
 
 export function calendarEntryItems(
-  entries: ContentCalendarEntry[]
+  entries: ContentCalendarEntryView[]
 ): CalendarItem[] {
   return entries.flatMap((entry): CalendarItem[] => {
     const at =

@@ -1,10 +1,9 @@
 "use client";
 
 import type {
-  ContentCalendarResponse,
-  PostSchedule,
-  PostScheduleResponse,
-} from "@notra/schemas/dashboard/content-calendar";
+  ContentCalendarView,
+  PostScheduleView,
+} from "@notra/ai/types/scheduled-publications";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef } from "react";
@@ -17,7 +16,10 @@ import {
 } from "@/constants/content-calendar";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { ContentCalendarRange } from "@/types/content/calendar";
-import type { SchedulePostMutationInput } from "@/types/content/schedule";
+import type {
+  PostScheduleResponse,
+  SchedulePostMutationInput,
+} from "@/types/content/schedule";
 import {
   getCalendarDays,
   getCalendarRange,
@@ -53,11 +55,11 @@ export function useContentCalendar(organizationId: string, anchor: Date) {
   const days = useMemo(() => getCalendarDays(anchor), [anchor]);
   const range = useMemo(() => getCalendarRange(days), [days]);
   const enabled = Boolean(organizationId) && isResolved;
-  const placeholderData = useScopedPreviousData<ContentCalendarResponse>(
+  const placeholderData = useScopedPreviousData<ContentCalendarView>(
     `${organizationId}:${scopedProjectId ?? ""}`
   );
 
-  const query = useQuery<ContentCalendarResponse>({
+  const query = useQuery<ContentCalendarView>({
     ...contentCalendarListOptions(organizationId, scopedProjectId, range),
     enabled,
     placeholderData,
@@ -145,7 +147,7 @@ export function usePostSchedule(organizationId: string, contentId: string) {
  */
 function useScheduleInvalidation(organizationId: string) {
   const queryClient = useQueryClient();
-  return (contentId: string, schedule: PostSchedule | null) => {
+  return (contentId: string, schedule: PostScheduleView | null) => {
     queryClient.setQueryData<PostScheduleResponse>(
       dashboardOrpc.contentCalendar.get.queryKey({
         input: { organizationId, contentId },

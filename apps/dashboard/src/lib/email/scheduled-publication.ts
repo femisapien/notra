@@ -7,6 +7,7 @@ import {
   scheduledPublications,
   users,
 } from "@notra/db/schema";
+import type { ScheduledPublicationDestinationConfig } from "@notra/db/types/scheduled-publications";
 import { EMAIL_CONFIG } from "@notra/email/utils/config";
 import { getResend } from "@notra/email/utils/resend";
 import { socialConnectPlatformSchema } from "@notra/schemas/dashboard/social-accounts";
@@ -18,7 +19,7 @@ import { sendScheduledPublicationFailedEmail } from "@/lib/email/send";
 
 async function describeDestination(
   organizationId: string,
-  config: typeof scheduledPublications.$inferSelect.destinationConfig
+  config: ScheduledPublicationDestinationConfig
 ) {
   if (config.destination === "github") {
     const repository = await db.query.githubIntegrations.findFirst({

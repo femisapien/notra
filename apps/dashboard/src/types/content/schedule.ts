@@ -1,13 +1,18 @@
-import type { ScheduleSocialPlatform } from "@notra/ai/utils/schedule-destinations";
 import type {
-  PostSchedule,
-  ScheduleDestinationInput,
-  ScheduledPublication,
-} from "@notra/schemas/dashboard/content-calendar";
+  PostScheduleView,
+  ScheduleDestination,
+  ScheduledPublicationView,
+} from "@notra/ai/types/scheduled-publications";
+import type { ScheduleSocialPlatform } from "@notra/ai/utils/schedule-destinations";
 
 import type { CalendarEntryState } from "@/types/content/calendar";
 import type { GitHubPublishRepositorySelectionFieldProps } from "@/types/content/detail";
 import type { ConnectedAccount } from "@/types/hooks/connected-accounts";
+
+/** What every schedule call of the dashboard answers with. */
+export interface PostScheduleResponse {
+  schedule: PostScheduleView | null;
+}
 
 export interface ScheduleContentDialogProps {
   open: boolean;
@@ -17,7 +22,7 @@ export interface ScheduleContentDialogProps {
   contentId: string;
   contentType: string;
   title: string;
-  schedule: PostSchedule | null;
+  schedule: PostScheduleView | null;
   /** Edits not saved yet; a schedule always sends the saved version. */
   hasUnsavedChanges: boolean;
 }
@@ -37,11 +42,11 @@ export interface ContentScheduleButtonProps {
 export interface ScheduleDestinationStatusListProps {
   contentId: string;
   organizationId: string;
-  schedule: PostSchedule;
+  schedule: PostScheduleView;
 }
 
 export interface ScheduledPublicationStatusBadgeProps {
-  status: ScheduledPublication["status"];
+  status: ScheduledPublicationView["status"];
 }
 
 /** Everything the UI derives from the statuses of a post's schedule rows. */
@@ -89,7 +94,7 @@ export interface SchedulePostMutationInput {
   contentId: string;
   scheduledAt: Date;
   timeZone: string;
-  destinations: ScheduleDestinationInput[];
+  destinations: ScheduleDestination[];
   /**
    * Scheduled rows this call replaces, as the user saw them when they
    * started; `[]` for a post without a schedule.
@@ -113,7 +118,7 @@ export interface ScheduleSocialOption {
 export interface ScheduleDestinationOptions {
   github: GitHubPublishRepositorySelectionFieldProps | null;
   social: ScheduleSocialOption | null;
-  destinations: ScheduleDestinationInput[];
+  destinations: ScheduleDestination[];
   /** A destination that is on cannot go out as configured yet. */
   blocked: boolean;
 }

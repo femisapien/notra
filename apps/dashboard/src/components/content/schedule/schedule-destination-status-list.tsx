@@ -2,7 +2,7 @@
 
 import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { ScheduledPublication } from "@notra/schemas/dashboard/content-calendar";
+import type { ScheduledPublicationView } from "@notra/ai/types/scheduled-publications";
 import { Badge } from "@notra/ui/components/ui/badge";
 import { useTranslations } from "next-intl";
 
@@ -32,7 +32,7 @@ function DestinationRow({
 }: {
   contentId: string;
   organizationId: string;
-  publication: ScheduledPublication;
+  publication: ScheduledPublicationView;
 }) {
   const t = useTranslations("content.calendar.schedule");
   const retry = useRetryScheduledPublication(organizationId);

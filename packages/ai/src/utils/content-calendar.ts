@@ -6,8 +6,12 @@ import { and, asc, eq, gte, inArray, lt, ne } from "drizzle-orm";
 import type {
   CalendarPostView,
   ContentCalendarEntryView,
+  ContentCalendarView,
 } from "../types/scheduled-publications";
-import { groupPostSchedules } from "./scheduled-publications";
+import {
+  groupPostSchedules,
+  scheduledPublicationViewColumns,
+} from "./scheduled-publications";
 
 const calendarPostColumns = {
   id: posts.id,
@@ -50,9 +54,7 @@ export async function listContentCalendar(params: {
   projectId?: string | null;
   from: Date;
   to: Date;
-}): Promise<{
-  entries: ContentCalendarEntryView[];
-}> {
+}): Promise<ContentCalendarView> {
   const collectionScope = projectScopedCollectionIds(
     params.organizationId,
     params.projectId
@@ -64,19 +66,7 @@ export async function listContentCalendar(params: {
   const [scheduleRows, publishedRows] = await Promise.all([
     db
       .select({
-        id: scheduledPublications.id,
-        postId: scheduledPublications.postId,
-        destination: scheduledPublications.destination,
-        destinationConfig: scheduledPublications.destinationConfig,
-        status: scheduledPublications.status,
-        scheduledAt: scheduledPublications.scheduledAt,
-        timeZone: scheduledPublications.timeZone,
-        attempts: scheduledPublications.attempts,
-        errorCode: scheduledPublications.errorCode,
-        lastError: scheduledPublications.lastError,
-        result: scheduledPublications.result,
-        publishedAt: scheduledPublications.publishedAt,
-        createdAt: scheduledPublications.createdAt,
+        ...scheduledPublicationViewColumns,
         post: calendarPostColumns,
       })
       .from(scheduledPublications)
@@ -143,7 +133,5 @@ export async function listContentCalendar(params: {
     entries.push({ kind: "published", post: toCalendarPostView(post) });
   }
 
-  return {
-    entries,
-  };
+  return { entries };
 }

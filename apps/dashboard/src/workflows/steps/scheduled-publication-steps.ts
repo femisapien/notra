@@ -6,7 +6,6 @@ import type {
 import {
   beginScheduledPublicationAttempt,
   finishScheduledPublicationAttempt,
-  precheckScheduledPublicationAttempt,
 } from "@notra/ai/utils/scheduled-publications";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
 
@@ -37,11 +36,12 @@ export async function runScheduledPublicationStep(
     id: input.scheduledPublicationId,
     claimToken: input.claimToken,
   };
-  const attempt = await beginScheduledPublicationAttempt(claim);
-  if (!attempt) {
+  const begun = await beginScheduledPublicationAttempt(claim);
+  if (!begun) {
     return null;
   }
-  let outcome = precheckScheduledPublicationAttempt(attempt);
+  const { attempt } = begun;
+  let outcome = begun.preempted;
   if (!outcome) {
     try {
       outcome = await publishScheduledDestination(attempt, input.claimToken);

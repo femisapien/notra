@@ -316,11 +316,11 @@ if (process.env.NOTRA_SCHEDULED_PUBLICATIONS_SQL_WORKER !== "1") {
         })
       ).toBe("superseded");
 
-      const attempt = await lifecycle.beginScheduledPublicationAttempt(
+      const begun = await lifecycle.beginScheduledPublicationAttempt(
         second ?? first,
         takeoverAt
       );
-      expect(attempt?.attempts).toBe(2);
+      expect(begun?.attempt.attempts).toBe(2);
     });
 
     test("a failed hand-off is released without spending an attempt", async () => {
@@ -357,14 +357,11 @@ if (process.env.NOTRA_SCHEDULED_PUBLICATIONS_SQL_WORKER !== "1") {
       if (!claim) {
         throw new Error("expected a claim");
       }
-      const attempt = await lifecycle.beginScheduledPublicationAttempt(
-        claim,
-        at
-      );
-      if (!attempt) {
+      const begun = await lifecycle.beginScheduledPublicationAttempt(claim, at);
+      if (!begun) {
         throw new Error("expected an attempt");
       }
-      return { claim, attempt };
+      return { claim, attempt: begun.attempt };
     };
 
     test("success records the result and releases the claim", async () => {
@@ -458,14 +455,13 @@ if (process.env.NOTRA_SCHEDULED_PUBLICATIONS_SQL_WORKER !== "1") {
           postId: "tweet",
         })
       ).find((claim) => claim.destination === "social");
-      const attempt = again
+      const begun = again
         ? await lifecycle.beginScheduledPublicationAttempt(again, takeoverAt)
         : null;
-      if (!attempt) {
+      if (!begun) {
         throw new Error("expected the takeover attempt");
       }
-      const precheck = lifecycle.precheckScheduledPublicationAttempt(attempt);
-      expect(precheck).toMatchObject({
+      expect(begun.preempted).toMatchObject({
         kind: "error",
         code: "outcome_unknown",
         retryable: false,
@@ -476,22 +472,20 @@ if (process.env.NOTRA_SCHEDULED_PUBLICATIONS_SQL_WORKER !== "1") {
       await seedPost("p1");
       await schedule("p1");
       let at = SLOT;
-      let attempt = null;
+      let begun = null;
       for (let run = 0; run <= SCHEDULED_PUBLICATION_MAX_ATTEMPTS; run++) {
         const [claim] = await lifecycle.claimDueScheduledPublications({
           now: at,
         });
-        attempt = claim
+        begun = claim
           ? await lifecycle.beginScheduledPublicationAttempt(claim, at)
           : null;
         at = new Date(at.getTime() + SCHEDULED_PUBLICATION_LEASE_MS + MINUTE);
       }
-      if (!attempt) {
+      if (!begun) {
         throw new Error("expected an attempt");
       }
-      expect(
-        lifecycle.precheckScheduledPublicationAttempt(attempt)
-      ).toMatchObject({ code: "too_many_attempts" });
+      expect(begun.preempted).toMatchObject({ code: "too_many_attempts" });
     });
   });
 
@@ -558,19 +552,18 @@ if (process.env.NOTRA_SCHEDULED_PUBLICATIONS_SQL_WORKER !== "1") {
       const [claim] = await lifecycle.claimDueScheduledPublications({
         now: takeoverAt,
       });
-      const attempt = claim
+      const begun = claim
         ? await lifecycle.beginScheduledPublicationAttempt(claim, takeoverAt)
         : null;
-      if (!(claim && attempt)) {
+      if (!(claim && begun)) {
         throw new Error("expected the takeover attempt");
       }
-      const precheck = lifecycle.precheckScheduledPublicationAttempt(attempt);
-      expect(precheck).toMatchObject({ code: "canceled" });
+      expect(begun.preempted).toMatchObject({ code: "canceled" });
       expect(
         await lifecycle.finishScheduledPublicationAttempt(
           claim,
-          attempt.attempts,
-          precheck ?? { kind: "published", result: {} },
+          begun.attempt.attempts,
+          begun.preempted ?? { kind: "published", result: {} },
           takeoverAt
         )
       ).toBe("canceled");
@@ -930,10 +923,10 @@ if (process.env.NOTRA_SCHEDULED_PUBLICATIONS_SQL_WORKER !== "1") {
       const [retry] = await lifecycle.claimDueScheduledPublications({
         now: retryAt,
       });
-      const attempt = retry
+      const begun = retry
         ? await lifecycle.beginScheduledPublicationAttempt(retry, retryAt)
         : null;
-      expect(attempt?.result).toEqual({
+      expect(begun?.attempt.result).toEqual({
         pullRequestNumber: 7,
         pullRequestUrl: "https://pr/7",
       });

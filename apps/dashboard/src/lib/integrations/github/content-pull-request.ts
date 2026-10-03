@@ -1,5 +1,9 @@
 import { GITHUB_API_VERSION_HEADERS } from "@/constants/github";
-import type { GitHubClient } from "@/types/integrations/github";
+import type {
+  ContentPullRequestRef,
+  ContentPullRequestState,
+  GitHubClient,
+} from "@/types/integrations/github";
 import { hasGitHubStatus } from "@/utils/github-publish-failure";
 
 const GITHUB_MERGE_METHODS = ["squash", "merge", "rebase"] as const;
@@ -11,17 +15,6 @@ const MARK_READY_FOR_REVIEW_MUTATION = `
   }
 `;
 const MERGE_METHOD_NOT_ALLOWED_REGEX = /merge method|not allowed/i;
-
-export interface ContentPullRequestRef {
-  owner: string;
-  repo: string;
-  pullNumber: number;
-}
-
-export type ContentPullRequestState =
-  | { status: "merged"; mergedAt: Date | null }
-  | { status: "closed" }
-  | { status: "open"; draft: boolean; nodeId: string };
 
 export async function getContentPullRequestState(
   octokit: GitHubClient,

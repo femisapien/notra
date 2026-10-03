@@ -36,22 +36,24 @@ import {
   SCHEDULED_PUBLICATION_SWEEP_LIMIT,
 } from "../constants/scheduled-publications";
 import type {
+  BegunScheduledPublicationAttempt,
   ClaimedScheduledPublication,
   PostScheduleView,
   ScheduleDestination,
-  ScheduledPublicationAttempt,
   ScheduledPublicationFinish,
   ScheduledPublicationOutcome,
   ScheduledPublicationRowForView,
   ScheduledPublicationView,
   SchedulePostOutcome,
   SchedulePostParams,
+  ScheduleReplaceOutcome,
 } from "../types/scheduled-publications";
 import { scheduleDestinationsForContentType } from "./schedule-destinations";
 
 const LAST_ERROR_MAX_LENGTH = 1000;
 
-const viewColumns = {
+/** The columns a schedule view is built from. */
+export const scheduledPublicationViewColumns = {
   id: scheduledPublications.id,
   postId: scheduledPublications.postId,
   destination: scheduledPublications.destination,
@@ -76,19 +78,16 @@ function isUniqueViolation(error: unknown) {
   );
 }
 
-export function toScheduledPublicationView(
+function toScheduledPublicationView(
   row: ScheduledPublicationRowForView
 ): ScheduledPublicationView {
-  const config = row.destinationConfig;
   return {
     id: row.id,
     destination: row.destination,
+    config: row.destinationConfig,
     status: row.status,
     scheduledAt: row.scheduledAt.toISOString(),
     timeZone: row.timeZone,
-    repositoryId: config.destination === "github" ? config.repositoryId : null,
-    merge: config.destination === "github" ? config.merge : null,
-    accountId: config.destination === "social" ? config.accountId : null,
     attempts: row.attempts,
     errorCode: row.errorCode,
     lastError: row.lastError,
@@ -132,7 +131,7 @@ export async function getPostSchedule(params: {
   postId: string;
 }): Promise<PostScheduleView | null> {
   const rows = await db
-    .select(viewColumns)
+    .select(scheduledPublicationViewColumns)
     .from(scheduledPublications)
     .where(
       and(
@@ -282,7 +281,7 @@ export async function schedulePostPublication(
   }
 
   try {
-    const outcome = await db.transaction(async (tx) => {
+    const outcome = await db.transaction<ScheduleReplaceOutcome>(async (tx) => {
       const current = await tx
         .select({
           id: scheduledPublications.id,
@@ -304,25 +303,19 @@ export async function schedulePostPublication(
         )
         .for("update");
       if (current.some((row) => row.status === "publishing")) {
-        return {
-          ok: false as const,
-          reason: "publishing_in_progress" as const,
-        };
+        return { ok: false, reason: "publishing_in_progress" };
       }
       // A social post that may already be live is never replaced silently:
       // a person checks the account, then retries or cancels it.
       if (current.some((row) => row.externalAttemptAt)) {
-        return {
-          ok: false as const,
-          reason: "unconfirmed_social_post" as const,
-        };
+        return { ok: false, reason: "unconfirmed_social_post" };
       }
       // Posting the same text to the same account again is a second post,
       // not a reschedule. Another account of the platform is fine.
       const socialConfig = validated.configs.find(
         (config) => config.destination === "social"
       );
-      if (socialConfig?.destination === "social") {
+      if (socialConfig) {
         const [posted] = await tx
           .select({ id: scheduledPublications.id })
           .from(scheduledPublications)
@@ -336,10 +329,7 @@ export async function schedulePostPublication(
           )
           .limit(1);
         if (posted) {
-          return {
-            ok: false as const,
-            reason: "social_already_posted" as const,
-          };
+          return { ok: false, reason: "social_already_posted" };
         }
       }
       // The caller states which pending rows it is replacing. Anything else
@@ -354,7 +344,7 @@ export async function schedulePostPublication(
             (row) => row.status === "scheduled" && expected.has(row.id)
           );
         if (!matches) {
-          return { ok: false as const, reason: "conflict" as const };
+          return { ok: false, reason: "conflict" };
         }
       }
       // Failed rows of an earlier slot are superseded by the new schedule.
@@ -382,7 +372,7 @@ export async function schedulePostPublication(
           result: carriedPullRequest(current, config),
         }))
       );
-      return { ok: true as const };
+      return { ok: true };
     });
     if (!outcome.ok) {
       return outcome;
@@ -572,8 +562,9 @@ function dueCondition(now: Date) {
  *
  * `FOR UPDATE SKIP LOCKED` lets overlapping sweeps split the backlog instead
  * of blocking on each other, and the due condition repeated in the update
- * makes a row that changed in between (canceled, rescheduled) drop out. The claim token fences every later write of the run: once a
- * newer sweep took a row over, the old run can no longer touch it.
+ * makes a row that changed in between (canceled, rescheduled) drop out. The
+ * claim token fences every later write of the run: once a newer sweep took a
+ * row over, the old run can no longer touch it.
  */
 export async function claimDueScheduledPublications(params?: {
   now?: Date;
@@ -682,12 +673,13 @@ export async function releaseScheduledPublicationClaim(
 
 /**
  * Starts an attempt for a claimed row: refreshes the lease under the claim
- * token and returns the row, or `null` when a newer claim or a cancel won.
+ * token and returns the row, or `null` when a newer claim or a cancel won. An
+ * attempt that must not touch any destination comes back already decided.
  */
 export async function beginScheduledPublicationAttempt(
   claim: Pick<ClaimedScheduledPublication, "id" | "claimToken">,
   now = new Date()
-): Promise<ScheduledPublicationAttempt | null> {
+): Promise<BegunScheduledPublicationAttempt | null> {
   const [row] = await db
     .update(scheduledPublications)
     .set({
@@ -708,7 +700,57 @@ export async function beginScheduledPublicationAttempt(
       createdAt: scheduledPublications.createdAt,
       result: scheduledPublications.result,
     });
-  return row ?? null;
+  if (!row) {
+    return null;
+  }
+  const { externalAttemptAt, cancelRequestedAt, ...attempt } = row;
+  return {
+    attempt,
+    preempted: preemptedOutcome({
+      externalAttemptAt,
+      cancelRequestedAt,
+      attempts: attempt.attempts,
+    }),
+  };
+}
+
+/**
+ * What decides an attempt before any destination is touched: a social post
+ * whose earlier attempt went out without a recorded outcome, a cancel that
+ * arrived after the row was claimed, or a crash loop that used up the
+ * attempts.
+ */
+function preemptedOutcome(row: {
+  externalAttemptAt: Date | null;
+  cancelRequestedAt: Date | null;
+  attempts: number;
+}): ScheduledPublicationOutcome | null {
+  if (row.externalAttemptAt) {
+    return {
+      kind: "error",
+      code: SCHEDULED_PUBLICATION_ERROR_CODES.OUTCOME_UNKNOWN,
+      message:
+        "An earlier attempt was interrupted after sending the post. Check the account before retrying so it is not posted twice.",
+      retryable: false,
+    };
+  }
+  if (row.cancelRequestedAt) {
+    return {
+      kind: "error",
+      code: SCHEDULED_PUBLICATION_ERROR_CODES.CANCELED,
+      message: "The schedule was canceled.",
+      retryable: false,
+    };
+  }
+  if (row.attempts > SCHEDULED_PUBLICATION_MAX_ATTEMPTS) {
+    return {
+      kind: "error",
+      code: SCHEDULED_PUBLICATION_ERROR_CODES.TOO_MANY_ATTEMPTS,
+      message: "Publishing was interrupted too many times.",
+      retryable: false,
+    };
+  }
+  return null;
 }
 
 /**
@@ -774,11 +816,18 @@ export async function finishScheduledPublicationAttempt(
   const mayBeLive =
     outcome.code === SCHEDULED_PUBLICATION_ERROR_CODES.OUTCOME_UNKNOWN ||
     outcome.code === SCHEDULED_PUBLICATION_ERROR_CODES.UNEXPECTED;
+  // A cancel requested meanwhile wins, except over a post that may be live.
+  const canceled = mayBeLive
+    ? and(
+        isNotNull(scheduledPublications.cancelRequestedAt),
+        isNull(scheduledPublications.externalAttemptAt)
+      )
+    : isNotNull(scheduledPublications.cancelRequestedAt);
   const [updated] = await db
     .update(scheduledPublications)
     .set({
       ...released,
-      status: sql`case when ${scheduledPublications.cancelRequestedAt} is not null and (${scheduledPublications.externalAttemptAt} is null or not ${mayBeLive}::boolean) then 'canceled'::scheduled_publication_status else ${status}::scheduled_publication_status end`,
+      status: sql`case when ${canceled} then 'canceled'::scheduled_publication_status else ${status}::scheduled_publication_status end`,
       ...(mayBeLive ? {} : { externalAttemptAt: null }),
       nextAttemptAt: retry
         ? new Date(now.getTime() + scheduledPublicationRetryDelayMs(attempts))
@@ -796,41 +845,4 @@ export async function finishScheduledPublicationAttempt(
     return "canceled";
   }
   return retry ? "retry_scheduled" : "failed";
-}
-
-/**
- * Checks that decide an attempt before any destination is touched: a social
- * post whose earlier attempt went out without a recorded outcome, a cancel
- * that arrived after the row was claimed, or a crash loop that used up the
- * attempts.
- */
-export function precheckScheduledPublicationAttempt(
-  attempt: ScheduledPublicationAttempt
-): ScheduledPublicationOutcome | null {
-  if (attempt.externalAttemptAt) {
-    return {
-      kind: "error",
-      code: SCHEDULED_PUBLICATION_ERROR_CODES.OUTCOME_UNKNOWN,
-      message:
-        "An earlier attempt was interrupted after sending the post. Check the account before retrying so it is not posted twice.",
-      retryable: false,
-    };
-  }
-  if (attempt.cancelRequestedAt) {
-    return {
-      kind: "error",
-      code: SCHEDULED_PUBLICATION_ERROR_CODES.CANCELED,
-      message: "The schedule was canceled.",
-      retryable: false,
-    };
-  }
-  if (attempt.attempts > SCHEDULED_PUBLICATION_MAX_ATTEMPTS) {
-    return {
-      kind: "error",
-      code: SCHEDULED_PUBLICATION_ERROR_CODES.TOO_MANY_ATTEMPTS,
-      message: "Publishing was interrupted too many times.",
-      retryable: false,
-    };
-  }
-  return null;
 }

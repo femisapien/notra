@@ -1,11 +1,13 @@
 import { SCHEDULE_POST_FAILURES } from "@notra/ai/constants/scheduled-publications";
 import {
-  type PostScheduleToolInput,
   postScheduleToolInputSchema,
-  type SchedulePostToolInput,
   schedulePostToolInputSchema,
 } from "@notra/ai/schemas/post-schedules";
-import type { ScheduleDestination } from "@notra/ai/types/scheduled-publications";
+import type {
+  PostScheduleToolInput,
+  ScheduleDestination,
+  SchedulePostToolInput,
+} from "@notra/ai/types/scheduled-publications";
 import { toolDescription } from "@notra/ai/utils/description";
 import {
   cancelPostSchedule,

@@ -1,10 +1,10 @@
 import "zod/compile";
 import { z } from "@hono/zod-openapi";
-import { isValidTimezone } from "@notra/ai/utils/current-date";
 import {
-  SCHEDULED_PUBLICATION_DESTINATIONS,
-  SCHEDULED_PUBLICATION_STATUSES,
-} from "@notra/db/constants/scheduled-publications";
+  postScheduleViewSchema,
+  scheduledPublicationViewSchema,
+} from "@notra/ai/schemas/post-schedules";
+import { isValidTimezone } from "@notra/ai/utils/current-date";
 
 import { CONTENT_CALENDAR_TIME_ZONE_MAX_LENGTH } from "../../constants/dashboard/content-calendar";
 import { organizationResponseSchema } from "./content";
@@ -71,39 +71,16 @@ export const schedulePostRequestSchema = z
   })
   .openapi("SchedulePostRequest");
 
-const scheduledPublicationResponseSchema = z
-  .object({
-    id: z.string(),
-    destination: z.enum(SCHEDULED_PUBLICATION_DESTINATIONS),
-    status: z.enum(SCHEDULED_PUBLICATION_STATUSES).openapi({
-      description:
-        "scheduled → publishing → published or failed. Failed destinations are retried automatically for transient errors before they end up failed.",
-    }),
-    scheduledAt: z.string(),
-    timeZone: z.string(),
-    repositoryId: z.string().nullable(),
-    merge: z.boolean().nullable(),
-    accountId: z.string().nullable(),
-    attempts: z.number().int(),
-    errorCode: z.string().nullable(),
-    lastError: z.string().nullable(),
-    resultUrl: z.string().nullable().openapi({
-      description: "Pull request or social post URL once published.",
-    }),
-    publishedAt: z.string().nullable(),
-  })
-  .openapi("ScheduledPublication");
-
 export const postScheduleResponseSchema = z
   .object({
     organization: organizationResponseSchema,
-    schedule: z
-      .object({
-        postId: z.string(),
-        scheduledAt: z.string(),
-        timeZone: z.string(),
-        publications: z.array(scheduledPublicationResponseSchema),
+    schedule: postScheduleViewSchema
+      .extend({
+        publications: z.array(
+          scheduledPublicationViewSchema.openapi("ScheduledPublication")
+        ),
       })
+      .openapi("PostSchedule")
       .nullable(),
   })
   .openapi("PostScheduleResponse");

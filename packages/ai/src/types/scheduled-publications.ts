@@ -4,10 +4,33 @@ import type {
   ScheduledPublicationResult,
   ScheduledPublicationStatus,
 } from "@notra/db/types/scheduled-publications";
+import type { z } from "zod";
 
-export type ScheduleDestination =
-  | { destination: "github"; repositoryId: string; merge: boolean }
-  | { destination: "social"; accountId: string };
+import type {
+  calendarPostViewSchema,
+  contentCalendarEntryViewSchema,
+  postScheduleToolInputSchema,
+  postScheduleViewSchema,
+  scheduleDestinationSchema,
+  schedulePostToolInputSchema,
+  scheduledPublicationViewSchema,
+} from "../schemas/post-schedules";
+
+export type ScheduleDestination = z.output<typeof scheduleDestinationSchema>;
+export type ScheduledPublicationView = z.infer<
+  typeof scheduledPublicationViewSchema
+>;
+export type PostScheduleView = z.infer<typeof postScheduleViewSchema>;
+export type CalendarPostView = z.infer<typeof calendarPostViewSchema>;
+export type ContentCalendarEntryView = z.infer<
+  typeof contentCalendarEntryViewSchema
+>;
+export interface ContentCalendarView {
+  entries: ContentCalendarEntryView[];
+}
+
+export type SchedulePostToolInput = z.infer<typeof schedulePostToolInputSchema>;
+export type PostScheduleToolInput = z.infer<typeof postScheduleToolInputSchema>;
 
 export interface SchedulePostParams {
   organizationId: string;
@@ -37,32 +60,17 @@ export type SchedulePostFailureReason =
   | "social_already_posted"
   | "conflict";
 
+export interface SchedulePostRejection {
+  ok: false;
+  reason: SchedulePostFailureReason;
+}
+
+/** How replacing a post's pending rows went, before the view is read back. */
+export type ScheduleReplaceOutcome = { ok: true } | SchedulePostRejection;
+
 export type SchedulePostOutcome =
   | { ok: true; schedule: PostScheduleView }
-  | { ok: false; reason: SchedulePostFailureReason };
-
-export interface ScheduledPublicationView {
-  id: string;
-  destination: ScheduledPublicationDestination;
-  status: ScheduledPublicationStatus;
-  scheduledAt: string;
-  timeZone: string;
-  repositoryId: string | null;
-  merge: boolean | null;
-  accountId: string | null;
-  attempts: number;
-  errorCode: string | null;
-  lastError: string | null;
-  resultUrl: string | null;
-  publishedAt: string | null;
-}
-
-export interface PostScheduleView {
-  postId: string;
-  scheduledAt: string;
-  timeZone: string;
-  publications: ScheduledPublicationView[];
-}
+  | SchedulePostRejection;
 
 export interface ScheduledPublicationRowForView {
   id: string;
@@ -96,8 +104,6 @@ export interface ScheduledPublicationAttempt {
   destinationConfig: ScheduledPublicationDestinationConfig;
   scheduledAt: Date;
   attempts: number;
-  externalAttemptAt: Date | null;
-  cancelRequestedAt: Date | null;
   createdByUserId: string | null;
   createdAt: Date;
   /** What earlier attempts achieved, like a pull request already opened. */
@@ -116,22 +122,19 @@ export type ScheduledPublicationOutcome =
       result?: ScheduledPublicationResult;
     };
 
+export interface BegunScheduledPublicationAttempt {
+  attempt: ScheduledPublicationAttempt;
+  /**
+   * The outcome when the attempt is decided before any destination is
+   * touched (an unconfirmed social send, a cancel, a crash loop); `null`
+   * means publish.
+   */
+  preempted: ScheduledPublicationOutcome | null;
+}
+
 export type ScheduledPublicationFinish =
   | "published"
   | "retry_scheduled"
   | "failed"
   | "canceled"
   | "superseded";
-
-export interface CalendarPostView {
-  id: string;
-  title: string;
-  contentType: string;
-  status: "draft" | "published";
-  publishedAt: string | null;
-  updatedAt: string;
-}
-
-export type ContentCalendarEntryView =
-  | { kind: "scheduled"; post: CalendarPostView; schedule: PostScheduleView }
-  | { kind: "published"; post: CalendarPostView };

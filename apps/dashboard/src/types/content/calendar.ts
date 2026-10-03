@@ -1,4 +1,4 @@
-import type { ContentCalendarEntry } from "@notra/schemas/dashboard/content-calendar";
+import type { ContentCalendarEntryView } from "@notra/ai/types/scheduled-publications";
 import type { ReactNode } from "react";
 
 import type { Trigger } from "@/types/triggers/triggers";
@@ -20,7 +20,7 @@ export type CalendarItem =
       kind: "entry";
       key: string;
       at: Date;
-      entry: ContentCalendarEntry;
+      entry: ContentCalendarEntryView;
       state: CalendarEntryState;
     }
   | {
