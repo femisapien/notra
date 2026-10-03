@@ -58,10 +58,17 @@ function errorMessage(error: unknown, fallback: string) {
  */
 const SCHEDULED_SOCIAL_RESULT_POLL_ATTEMPTS = 15;
 
-/** What a GitHub publish pushes: the saved title and markdown. */
-function postContentHash(post: { title: string; markdown: string | null }) {
+/**
+ * What a GitHub publish takes from the post: the slug and title (which also
+ * pick the file path) and the saved markdown.
+ */
+function postContentHash(post: {
+  slug: string | null;
+  title: string;
+  markdown: string | null;
+}) {
   return createHash("sha256")
-    .update(`${post.title}\n${post.markdown ?? ""}`)
+    .update(JSON.stringify([post.slug, post.title, post.markdown]))
     .digest("hex");
 }
 
@@ -305,7 +312,13 @@ async function publishToGitHub(
     );
   }
 
-  if (config.merge) {
+  const previous = attempt.result;
+  const pushedContentIsCurrent =
+    previous?.contentHash === undefined ||
+    previous.contentHash === postContentHash(post);
+  // A merge since the schedule was created counts as done, unless the post
+  // changed after the pull request opened ahead was pushed.
+  if (config.merge && pushedContentIsCurrent) {
     const merged = await findMergedLinkedPullRequest(
       client,
       attempt,
@@ -328,10 +341,6 @@ async function publishToGitHub(
   // to that commit: a retry after a failed merge, or the one opened ahead of
   // the slot while the post is unchanged. Pushing again would restart CI, so
   // a repository with required checks could never merge in time.
-  const previous = attempt.result;
-  const pushedContentIsCurrent =
-    previous?.contentHash === undefined ||
-    previous.contentHash === postContentHash(post);
   if (
     previous?.pullRequestNumber &&
     previous.pullRequestUrl &&
@@ -391,6 +400,7 @@ export async function openScheduledPullRequestAhead(params: {
         contentType: true,
         githubPublish: true,
         markdown: true,
+        slug: true,
         title: true,
       },
       where: and(
@@ -415,7 +425,7 @@ export async function openScheduledPullRequestAhead(params: {
     // after can the fingerprint be trusted to describe what was pushed; an
     // edit in between just means the run pushes again at the slot.
     const after = await db.query.posts.findFirst({
-      columns: { markdown: true, title: true },
+      columns: { markdown: true, slug: true, title: true },
       where: and(
         eq(posts.id, params.postId),
         eq(posts.organizationId, params.organizationId)
@@ -542,6 +552,7 @@ export async function publishScheduledDestination(
     columns: {
       contentType: true,
       title: true,
+      slug: true,
       markdown: true,
       githubPublish: true,
     },

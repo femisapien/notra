@@ -15,6 +15,7 @@ import {
   desc,
   eq,
   inArray,
+  isNotNull,
   isNull,
   lte,
   ne,
@@ -460,6 +461,8 @@ export async function recordScheduledPullRequest(params: {
         eq(scheduledPublications.postId, params.postId),
         eq(scheduledPublications.destination, "github"),
         eq(scheduledPublications.status, "scheduled"),
+        // A run that already pushed (and failed to merge) knows better.
+        isNull(scheduledPublications.result),
         // A schedule moved to another repository meanwhile keeps its own PR.
         sql`${scheduledPublications.destinationConfig}->>'repositoryId' = ${params.repositoryId}`
       )
@@ -626,8 +629,17 @@ export async function claimDueScheduledPublications(params?: {
 export async function releaseScheduledPublicationClaim(
   claim: ClaimedScheduledPublication,
   now = new Date()
-): Promise<"released" | "failed" | "superseded"> {
+): Promise<"released" | "failed" | "canceled" | "superseded"> {
   const fence = claimFence(claim);
+  // Nothing went out yet, so a cancel that arrived meanwhile just wins.
+  const canceled = await db
+    .update(scheduledPublications)
+    .set({ status: "canceled", claimToken: null, leaseUntil: null })
+    .where(and(fence, isNotNull(scheduledPublications.cancelRequestedAt)))
+    .returning({ id: scheduledPublications.id });
+  if (canceled.length > 0) {
+    return "canceled";
+  }
   // A start that keeps failing (bad deploy, broken config) must surface
   // instead of cycling every minute forever.
   const givenUp = await db
@@ -756,11 +768,18 @@ export async function finishScheduledPublicationAttempt(
   const retry =
     outcome.retryable && attempts < SCHEDULED_PUBLICATION_MAX_ATTEMPTS;
   const status = retry ? "scheduled" : "failed";
+  // Only an unconfirmed send (or an error we can't place) may have reached
+  // the platform. A definite failure clears the marker, so a later
+  // reschedule or cancel is not treated as a possibly live post.
+  const mayBeLive =
+    outcome.code === SCHEDULED_PUBLICATION_ERROR_CODES.OUTCOME_UNKNOWN ||
+    outcome.code === SCHEDULED_PUBLICATION_ERROR_CODES.UNEXPECTED;
   const [updated] = await db
     .update(scheduledPublications)
     .set({
       ...released,
-      status: sql`case when ${scheduledPublications.cancelRequestedAt} is not null and ${scheduledPublications.externalAttemptAt} is null then 'canceled'::scheduled_publication_status else ${status}::scheduled_publication_status end`,
+      status: sql`case when ${scheduledPublications.cancelRequestedAt} is not null and (${scheduledPublications.externalAttemptAt} is null or not ${mayBeLive}::boolean) then 'canceled'::scheduled_publication_status else ${status}::scheduled_publication_status end`,
+      ...(mayBeLive ? {} : { externalAttemptAt: null }),
       nextAttemptAt: retry
         ? new Date(now.getTime() + scheduledPublicationRetryDelayMs(attempts))
         : undefined,

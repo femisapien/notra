@@ -1,6 +1,7 @@
 export interface ScheduledPublicationPost {
   contentType: string;
   title: string;
+  slug: string | null;
   markdown: string | null;
   githubPublish: unknown;
 }

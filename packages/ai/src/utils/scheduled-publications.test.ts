@@ -696,6 +696,95 @@ if (process.env.NOTRA_SCHEDULED_PUBLICATIONS_SQL_WORKER !== "1") {
       ).toBeNull();
     });
 
+    test("a social send that definitely failed can be rescheduled and canceled", async () => {
+      await seedPost("tweet", "twitter_post");
+      const social = [{ destination: "social" as const, accountId: "x-1" }];
+      await schedule("tweet", { destinations: social });
+      const claims = await lifecycle.claimDueScheduledPublications({
+        now: SLOT,
+      });
+      const send = claims.find((claim) => claim.destination === "social");
+      if (!send) {
+        throw new Error("expected the social claim");
+      }
+      for (const claim of claims) {
+        if (claim !== send) {
+          await lifecycle.finishScheduledPublicationAttempt(
+            claim,
+            1,
+            { kind: "published", result: {} },
+            SLOT
+          );
+        }
+      }
+      await lifecycle.markScheduledPublicationExternalAttempt(send, SLOT);
+      await lifecycle.cancelPostSchedule({
+        organizationId: ORG,
+        postId: "tweet",
+      });
+      expect(
+        await lifecycle.finishScheduledPublicationAttempt(
+          send,
+          1,
+          {
+            kind: "error",
+            code: "social_publish_failed",
+            message: "rejected",
+            retryable: false,
+          },
+          SLOT
+        )
+      ).toBe("canceled");
+      const row = (await rowsFor("tweet")).find(
+        (item) => item.destination === "social"
+      );
+      expect(row?.externalAttemptAt).toBeNull();
+      expect((await schedule("tweet", { destinations: social })).ok).toBe(true);
+    });
+
+    test("a start that failed after a cancel ends canceled", async () => {
+      await seedPost("p1");
+      await schedule("p1");
+      const [claim] = await lifecycle.claimDueScheduledPublications({
+        now: SLOT,
+      });
+      if (!claim) {
+        throw new Error("expected a claim");
+      }
+      await lifecycle.cancelPostSchedule({ organizationId: ORG, postId: "p1" });
+      expect(
+        await lifecycle.releaseScheduledPublicationClaim(claim, SLOT)
+      ).toBe("canceled");
+      expect((await rowsFor("p1"))[0]?.status).toBe("canceled");
+    });
+
+    test("a late pull request record does not replace a newer one", async () => {
+      await seedPost("p1");
+      await schedule("p1", {
+        destinations: [
+          { destination: "github", repositoryId: "repo-1", merge: true },
+        ],
+      });
+      const record = (headSha: string) =>
+        lifecycle.recordScheduledPullRequest({
+          organizationId: ORG,
+          postId: "p1",
+          repositoryId: "repo-1",
+          result: {
+            pullRequestNumber: 7,
+            pullRequestUrl: "https://github.com/acme/site/pull/7",
+            headSha,
+            contentHash: "hash",
+          },
+        });
+      await record("new");
+      await record("old");
+      const github = (await rowsFor("p1")).find(
+        (row) => row.destination === "github"
+      );
+      expect(github?.result?.headSha).toBe("new");
+    });
+
     test("publish now makes the schedule due immediately", async () => {
       await seedPost("p1");
       await schedule("p1");
