@@ -316,8 +316,12 @@ export async function schedulePostPublication(
           reason: "unconfirmed_social_post" as const,
         };
       }
-      // Posting the same text again is a second post, not a reschedule.
-      if (validated.configs.some((config) => config.destination === "social")) {
+      // Posting the same text to the same account again is a second post,
+      // not a reschedule. Another account of the platform is fine.
+      const socialConfig = validated.configs.find(
+        (config) => config.destination === "social"
+      );
+      if (socialConfig?.destination === "social") {
         const [posted] = await tx
           .select({ id: scheduledPublications.id })
           .from(scheduledPublications)
@@ -325,7 +329,8 @@ export async function schedulePostPublication(
             and(
               eq(scheduledPublications.postId, params.postId),
               eq(scheduledPublications.destination, "social"),
-              eq(scheduledPublications.status, "published")
+              eq(scheduledPublications.status, "published"),
+              sql`${scheduledPublications.destinationConfig}->>'accountId' = ${socialConfig.accountId}`
             )
           )
           .limit(1);
@@ -443,6 +448,7 @@ export async function cancelPostSchedule(params: {
 export async function recordScheduledPullRequest(params: {
   organizationId: string;
   postId: string;
+  repositoryId: string;
   result: ScheduledPublicationResult;
 }): Promise<void> {
   await db
@@ -453,7 +459,9 @@ export async function recordScheduledPullRequest(params: {
         eq(scheduledPublications.organizationId, params.organizationId),
         eq(scheduledPublications.postId, params.postId),
         eq(scheduledPublications.destination, "github"),
-        eq(scheduledPublications.status, "scheduled")
+        eq(scheduledPublications.status, "scheduled"),
+        // A schedule moved to another repository meanwhile keeps its own PR.
+        sql`${scheduledPublications.destinationConfig}->>'repositoryId' = ${params.repositoryId}`
       )
     );
 }

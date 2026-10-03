@@ -411,9 +411,23 @@ export async function openScheduledPullRequestAhead(params: {
       contentType: post.contentType,
       repositoryId: params.repositoryId,
     });
+    // The publish reads the post itself. Only when it is the same before and
+    // after can the fingerprint be trusted to describe what was pushed; an
+    // edit in between just means the run pushes again at the slot.
+    const after = await db.query.posts.findFirst({
+      columns: { markdown: true, title: true },
+      where: and(
+        eq(posts.id, params.postId),
+        eq(posts.organizationId, params.organizationId)
+      ),
+    });
+    if (!after || postContentHash(after) !== postContentHash(post)) {
+      return;
+    }
     await recordScheduledPullRequest({
       organizationId: params.organizationId,
       postId: params.postId,
+      repositoryId: params.repositoryId,
       result: {
         pullRequestNumber: published.pullRequestNumber,
         pullRequestUrl: published.pullRequestUrl,

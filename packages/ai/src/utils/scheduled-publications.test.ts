@@ -645,8 +645,22 @@ if (process.env.NOTRA_SCHEDULED_PUBLICATIONS_SQL_WORKER !== "1") {
         ok: false,
         reason: "social_already_posted",
       });
-      // Notra on its own can still be scheduled.
-      expect((await schedule("tweet")).ok).toBe(true);
+      // Another account of the same platform can still get it.
+      await db.insert(connectedSocialAccounts).values({
+        id: "x-2",
+        organizationId: ORG,
+        provider: "twitter",
+        providerAccountId: "p-2",
+        username: "acme2",
+        displayName: "Acme 2",
+      });
+      expect(
+        (
+          await schedule("tweet", {
+            destinations: [{ destination: "social", accountId: "x-2" }],
+          })
+        ).ok
+      ).toBe(true);
     });
 
     test("moving a schedule keeps the pull request opened ahead", async () => {
@@ -664,6 +678,7 @@ if (process.env.NOTRA_SCHEDULED_PUBLICATIONS_SQL_WORKER !== "1") {
       await lifecycle.recordScheduledPullRequest({
         organizationId: ORG,
         postId: "p1",
+        repositoryId: "repo-1",
         result: opened,
       });
       await schedule("p1", {
