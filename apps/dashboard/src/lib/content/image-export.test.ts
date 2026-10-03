@@ -19,6 +19,7 @@ mock.module("sonner", () => ({
 
 const { toast } = await import("sonner");
 const {
+  copyDiagramScene,
   copyImageAsFigma,
   copyImageAsPaper,
   isImageExportCopyReady,
@@ -322,4 +323,125 @@ test("a failed kiwi import during a skipped copy does not reject unhandled", asy
     console.error = previousError;
     resetImageExportCopyForTests();
   }
+});
+
+function withClipboard(fetchImpl: typeof fetch) {
+  const written: ClipboardItem[][] = [];
+  const previousFetch = globalThis.fetch;
+  const previousNavigator = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "navigator"
+  );
+  const previousClipboardItem = globalThis.ClipboardItem;
+  class FakeClipboardItem {
+    readonly items: Record<string, Promise<Blob> | Blob>;
+    constructor(items: Record<string, Promise<Blob> | Blob>) {
+      this.items = items;
+    }
+  }
+  globalThis.fetch = fetchImpl;
+  globalThis.ClipboardItem =
+    FakeClipboardItem as unknown as typeof ClipboardItem;
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: {
+      clipboard: {
+        // Like browsers, resolve pending blobs before the write settles.
+        write: async (items: ClipboardItem[]) => {
+          for (const item of items as unknown as FakeClipboardItem[]) {
+            await Promise.all(Object.values(item.items));
+          }
+          written.push(items);
+        },
+      },
+    },
+  });
+  return {
+    written,
+    restore() {
+      globalThis.fetch = previousFetch;
+      globalThis.ClipboardItem = previousClipboardItem;
+      if (previousNavigator) {
+        Object.defineProperty(globalThis, "navigator", previousNavigator);
+      }
+    },
+  };
+}
+
+test("diagram copy writes the Excalidraw clipboard shape that tldraw also reads", async () => {
+  const requested: string[] = [];
+  const clipboard = withClipboard((async (url: string) => {
+    requested.push(url);
+    return Response.json({
+      type: "excalidraw",
+      elements: [{ id: "a", type: "rectangle" }],
+      files: {},
+      appState: { viewBackgroundColor: "#fff" },
+    });
+  }) as typeof fetch);
+
+  try {
+    await copyDiagramScene("/api/scene", "tldraw");
+    const [items] = clipboard.written;
+    const item = items?.[0] as unknown as {
+      items: Record<string, Promise<Blob>>;
+    };
+    const blob = await item.items["text/plain"];
+    const payload = JSON.parse((await blob?.text()) ?? "{}");
+
+    expect(requested).toEqual(["/api/scene"]);
+    expect(payload).toEqual({
+      type: "excalidraw/clipboard",
+      elements: [{ id: "a", type: "rectangle" }],
+      files: {},
+    });
+    expect(toast.success).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: {
+          namespace: "content.toasts.imageExport",
+          messageKey: "tldrawCopied",
+        },
+      })
+    );
+  } finally {
+    clipboard.restore();
+  }
+});
+
+test("diagram copy reports a failed scene download instead of writing junk", async () => {
+  const errorLog = mock(() => undefined);
+  const previousError = console.error;
+  console.error = errorLog;
+  const clipboard = withClipboard(
+    (async () =>
+      new Response("missing", { status: 404 })) as unknown as typeof fetch
+  );
+
+  try {
+    await copyDiagramScene("/api/scene", "excalidraw");
+    expect(clipboard.written).toHaveLength(0);
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: {
+          namespace: "content.toasts.imageExport",
+          messageKey: "diagramCopyFailed",
+        },
+      })
+    );
+  } finally {
+    console.error = previousError;
+    clipboard.restore();
+  }
+});
+
+test("diagram copy without a scene says the image is not ready", async () => {
+  await copyDiagramScene(null, "excalidraw");
+  expect(toast.error).toHaveBeenCalledWith(
+    expect.objectContaining({
+      props: {
+        namespace: "content.toasts.imageExport",
+        messageKey: "imageNotReady",
+      },
+    })
+  );
 });

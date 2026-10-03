@@ -11,7 +11,10 @@ import { FEATURES } from "@notra/ai/billing/features";
 import { getChatProjectId } from "@notra/ai/chat/history";
 import { IMAGE_GEN_MODEL_ID } from "@notra/ai/constants/repo-image";
 import { maybeGenerateCollectionTitle } from "@notra/ai/jobs/collection-title";
+import type { GenerateRepoImageResult } from "@notra/ai/types/repo-image";
+import { readDiagramSpec } from "@notra/ai/utils/excalidraw-diagram";
 import {
+  uploadGeneratedExcalidrawAsset,
   uploadGeneratedHtmlAsset,
   uploadGeneratedImageAsset,
 } from "@notra/ai/utils/image-assets";
@@ -22,6 +25,38 @@ import { POSTHOG_EVENTS } from "@notra/posthog/events";
 import { captureServerEvent, flushPostHogServer } from "@notra/posthog/server";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
+
+/**
+ * Uploads the editable Excalidraw scene for diagram images and returns the
+ * metadata fields the dashboard reads to offer Excalidraw/tldraw export.
+ */
+export async function buildImageFormatMetadata(params: {
+  organizationId: string;
+  postId: string;
+  result: Pick<
+    GenerateRepoImageResult,
+    "format" | "excalidrawScene" | "diagramSpec"
+  >;
+}) {
+  if (params.result.format !== "diagram" || !params.result.excalidrawScene) {
+    return {
+      format: params.result.format,
+      excalidrawUrl: null,
+      diagramSpec: null,
+    };
+  }
+
+  const excalidrawUrl = await uploadGeneratedExcalidrawAsset({
+    organizationId: params.organizationId,
+    postId: params.postId,
+    scene: params.result.excalidrawScene,
+  });
+  return {
+    format: params.result.format,
+    excalidrawUrl,
+    diagramSpec: params.result.diagramSpec ?? null,
+  };
+}
 
 export async function buildRevisionSourceMetadata(params: {
   organizationId: string;
@@ -43,9 +78,15 @@ export async function buildRevisionSourceMetadata(params: {
     !Array.isArray(post.sourceMetadata)
       ? post.sourceMetadata
       : {};
+  const formatMetadata = await buildImageFormatMetadata({
+    organizationId: params.organizationId,
+    postId: params.postId,
+    result: params.result,
+  });
 
   return {
     ...existing,
+    ...formatMetadata,
     type: "generated_image",
     integrationId: params.integrationId,
     branch: params.branch,
@@ -178,7 +219,12 @@ export async function getImageSnapshot(organizationId: string, postId: string) {
       : undefined;
   const brandIdentityId = getStoredBrandIdentityId(metadata) ?? undefined;
 
-  return { boxId, snapshotId: metadata.sandbox.snapshotId, brandIdentityId };
+  return {
+    boxId,
+    snapshotId: metadata.sandbox.snapshotId,
+    brandIdentityId,
+    diagramSpec: readDiagramSpec(metadata),
+  };
 }
 
 export function getStoredBrandIdentityId(metadata: object) {
@@ -205,9 +251,13 @@ export async function saveGeneratedImagePost(params: {
   pngBase64: string;
   html: string;
   sourceMetadata: Record<string, unknown>;
+  result?: Pick<
+    GenerateRepoImageResult,
+    "format" | "excalidrawScene" | "diagramSpec"
+  >;
 }) {
   const postId = params.postId ?? nanoid();
-  const [imageUrl, htmlUrl] = await Promise.all([
+  const [imageUrl, htmlUrl, formatMetadata] = await Promise.all([
     uploadGeneratedImageAsset({
       organizationId: params.organizationId,
       pngBase64: params.pngBase64,
@@ -218,7 +268,15 @@ export async function saveGeneratedImagePost(params: {
       html: params.html,
       postId,
     }),
+    params.result
+      ? buildImageFormatMetadata({
+          organizationId: params.organizationId,
+          postId,
+          result: params.result,
+        })
+      : null,
   ]);
+  const sourceMetadata = { ...params.sourceMetadata, ...formatMetadata };
 
   if (params.collectionId) {
     const ownedCollection = await db.query.postCollections.findFirst({
@@ -238,7 +296,7 @@ export async function saveGeneratedImagePost(params: {
       incrementCollectionCount: true,
       organizationId: params.organizationId,
       postId,
-      sourceMetadata: params.sourceMetadata,
+      sourceMetadata,
       title: params.title,
     });
     return { imageUrl, postId };
@@ -299,7 +357,7 @@ export async function saveGeneratedImagePost(params: {
     imageUrl,
     organizationId: params.organizationId,
     postId,
-    sourceMetadata: params.sourceMetadata,
+    sourceMetadata,
     title: params.title,
   });
 

@@ -5986,6 +5986,18 @@
       "generating": "Inhalte werden erstellt…",
       "queuedViaApi": "Über die API eingereiht"
     },
+    "diagramEditor": {
+      "open": "Diagramm bearbeiten",
+      "title": "Diagramm bearbeiten",
+      "description": "Verschiebe, gestalte oder beschrifte alles neu. Beim Speichern wird das Bild neu gerendert, und Chat-Änderungen bauen auf deinen Änderungen auf.",
+      "loading": "Diagramm wird geladen…",
+      "loadFailed": "Diagramm konnte nicht geladen werden",
+      "cancel": "Abbrechen",
+      "save": "Diagramm speichern",
+      "saved": "Diagramm gespeichert",
+      "saveFailed": "Diagramm konnte nicht gespeichert werden",
+      "savedWithDropped": "Diagramm gespeichert. {types} kann Notra noch nicht rendern, das wurde weggelassen."
+    },
     "toolbar": {
       "copyFor": "Für {target} kopieren",
       "selectExportTarget": "Exportziel auswählen",
@@ -6165,6 +6177,9 @@
         "figmaCopyFailed": "Kopieren für Figma fehlgeschlagen",
         "paperCopied": "Für Paper kopiert. Füge es in deine Paper-Datei ein.",
         "paperCopyFailed": "Kopieren für Paper fehlgeschlagen",
+        "excalidrawCopied": "Für Excalidraw kopiert. Füge es auf deiner Zeichenfläche ein.",
+        "tldrawCopied": "Für tldraw kopiert. Füge es auf deiner Zeichenfläche ein.",
+        "diagramCopyFailed": "Diagramm konnte nicht kopiert werden",
         "downloadFailed": "Bild konnte nicht heruntergeladen werden"
       }
     }

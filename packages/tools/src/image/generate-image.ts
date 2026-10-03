@@ -65,11 +65,13 @@ export function createGenerateImageTool() {
           branch: input.branch,
           brandIdentityId,
           mode: input.mode,
+          format: input.format,
           prompt: input.prompt,
           prNumber: input.prNumber,
           commitSha: input.commitSha,
         },
         restoreSnapshotId: restoreSnapshot?.snapshotId,
+        restoreDiagramSpec: restoreSnapshot?.diagramSpec,
         snapshotName: `image-${organizationId}-${Date.now()}`,
         userId,
       });
@@ -81,6 +83,7 @@ export function createGenerateImageTool() {
         postId: deterministicPostId,
         pngBase64: result.pngBase64,
         html: result.html,
+        result,
         sourceMetadata: {
           type: "generated_image",
           chatId: chatId ?? null,

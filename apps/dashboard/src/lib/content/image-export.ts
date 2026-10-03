@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 
+import { EXCALIDRAW_CLIPBOARD_TYPE } from "@/constants/image-export";
 import type { ImageExportTarget } from "@/types/content/image-export";
 import {
   buildImageDownloadFilename,
@@ -69,7 +70,7 @@ export function isImageExportCopyReady(target: ImageExportTarget): boolean {
   if (target === "paper") {
     return copyAsPaperFn !== null;
   }
-  return false;
+  return target === "excalidraw" || target === "tldraw";
 }
 
 /** Test-only: drop copy caches so a later case can start a fresh import. */
@@ -102,7 +103,7 @@ export function preloadImageExportCopy(
       .then(() => true)
       .catch(() => false);
   }
-  return Promise.resolve(false);
+  return Promise.resolve(target === "excalidraw" || target === "tldraw");
 }
 
 function createExportElement(html: string): HTMLDivElement {
@@ -226,6 +227,59 @@ export async function copyImageAsPaper(
   } catch (error) {
     console.error("Failed to copy image for Paper", error);
     toast.error(imageExportToastMessage("paperCopyFailed"));
+  }
+}
+
+async function fetchExcalidrawClipboardBlob(sceneUrl: string): Promise<Blob> {
+  const response = await fetch(sceneUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Excalidraw scene: ${response.status}`);
+  }
+  const scene: unknown = await response.json();
+  if (
+    typeof scene !== "object" ||
+    scene === null ||
+    !("elements" in scene) ||
+    !Array.isArray(scene.elements)
+  ) {
+    throw new Error("Excalidraw scene has no elements");
+  }
+  const files = "files" in scene ? scene.files : {};
+  // Excalidraw and tldraw both read this shape from text/plain on paste.
+  const payload = JSON.stringify({
+    type: EXCALIDRAW_CLIPBOARD_TYPE,
+    elements: scene.elements,
+    files,
+  });
+  return new Blob([payload], { type: "text/plain" });
+}
+
+/** Copies the editable diagram scene so it pastes as native shapes in Excalidraw or tldraw. */
+export async function copyDiagramScene(
+  sceneUrl: string | null,
+  target: "excalidraw" | "tldraw"
+): Promise<void> {
+  if (!sceneUrl) {
+    toast.error(imageExportToastMessage("imageNotReady"));
+    return;
+  }
+
+  try {
+    // Hand the clipboard a pending blob so the write starts inside the click
+    // and keeps user activation while the scene downloads.
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        "text/plain": fetchExcalidrawClipboardBlob(sceneUrl),
+      }),
+    ]);
+    toast.success(
+      imageExportToastMessage(
+        target === "excalidraw" ? "excalidrawCopied" : "tldrawCopied"
+      )
+    );
+  } catch (error) {
+    console.error(`Failed to copy diagram for ${target}`, error);
+    toast.error(imageExportToastMessage("diagramCopyFailed"));
   }
 }
 

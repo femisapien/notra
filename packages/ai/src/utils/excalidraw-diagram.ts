@@ -1,0 +1,468 @@
+import {
+  DIAGRAM_ARROW_LABEL_FONT_SIZE,
+  DIAGRAM_BINDING_GAP,
+  DIAGRAM_DEFAULT_BACKGROUND,
+  DIAGRAM_DEFAULT_FONT_SIZE,
+  DIAGRAM_DEFAULT_ROUGHNESS,
+  DIAGRAM_DEFAULT_STROKE,
+  DIAGRAM_DEFAULT_STROKE_WIDTH,
+  DIAGRAM_DIAMOND_LABEL_FACTOR,
+  DIAGRAM_ELLIPSE_LABEL_FACTOR,
+  DIAGRAM_LINE_HEIGHT,
+  DIAGRAM_MIN_SHAPE_HEIGHT,
+  DIAGRAM_MIN_SHAPE_WIDTH,
+  DIAGRAM_SHAPE_PADDING,
+  EXCALIDRAW_FONT_FAMILY_NUNITO,
+  EXCALIDRAW_ROUNDNESS_ADAPTIVE,
+  EXCALIDRAW_ROUNDNESS_PROPORTIONAL,
+  EXCALIDRAW_SCENE_SOURCE,
+} from "@notra/ai/constants/excalidraw-diagram";
+import { diagramSpecSchema } from "@notra/ai/schemas/excalidraw-diagram";
+import type {
+  DiagramLinearSpec,
+  DiagramShapeSpec,
+  DiagramSpec,
+  DiagramSpecElement,
+  DiagramTextMeasurer,
+  DiagramTextSpec,
+  ExcalidrawArrowhead,
+  ExcalidrawElement,
+  ExcalidrawElementBase,
+  ExcalidrawLinearElement,
+  ExcalidrawScene,
+  ExcalidrawShapeElement,
+  ExcalidrawTextElement,
+} from "@notra/ai/types/excalidraw-diagram";
+// biome-ignore lint/performance/noNamespaceImport: Zod recommended way to import
+import * as z from "zod";
+
+type Point = [number, number];
+
+/** The agent-authored spec is invalid; the message is fed back to the agent. */
+export class DiagramSpecError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DiagramSpecError";
+  }
+}
+
+export function isDiagramSpecError(error: unknown) {
+  return (
+    error instanceof DiagramSpecError ||
+    error instanceof SyntaxError ||
+    error instanceof z.ZodError
+  );
+}
+
+/** The editable spec saved on a diagram post, or null for other images. */
+export function readDiagramSpec(metadata: unknown): DiagramSpec | null {
+  if (
+    typeof metadata !== "object" ||
+    metadata === null ||
+    !("diagramSpec" in metadata)
+  ) {
+    return null;
+  }
+  const parsed = diagramSpecSchema.safeParse(metadata.diagramSpec);
+  return parsed.success ? parsed.data : null;
+}
+
+export function describeDiagramSpecError(error: unknown) {
+  if (error instanceof z.ZodError) {
+    return z.prettifyError(error);
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+const LABEL_FACTORS: Record<DiagramShapeSpec["type"], number> = {
+  rectangle: 1,
+  ellipse: DIAGRAM_ELLIPSE_LABEL_FACTOR,
+  diamond: DIAGRAM_DIAMOND_LABEL_FACTOR,
+};
+
+// Stable per-id seed so re-rendering the same scene draws the same strokes.
+function seedFromId(id: string): number {
+  let hash = 2_166_136_261;
+  for (const char of id) {
+    hash ^= char.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return Math.abs(hash) % 2_147_483_647 || 1;
+}
+
+function baseElement(
+  id: string,
+  spec: DiagramSpecElement,
+  geometry: { x: number; y: number; width: number; height: number }
+): ExcalidrawElementBase {
+  const seed = seedFromId(id);
+  return {
+    id,
+    ...geometry,
+    angle: 0,
+    strokeColor: spec.strokeColor ?? DIAGRAM_DEFAULT_STROKE,
+    backgroundColor: spec.backgroundColor ?? "transparent",
+    fillStyle: spec.fillStyle ?? "solid",
+    strokeWidth: spec.strokeWidth ?? DIAGRAM_DEFAULT_STROKE_WIDTH,
+    strokeStyle: spec.strokeStyle ?? "solid",
+    roughness: spec.roughness ?? DIAGRAM_DEFAULT_ROUGHNESS,
+    opacity: spec.opacity ?? 100,
+    groupIds: [],
+    frameId: null,
+    index: null,
+    roundness: null,
+    seed,
+    version: 1,
+    versionNonce: seedFromId(`${id}:nonce`),
+    isDeleted: false,
+    boundElements: null,
+    updated: 1,
+    link: null,
+    locked: false,
+  };
+}
+
+function buildTextElement(params: {
+  id: string;
+  text: string;
+  fontSize: number;
+  strokeColor: string;
+  x: number;
+  y: number;
+  textAlign: ExcalidrawTextElement["textAlign"];
+  verticalAlign: ExcalidrawTextElement["verticalAlign"];
+  containerId: string | null;
+  measurer: DiagramTextMeasurer;
+  centerOnPoint?: boolean;
+}): ExcalidrawTextElement {
+  const size = params.measurer.measure(params.text, params.fontSize);
+  const x = params.centerOnPoint ? params.x - size.width / 2 : params.x;
+  const y = params.centerOnPoint ? params.y - size.height / 2 : params.y;
+  return {
+    ...baseElement(
+      params.id,
+      { type: "text", x, y, text: params.text },
+      { x, y, width: size.width, height: size.height }
+    ),
+    strokeColor: params.strokeColor,
+    type: "text",
+    text: params.text,
+    originalText: params.text,
+    fontSize: params.fontSize,
+    fontFamily: EXCALIDRAW_FONT_FAMILY_NUNITO,
+    textAlign: params.textAlign,
+    verticalAlign: params.verticalAlign,
+    containerId: params.containerId,
+    lineHeight: DIAGRAM_LINE_HEIGHT,
+    autoResize: true,
+  };
+}
+
+function buildShape(
+  id: string,
+  spec: DiagramShapeSpec,
+  measurer: DiagramTextMeasurer
+): { shape: ExcalidrawShapeElement; label: ExcalidrawTextElement | null } {
+  const labelFontSize = spec.label?.fontSize ?? DIAGRAM_DEFAULT_FONT_SIZE;
+  const labelSize = spec.label?.text
+    ? measurer.measure(spec.label.text, labelFontSize)
+    : { width: 0, height: 0 };
+  const factor = LABEL_FACTORS[spec.type];
+  const width = Math.max(
+    spec.width ?? 0,
+    DIAGRAM_MIN_SHAPE_WIDTH,
+    labelSize.width * factor + DIAGRAM_SHAPE_PADDING * 2
+  );
+  const height = Math.max(
+    spec.height ?? 0,
+    DIAGRAM_MIN_SHAPE_HEIGHT,
+    labelSize.height * factor + DIAGRAM_SHAPE_PADDING * 2
+  );
+  // Grow around the authored center so neighbours keep their spacing.
+  const x = spec.x - (width - (spec.width ?? width)) / 2;
+  const y = spec.y - (height - (spec.height ?? height)) / 2;
+
+  let roundness: ExcalidrawShapeElement["roundness"] = null;
+  if (spec.type === "rectangle" && spec.rounded !== false) {
+    roundness = { type: EXCALIDRAW_ROUNDNESS_ADAPTIVE };
+  } else if (spec.type === "diamond" && spec.rounded) {
+    roundness = { type: EXCALIDRAW_ROUNDNESS_PROPORTIONAL };
+  }
+
+  const shape: ExcalidrawShapeElement = {
+    ...baseElement(id, spec, { x, y, width, height }),
+    type: spec.type,
+    roundness,
+  };
+
+  if (!spec.label?.text) {
+    return { shape, label: null };
+  }
+
+  const label = buildTextElement({
+    id: `${id}-label`,
+    text: spec.label.text,
+    fontSize: labelFontSize,
+    strokeColor: spec.label.strokeColor ?? shape.strokeColor,
+    x: x + width / 2,
+    y: y + height / 2,
+    textAlign: "center",
+    verticalAlign: "middle",
+    containerId: id,
+    measurer,
+    centerOnPoint: true,
+  });
+  shape.boundElements = [{ id: label.id, type: "text" }];
+  return { shape, label };
+}
+
+function shapeCenter(shape: ExcalidrawShapeElement): Point {
+  return [shape.x + shape.width / 2, shape.y + shape.height / 2];
+}
+
+/** Point where the ray from the shape center toward `toward` leaves the outline, plus a gap. */
+function edgePoint(shape: ExcalidrawShapeElement, toward: Point): Point {
+  const [cx, cy] = shapeCenter(shape);
+  const dx = toward[0] - cx;
+  const dy = toward[1] - cy;
+  const length = Math.hypot(dx, dy);
+  if (length === 0) {
+    return [cx, cy];
+  }
+  const hw = shape.width / 2;
+  const hh = shape.height / 2;
+  let t: number;
+  if (shape.type === "ellipse") {
+    t = 1 / Math.hypot(dx / hw, dy / hh);
+  } else if (shape.type === "diamond") {
+    t = 1 / (Math.abs(dx) / hw + Math.abs(dy) / hh);
+  } else {
+    t = Math.min(
+      dx === 0 ? Number.POSITIVE_INFINITY : hw / Math.abs(dx),
+      dy === 0 ? Number.POSITIVE_INFINITY : hh / Math.abs(dy)
+    );
+  }
+  const gap = DIAGRAM_BINDING_GAP / length;
+  return [cx + dx * (t + gap), cy + dy * (t + gap)];
+}
+
+function polylineMidpoint(points: Point[]): Point {
+  const segments = points.slice(1).map((point, index) => {
+    const previous = points[index] as Point;
+    return {
+      from: previous,
+      to: point,
+      length: Math.hypot(point[0] - previous[0], point[1] - previous[1]),
+    };
+  });
+  const total = segments.reduce((sum, segment) => sum + segment.length, 0);
+  let remaining = total / 2;
+  for (const segment of segments) {
+    if (remaining <= segment.length && segment.length > 0) {
+      const ratio = remaining / segment.length;
+      return [
+        segment.from[0] + (segment.to[0] - segment.from[0]) * ratio,
+        segment.from[1] + (segment.to[1] - segment.from[1]) * ratio,
+      ];
+    }
+    remaining -= segment.length;
+  }
+  return points[0] ?? [0, 0];
+}
+
+function toArrowhead(
+  value: DiagramLinearSpec["startArrowhead"],
+  fallback: ExcalidrawArrowhead
+): ExcalidrawArrowhead {
+  if (value === undefined) {
+    return fallback;
+  }
+  return value === "none" ? null : value;
+}
+
+function buildLinear(
+  id: string,
+  spec: DiagramLinearSpec,
+  shapes: Map<string, ExcalidrawShapeElement>,
+  measurer: DiagramTextMeasurer
+): { linear: ExcalidrawLinearElement; label: ExcalidrawTextElement | null } {
+  const startShape = "id" in spec.start ? shapes.get(spec.start.id) : undefined;
+  const endShape = "id" in spec.end ? shapes.get(spec.end.id) : undefined;
+  if ("id" in spec.start && !startShape) {
+    throw new DiagramSpecError(
+      `Arrow ${id} starts at unknown shape "${spec.start.id}"`
+    );
+  }
+  if ("id" in spec.end && !endShape) {
+    throw new DiagramSpecError(
+      `Arrow ${id} ends at unknown shape "${spec.end.id}"`
+    );
+  }
+
+  const via = (spec.via ?? []) as Point[];
+  const rawStart: Point = startShape
+    ? shapeCenter(startShape)
+    : [(spec.start as { x: number }).x, (spec.start as { y: number }).y];
+  const rawEnd: Point = endShape
+    ? shapeCenter(endShape)
+    : [(spec.end as { x: number }).x, (spec.end as { y: number }).y];
+  const start = startShape ? edgePoint(startShape, via[0] ?? rawEnd) : rawStart;
+  const end = endShape ? edgePoint(endShape, via.at(-1) ?? rawStart) : rawEnd;
+  const absolute: Point[] = [start, ...via, end];
+
+  const [originX, originY] = start;
+  const points = absolute.map(
+    ([px, py]) => [px - originX, py - originY] as Point
+  );
+  const xs = points.map(([px]) => px);
+  const ys = points.map(([, py]) => py);
+
+  const linear: ExcalidrawLinearElement = {
+    ...baseElement(id, spec, {
+      x: originX,
+      y: originY,
+      width: Math.max(...xs) - Math.min(...xs),
+      height: Math.max(...ys) - Math.min(...ys),
+    }),
+    type: spec.type,
+    roundness:
+      via.length > 0 ? { type: EXCALIDRAW_ROUNDNESS_PROPORTIONAL } : null,
+    points,
+    startBinding: startShape
+      ? { elementId: startShape.id, focus: 0, gap: DIAGRAM_BINDING_GAP }
+      : null,
+    endBinding: endShape
+      ? { elementId: endShape.id, focus: 0, gap: DIAGRAM_BINDING_GAP }
+      : null,
+    startArrowhead: toArrowhead(spec.startArrowhead, null),
+    endArrowhead: toArrowhead(
+      spec.endArrowhead,
+      spec.type === "arrow" ? "arrow" : null
+    ),
+    lastCommittedPoint: null,
+    elbowed: false,
+  };
+
+  for (const shape of [startShape, endShape]) {
+    if (shape) {
+      shape.boundElements = [
+        ...(shape.boundElements ?? []),
+        { id, type: "arrow" },
+      ];
+    }
+  }
+
+  if (!spec.label?.text) {
+    return { linear, label: null };
+  }
+
+  const [midX, midY] = polylineMidpoint(absolute);
+  const label = buildTextElement({
+    id: `${id}-label`,
+    text: spec.label.text,
+    fontSize: spec.label.fontSize ?? DIAGRAM_ARROW_LABEL_FONT_SIZE,
+    strokeColor: spec.label.strokeColor ?? linear.strokeColor,
+    x: midX,
+    y: midY,
+    textAlign: "center",
+    verticalAlign: "middle",
+    containerId: id,
+    measurer,
+    centerOnPoint: true,
+  });
+  linear.boundElements = [{ id: label.id, type: "text" }];
+  return { linear, label };
+}
+
+function buildFreeText(
+  id: string,
+  spec: DiagramTextSpec,
+  measurer: DiagramTextMeasurer
+): ExcalidrawTextElement {
+  return buildTextElement({
+    id,
+    text: spec.text,
+    fontSize: spec.fontSize ?? DIAGRAM_DEFAULT_FONT_SIZE,
+    strokeColor: spec.strokeColor ?? DIAGRAM_DEFAULT_STROKE,
+    x: spec.x,
+    y: spec.y,
+    textAlign: spec.textAlign ?? "left",
+    verticalAlign: "top",
+    containerId: null,
+    measurer,
+  });
+}
+
+/**
+ * Expands the compact agent-authored spec into a full Excalidraw scene:
+ * label-fitted shapes, edge-snapped arrows with bindings, and bound text.
+ */
+export function buildExcalidrawScene(
+  spec: DiagramSpec,
+  measurer: DiagramTextMeasurer
+): ExcalidrawScene {
+  const usedIds = new Set<string>();
+  const ids = spec.elements.map((element, index) => {
+    let id = element.id ?? `${element.type}-${index}`;
+    while (usedIds.has(id)) {
+      id = `${id}-${index}`;
+    }
+    usedIds.add(id);
+    return id;
+  });
+
+  const shapes = new Map<string, ExcalidrawShapeElement>();
+  const shapeLabels = new Map<string, ExcalidrawTextElement>();
+  for (const [index, element] of spec.elements.entries()) {
+    if (
+      element.type === "rectangle" ||
+      element.type === "ellipse" ||
+      element.type === "diamond"
+    ) {
+      const id = ids[index] as string;
+      const { shape, label } = buildShape(id, element, measurer);
+      shapes.set(id, shape);
+      if (label) {
+        shapeLabels.set(id, label);
+      }
+    }
+  }
+
+  // Excalidraw draws in array order: shapes first so arrows sit on top,
+  // and each container's text directly after its container.
+  const shapeElements: ExcalidrawElement[] = [];
+  const overlayElements: ExcalidrawElement[] = [];
+  for (const [index, element] of spec.elements.entries()) {
+    const id = ids[index] as string;
+    if (element.type === "arrow" || element.type === "line") {
+      const { linear, label } = buildLinear(id, element, shapes, measurer);
+      overlayElements.push(linear);
+      if (label) {
+        overlayElements.push(label);
+      }
+    } else if (element.type === "text") {
+      overlayElements.push(buildFreeText(id, element, measurer));
+    } else {
+      const shape = shapes.get(id);
+      if (shape) {
+        shapeElements.push(shape);
+      }
+      const label = shapeLabels.get(id);
+      if (label) {
+        shapeElements.push(label);
+      }
+    }
+  }
+
+  return {
+    type: "excalidraw",
+    version: 2,
+    source: EXCALIDRAW_SCENE_SOURCE,
+    elements: [...shapeElements, ...overlayElements],
+    appState: {
+      viewBackgroundColor: spec.background ?? DIAGRAM_DEFAULT_BACKGROUND,
+      gridSize: null,
+    },
+    files: {},
+  };
+}

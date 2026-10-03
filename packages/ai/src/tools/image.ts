@@ -12,6 +12,10 @@ import type {
 } from "@notra/ai/types/repo-image";
 import { toolDescription } from "@notra/ai/utils/description";
 import {
+  canEditDiagramWithoutSandbox,
+  reviseDiagramPost,
+} from "@notra/ai/utils/diagram-edit";
+import {
   uploadGeneratedHtmlAsset,
   uploadGeneratedImageAsset,
 } from "@notra/ai/utils/image-assets";
@@ -31,9 +35,9 @@ export function createImageTool(config: ImageToolConfig): Tool {
     description: toolDescription({
       toolName: "createImage",
       intro:
-        "Generates a 1200x630 marketing asset from a connected GitHub repository in a sandbox, saves the image as content, and snapshots the sandbox for later follow-up work.",
+        "Generates a 1200x630 image from a connected GitHub repository in a sandbox: a marketing asset, or with format diagram a hand-drawn Excalidraw explainer diagram the user can edit and paste into Excalidraw or tldraw. Saves the image as content and snapshots the sandbox for later follow-up work.",
       whenToUse:
-        "When the user asks to create, generate, revise, or continue a marketing image, visual, or social card from repository context.",
+        "When the user asks to create, generate, revise, or continue a marketing image, visual, social card, or a diagram (architecture, flow, how something works, Excalidraw, tldraw, whiteboard sketch) from repository context.",
       usageNotes:
         "Requires integrationId and branch. Generation is a long-running operation that usually takes 3–8 minutes; the tool UI shows a persistent elapsed timer. For revisions, pass sourcePostId when the user refers to a prior generated image so the sandbox can be restored from its snapshot.",
     }),
@@ -52,11 +56,13 @@ export function createImageTool(config: ImageToolConfig): Tool {
           branch: input.branch,
           brandIdentityId,
           mode: input.mode,
+          format: input.format,
           prompt: input.prompt,
           prNumber: input.prNumber,
           commitSha: input.commitSha,
         },
         restoreSnapshotId: restoreSnapshot?.snapshotId,
+        restoreDiagramSpec: restoreSnapshot?.diagramSpec,
         snapshotName: `image-${config.organizationId}-${Date.now()}`,
         userId: config.userId,
       });
@@ -67,6 +73,7 @@ export function createImageTool(config: ImageToolConfig): Tool {
         title,
         pngBase64: result.pngBase64,
         html: result.html,
+        result,
         sourceMetadata: {
           type: "generated_image",
           chatId: config.chatId ?? null,
@@ -108,14 +115,34 @@ export function createImageRevisionTool(config: ImageRevisionToolConfig): Tool {
     description: toolDescription({
       toolName: "reviseImage",
       intro:
-        "Revises the current generated marketing asset by restoring its saved sandbox snapshot, applying the requested visual change, rendering a new 1200x630 PNG, saving it back to this image content item, and snapshotting the sandbox again.",
+        "Revises the current generated image. Marketing assets restore their saved sandbox snapshot, apply the requested visual change, render a new 1200x630 PNG, and snapshot the sandbox again. Diagrams are edited directly and re-rendered in a few seconds.",
       whenToUse:
         "When editing or revising the current image content item. Use this instead of markdown editing.",
       usageNotes:
-        "Describe the requested visual change in prompt. Revisions are long-running operations that usually take 3–8 minutes; the tool UI shows a persistent elapsed timer. The current image post ID, repository integration, branch, and sandbox snapshot are supplied automatically.",
+        "Describe the requested visual change in prompt. Marketing asset revisions usually take 3–8 minutes; diagram edits take seconds unless useRepository is set because the change needs new facts from the code. The tool UI shows a persistent elapsed timer. The current image post ID, repository integration, branch, and sandbox snapshot are supplied automatically.",
     }),
     inputSchema: imageRevisionToolInputSchema,
-    execute: async ({ prompt, title }) => {
+    execute: async ({ prompt, title, useRepository }) => {
+      const post = await db.query.posts.findFirst({
+        columns: { sourceMetadata: true },
+        where: and(
+          eq(posts.id, config.postId),
+          eq(posts.organizationId, config.organizationId)
+        ),
+      });
+      if (
+        !useRepository &&
+        canEditDiagramWithoutSandbox(post?.sourceMetadata)
+      ) {
+        return await reviseDiagramPost({
+          organizationId: config.organizationId,
+          postId: config.postId,
+          prompt,
+          title,
+          useMarkup: config.useMarkup,
+        });
+      }
+
       const previousSnapshot = await getImageSnapshot(
         config.organizationId,
         config.postId
@@ -132,6 +159,7 @@ export function createImageRevisionTool(config: ImageRevisionToolConfig): Tool {
           prompt,
         },
         restoreSnapshotId: previousSnapshot.snapshotId,
+        restoreDiagramSpec: previousSnapshot.diagramSpec,
         snapshotName: `image-${config.organizationId}-${Date.now()}`,
         userId: config.userId,
       });

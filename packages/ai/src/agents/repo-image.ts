@@ -1,4 +1,8 @@
 import {
+  DIAGRAM_SPEC_PATH,
+  MIN_DIAGRAM_SPEC_BYTES,
+} from "@notra/ai/constants/excalidraw-diagram";
+import {
   AGENT_TIMEOUT_MS,
   BOX_BASE_URL,
   IMAGE_GEN_AGENT_SKILLS_INSTALL_COMMAND,
@@ -17,24 +21,44 @@ import {
   validateRepositoryBranchExists,
 } from "@notra/ai/integrations/github";
 import {
+  buildDiagramExtractionPrompt,
+  buildDiagramMissingOutputPrompt,
+  buildDiagramReviewPrompt,
+  buildDiagramRevisionPrompt,
+} from "@notra/ai/prompts/diagram-assets";
+import {
   buildMarketingAssetExtractionPrompt,
   buildMarketingAssetLogoReviewPrompt,
   buildMarketingAssetMissingOutputPrompt,
   buildMarketingAssetRevisionPrompt,
 } from "@notra/ai/prompts/marketing-assets";
 import { withRouterDefaults } from "@notra/ai/provider-options";
+import { diagramReviewSchema } from "@notra/ai/schemas/excalidraw-diagram";
+import type {
+  DiagramSpec,
+  ExcalidrawScene,
+  RenderedDiagram,
+} from "@notra/ai/types/excalidraw-diagram";
 import type {
   GenerateRepoImageInput,
   GenerateRepoImageResult,
   RepoImageErrorCode,
+  RepoImageFormat,
   RepoImageSourceContext,
 } from "@notra/ai/types/repo-image";
+import {
+  describeDiagramSpecError,
+  isDiagramSpecError,
+} from "@notra/ai/utils/excalidraw-diagram";
+import { findDiagramLayoutIssues } from "@notra/ai/utils/excalidraw-layout-check";
+import { renderDiagramSpec } from "@notra/ai/utils/excalidraw-render";
 import { createOctokit } from "@notra/ai/utils/octokit";
 import { withBoxRetry } from "@notra/ai/utils/repo-image-box";
 import { renderHtmlToImages } from "@notra/ai/utils/repo-image-render";
 import { cleanupRepoImageSandbox } from "@notra/ai/utils/repo-image-sandbox-cleanup";
 import {
   injectBrandIdentitySkill,
+  injectExcalidrawDiagramSkill,
   injectHumanizerSkill,
 } from "@notra/ai/utils/repo-image-skills";
 import { extractRepoImageUsage } from "@notra/ai/utils/repo-image-usage";
@@ -43,6 +67,8 @@ import type { BoxConfig, Runtime, VercelModel } from "@upstash/box";
 import { Agent, Box } from "@upstash/box";
 import { generateText, Output } from "ai";
 import { z } from "zod";
+
+type RepoImageBox = Awaited<ReturnType<typeof Box.create>>;
 
 export class RepoImageError extends Error {
   readonly code: RepoImageErrorCode;
@@ -384,13 +410,338 @@ async function buildSourceContext(params: {
   };
 }
 
+const DIAGRAM_RENDER_RECOVERY_ATTEMPTS = 2;
+
+async function detectRestoredFormat(
+  box: RepoImageBox
+): Promise<RepoImageFormat> {
+  const run = await withBoxRetry(() =>
+    box.exec.command(
+      `test -f ${DIAGRAM_SPEC_PATH} && echo diagram || echo marketing`
+    )
+  );
+  return run.result.trim() === "diagram" ? "diagram" : "marketing";
+}
+
+async function hasDiagramOutput(box: RepoImageBox) {
+  const run = await withBoxRetry(() =>
+    box.exec.command(
+      `test -f ${DIAGRAM_SPEC_PATH} && test "$(wc -c < ${DIAGRAM_SPEC_PATH})" -ge ${MIN_DIAGRAM_SPEC_BYTES} && echo ok || echo incomplete`
+    )
+  );
+  return run.result.trim() === "ok";
+}
+
+async function readAndRenderDiagram(
+  box: RepoImageBox
+): Promise<
+  { rendered: RenderedDiagram; raw: string } | { error: string | undefined }
+> {
+  if (!(await hasDiagramOutput(box))) {
+    return { error: undefined };
+  }
+  const raw = await withBoxRetry(() => box.files.read(DIAGRAM_SPEC_PATH));
+  try {
+    return { rendered: await renderDiagramSpec(raw), raw };
+  } catch (error) {
+    if (!isDiagramSpecError(error)) {
+      throw error;
+    }
+    return { error: describeDiagramSpecError(error) };
+  }
+}
+
+async function reviewRenderedDiagram(params: {
+  pngBase64: string;
+  source: RepoImageSourceContext;
+  organizationId: string;
+}) {
+  const { output } = await generateText({
+    model: gateway(IMAGE_REVIEW_MODEL_ID, {
+      organizationId: params.organizationId,
+    }),
+    output: Output.object({ schema: diagramReviewSchema }),
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: buildDiagramReviewPrompt({ source: params.source }),
+          },
+          {
+            type: "image",
+            image: params.pngBase64,
+            mediaType: "image/png",
+          },
+        ],
+      },
+    ],
+    maxOutputTokens: 700,
+    providerOptions: withRouterDefaults(
+      { gateway: { tags: ["content-diagram-review"] } },
+      { modelId: IMAGE_REVIEW_MODEL_ID }
+    ),
+  });
+
+  return output;
+}
+
+async function runDiagramAgent(params: {
+  box: RepoImageBox;
+  restoreSnapshotId?: string | null;
+  input: GenerateRepoImageInput;
+  repository: { owner: string; repo: string };
+  source: RepoImageSourceContext;
+}) {
+  const { box, restoreSnapshotId, input, repository, source } = params;
+  const runInitial = restoreSnapshotId
+    ? runRepoImageAgentStream
+    : runRepoImageAgentStreamAllowTimeout;
+  const initialRun = await runInitial({
+    box,
+    prompt: restoreSnapshotId
+      ? buildDiagramRevisionPrompt({ prompt: input.prompt ?? "" })
+      : buildDiagramExtractionPrompt({
+          owner: repository.owner,
+          repo: repository.repo,
+          branch: input.branch,
+          source,
+        }),
+    timeout: AGENT_TIMEOUT_MS,
+    label: restoreSnapshotId ? "diagram-revision" : "diagram-initial",
+  });
+  let usage = extractRepoImageUsage(initialRun?.cost, IMAGE_GEN_MODEL_ID);
+
+  let outcome = await readAndRenderDiagram(box);
+  for (
+    let attempt = 1;
+    !("rendered" in outcome) && attempt <= DIAGRAM_RENDER_RECOVERY_ATTEMPTS;
+    attempt++
+  ) {
+    console.warn(
+      `[repo-image] diagram not renderable (${outcome.error ?? "missing"}); recovery attempt ${attempt}/${DIAGRAM_RENDER_RECOVERY_ATTEMPTS}`
+    );
+    const recoveryRun = await runRepoImageAgentStreamAllowTimeout({
+      box,
+      prompt: buildDiagramMissingOutputPrompt(outcome.error),
+      timeout: RECOVERY_AGENT_TIMEOUT_MS,
+      label: `diagram-recovery-${attempt}`,
+    });
+    usage = mergeRepoImageUsage(
+      usage,
+      extractRepoImageUsage(recoveryRun?.cost, IMAGE_GEN_MODEL_ID)
+    );
+    outcome = await readAndRenderDiagram(box);
+  }
+
+  if (!("rendered" in outcome)) {
+    throw new RepoImageError(
+      "agent_failed",
+      `Agent did not produce a renderable ${DIAGRAM_SPEC_PATH}${outcome.error ? `: ${outcome.error}` : ""}`
+    );
+  }
+
+  let { rendered, raw } = outcome;
+  // Deterministic geometry checks first; the vision review only runs on a
+  // layout that already passes them.
+  const layoutIssues = findDiagramLayoutIssues(rendered.scene);
+  console.log(
+    `[repo-image] diagram layout check: ${layoutIssues.length} issue(s)${layoutIssues.length > 0 ? `\n- ${layoutIssues.join("\n- ")}` : ""}`
+  );
+  let review: z.infer<typeof diagramReviewSchema> | null =
+    layoutIssues.length > 0
+      ? {
+          needsRevision: true,
+          reason: `${layoutIssues.length} layout issue(s)`,
+          revisionPrompt: `Fix these layout problems and change nothing else:\n- ${layoutIssues.join("\n- ")}`,
+        }
+      : null;
+  if (!review) {
+    try {
+      review = await reviewRenderedDiagram({
+        pngBase64: rendered.pngBase64,
+        source,
+        organizationId: input.organizationId,
+      });
+    } catch (error) {
+      console.warn("[repo-image] diagram review skipped after error", error);
+    }
+  }
+
+  if (review?.needsRevision && review.revisionPrompt) {
+    console.log(
+      `[repo-image] diagram review requested revision: ${review.reason}`
+    );
+    const reviewRun = await runRepoImageAgentStreamAllowTimeout({
+      box,
+      prompt: buildDiagramRevisionPrompt({ prompt: review.revisionPrompt }),
+      timeout: RECOVERY_AGENT_TIMEOUT_MS,
+      label: "diagram-review-revision",
+    });
+    usage = mergeRepoImageUsage(
+      usage,
+      extractRepoImageUsage(reviewRun?.cost, IMAGE_GEN_MODEL_ID)
+    );
+    const revised = await readAndRenderDiagram(box);
+    if ("rendered" in revised) {
+      ({ rendered, raw } = revised);
+    } else {
+      // Keep the reviewed-but-renderable version, and put it back so later
+      // revisions start from a file that renders.
+      console.warn(
+        `[repo-image] diagram review revision not renderable (${revised.error ?? "missing"}); keeping previous diagram`
+      );
+      await withBoxRetry(() =>
+        box.files.write({ path: DIAGRAM_SPEC_PATH, content: raw })
+      );
+    }
+  }
+
+  return { rendered, usage };
+}
+
+async function runMarketingAgent(params: {
+  box: RepoImageBox;
+  restoreSnapshotId?: string | null;
+  input: GenerateRepoImageInput;
+  repository: { owner: string; repo: string };
+  source: RepoImageSourceContext;
+}) {
+  const { box, restoreSnapshotId, input, repository, source } = params;
+  let html: string;
+  let rendered: Awaited<ReturnType<typeof renderHtmlToImages>>;
+  let usage: GenerateRepoImageResult["usage"];
+  const runInitialRepoImageAgent = restoreSnapshotId
+    ? runRepoImageAgentStream
+    : runRepoImageAgentStreamAllowTimeout;
+  const initialRun = await runInitialRepoImageAgent({
+    box,
+    prompt: restoreSnapshotId
+      ? buildMarketingAssetRevisionPrompt({ prompt: input.prompt ?? "" })
+      : buildMarketingAssetExtractionPrompt({
+          owner: repository.owner,
+          repo: repository.repo,
+          branch: input.branch,
+          source,
+        }),
+    timeout: AGENT_TIMEOUT_MS,
+    label: restoreSnapshotId ? "revision" : "initial",
+  });
+  usage = extractRepoImageUsage(initialRun?.cost, IMAGE_GEN_MODEL_ID);
+
+  if (!(await hasRepoImageOutput(box))) {
+    for (
+      let attempt = 1;
+      attempt <= MISSING_OUTPUT_RECOVERY_ATTEMPTS;
+      attempt++
+    ) {
+      console.warn(
+        `[repo-image] missing ${REPO_IMAGE_OUTPUT_HTML_PATH}; recovery attempt ${attempt}/${MISSING_OUTPUT_RECOVERY_ATTEMPTS}`
+      );
+      const recoveryRun = await runRepoImageAgentStreamAllowTimeout({
+        box,
+        prompt: buildMarketingAssetMissingOutputPrompt(),
+        timeout: RECOVERY_AGENT_TIMEOUT_MS,
+        label: `recovery-${attempt}`,
+      });
+      usage = mergeRepoImageUsage(
+        usage,
+        extractRepoImageUsage(recoveryRun?.cost, IMAGE_GEN_MODEL_ID)
+      );
+
+      if (await hasRepoImageOutput(box)) {
+        break;
+      }
+    }
+  }
+
+  if (!(await hasRepoImageOutput(box))) {
+    const diag = await withBoxRetry(() =>
+      box.exec.command(
+        `pwd 2>&1; echo ---; ls -la 2>&1 | head -50; echo ---; find . /workspace/home -maxdepth 4 -name "output.html" 2>/dev/null`
+      )
+    );
+    console.error(
+      "[repo-image] missing output.html, cwd contents:\n",
+      diag.result
+    );
+    throw new RepoImageError(
+      "agent_failed",
+      `Agent did not produce ${REPO_IMAGE_OUTPUT_HTML_PATH}`
+    );
+  }
+
+  html = await withBoxRetry(() => box.files.read(REPO_IMAGE_OUTPUT_HTML_PATH));
+  rendered = await renderHtmlToImages(html);
+
+  let review: z.infer<typeof repoImageLogoReviewSchema> | null = null;
+  try {
+    review = await reviewRenderedRepoImageForLogoIssues({
+      pngBase64: rendered.pngBase64,
+      owner: repository.owner,
+      repo: repository.repo,
+      branch: input.branch,
+      source,
+      organizationId: input.organizationId,
+    });
+  } catch (error) {
+    console.warn("[repo-image] logo review skipped after error", error);
+  }
+
+  if (review?.needsRevision) {
+    const revisionPrompt =
+      review.revisionPrompt ??
+      "Review the rendered image for unofficial or fabricated company logos. Replace any questionable logos with official assets from the brand-logos skill or real repo assets, or remove them if no official source is available. Preserve the current layout as much as possible.";
+
+    console.log(
+      `[repo-image] logo review requested revision: ${review.reason}`
+    );
+
+    const reviewRevisionRun = await runRepoImageAgentStream({
+      box,
+      prompt: buildMarketingAssetRevisionPrompt({
+        prompt: revisionPrompt,
+      }),
+      timeout: RECOVERY_AGENT_TIMEOUT_MS,
+      label: "logo-review-revision",
+    });
+    usage = mergeRepoImageUsage(
+      usage,
+      extractRepoImageUsage(reviewRevisionRun.cost, IMAGE_GEN_MODEL_ID)
+    );
+
+    if (!(await hasRepoImageOutput(box))) {
+      throw new RepoImageError(
+        "agent_failed",
+        `Logo review revision removed ${REPO_IMAGE_OUTPUT_HTML_PATH}`
+      );
+    }
+
+    html = await withBoxRetry(() =>
+      box.files.read(REPO_IMAGE_OUTPUT_HTML_PATH)
+    );
+    rendered = await renderHtmlToImages(html);
+  }
+
+  return { html, rendered, usage };
+}
+
 export async function generateRepoImage(params: {
   input: GenerateRepoImageInput;
   userId: string | null;
   restoreSnapshotId?: string | null;
+  /**
+   * Latest saved diagram spec. Manual and fast AI edits happen outside the
+   * sandbox, so the restored snapshot can hold an older diagram.json.
+   */
+  restoreDiagramSpec?: DiagramSpec | null;
   snapshotName?: string;
+  /** Override for model comparisons; production uses IMAGE_GEN_MODEL_ID. */
+  agentModelId?: string;
 }): Promise<GenerateRepoImageResult> {
-  const { input, restoreSnapshotId, snapshotName, userId } = params;
+  const { input, restoreDiagramSpec, restoreSnapshotId, snapshotName, userId } =
+    params;
 
   const upstashBoxApiKey = process.env.UPSTASH_BOX_API_KEY;
 
@@ -462,7 +813,7 @@ export async function generateRepoImage(params: {
       },
       agent: {
         harness: Agent.OpenCode,
-        model: IMAGE_GEN_MODEL_ID as VercelModel,
+        model: (params.agentModelId ?? IMAGE_GEN_MODEL_ID) as VercelModel,
         apiKey: agentApiKey,
       },
       timeout: AGENT_TIMEOUT_MS,
@@ -474,6 +825,9 @@ export async function generateRepoImage(params: {
     let html: string;
     let rendered: Awaited<ReturnType<typeof renderHtmlToImages>>;
     let usage: GenerateRepoImageResult["usage"];
+    let format: RepoImageFormat = input.format ?? "marketing";
+    let excalidrawScene: ExcalidrawScene | undefined;
+    let diagramSpec: DiagramSpec | undefined;
     let snapshot: Awaited<ReturnType<typeof box.snapshot>> | null = null;
     let injectedBrandIdentityId: string | undefined;
 
@@ -496,7 +850,10 @@ export async function generateRepoImage(params: {
         console.warn("[repo-image] sandbox cleanup skipped after error", error);
       }
 
-      if (!restoreSnapshotId) {
+      if (restoreSnapshotId && !input.format) {
+        format = await detectRestoredFormat(box);
+      }
+      if (!restoreSnapshotId && format === "marketing") {
         await installImageGenAgentSkills({ box });
       }
       injectedBrandIdentityId =
@@ -510,118 +867,39 @@ export async function generateRepoImage(params: {
         organizationId: input.organizationId,
       });
 
-      const runInitialRepoImageAgent = restoreSnapshotId
-        ? runRepoImageAgentStream
-        : runRepoImageAgentStreamAllowTimeout;
-      const initialRun = await runInitialRepoImageAgent({
-        box,
-        prompt: restoreSnapshotId
-          ? buildMarketingAssetRevisionPrompt({ prompt: input.prompt ?? "" })
-          : buildMarketingAssetExtractionPrompt({
-              owner: repository.owner,
-              repo: repository.repo,
-              branch: input.branch,
-              source,
-            }),
-        timeout: AGENT_TIMEOUT_MS,
-        label: restoreSnapshotId ? "revision" : "initial",
-      });
-      usage = extractRepoImageUsage(initialRun?.cost, IMAGE_GEN_MODEL_ID);
-
-      if (!(await hasRepoImageOutput(box))) {
-        for (
-          let attempt = 1;
-          attempt <= MISSING_OUTPUT_RECOVERY_ATTEMPTS;
-          attempt++
-        ) {
-          console.warn(
-            `[repo-image] missing ${REPO_IMAGE_OUTPUT_HTML_PATH}; recovery attempt ${attempt}/${MISSING_OUTPUT_RECOVERY_ATTEMPTS}`
+      if (format === "diagram") {
+        await injectExcalidrawDiagramSkill({ box });
+        if (restoreSnapshotId && restoreDiagramSpec) {
+          await withBoxRetry(() =>
+            box.files.write({
+              path: DIAGRAM_SPEC_PATH,
+              content: JSON.stringify(restoreDiagramSpec, null, 2),
+            })
           );
-          const recoveryRun = await runRepoImageAgentStreamAllowTimeout({
-            box,
-            prompt: buildMarketingAssetMissingOutputPrompt(),
-            timeout: RECOVERY_AGENT_TIMEOUT_MS,
-            label: `recovery-${attempt}`,
-          });
-          usage = mergeRepoImageUsage(
-            usage,
-            extractRepoImageUsage(recoveryRun?.cost, IMAGE_GEN_MODEL_ID)
-          );
-
-          if (await hasRepoImageOutput(box)) {
-            break;
-          }
         }
-      }
-
-      if (!(await hasRepoImageOutput(box))) {
-        const diag = await withBoxRetry(() =>
-          box.exec.command(
-            `pwd 2>&1; echo ---; ls -la 2>&1 | head -50; echo ---; find . /workspace/home -maxdepth 4 -name "output.html" 2>/dev/null`
-          )
-        );
-        console.error(
-          "[repo-image] missing output.html, cwd contents:\n",
-          diag.result
-        );
-        throw new RepoImageError(
-          "agent_failed",
-          `Agent did not produce ${REPO_IMAGE_OUTPUT_HTML_PATH}`
-        );
-      }
-
-      html = await withBoxRetry(() =>
-        box.files.read(REPO_IMAGE_OUTPUT_HTML_PATH)
-      );
-      rendered = await renderHtmlToImages(html);
-
-      let review: z.infer<typeof repoImageLogoReviewSchema> | null = null;
-      try {
-        review = await reviewRenderedRepoImageForLogoIssues({
-          pngBase64: rendered.pngBase64,
-          owner: repository.owner,
-          repo: repository.repo,
-          branch: input.branch,
-          source,
-          organizationId: input.organizationId,
-        });
-      } catch (error) {
-        console.warn("[repo-image] logo review skipped after error", error);
-      }
-
-      if (review?.needsRevision) {
-        const revisionPrompt =
-          review.revisionPrompt ??
-          "Review the rendered image for unofficial or fabricated company logos. Replace any questionable logos with official assets from the brand-logos skill or real repo assets, or remove them if no official source is available. Preserve the current layout as much as possible.";
-
-        console.log(
-          `[repo-image] logo review requested revision: ${review.reason}`
-        );
-
-        const reviewRevisionRun = await runRepoImageAgentStream({
+        const diagram = await runDiagramAgent({
           box,
-          prompt: buildMarketingAssetRevisionPrompt({
-            prompt: revisionPrompt,
-          }),
-          timeout: RECOVERY_AGENT_TIMEOUT_MS,
-          label: "logo-review-revision",
+          restoreSnapshotId,
+          input,
+          repository,
+          source,
         });
-        usage = mergeRepoImageUsage(
-          usage,
-          extractRepoImageUsage(reviewRevisionRun.cost, IMAGE_GEN_MODEL_ID)
-        );
-
-        if (!(await hasRepoImageOutput(box))) {
-          throw new RepoImageError(
-            "agent_failed",
-            `Logo review revision removed ${REPO_IMAGE_OUTPUT_HTML_PATH}`
-          );
-        }
-
-        html = await withBoxRetry(() =>
-          box.files.read(REPO_IMAGE_OUTPUT_HTML_PATH)
-        );
-        rendered = await renderHtmlToImages(html);
+        html = diagram.rendered.html;
+        rendered = {
+          svg: diagram.rendered.svg,
+          pngBase64: diagram.rendered.pngBase64,
+        };
+        excalidrawScene = diagram.rendered.scene;
+        diagramSpec = diagram.rendered.spec;
+        usage = diagram.usage;
+      } else {
+        ({ html, rendered, usage } = await runMarketingAgent({
+          box,
+          restoreSnapshotId,
+          input,
+          repository,
+          source,
+        }));
       }
 
       snapshot = await withBoxRetry(() =>
@@ -638,9 +916,12 @@ export async function generateRepoImage(params: {
     }
 
     return {
+      format,
       pngBase64: rendered.pngBase64,
       svg: rendered.svg,
       html,
+      excalidrawScene,
+      diagramSpec,
       brandIdentityId: injectedBrandIdentityId,
       sandbox: snapshot
         ? {

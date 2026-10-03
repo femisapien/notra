@@ -1,4 +1,5 @@
 import {
+  DIAGRAM_EXPORT_TARGETS,
   IMAGE_EXPORT_TARGET_LABELS,
   IMAGE_EXPORT_TARGETS,
 } from "@/constants/image-export";
@@ -10,4 +11,19 @@ export function isImageExportTarget(value: string): value is ImageExportTarget {
 
 export function getImageExportTargetLabel(target: ImageExportTarget): string {
   return IMAGE_EXPORT_TARGET_LABELS[target];
+}
+
+export function isDiagramExportTarget(
+  target: ImageExportTarget
+): target is (typeof DIAGRAM_EXPORT_TARGETS)[number] {
+  return DIAGRAM_EXPORT_TARGETS.some((value) => value === target);
+}
+
+/** Excalidraw/tldraw only make sense when the post has an editable scene. */
+export function getAvailableImageExportTargets(
+  hasExcalidrawScene: boolean
+): ImageExportTarget[] {
+  return IMAGE_EXPORT_TARGETS.filter(
+    (target) => hasExcalidrawScene || !isDiagramExportTarget(target)
+  );
 }

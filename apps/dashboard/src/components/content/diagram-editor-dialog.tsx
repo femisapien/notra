@@ -1,0 +1,153 @@
+"use client";
+
+import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import { PencilEdit02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@notra/ui/components/ui/dialog";
+import { Skeleton } from "@notra/ui/components/ui/skeleton";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
+import dynamic from "next/dynamic";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/button";
+import type {
+  DiagramEditorDialogProps,
+  DiagramEditorScene,
+} from "@/types/components/diagram-editor";
+
+const DiagramEditorCanvas = dynamic(
+  () => import("@/components/content/diagram-editor-canvas"),
+  {
+    loading: () => <Skeleton className="size-full rounded-lg" />,
+    ssr: false,
+  }
+);
+
+export function DiagramEditorDialog({
+  organizationId,
+  contentId,
+  onSaved,
+}: DiagramEditorDialogProps) {
+  const t = useTranslations("content.diagramEditor");
+  const [open, setOpen] = useState(false);
+  const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
+  const sceneUrl = `/api/organizations/${organizationId}/content/${contentId}/excalidraw`;
+
+  const sceneQuery = useQuery({
+    queryKey: ["diagram-editor-scene", organizationId, contentId],
+    queryFn: async (): Promise<DiagramEditorScene> => {
+      const response = await fetch(sceneUrl, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`Failed to load diagram: ${response.status}`);
+      }
+      return response.json();
+    },
+    enabled: open,
+    gcTime: 0,
+    staleTime: 0,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const api = apiRef.current;
+      if (!api) {
+        throw new Error("Editor is not ready");
+      }
+      const response = await fetch(sceneUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scene: {
+            elements: api.getSceneElements(),
+            appState: {
+              viewBackgroundColor: api.getAppState().viewBackgroundColor,
+            },
+          },
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to save diagram: ${response.status}`);
+      }
+      return (await response.json()) as { droppedTypes: string[] };
+    },
+    onSuccess: async ({ droppedTypes }) => {
+      await onSaved();
+      setOpen(false);
+      if (droppedTypes.length > 0) {
+        toast.warning(
+          t("savedWithDropped", { types: droppedTypes.join(", ") })
+        );
+        return;
+      }
+      toast.success(t("saved"));
+    },
+    onError: (error) => {
+      console.error("Failed to save diagram", error);
+      toast.error(t("saveFailed"));
+    },
+  });
+
+  return (
+    <>
+      <Button onClick={() => setOpen(true)} size="sm" variant="outline">
+        <HugeiconsIcon className="size-4" icon={PencilEdit02Icon} />
+        {t("open")}
+      </Button>
+      {/* Escape and outside clicks belong to Excalidraw (deselect, leave text
+          editing); closing on them would throw away unsaved edits. */}
+      <Dialog
+        disablePointerDismissal
+        onOpenChange={(nextOpen, eventDetails) => {
+          if (!nextOpen && eventDetails.reason === "escape-key") {
+            eventDetails.allowPropagation();
+            return;
+          }
+          setOpen(nextOpen);
+        }}
+        open={open}
+      >
+        <DialogContent className="flex h-[90svh] w-[95vw] max-w-none flex-col sm:max-w-none">
+          <DialogHeader>
+            <DialogTitle>{t("title")}</DialogTitle>
+            <DialogDescription>{t("description")}</DialogDescription>
+          </DialogHeader>
+          <div className="ring-foreground/10 min-h-0 flex-1 overflow-hidden rounded-lg ring-1">
+            {sceneQuery.data ? (
+              <DiagramEditorCanvas
+                onReady={(api) => {
+                  apiRef.current = api;
+                }}
+                scene={sceneQuery.data}
+              />
+            ) : (
+              <div className="text-muted-foreground flex size-full items-center justify-center">
+                {sceneQuery.isError ? t("loadFailed") : t("loading")}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setOpen(false)} variant="outline">
+              {t("cancel")}
+            </Button>
+            <Button
+              disabled={!sceneQuery.data}
+              loading={saveMutation.isPending}
+              onClick={() => saveMutation.mutate()}
+            >
+              {t("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

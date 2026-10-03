@@ -91,7 +91,7 @@ export function buildToolSet(
         useMarkup,
       });
       descriptions.unshift(
-        "**Image Editing**: Revise the current image using reviseImage. It restores the saved sandbox snapshot, applies the visual change, saves the updated image back to this content item, and stores a new snapshot."
+        "**Image Editing**: Revise the current image using reviseImage. Marketing images restore the saved sandbox snapshot, apply the visual change, and store a new snapshot. Diagrams are edited directly in seconds; set useRepository only when the change needs new facts from the code. Call reviseImage once per request and describe the whole change in one prompt."
       );
     } else {
       tools.reviseImage = createUnavailableImageRevisionTool();
