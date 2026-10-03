@@ -18,6 +18,7 @@ import { SOCIAL_PLATFORM_LABELS } from "@/constants/social-connect";
 import type {
   ScheduleGitHubDestinationProps,
   ScheduleSocialDestinationProps,
+  ScheduleWhereSectionProps,
 } from "@/types/content/schedule";
 import type { ConnectedAccount } from "@/types/hooks/connected-accounts";
 
@@ -25,7 +26,7 @@ function accountLabel(account: ConnectedAccount) {
   return `${account.displayName} · @${account.username}`;
 }
 
-export function ScheduleGitHubDestination({
+function ScheduleGitHubDestination({
   fieldProps,
   enabled,
   merge,
@@ -79,7 +80,7 @@ export function ScheduleGitHubDestination({
   );
 }
 
-export function ScheduleSocialDestination({
+function ScheduleSocialDestination({
   option,
   organizationSlug,
   onEnabledChange,
@@ -155,5 +156,45 @@ export function ScheduleSocialDestination({
         </p>
       ) : null}
     </div>
+  );
+}
+
+/** The "Where" section: Notra always, plus the destinations this type has. */
+export function ScheduleWhereSection({
+  destinations,
+  form,
+  isBusy,
+  organizationSlug,
+  onChange,
+}: ScheduleWhereSectionProps) {
+  const t = useTranslations("content.calendar.schedule");
+  return (
+    <section className="space-y-3">
+      <div className="space-y-1">
+        <h3 className="text-sm font-medium">{t("where")}</h3>
+        <p className="text-muted-foreground text-xs">{t("whereHint")}</p>
+      </div>
+      {destinations.github ? (
+        <ScheduleGitHubDestination
+          enabled={form.githubEnabled}
+          fieldProps={destinations.github}
+          isBusy={isBusy}
+          merge={form.merge}
+          onEnabledChange={(githubEnabled) => onChange({ githubEnabled })}
+          onMergeChange={(merge) => onChange({ merge })}
+          onRepositoryChange={(repositoryId) => onChange({ repositoryId })}
+          organizationSlug={organizationSlug}
+        />
+      ) : null}
+      {destinations.social ? (
+        <ScheduleSocialDestination
+          onAccountChange={(accountId) => onChange({ accountId })}
+          onEnabledChange={(socialEnabled) => onChange({ socialEnabled })}
+          option={destinations.social}
+          organizationSlug={organizationSlug}
+        />
+      ) : null}
+      <p className="text-muted-foreground text-xs">{t("notraAlways")}</p>
+    </section>
   );
 }

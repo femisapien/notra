@@ -15,13 +15,17 @@ export function ScheduleDialogFooter({
   isBusy,
   canSubmit,
   canPublishNow,
-  submitLabel,
+  isSubmitting,
   onSecondaryAction,
   onPublishNow,
 }: ScheduleDialogFooterProps) {
   const t = useTranslations("content.calendar.schedule");
   const tCommon = useTranslations("common.actions");
   const config = SCHEDULE_DIALOG_MODES[mode];
+  let submitLabel = mode === "edit" ? t("saveSchedule") : t("schedule");
+  if (isSubmitting) {
+    submitLabel = t("scheduling");
+  }
 
   return (
     <ResponsiveDialogFooter className="sm:justify-between">

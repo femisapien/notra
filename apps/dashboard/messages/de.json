@@ -1103,6 +1103,7 @@
       "accountNotFound": "Der ausgewählte Account ist nicht mehr verbunden.",
       "publishingInProgress": "Dieser Beitrag wird gerade veröffentlicht. Versuch es in einer Minute erneut.",
       "unconfirmedSocialPost": "Ein Social-Post dieser Planung ist eventuell schon live. Prüfe den Account und versuche ihn erneut oder verwirf ihn, bevor du neu planst.",
+      "socialAlreadyPosted": "Dieser Post ist bei dem Account schon raus. Lege einen neuen Post an, um noch einmal zu posten.",
       "conflict": "Die Planung hat sich zwischenzeitlich geändert. Lade neu und versuch es erneut.",
       "nothingScheduled": "Für diesen Beitrag ist nichts geplant."
     }

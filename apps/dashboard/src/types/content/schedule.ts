@@ -118,8 +118,18 @@ export interface ScheduleDestinationOptions {
   blocked: boolean;
 }
 
+export interface ScheduleWhereSectionProps {
+  destinations: ScheduleDestinationOptions;
+  form: ScheduleFormState;
+  isBusy: boolean;
+  organizationSlug: string;
+  onChange: (patch: Partial<ScheduleFormState>) => void;
+}
+
 export interface ScheduleSlotFieldProps {
   date: Date | undefined;
+  /** Days before this one can't be picked. */
+  earliestDate: Date;
   time: string;
   inPast: boolean;
   timeZone: string;
@@ -150,7 +160,7 @@ export interface ScheduleDialogFooterProps {
   isBusy: boolean;
   canSubmit: boolean;
   canPublishNow: boolean;
-  submitLabel: string;
+  isSubmitting: boolean;
   onSecondaryAction: () => void;
   onPublishNow: () => void;
 }

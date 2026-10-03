@@ -139,7 +139,11 @@ export function usePostSchedule(organizationId: string, contentId: string) {
   return query;
 }
 
-function useScheduleCacheUpdate(organizationId: string) {
+/**
+ * Writes a post's fresh schedule into the cache and invalidates what depends
+ * on it: every calendar month and the post itself.
+ */
+function useScheduleInvalidation(organizationId: string) {
   const queryClient = useQueryClient();
   return (contentId: string, schedule: PostSchedule | null) => {
     queryClient.setQueryData<PostScheduleResponse>(
@@ -162,7 +166,7 @@ function useScheduleCacheUpdate(organizationId: string) {
 
 export function useSchedulePost(organizationId: string) {
   const t = useTranslations("content.calendar.toasts");
-  const updateCache = useScheduleCacheUpdate(organizationId);
+  const invalidateSchedule = useScheduleInvalidation(organizationId);
   return useMutation({
     mutationFn: (input: SchedulePostMutationInput) =>
       dashboardOrpc.contentCalendar.schedule.call({
@@ -174,7 +178,7 @@ export function useSchedulePost(organizationId: string) {
         expectedScheduledIds: input.expectedScheduledIds,
       }),
     onSuccess: (result, input) => {
-      updateCache(input.contentId, result.schedule);
+      invalidateSchedule(input.contentId, result.schedule);
     },
     onError: (error) => {
       toast.error(toErrorMessage(error, t("scheduleFailed")));
@@ -184,12 +188,12 @@ export function useSchedulePost(organizationId: string) {
 
 export function useCancelPostSchedule(organizationId: string) {
   const t = useTranslations("content.calendar.toasts");
-  const updateCache = useScheduleCacheUpdate(organizationId);
+  const invalidateSchedule = useScheduleInvalidation(organizationId);
   return useMutation({
     mutationFn: (contentId: string) =>
       dashboardOrpc.contentCalendar.cancel.call({ organizationId, contentId }),
     onSuccess: (result, contentId) => {
-      updateCache(contentId, result.schedule);
+      invalidateSchedule(contentId, result.schedule);
       toast.success(
         result.inProgress ? t("unscheduledPartially") : t("unscheduled")
       );
@@ -202,7 +206,7 @@ export function useCancelPostSchedule(organizationId: string) {
 
 export function usePublishScheduleNow(organizationId: string) {
   const t = useTranslations("content.calendar.toasts");
-  const updateCache = useScheduleCacheUpdate(organizationId);
+  const invalidateSchedule = useScheduleInvalidation(organizationId);
   return useMutation({
     mutationFn: (contentId: string) =>
       dashboardOrpc.contentCalendar.publishNow.call({
@@ -210,7 +214,7 @@ export function usePublishScheduleNow(organizationId: string) {
         contentId,
       }),
     onSuccess: (result, contentId) => {
-      updateCache(contentId, result.schedule);
+      invalidateSchedule(contentId, result.schedule);
       toast.success(t("publishingNow"));
     },
     onError: (error) => {
@@ -221,7 +225,7 @@ export function usePublishScheduleNow(organizationId: string) {
 
 export function useRetryScheduledPublication(organizationId: string) {
   const t = useTranslations("content.calendar.toasts");
-  const updateCache = useScheduleCacheUpdate(organizationId);
+  const invalidateSchedule = useScheduleInvalidation(organizationId);
   return useMutation({
     mutationFn: (input: {
       contentId: string;
@@ -232,7 +236,7 @@ export function useRetryScheduledPublication(organizationId: string) {
         scheduledPublicationId: input.scheduledPublicationId,
       }),
     onSuccess: (result, input) => {
-      updateCache(input.contentId, result.schedule);
+      invalidateSchedule(input.contentId, result.schedule);
       toast.success(t("retrying"));
     },
     onError: (error) => {

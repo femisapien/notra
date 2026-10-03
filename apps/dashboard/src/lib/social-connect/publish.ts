@@ -93,6 +93,7 @@ const publishDemoPost = Effect.fn("publishDemoPost")(function* (
     postUrl: null,
     username: account.username,
     platform: account.provider,
+    confirmed: true,
   };
 });
 
@@ -172,7 +173,8 @@ export const publishSocialPost = Effect.fn("publishSocialPost")(function* (
   });
 
   let postResult: SocialPostResult | null = null;
-  for (let attempt = 0; attempt < RESULT_POLL_ATTEMPTS; attempt += 1) {
+  const pollAttempts = params.resultPollAttempts ?? RESULT_POLL_ATTEMPTS;
+  for (let attempt = 0; attempt < pollAttempts; attempt += 1) {
     yield* Effect.sleep(RESULT_POLL_DELAY);
     const results = yield* Effect.tryPromise({
       try: () => client.socialPostResults.list({ post_id: [post.id] }),
@@ -226,5 +228,7 @@ export const publishSocialPost = Effect.fn("publishSocialPost")(function* (
     postUrl,
     username: account.username,
     platform: account.provider,
+    // The provider accepted the post but reported no platform result yet.
+    confirmed: postResult !== null,
   };
 });

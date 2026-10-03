@@ -627,6 +627,60 @@ if (process.env.NOTRA_SCHEDULED_PUBLICATIONS_SQL_WORKER !== "1") {
       expect((await schedule("tweet")).ok).toBe(true);
     });
 
+    test("a social post that already went out is not scheduled again", async () => {
+      await seedPost("tweet", "twitter_post");
+      const social = [{ destination: "social" as const, accountId: "x-1" }];
+      await schedule("tweet", { destinations: social });
+      for (const claim of await lifecycle.claimDueScheduledPublications({
+        now: SLOT,
+      })) {
+        await lifecycle.finishScheduledPublicationAttempt(
+          claim,
+          1,
+          { kind: "published", result: {} },
+          SLOT
+        );
+      }
+      expect(await schedule("tweet", { destinations: social })).toEqual({
+        ok: false,
+        reason: "social_already_posted",
+      });
+      // Notra on its own can still be scheduled.
+      expect((await schedule("tweet")).ok).toBe(true);
+    });
+
+    test("moving a schedule keeps the pull request opened ahead", async () => {
+      await seedPost("p1");
+      const github = [
+        { destination: "github" as const, repositoryId: "repo-1", merge: true },
+      ];
+      await schedule("p1", { destinations: github });
+      const opened = {
+        pullRequestNumber: 7,
+        pullRequestUrl: "https://github.com/acme/site/pull/7",
+        headSha: "abc",
+        contentHash: "hash",
+      };
+      await lifecycle.recordScheduledPullRequest({
+        organizationId: ORG,
+        postId: "p1",
+        result: opened,
+      });
+      await schedule("p1", {
+        destinations: github,
+        scheduledAt: new Date(SLOT.getTime() + 24 * 60 * MINUTE),
+      });
+      const active = (await rowsFor("p1")).filter(
+        (row) => row.status === "scheduled"
+      );
+      expect(
+        active.find((row) => row.destination === "github")?.result
+      ).toEqual(opened);
+      expect(
+        active.find((row) => row.destination === "notra")?.result
+      ).toBeNull();
+    });
+
     test("publish now makes the schedule due immediately", async () => {
       await seedPost("p1");
       await schedule("p1");
@@ -693,12 +747,10 @@ if (process.env.NOTRA_SCHEDULED_PUBLICATIONS_SQL_WORKER !== "1") {
           result: {},
         });
       }
-      expect(
-        await schedule("tweet", {
-          destinations: [{ destination: "social", accountId: "x-1" }],
-          expectedScheduledIds: seen,
-        })
-      ).toEqual({ ok: false, reason: "conflict" });
+      expect(await schedule("tweet", { expectedScheduledIds: seen })).toEqual({
+        ok: false,
+        reason: "conflict",
+      });
       expect(
         (await rowsFor("tweet")).filter((row) => row.status === "scheduled")
       ).toHaveLength(0);

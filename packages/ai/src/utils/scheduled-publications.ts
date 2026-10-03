@@ -5,7 +5,10 @@ import {
   posts,
   scheduledPublications,
 } from "@notra/db/schema";
-import type { ScheduledPublicationDestinationConfig } from "@notra/db/types/scheduled-publications";
+import type {
+  ScheduledPublicationDestinationConfig,
+  ScheduledPublicationResult,
+} from "@notra/db/types/scheduled-publications";
 import {
   and,
   asc,
@@ -212,6 +215,30 @@ async function validateDestinations(
 }
 
 /**
+ * A pull request opened ahead for the schedule being replaced stays valid
+ * when the new one targets the same repository (a calendar move, say).
+ */
+function carriedPullRequest(
+  current: {
+    status: string;
+    destinationConfig: ScheduledPublicationDestinationConfig;
+    result: ScheduledPublicationResult | null;
+  }[],
+  config: ScheduledPublicationDestinationConfig
+): ScheduledPublicationResult | null {
+  if (config.destination !== "github") {
+    return null;
+  }
+  const replaced = current.find(
+    (row) =>
+      row.status === "scheduled" &&
+      row.destinationConfig.destination === "github" &&
+      row.destinationConfig.repositoryId === config.repositoryId
+  );
+  return replaced?.result?.contentHash ? replaced.result : null;
+}
+
+/**
  * Schedules a post, replacing any schedule that has not started yet.
  *
  * Every schedule publishes the post in Notra; external destinations are added
@@ -260,6 +287,8 @@ export async function schedulePostPublication(
           id: scheduledPublications.id,
           status: scheduledPublications.status,
           externalAttemptAt: scheduledPublications.externalAttemptAt,
+          destinationConfig: scheduledPublications.destinationConfig,
+          result: scheduledPublications.result,
         })
         .from(scheduledPublications)
         .where(
@@ -286,6 +315,26 @@ export async function schedulePostPublication(
           ok: false as const,
           reason: "unconfirmed_social_post" as const,
         };
+      }
+      // Posting the same text again is a second post, not a reschedule.
+      if (validated.configs.some((config) => config.destination === "social")) {
+        const [posted] = await tx
+          .select({ id: scheduledPublications.id })
+          .from(scheduledPublications)
+          .where(
+            and(
+              eq(scheduledPublications.postId, params.postId),
+              eq(scheduledPublications.destination, "social"),
+              eq(scheduledPublications.status, "published")
+            )
+          )
+          .limit(1);
+        if (posted) {
+          return {
+            ok: false as const,
+            reason: "social_already_posted" as const,
+          };
+        }
       }
       // The caller states which pending rows it is replacing. Anything else
       // (a row that published or failed since the user loaded the page) means
@@ -324,6 +373,7 @@ export async function schedulePostPublication(
           status: "scheduled" as const,
           nextAttemptAt: params.scheduledAt,
           createdByUserId: params.userId,
+          result: carriedPullRequest(current, config),
         }))
       );
       return { ok: true as const };
@@ -384,6 +434,28 @@ export async function cancelPostSchedule(params: {
     canceled: rows.filter((row) => row.status === "canceled").length,
     inProgress: rows.some((row) => row.status === "publishing"),
   };
+}
+
+/**
+ * Remembers the pull request opened when the post was scheduled, so the run
+ * at the slot merges it instead of pushing the same content again.
+ */
+export async function recordScheduledPullRequest(params: {
+  organizationId: string;
+  postId: string;
+  result: ScheduledPublicationResult;
+}): Promise<void> {
+  await db
+    .update(scheduledPublications)
+    .set({ result: params.result })
+    .where(
+      and(
+        eq(scheduledPublications.organizationId, params.organizationId),
+        eq(scheduledPublications.postId, params.postId),
+        eq(scheduledPublications.destination, "github"),
+        eq(scheduledPublications.status, "scheduled")
+      )
+    );
 }
 
 /** Moves a post's pending schedule to now; the next sweep publishes it. */

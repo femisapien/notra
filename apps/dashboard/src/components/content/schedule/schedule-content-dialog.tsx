@@ -7,14 +7,12 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
 } from "@notra/ui/components/shared/responsive-dialog";
+import { startOfDay } from "date-fns";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
-import {
-  ScheduleGitHubDestination,
-  ScheduleSocialDestination,
-} from "@/components/content/schedule/schedule-destination-fields";
+import { ScheduleWhereSection } from "@/components/content/schedule/schedule-destination-fields";
 import { ScheduleDestinationStatusList } from "@/components/content/schedule/schedule-destination-status-list";
 import { ScheduleDialogFooter } from "@/components/content/schedule/schedule-dialog-footer";
 import { ScheduleSlotField } from "@/components/content/schedule/schedule-slot-field";
@@ -41,6 +39,37 @@ import {
 } from "@/utils/content-calendar";
 import { readStoredGitHubPublishRepositoryId } from "@/utils/github-publish-repository-preference";
 import { getLocalTimezone } from "@/utils/schedule-summary";
+
+/** The current slot of a schedule being edited, and the unsaved-edits hint. */
+function ScheduleFormNotes({
+  currentSlot,
+  hasUnsavedChanges,
+}: {
+  currentSlot: string | undefined;
+  hasUnsavedChanges: boolean;
+}) {
+  const t = useTranslations("content.calendar.schedule");
+  const formatDate = useLocalDateFormat();
+  return (
+    <>
+      {currentSlot ? (
+        <p className="text-muted-foreground text-xs">
+          {t("currentSlot", {
+            date: formatDate(new Date(currentSlot), {
+              dateStyle: "full",
+              timeStyle: "short",
+            }),
+          })}
+        </p>
+      ) : null}
+      {hasUnsavedChanges ? (
+        <p className="text-muted-foreground text-xs" role="status">
+          {t("saveFirst")}
+        </p>
+      ) : null}
+    </>
+  );
+}
 
 function ScheduleContentForm({
   onOpenChange,
@@ -130,11 +159,6 @@ function ScheduleContentForm({
     );
   };
 
-  let submitLabel = mode === "edit" ? t("saveSchedule") : t("schedule");
-  if (scheduleMutation.isPending) {
-    submitLabel = t("scheduling");
-  }
-
   return (
     <form className="contents" onSubmit={handleSubmit}>
       <ResponsiveDialogHeader>
@@ -157,6 +181,7 @@ function ScheduleContentForm({
           <>
             <ScheduleSlotField
               date={form.date}
+              earliestDate={startOfDay(opened.at)}
               inPast={inPast}
               onDateChange={(date) => update({ date })}
               onTimeChange={(time) => update({ time })}
@@ -164,56 +189,18 @@ function ScheduleContentForm({
               timeZone={timeZone}
             />
 
-            <section className="space-y-3">
-              <div className="space-y-1">
-                <h3 className="text-sm font-medium">{t("where")}</h3>
-                <p className="text-muted-foreground text-xs">
-                  {t("whereHint")}
-                </p>
-              </div>
-              {destinations.github ? (
-                <ScheduleGitHubDestination
-                  enabled={form.githubEnabled}
-                  fieldProps={destinations.github}
-                  isBusy={isBusy}
-                  merge={form.merge}
-                  onEnabledChange={(githubEnabled) => update({ githubEnabled })}
-                  onMergeChange={(merge) => update({ merge })}
-                  onRepositoryChange={(repositoryId) =>
-                    update({ repositoryId })
-                  }
-                  organizationSlug={organizationSlug}
-                />
-              ) : null}
-              {destinations.social ? (
-                <ScheduleSocialDestination
-                  onAccountChange={(accountId) => update({ accountId })}
-                  onEnabledChange={(socialEnabled) => update({ socialEnabled })}
-                  option={destinations.social}
-                  organizationSlug={organizationSlug}
-                />
-              ) : null}
-              <p className="text-muted-foreground text-xs">
-                {t("notraAlways")}
-              </p>
-            </section>
+            <ScheduleWhereSection
+              destinations={destinations}
+              form={form}
+              isBusy={isBusy}
+              onChange={update}
+              organizationSlug={organizationSlug}
+            />
 
-            {mode === "edit" && schedule ? (
-              <p className="text-muted-foreground text-xs">
-                {t("currentSlot", {
-                  date: formatDate(new Date(schedule.scheduledAt), {
-                    dateStyle: "full",
-                    timeStyle: "short",
-                  }),
-                })}
-              </p>
-            ) : null}
-
-            {hasUnsavedChanges ? (
-              <p className="text-muted-foreground text-xs" role="status">
-                {t("saveFirst")}
-              </p>
-            ) : null}
+            <ScheduleFormNotes
+              currentSlot={mode === "edit" ? schedule?.scheduledAt : undefined}
+              hasUnsavedChanges={hasUnsavedChanges}
+            />
           </>
         ) : null}
       </div>
@@ -229,7 +216,7 @@ function ScheduleContentForm({
         onSecondaryAction={() =>
           cancelMutation.mutate(contentId, { onSuccess: close })
         }
-        submitLabel={submitLabel}
+        isSubmitting={scheduleMutation.isPending}
       />
     </form>
   );

@@ -36,6 +36,7 @@ import type {
   ScheduleSocialOption,
 } from "@/types/content/schedule";
 import type { ConnectedAccount } from "@/types/hooks/connected-accounts";
+import type { GitHubRepository } from "@/types/integrations";
 import type { Trigger } from "@/types/triggers/triggers";
 import { computeNextRun } from "@/utils/schedule-summary";
 
@@ -249,6 +250,48 @@ export function resolveScheduleSocialOption({
     toggleable,
     checked: enabled && toggleable,
   };
+}
+
+/**
+ * What a submit sends besides Notra, and whether a destination that is on
+ * cannot go out as configured yet. Until the accounts load, nobody knows
+ * which account would post.
+ */
+export function buildScheduleDestinations({
+  form,
+  githubOn,
+  github,
+  social,
+}: {
+  form: Pick<ScheduleFormState, "merge" | "socialEnabled">;
+  githubOn: boolean;
+  github: {
+    selectedRepository: GitHubRepository | undefined;
+    selectedPublishingEnabled: boolean;
+  };
+  social: ScheduleSocialOption | null;
+}): { destinations: ScheduleDestinationInput[]; blocked: boolean } {
+  const destinations: ScheduleDestinationInput[] = [];
+  if (githubOn && github.selectedRepository) {
+    destinations.push({
+      destination: "github",
+      repositoryId: github.selectedRepository.id,
+      merge: form.merge,
+    });
+  }
+  if (social?.checked && social.selectedAccount) {
+    destinations.push({
+      destination: "social",
+      accountId: social.selectedAccount.id,
+    });
+  }
+  const githubIncomplete =
+    githubOn &&
+    !(github.selectedRepository && github.selectedPublishingEnabled);
+  const socialIncomplete = Boolean(
+    social && form.socialEnabled && (!social.loaded || social.accountMissing)
+  );
+  return { destinations, blocked: githubIncomplete || socialIncomplete };
 }
 
 /** The external destinations of a schedule, as the schedule input takes them. */

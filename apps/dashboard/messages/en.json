@@ -1103,6 +1103,7 @@
       "accountNotFound": "The selected account isn't connected anymore.",
       "publishingInProgress": "This post is being published right now. Try again in a minute.",
       "unconfirmedSocialPost": "A social post of this schedule may already be live. Check the account, then retry or dismiss it before scheduling again.",
+      "socialAlreadyPosted": "This post already went out to that account. Create a new post to post again.",
       "conflict": "The schedule changed in the meantime. Reload and try again.",
       "nothingScheduled": "Nothing is scheduled for this post."
     }

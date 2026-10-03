@@ -87,6 +87,11 @@ export const SCHEDULE_POST_FAILURES = {
     message:
       "A social post of the current schedule may already be live. Check the account, then cancel the schedule before scheduling again",
   },
+  social_already_posted: {
+    status: 409,
+    message:
+      "This post already went out to that account; create a new post to post again",
+  },
   conflict: {
     status: 409,
     message: "The schedule changed concurrently; retry the request",

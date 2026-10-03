@@ -18,6 +18,11 @@ export interface ScheduledPublicationResult {
   alreadyPublished?: boolean;
   /** The commit Notra pushed, so a retried merge never takes a later push. */
   headSha?: string | null;
+  /**
+   * Fingerprint of the title and markdown pushed when the pull request was
+   * opened ahead of the slot; while it matches, the run only merges.
+   */
+  contentHash?: string;
   merged?: boolean;
   platformPostId?: string | null;
   postUrl?: string | null;

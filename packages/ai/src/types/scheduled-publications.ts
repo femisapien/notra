@@ -34,6 +34,7 @@ export type SchedulePostFailureReason =
   | "account_not_found"
   | "publishing_in_progress"
   | "unconfirmed_social_post"
+  | "social_already_posted"
   | "conflict";
 
 export type SchedulePostOutcome =

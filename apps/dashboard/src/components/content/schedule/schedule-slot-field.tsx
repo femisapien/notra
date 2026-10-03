@@ -9,7 +9,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@notra/ui/components/ui/popover";
-import { startOfDay } from "date-fns";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
@@ -21,6 +20,7 @@ import type { ScheduleSlotFieldProps } from "@/types/content/schedule";
 /** The "When" section of the schedule dialog: a day and a local time. */
 export function ScheduleSlotField({
   date,
+  earliestDate,
   time,
   inPast,
   timeZone,
@@ -74,7 +74,7 @@ export function ScheduleSlotField({
             >
               <Calendar
                 defaultMonth={date}
-                disabled={{ before: startOfDay(new Date()) }}
+                disabled={{ before: earliestDate }}
                 mode="single"
                 onSelect={(next) => {
                   onDateChange(next);

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { SCHEDULED_PUBLICATION_ERROR_CODES } from "@notra/ai/constants/scheduled-publications";
 import { getGitHubPublishToken } from "@notra/ai/integrations/github-publish-auth";
 import type {
@@ -6,7 +8,10 @@ import type {
 } from "@notra/ai/types/scheduled-publications";
 import { createOctokit } from "@notra/ai/utils/octokit";
 import { isGitHubScheduleContentType } from "@notra/ai/utils/schedule-destinations";
-import { markScheduledPublicationExternalAttempt } from "@notra/ai/utils/scheduled-publications";
+import {
+  markScheduledPublicationExternalAttempt,
+  recordScheduledPullRequest,
+} from "@notra/ai/utils/scheduled-publications";
 import { db } from "@notra/db/drizzle";
 import { githubIntegrations, posts } from "@notra/db/schema";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
@@ -45,6 +50,19 @@ const RETRYABLE_ORPC_CODES = new Set([
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+/**
+ * A scheduled post has no one waiting on it, so it gives the provider about
+ * half a minute to report the platform result before calling it unconfirmed.
+ */
+const SCHEDULED_SOCIAL_RESULT_POLL_ATTEMPTS = 15;
+
+/** What a GitHub publish pushes: the saved title and markdown. */
+function postContentHash(post: { title: string; markdown: string | null }) {
+  return createHash("sha256")
+    .update(`${post.title}\n${post.markdown ?? ""}`)
+    .digest("hex");
 }
 
 /** oRPC errors carry user-facing copy; anything else may carry internals. */
@@ -306,21 +324,28 @@ async function publishToGitHub(
     }
   }
 
-  // A retry after a failed merge goes straight back to merging, pinned to
-  // the commit the first attempt pushed. Pushing again would restart CI on
-  // every attempt, so a repository with required checks never merges.
+  // A pull request this schedule already pushed is merged as it is, pinned
+  // to that commit: a retry after a failed merge, or the one opened ahead of
+  // the slot while the post is unchanged. Pushing again would restart CI, so
+  // a repository with required checks could never merge in time.
   const previous = attempt.result;
+  const pushedContentIsCurrent =
+    previous?.contentHash === undefined ||
+    previous.contentHash === postContentHash(post);
   if (
-    config.merge &&
     previous?.pullRequestNumber &&
     previous.pullRequestUrl &&
-    !previous.merged
+    !previous.merged &&
+    pushedContentIsCurrent
   ) {
-    return mergePullRequest(client, {
+    const pullRequest = {
       pullRequestNumber: previous.pullRequestNumber,
       pullRequestUrl: previous.pullRequestUrl,
       headSha: previous.headSha ?? null,
-    });
+    };
+    return config.merge
+      ? mergePullRequest(client, pullRequest)
+      : { kind: "published", result: pullRequest };
   }
 
   let published: Awaited<ReturnType<typeof publishSavedContentToGitHub>>;
@@ -362,7 +387,12 @@ export async function openScheduledPullRequestAhead(params: {
 }): Promise<void> {
   try {
     const post = await db.query.posts.findFirst({
-      columns: { contentType: true, githubPublish: true, markdown: true },
+      columns: {
+        contentType: true,
+        githubPublish: true,
+        markdown: true,
+        title: true,
+      },
       where: and(
         eq(posts.id, params.postId),
         eq(posts.organizationId, params.organizationId)
@@ -375,11 +405,21 @@ export async function openScheduledPullRequestAhead(params: {
     ) {
       return;
     }
-    await publishSavedContentToGitHub({
+    const published = await publishSavedContentToGitHub({
       organizationId: params.organizationId,
       contentId: params.postId,
       contentType: post.contentType,
       repositoryId: params.repositoryId,
+    });
+    await recordScheduledPullRequest({
+      organizationId: params.organizationId,
+      postId: params.postId,
+      result: {
+        pullRequestNumber: published.pullRequestNumber,
+        pullRequestUrl: published.pullRequestUrl,
+        headSha: published.headSha ?? null,
+        contentHash: postContentHash(post),
+      },
     });
   } catch (error) {
     console.warn("[ScheduledPublication] Opening the PR ahead failed", {
@@ -423,6 +463,7 @@ async function publishToSocial(
         organizationId: attempt.organizationId,
         accountId,
         content,
+        resultPollAttempts: SCHEDULED_SOCIAL_RESULT_POLL_ATTEMPTS,
       }).pipe(
         Effect.catchDefect((defect) =>
           Effect.fail(
@@ -435,18 +476,22 @@ async function publishToSocial(
       )
     )
   );
+  const unconfirmed =
+    outcome._tag === "Failure"
+      ? outcome.failure._tag === "SocialConnectDeliveryUnknownError"
+      : !outcome.success.confirmed;
+  if (unconfirmed) {
+    console.error("[ScheduledPublication] Social send unconfirmed", {
+      scheduledPublicationId: attempt.id,
+      outcome,
+    });
+    return failure(
+      SCHEDULED_PUBLICATION_ERROR_CODES.OUTCOME_UNKNOWN,
+      "The post may have gone out, but the platform did not confirm it. Check the account before retrying so it is not posted twice.",
+      false
+    );
+  }
   if (outcome._tag === "Failure") {
-    if (outcome.failure._tag === "SocialConnectDeliveryUnknownError") {
-      console.error("[ScheduledPublication] Social send unconfirmed", {
-        scheduledPublicationId: attempt.id,
-        error: outcome.failure,
-      });
-      return failure(
-        SCHEDULED_PUBLICATION_ERROR_CODES.OUTCOME_UNKNOWN,
-        "The post may have gone out, but the platform did not confirm it. Check the account before retrying so it is not posted twice.",
-        false
-      );
-    }
     return failure(
       SCHEDULED_PUBLICATION_ERROR_CODES.SOCIAL_PUBLISH_FAILED,
       outcome.failure.message,
@@ -482,6 +527,7 @@ export async function publishScheduledDestination(
   const post = await db.query.posts.findFirst({
     columns: {
       contentType: true,
+      title: true,
       markdown: true,
       githubPublish: true,
     },

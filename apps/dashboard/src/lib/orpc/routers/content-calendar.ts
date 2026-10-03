@@ -39,6 +39,7 @@ const SCHEDULE_FAILURE_MESSAGE_KEYS = {
   account_not_found: "accountNotFound",
   publishing_in_progress: "publishingInProgress",
   unconfirmed_social_post: "unconfirmedSocialPost",
+  social_already_posted: "socialAlreadyPosted",
   conflict: "conflict",
 } as const satisfies Record<SchedulePostFailureReason, string>;
 const ERROR_BY_STATUS = {
