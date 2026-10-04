@@ -182,18 +182,13 @@ export function SiteDeploymentsPage() {
               ))}
             </SelectContent>
           </Select>
-          <span
-            aria-live="polite"
-            className="text-muted-foreground ml-auto hidden text-sm tabular-nums sm:inline"
-          >
-            {t("count", { count: visible.length })}
-          </span>
         </div>
       ) : null}
 
       <SiteDeploymentsTable
         deployments={visible}
         emptyState={<div className="text-foreground w-full">{emptyState}</div>}
+        fitRows
         highlightNewRows
         organizationId={organizationId}
         organizationSlug={organizationSlug}

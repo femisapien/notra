@@ -2,7 +2,10 @@ import { createScopedGitHubAppInstallationToken } from "@notra/ai/integrations/g
 import { createOctokit } from "@notra/ai/utils/octokit";
 
 import {
+  BRANCH_SUGGESTION_LIMIT,
+  CONFIG_SEARCH_SKIPPED_SEGMENTS,
   GITHUB_API_VERSION_HEADER,
+  GITHUB_PAGE_SIZE,
   MAX_TARBALL_BYTES,
 } from "./constants/github";
 import { SitePermanentBuildError } from "./errors";
@@ -10,6 +13,7 @@ import type {
   BranchHead,
   CompleteCheckRunParams,
   CreateCheckRunParams,
+  RepositorySuggestions,
   SiteRepository,
   SiteRepositoryColumns,
   SiteRepositoryPermissions,
@@ -175,4 +179,103 @@ export async function completeCheckRun(
       headers: GITHUB_API_VERSION_HEADER,
     }
   );
+}
+
+async function listBranches(
+  repository: SiteRepository,
+  token: string
+): Promise<string[]> {
+  const octokit = createOctokit(token);
+  const branches: string[] = [];
+  for (let page = 1; branches.length < BRANCH_SUGGESTION_LIMIT; page += 1) {
+    const { data } = await octokit.request(
+      "GET /repos/{owner}/{repo}/branches",
+      {
+        owner: repository.owner,
+        repo: repository.repo,
+        per_page: GITHUB_PAGE_SIZE,
+        page,
+        headers: GITHUB_API_VERSION_HEADER,
+      }
+    );
+    branches.push(...data.map((branch) => branch.name));
+    if (data.length < GITHUB_PAGE_SIZE) {
+      break;
+    }
+  }
+  return branches.slice(0, BRANCH_SUGGESTION_LIMIT);
+}
+
+/** Every folder on `ref` that holds a notra.json, read from one recursive tree call. */
+async function listConfigDirectories(
+  repository: SiteRepository,
+  token: string,
+  ref: string
+): Promise<{ directories: string[]; truncated: boolean }> {
+  const octokit = createOctokit(token);
+  const { data } = await octokit.request(
+    "GET /repos/{owner}/{repo}/git/trees/{tree_sha}",
+    {
+      owner: repository.owner,
+      repo: repository.repo,
+      tree_sha: ref,
+      recursive: "1",
+      headers: GITHUB_API_VERSION_HEADER,
+    }
+  );
+  const directories: string[] = [];
+  for (const entry of data.tree) {
+    const path = entry.path ?? "";
+    if (
+      entry.type !== "blob" ||
+      !(path === "notra.json" || path.endsWith("/notra.json"))
+    ) {
+      continue;
+    }
+    const directory = path.slice(0, -"notra.json".length).replace(/\/$/, "");
+    if (
+      directory
+        .split("/")
+        .some((segment) => CONFIG_SEARCH_SKIPPED_SEGMENTS.has(segment))
+    ) {
+      continue;
+    }
+    directories.push(directory);
+  }
+  directories.sort((a, b) => a.length - b.length || a.localeCompare(b));
+  return { directories, truncated: data.truncated };
+}
+
+/**
+ * Branches and notra.json folders for the forms. `ref` picks the branch whose
+ * tree is searched; it defaults to the repository's default branch.
+ */
+export async function getRepositorySuggestions(
+  repository: SiteRepository,
+  ref: string | null
+): Promise<RepositorySuggestions> {
+  const token = await siteRepositoryToken(repository, { contents: "read" });
+  const octokit = createOctokit(token);
+  const { data: repo } = await octokit.request("GET /repos/{owner}/{repo}", {
+    owner: repository.owner,
+    repo: repository.repo,
+    headers: GITHUB_API_VERSION_HEADER,
+  });
+  const [branches, config] = await Promise.all([
+    listBranches(repository, token),
+    listConfigDirectories(repository, token, ref || repo.default_branch).catch(
+      () => ({ directories: [], truncated: false })
+    ),
+  ]);
+  // The default branch leads; it is almost always the production branch.
+  const ordered = [
+    repo.default_branch,
+    ...branches.filter((branch) => branch !== repo.default_branch),
+  ];
+  return {
+    branches: branches.includes(repo.default_branch) ? ordered : branches,
+    defaultBranch: repo.default_branch,
+    configDirectories: config.directories,
+    truncated: config.truncated,
+  };
 }

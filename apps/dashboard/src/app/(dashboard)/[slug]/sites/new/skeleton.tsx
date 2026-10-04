@@ -11,17 +11,9 @@ export function NewSitePageSkeleton() {
   return (
     <SitesPageShell>
       <PageHeading description={t("description")} title={t("title")} />
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,42rem)_18rem]">
-        <div className="space-y-4">
-          <Skeleton className="h-14 w-full rounded-lg" />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Skeleton className="h-14 rounded-lg" />
-            <Skeleton className="h-14 rounded-lg" />
-          </div>
-          <Skeleton className="h-32 w-full rounded-lg" />
-          <Skeleton className="h-24 w-full rounded-lg" />
-        </div>
-        <Skeleton className="hidden h-72 rounded-2xl lg:block" />
+      <div className="space-y-6">
+        <Skeleton className="h-96 w-full rounded-2xl" />
+        <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
     </SitesPageShell>
   );

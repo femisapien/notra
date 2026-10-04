@@ -57,3 +57,13 @@ export interface CompleteCheckRunParams {
   detailsUrl?: string;
   annotations?: CheckRunAnnotation[];
 }
+
+/** What the new-site and settings forms suggest for branch and root directory. */
+export interface RepositorySuggestions {
+  branches: string[];
+  defaultBranch: string | null;
+  /** Folders with a notra.json, `""` for the repository root. */
+  configDirectories: string[];
+  /** GitHub cut the file tree short; some folders may be missing. */
+  truncated: boolean;
+}

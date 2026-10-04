@@ -11,6 +11,8 @@ import { organizationIdInputSchema } from "@notra/schemas/dashboard/auth/organiz
 import {
   addSiteDomainInputSchema,
   createSiteInputSchema,
+  repositorySuggestionsInputSchema,
+  siteRepositorySuggestionsInputSchema,
   listSiteDeploymentsInputSchema,
   publishSiteDraftsInputSchema,
   saveSiteDraftInputSchema,
@@ -54,11 +56,19 @@ import {
   getSitesHostingPortSuffix,
   isSitesConfigured,
 } from "@notra/sites-server/env";
-import { previewAccessUrl } from "@notra/sites-server/preview-access";
+import {
+  getRepositorySuggestions,
+  requireSiteRepository,
+} from "@notra/sites-server/github";
+import {
+  previewAccessUrl,
+  setSitePreviewPassword,
+} from "@notra/sites-server/preview-access";
 import { r2GetText } from "@notra/sites-server/r2";
 import {
   createBranchPreview,
   createSite,
+  organizationRepositorySuggestions,
   deletePreview,
   deleteSite,
   deployBranchHead,
@@ -253,6 +263,32 @@ export const sitesRouter = {
             isNotNull(githubIntegrations.githubRepositoryId)
           )
         );
+    }),
+
+  /** Branches and notra.json folders for the new-site form. */
+  repositorySuggestions: sitesProcedure
+    .input(repositorySuggestionsInputSchema)
+    .handler(async ({ context, input }) => {
+      await assertOrganizationAccess({
+        headers: context.headers,
+        organizationId: input.organizationId,
+      });
+      return await organizationRepositorySuggestions({
+        organizationId: input.organizationId,
+        repositoryId: input.repositoryId,
+        ref: input.ref || null,
+      });
+    }),
+
+  /** The same for an existing site's settings. */
+  siteRepositorySuggestions: sitesProcedure
+    .input(siteRepositorySuggestionsInputSchema)
+    .handler(async ({ context, input }) => {
+      const { site } = await requireSite(context, input);
+      return await getRepositorySuggestions(
+        requireSiteRepository(site),
+        input.ref || null
+      );
     }),
 
   get: sitesProcedure

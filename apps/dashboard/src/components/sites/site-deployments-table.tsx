@@ -1,17 +1,22 @@
 "use client";
 
-import { GitBranchIcon, GitCommitIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Table, type TableColumn } from "@/components/motion/table";
 import { SiteDeploymentMenu } from "@/components/sites/site-deployment-menu";
-import { SiteMeta } from "@/components/sites/site-meta";
 import { SiteRelativeTime } from "@/components/sites/site-relative-time";
 import { SiteRollbackDialog } from "@/components/sites/site-rollback-dialog";
 import { SiteStatusDot } from "@/components/sites/site-status-dot";
-import { SITE_TABLE_EMPTY_HEIGHT } from "@/constants/sites";
+import {
+  SITE_DEPLOYMENT_ROW_HEIGHT,
+  SITE_ENVIRONMENT_ICONS,
+  SITE_ENVIRONMENT_PILL_CLASS,
+  SITE_ENVIRONMENT_PILL_TONE,
+  SITE_TABLE_EMPTY_HEIGHT,
+} from "@/constants/sites";
 import { useNow } from "@/lib/hooks/use-now";
 import { useRedeployDeployment } from "@/lib/hooks/use-site-deployments";
 import { cn } from "@/lib/utils";
@@ -25,9 +30,11 @@ import {
   shortSha,
 } from "@/utils/site-deployments";
 import { siteDeploymentHref } from "@/utils/site-links";
+import { tableHeightFor } from "@/utils/table";
 
 /**
- * Deployments as rows: commit, status, environment, when and by whom. The
+ * Deployments as rows, laid out like the feedback table: commit, environment
+ * pill, status, author and time. The
  * deployments page and the overview's activity share it, so a build reads
  * the same everywhere; the page adds a row menu, the overview stays bare.
  */
@@ -40,6 +47,7 @@ export function SiteDeploymentsTable({
   withActions = false,
   highlightNewRows = false,
   emptyHeight = SITE_TABLE_EMPTY_HEIGHT,
+  fitRows = false,
 }: SiteDeploymentsTableProps) {
   const t = useTranslations("sites.deploymentsPage");
   const tKinds = useTranslations("sites.kinds");
@@ -57,55 +65,82 @@ export function SiteDeploymentsTable({
   const href = (deployment: SiteDeployment) =>
     siteDeploymentHref(organizationSlug, siteId, deployment.id);
 
+  let tableHeight = emptyHeight;
+  if (deployments.length > 0) {
+    // The header takes one row's height.
+    tableHeight = fitRows
+      ? (deployments.length + 1) * SITE_DEPLOYMENT_ROW_HEIGHT
+      : tableHeightFor(deployments.length, SITE_DEPLOYMENT_ROW_HEIGHT);
+  }
+
   const columns: TableColumn<SiteDeployment>[] = [
     {
       key: "deployment",
       header: t("columns.deployment"),
       width: "1fr",
-      minWidth: "12rem",
+      minWidth: "16rem",
+      sortable: true,
+      sortValue: (deployment) => commitTitle(deployment.commitMessage) ?? "",
       cell: (deployment) => {
         const title = commitTitle(deployment.commitMessage);
         return (
-          <span className="flex min-w-0 flex-col gap-1">
+          <span className="flex min-w-0 flex-col gap-0.5">
             <span
               className={cn(
-                "block min-w-0 truncate font-medium",
+                "truncate text-sm font-medium",
                 !title && "text-muted-foreground font-normal"
               )}
               title={title ?? undefined}
             >
               {title ?? tDeployments("noCommitMessage")}
             </span>
-            <span className="flex min-w-0 items-center gap-3">
-              <SiteMeta className="shrink-0 text-xs" icon={GitCommitIcon} mono>
+            <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+              <span className="shrink-0 font-mono">
                 {shortSha(deployment.commitSha)}
-              </SiteMeta>
-              <span className="min-w-0" title={deployment.branch}>
-                <SiteMeta
-                  className="max-w-full text-xs"
-                  icon={GitBranchIcon}
-                  mono
-                >
-                  {deployment.branch}
-                </SiteMeta>
               </span>
-              {/* Narrow screens drop the environment and time columns. */}
-              <SiteRelativeTime
-                className="text-muted-foreground shrink-0 text-xs @min-[48rem]/main:hidden"
-                date={deployment.createdAt}
-              />
+              <span aria-hidden="true">·</span>
+              <span className="truncate font-mono" title={deployment.branch}>
+                {deployment.branch}
+              </span>
             </span>
           </span>
         );
       },
     },
     {
+      key: "environment",
+      header: t("columns.environment"),
+      width: "10rem",
+      collapsePriority: 2,
+      sortable: true,
+      sortValue: (deployment) => deployment.kind,
+      cell: (deployment) => (
+        <span
+          className={cn(
+            SITE_ENVIRONMENT_PILL_CLASS,
+            SITE_ENVIRONMENT_PILL_TONE[deployment.kind]
+          )}
+        >
+          <HugeiconsIcon
+            aria-hidden
+            className="size-3.5 shrink-0"
+            icon={SITE_ENVIRONMENT_ICONS[deployment.kind]}
+            strokeWidth={2}
+          />
+          <span className="truncate">
+            {deployment.previewKey ?? tKinds(deployment.kind)}
+          </span>
+        </span>
+      ),
+    },
+    {
       key: "status",
       header: t("columns.status"),
-      width: "8.5rem",
+      width: "9rem",
+      sortable: true,
+      sortValue: (deployment) => deployment.status,
       cell: (deployment) => (
         <SiteStatusDot
-          className="h-5"
           duration={
             deployment.status === "ready" ||
             deployment.status === "building" ||
@@ -113,54 +148,41 @@ export function SiteDeploymentsTable({
               ? formatBuildDuration(deploymentElapsedMs(deployment, now))
               : null
           }
+          live={deployment.live}
           status={deployment.status}
         />
       ),
     },
     {
-      key: "environment",
-      header: t("columns.environment"),
-      width: "9rem",
-      collapsePriority: 2,
-      cell: (deployment) => {
-        let detail: string | null = deployment.previewKey;
-        if (deployment.live) {
-          detail = detail ? `${detail} · ${t("current")}` : t("current");
-        }
-        return (
-          <span className="flex min-w-0 flex-col gap-1">
-            <span className="truncate">{tKinds(deployment.kind)}</span>
-            {detail ? (
-              <span
-                className="text-muted-foreground truncate text-xs"
-                title={detail}
-              >
-                {detail}
-              </span>
-            ) : null}
-          </span>
-        );
-      },
+      key: "author",
+      header: t("columns.author"),
+      width: "10rem",
+      collapsePriority: 3,
+      sortable: true,
+      sortValue: (deployment) =>
+        deployment.commitAuthor ?? tTriggers(deployment.trigger),
+      cell: (deployment) => (
+        <span
+          className="text-muted-foreground block truncate text-xs"
+          title={tTriggers(deployment.trigger)}
+        >
+          {deployment.commitAuthor ?? tTriggers(deployment.trigger)}
+        </span>
+      ),
     },
     {
       key: "created",
       header: t("columns.created"),
-      width: "9rem",
+      width: "8rem",
       align: "right",
       collapsePriority: 1,
+      sortable: true,
+      sortValue: (deployment) => new Date(deployment.createdAt).getTime(),
       cell: (deployment) => (
-        <span className="flex min-w-0 flex-col items-end gap-1">
-          <SiteRelativeTime
-            className="text-muted-foreground whitespace-nowrap"
-            date={deployment.createdAt}
-          />
-          <span
-            className="text-muted-foreground max-w-full truncate text-xs"
-            title={tTriggers(deployment.trigger)}
-          >
-            {deployment.commitAuthor ?? tTriggers(deployment.trigger)}
-          </span>
-        </span>
+        <SiteRelativeTime
+          className="text-muted-foreground text-xs whitespace-nowrap tabular-nums"
+          date={deployment.createdAt}
+        />
       ),
     },
   ];
@@ -194,7 +216,6 @@ export function SiteDeploymentsTable({
   return (
     <>
       <Table
-        autoHeight
         className="rounded-2xl"
         columns={columns}
         data={deployments}
@@ -205,11 +226,13 @@ export function SiteDeploymentsTable({
             ? "motion-safe:animate-[geo-log-row-glow_2.4s_ease-out_backwards]"
             : undefined
         }
+        defaultSort={{ key: "created", direction: "desc" }}
         getRowId={(deployment) => deployment.id}
-        height={emptyHeight}
+        height={tableHeight}
         onRowClick={(deployment) => router.push(href(deployment))}
         onRowPointerEnter={(deployment) => router.prefetch(href(deployment))}
-        rowSizing="content"
+        resizable
+        rowHeight={SITE_DEPLOYMENT_ROW_HEIGHT}
         scrollFade={false}
       />
       {withActions ? (

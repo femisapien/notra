@@ -144,6 +144,29 @@ export const SITE_STATUS_DOT_STYLES: Record<SiteDeploymentStatus, string> = {
   expired: "bg-muted-foreground/40",
 };
 
+/** Same row height as the feedback table: a title line and a detail line. */
+export const SITE_DEPLOYMENT_ROW_HEIGHT = 48;
+
+/** Environment pills, tinted like the feedback kind pills. */
+export const SITE_ENVIRONMENT_PILL_CLASS =
+  "inline-flex h-6 max-w-full items-center gap-1.5 rounded-full border px-2 text-xs font-medium";
+
+export const SITE_ENVIRONMENT_PILL_TONE: Record<SiteDeploymentKind, string> = {
+  production: "border-success/25 bg-success/10 text-foreground",
+  preview: "border-info/25 bg-info/10 text-foreground",
+};
+
+export const SITE_ENVIRONMENT_ICONS: Record<
+  SiteDeploymentKind,
+  IconSvgElement
+> = {
+  production: Rocket01Icon,
+  preview: GitPullRequestIcon,
+};
+
+/** Branches and folders change rarely while a form is open. */
+export const SITE_REPOSITORY_SUGGESTIONS_STALE_MS = 60_000;
+
 /** Enough history for the deployments page; the API caps the list at 100. */
 export const SITE_DEPLOYMENTS_PAGE_LIMIT = 100;
 

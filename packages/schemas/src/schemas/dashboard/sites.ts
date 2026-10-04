@@ -16,6 +16,19 @@ export const siteMountsInputSchema = z
 
 export const siteScopeInputSchema = z.object({ organizationId, siteId });
 
+/** Which branch's file tree to search for notra.json; the default branch when unset. */
+const suggestionRef = z.string().trim().max(250).optional();
+
+export const repositorySuggestionsInputSchema = z.object({
+  organizationId,
+  repositoryId: z.string().min(1),
+  ref: suggestionRef,
+});
+
+export const siteRepositorySuggestionsInputSchema = siteScopeInputSchema.extend(
+  { ref: suggestionRef }
+);
+
 export const createSiteInputSchema = z.object({
   organizationId,
   name: z.string().trim().min(1).max(80),

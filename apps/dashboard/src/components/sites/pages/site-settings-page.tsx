@@ -25,6 +25,9 @@ import {
   SiteChoiceGroup,
   SiteSectionsFields,
 } from "@/components/sites/site-form-fields";
+import { SiteSettingsRow } from "@/components/sites/site-settings-row";
+import { SiteSuggestInput } from "@/components/sites/site-suggest-input";
+import { useRepositorySuggestions } from "@/lib/hooks/use-repository-suggestions";
 import {
   useSitePreviewVisibilityOptions,
   useSitePublishModeOptions,
@@ -71,6 +74,11 @@ function SiteSettingsForm({
   const [form, setForm] = useState<SiteSettingsFormValues>(() =>
     siteSettingsFormFromSite(site)
   );
+  const suggestions = useRepositorySuggestions({
+    organizationId,
+    siteId,
+    branch: form.productionBranch.trim(),
+  });
   const [offlineOpen, setOfflineOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const patch = siteSettingsPatch(form, site);
@@ -141,33 +149,33 @@ function SiteSettingsForm({
                 onChange={(event) => update("name", event.target.value)}
                 value={form.name}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={`${id}-branch`}>{tNew("branch")}</Label>
-              <Input
-                aria-describedby={`${id}-branch-hint`}
+            </SiteSettingsRow>
+            <SiteSettingsRow
+              description={tNew("branchHint")}
+              htmlFor={`${id}-branch`}
+              label={tNew("branch")}
+            >
+              <SiteSuggestInput
+                emptyLabel={tNew("noBranchMatch")}
+                icon={GitBranchIcon}
                 id={`${id}-branch`}
-                onChange={(event) =>
-                  update("productionBranch", event.target.value)
-                }
-                spellCheck={false}
+                onValueChange={(value) => update("productionBranch", value)}
+                suggestions={suggestions.branches}
                 value={form.productionBranch}
               />
-              <p
-                className="text-muted-foreground text-xs"
-                id={`${id}-branch-hint`}
-              >
-                {tNew("branchHint")}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={`${id}-root`}>{tNew("rootDirectory")}</Label>
-              <Input
-                aria-describedby={`${id}-root-hint`}
+            </SiteSettingsRow>
+            <SiteSettingsRow
+              description={tNew("rootDirectoryHint")}
+              htmlFor={`${id}-root`}
+              label={tNew("rootDirectory")}
+            >
+              <SiteSuggestInput
+                emptyLabel={tNew("noDirectoryMatch")}
+                icon={Folder01Icon}
                 id={`${id}-root`}
                 onValueChange={(value) => update("rootDirectory", value)}
                 placeholder={tNew("rootDirectoryPlaceholder")}
-                spellCheck={false}
+                suggestions={suggestions.configDirectories.filter(Boolean)}
                 value={form.rootDirectory}
               />
             </SiteSettingsRow>
@@ -262,7 +270,7 @@ function SiteSettingsForm({
 
         {/* Appears only with unsaved changes and stays in reach while scrolling. */}
         {dirty ? (
-          <div className="bg-background/90 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sticky bottom-4 z-10 flex items-center justify-between gap-3 rounded-xl border py-2 pr-2 pl-4 shadow-lg backdrop-blur duration-200">
+          <div className="bg-background/90 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sticky bottom-4 z-10 mx-auto flex w-fit max-w-full items-center justify-between gap-6 rounded-xl border py-2 pr-2 pl-4 shadow-lg backdrop-blur duration-200">
             <p className="text-muted-foreground text-sm">{tPage("unsaved")}</p>
             <div className="flex items-center gap-2">
               <Button

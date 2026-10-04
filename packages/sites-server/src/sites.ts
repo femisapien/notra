@@ -34,6 +34,7 @@ import {
 import { getSitesHostingDomain } from "./env";
 import {
   getBranchHead,
+  getRepositorySuggestions,
   requireSiteRepository,
   siteRepositoryToken,
 } from "./github";
@@ -47,6 +48,7 @@ import {
   setServingPreviewVisibility,
   setServingStatus,
 } from "./state";
+import type { RepositorySuggestions } from "./types/github";
 import type {
   BranchPreviewResult,
   CreateSiteInput,
@@ -94,9 +96,11 @@ async function uniqueSlug(base: string): Promise<string> {
  * Creates a site bound to a repository the organization already connected
  * through the GitHub App, claims its alias host and queues the first build.
  */
-export async function createSite(
-  input: CreateSiteInput
-): Promise<CreateSiteResult> {
+/** A repository connected through the GitHub App, only if it belongs to the organization. */
+async function findOrganizationRepository(
+  organizationId: string,
+  repositoryId: string
+) {
   const [repository] = await db
     .select({
       integration: githubIntegrations,
@@ -115,6 +119,38 @@ export async function createSite(
       )
     )
     .limit(1);
+  return repository;
+}
+
+/** Branch and root-directory suggestions for a repository picked in the new-site form. */
+export async function organizationRepositorySuggestions(params: {
+  organizationId: string;
+  repositoryId: string;
+  ref: string | null;
+}): Promise<RepositorySuggestions> {
+  const repository = await findOrganizationRepository(
+    params.organizationId,
+    params.repositoryId
+  );
+  const { owner, repo } = repository?.integration ?? {};
+  if (!(repository && owner && repo)) {
+    throw new SiteInputError(
+      "Connect the repository through the Notra GitHub App first"
+    );
+  }
+  return await getRepositorySuggestions(
+    { installationId: repository.installationId, owner, repo },
+    params.ref
+  );
+}
+
+export async function createSite(
+  input: CreateSiteInput
+): Promise<CreateSiteResult> {
+  const repository = await findOrganizationRepository(
+    input.organizationId,
+    input.repositoryId
+  );
   if (
     !(
       repository?.integration.owner &&

@@ -4864,22 +4864,22 @@
       "recommended": "Recommended",
       "protected": {
         "title": "Protected",
-        "description": "Only members of your organization and people with a share link. Best for private repositories."
+        "description": "Your team and anyone with a share link."
       },
       "public": {
         "title": "Public",
-        "description": "Anyone with the link. Previews are never indexed by search engines."
+        "description": "Anyone with the link. Never indexed."
       }
     },
     "publishModes": {
       "recommended": "Recommended",
       "pull_request": {
         "title": "Pull request",
-        "description": "Edits from the dashboard open a pull request for review."
+        "description": "Edits open a pull request."
       },
       "direct": {
         "title": "Direct commit",
-        "description": "Edits commit straight to the production branch when it isn't protected."
+        "description": "Edits go straight to the branch."
       }
     },
     "new": {
@@ -4910,7 +4910,11 @@
       "create": "Create site",
       "created": "Site created",
       "createdDeploying": "Site created. The first deployment is on its way.",
-      "createFailed": "Couldn't create the site"
+      "createFailed": "Couldn't create the site",
+      "noBranchMatch": "No matching branch",
+      "noDirectoryMatch": "No folder with notra.json matches",
+      "barHint": "Creates the site and deploys {branch}",
+      "barHintNoRepository": "Pick a repository to create the site"
     },
     "detail": {
       "visit": "Visit",
@@ -5258,13 +5262,13 @@
     },
     "deploymentsPage": {
       "description": "Every build of this site, newest first.",
-      "count": "{count, plural, one {# deployment} other {# deployments}}",
       "current": "Current",
       "by": "Deployed by {author}",
       "columns": {
         "deployment": "Deployment",
         "status": "Status",
         "environment": "Environment",
+        "author": "Author",
         "commit": "Commit",
         "branch": "Branch",
         "created": "Created",

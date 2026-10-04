@@ -253,3 +253,8 @@ export type SiteDeploymentStepInput = Pick<
   SiteDeployment,
   "status" | "createdAt" | "startedAt" | "finishedAt" | "buildDurationMs"
 >;
+
+/** Suggestions for a repository picked in the new-site form, or an existing site's repository. */
+export type RepositorySuggestionsScope =
+  | { organizationId: string; repositoryId: string | null; branch: string }
+  | { organizationId: string; siteId: string; branch: string };

@@ -1,15 +1,17 @@
 "use client";
 
-import { Github01Icon, SquareLock02Icon } from "@hugeicons/core-free-icons";
+import {
+  File02Icon,
+  Folder01Icon,
+  GitBranchIcon,
+  Github01Icon,
+  SquareLock02Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   isValidSiteSlug,
   slugifySiteName,
 } from "@notra/sites-core/utils/hosts";
-import {
-  FieldDescription,
-  FieldSeparator,
-} from "@notra/ui/components/ui/field";
 import { Input } from "@notra/ui/components/ui/input";
 import {
   InputGroup,
@@ -17,7 +19,6 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@notra/ui/components/ui/input-group";
-import { Label } from "@notra/ui/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@notra/ui/components/ui/select";
+import { TitleCard } from "@notra/ui/components/ui/title-card";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -38,10 +40,15 @@ import {
   SiteChoiceGroup,
   SiteSectionsFields,
 } from "@/components/sites/site-form-fields";
+import { SiteSettingsRow } from "@/components/sites/site-settings-row";
+import { SiteSuggestInput } from "@/components/sites/site-suggest-input";
 import {
   SITE_DEFAULT_BLOG_PATH,
   SITE_DEFAULT_CHANGELOG_PATH,
+  SITE_REPOSITORY_LAYOUT,
 } from "@/constants/sites";
+import { useActiveProject } from "@/lib/hooks/use-active-project";
+import { useRepositorySuggestions } from "@/lib/hooks/use-repository-suggestions";
 import {
   useSitePreviewVisibilityOptions,
   useSitePublishModeOptions,
@@ -67,6 +74,9 @@ export function SiteCreateForm({
 }: SiteCreateFormProps) {
   const t = useTranslations("sites.new");
   const tCommon = useTranslations("common");
+  const tSettings = useTranslations("sites.settings");
+  const tSections = useTranslations("sites.sections");
+  const tLayout = useTranslations("sites.layout");
   const id = useId();
   const router = useRouter();
   const invalidateSites = useInvalidateSites();
@@ -109,6 +119,12 @@ export function SiteCreateForm({
     !slugInvalid &&
     sectionsValid;
 
+  const suggestions = useRepositorySuggestions({
+    organizationId,
+    repositoryId,
+    branch: branch.trim(),
+  });
+  const { projectId } = useActiveProject();
   const createMutation = useMutation({
     mutationFn: () => {
       if (!repository) {
@@ -127,6 +143,7 @@ export function SiteCreateForm({
         },
         previewVisibility,
         publishMode,
+        projectId: projectId ?? undefined,
       });
     },
     onSuccess: async (result) => {
@@ -159,6 +176,8 @@ export function SiteCreateForm({
     );
   }
 
+  const productionBranch = branch.trim() || repository?.defaultBranch || "";
+
   return (
     <form
       className="space-y-6"
@@ -186,31 +205,42 @@ export function SiteCreateForm({
             htmlFor={`${id}-repository`}
             label={tCommon("labels.repository")}
           >
-            <SelectTrigger className="w-full" id={`${id}-repository`}>
-              <SelectValue
-                placeholder={
-                  repositoriesQuery.isPending
-                    ? tCommon("labels.loading")
-                    : t("repositoryPlaceholder")
+            <Select
+              disabled={repositoriesQuery.isPending}
+              items={repositories.map((candidate) => ({
+                value: candidate.id,
+                label: repositoryLabel(candidate),
+              }))}
+              onValueChange={(value) => {
+                const next = repositories.find((item) => item.id === value);
+                if (!next) {
+                  return;
                 }
-              />
-            </SelectTrigger>
-            <SelectContent alignItemWithTrigger={false}>
-              {repositories.map((candidate) => (
-                <SelectItem key={candidate.id} value={candidate.id}>
-                  <HugeiconsIcon
-                    aria-hidden="true"
-                    className="text-muted-foreground"
-                    icon={Github01Icon}
-                    size={14}
-                  />
-                  <span className="truncate">{repositoryLabel(candidate)}</span>
-                  {candidate.private ? (
+                setRepositoryId(next.id);
+                setBranch(next.defaultBranch ?? "");
+                if (!name.trim()) {
+                  setName(next.repo ?? "");
+                }
+              }}
+              value={repositoryId}
+            >
+              <SelectTrigger className="w-full" id={`${id}-repository`}>
+                <SelectValue
+                  placeholder={
+                    repositoriesQuery.isPending
+                      ? tCommon("labels.loading")
+                      : t("repositoryPlaceholder")
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false}>
+                {repositories.map((candidate) => (
+                  <SelectItem key={candidate.id} value={candidate.id}>
                     <HugeiconsIcon
-                      aria-label={t("private")}
+                      aria-hidden="true"
                       className="text-muted-foreground"
-                      icon={SquareLock02Icon}
-                      size={12}
+                      icon={Github01Icon}
+                      size={14}
                     />
                     <span className="truncate">
                       {repositoryLabel(candidate)}
@@ -238,17 +268,18 @@ export function SiteCreateForm({
               required
               value={name}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={`${id}-slug`}>
-              {t("address")}{" "}
-              <span className="text-muted-foreground font-normal">
-                {tCommon("labels.optional")}
+          </SiteSettingsRow>
+          <SiteSettingsRow
+            description={
+              <span className={slugInvalid ? "text-destructive" : undefined}>
+                {slugInvalid ? t("addressInvalid") : t("addressHint")}
               </span>
-            </Label>
+            }
+            htmlFor={`${id}-slug`}
+            label={t("address")}
+          >
             <InputGroup>
               <InputGroupInput
-                aria-describedby={`${id}-slug-hint`}
                 aria-invalid={slugInvalid || undefined}
                 autoCapitalize="none"
                 autoComplete="off"
@@ -265,94 +296,126 @@ export function SiteCreateForm({
                 </InputGroupAddon>
               ) : null}
             </InputGroup>
-            <p
-              className={
-                slugInvalid
-                  ? "text-destructive text-xs"
-                  : "text-muted-foreground text-xs"
-              }
-              id={`${id}-slug-hint`}
-            >
-              {slugInvalid ? t("addressInvalid") : t("addressHint")}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor={`${id}-branch`}>{t("branch")}</Label>
-            <Input
-              aria-describedby={`${id}-branch-hint`}
-              autoComplete="off"
+          </SiteSettingsRow>
+          <SiteSettingsRow
+            description={t("branchHint")}
+            htmlFor={`${id}-branch`}
+            label={t("branch")}
+          >
+            <SiteSuggestInput
+              emptyLabel={t("noBranchMatch")}
+              icon={GitBranchIcon}
               id={`${id}-branch`}
-              onChange={(event) => setBranch(event.target.value)}
+              onValueChange={setBranch}
               placeholder={repository?.defaultBranch ?? "main"}
-              spellCheck={false}
+              suggestions={suggestions.branches}
               value={branch}
             />
-            <p
-              className="text-muted-foreground text-xs"
-              id={`${id}-branch-hint`}
-            >
-              {t("branchHint")}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={`${id}-root`}>
-              {t("rootDirectory")}{" "}
-              <span className="text-muted-foreground font-normal">
-                {tCommon("labels.optional")}
-              </span>
-            </Label>
-            <Input
-              aria-describedby={`${id}-root-hint`}
-              autoComplete="off"
+          </SiteSettingsRow>
+          <SiteSettingsRow
+            description={t("rootDirectoryHint")}
+            htmlFor={`${id}-root`}
+            label={t("rootDirectory")}
+          >
+            <SiteSuggestInput
+              emptyLabel={t("noDirectoryMatch")}
+              icon={Folder01Icon}
               id={`${id}-root`}
-              onChange={(event) => setRootDirectory(event.target.value)}
+              onValueChange={setRootDirectory}
               placeholder={t("rootDirectoryPlaceholder")}
-              spellCheck={false}
+              suggestions={suggestions.configDirectories.filter(Boolean)}
               value={rootDirectory}
             />
-            <p className="text-muted-foreground text-xs" id={`${id}-root-hint`}>
-              {t("rootDirectoryHint")}
-            </p>
-          </div>
+          </SiteSettingsRow>
         </div>
-      </section>
+      </TitleCard>
 
-      <FieldSeparator />
+      <TitleCard as="section" heading={tSettings("content")} headingAs="h2">
+        <div className="divide-border divide-y">
+          <SiteSettingsRow
+            description={tSections("pathHint")}
+            label={tSections("title")}
+          >
+            <SiteSectionsFields
+              blogEnabled={blogEnabled}
+              blogPath={blogPath}
+              changelogEnabled={changelogEnabled}
+              changelogPath={changelogPath}
+              hideTitle
+              idPrefix={id}
+              onBlogEnabledChange={setBlogEnabled}
+              onBlogPathChange={setBlogPath}
+              onChangelogEnabledChange={setChangelogEnabled}
+              onChangelogPathChange={setChangelogPath}
+            />
+          </SiteSettingsRow>
+          <SiteSettingsRow
+            description={tLayout("description")}
+            label={tLayout("title")}
+          >
+            <ul className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:pt-1.5">
+              {SITE_REPOSITORY_LAYOUT.map((entry) => (
+                <li
+                  className="flex min-w-0 items-start gap-2.5"
+                  key={entry.key}
+                >
+                  <HugeiconsIcon
+                    aria-hidden="true"
+                    className="text-muted-foreground mt-0.5 shrink-0"
+                    icon={entry.path.includes("/") ? Folder01Icon : File02Icon}
+                    size={15}
+                  />
+                  <span className="min-w-0">
+                    <span className="block font-mono text-xs">
+                      {entry.path}
+                    </span>
+                    <span className="text-muted-foreground block text-xs">
+                      {tLayout(entry.key)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </SiteSettingsRow>
+        </div>
+      </TitleCard>
 
-      <SiteSectionsFields
-        blogEnabled={blogEnabled}
-        blogPath={blogPath}
-        changelogEnabled={changelogEnabled}
-        changelogPath={changelogPath}
-        idPrefix={id}
-        onBlogEnabledChange={setBlogEnabled}
-        onBlogPathChange={setBlogPath}
-        onChangelogEnabledChange={setChangelogEnabled}
-        onChangelogPathChange={setChangelogPath}
-      />
+      <TitleCard as="section" heading={tSettings("previews")} headingAs="h2">
+        <div className="divide-border divide-y">
+          <SiteSettingsRow label={t("previewVisibility")}>
+            <SiteChoiceGroup
+              hideLabel
+              label={t("previewVisibility")}
+              onValueChange={setPreviewVisibility}
+              options={visibilityOptions}
+              value={previewVisibility}
+            />
+          </SiteSettingsRow>
+        </div>
+      </TitleCard>
 
-      <FieldSeparator />
+      <TitleCard as="section" heading={tSettings("publishing")} headingAs="h2">
+        <div className="divide-border divide-y">
+          <SiteSettingsRow label={t("publishMode")}>
+            <SiteChoiceGroup
+              hideLabel
+              label={t("publishMode")}
+              onValueChange={setPublishMode}
+              options={publishModeOptions}
+              value={publishMode}
+            />
+          </SiteSettingsRow>
+        </div>
+      </TitleCard>
 
-      <SiteChoiceGroup
-        label={t("previewVisibility")}
-        onValueChange={setPreviewVisibility}
-        options={visibilityOptions}
-        value={previewVisibility}
-      />
-
-      <SiteChoiceGroup
-        label={t("publishMode")}
-        onValueChange={setPublishMode}
-        options={publishModeOptions}
-        value={publishMode}
-      />
-
-      <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+      <div className="bg-background/90 sticky bottom-4 z-10 mx-auto flex w-fit items-center gap-1 rounded-xl border p-1 pl-3 shadow-lg backdrop-blur">
+        <p className="text-muted-foreground mr-2 text-sm whitespace-nowrap">
+          {repository && productionBranch
+            ? t("barHint", { branch: productionBranch })
+            : t("barHintNoRepository")}
+        </p>
         <Link
-          className={buttonVariants({ variant: "outline" })}
+          className={buttonVariants({ size: "sm", variant: "ghost" })}
           href={`/${organizationSlug}/sites`}
         >
           {tCommon("actions.cancel")}
@@ -360,6 +423,7 @@ export function SiteCreateForm({
         <Button
           disabled={!canSubmit}
           loading={createMutation.isPending}
+          size="sm"
           type="submit"
         >
           {t("create")}

@@ -4864,22 +4864,22 @@
       "recommended": "Empfohlen",
       "protected": {
         "title": "Geschützt",
-        "description": "Nur Mitglieder deiner Organisation und Personen mit Freigabelink. Ideal für private Repositories."
+        "description": "Dein Team und alle mit Freigabelink."
       },
       "public": {
         "title": "Öffentlich",
-        "description": "Alle mit dem Link. Vorschauen werden nie von Suchmaschinen indexiert."
+        "description": "Alle mit dem Link. Nie indexiert."
       }
     },
     "publishModes": {
       "recommended": "Empfohlen",
       "pull_request": {
         "title": "Pull Request",
-        "description": "Änderungen aus dem Dashboard öffnen einen Pull Request zur Prüfung."
+        "description": "Änderungen öffnen einen Pull Request."
       },
       "direct": {
         "title": "Direkter Commit",
-        "description": "Änderungen werden direkt auf den Produktions-Branch committet, wenn er nicht geschützt ist."
+        "description": "Änderungen gehen direkt auf den Branch."
       }
     },
     "new": {
@@ -4910,7 +4910,11 @@
       "create": "Site erstellen",
       "created": "Site erstellt",
       "createdDeploying": "Site erstellt. Das erste Deployment ist unterwegs.",
-      "createFailed": "Site konnte nicht erstellt werden"
+      "createFailed": "Site konnte nicht erstellt werden",
+      "noBranchMatch": "Kein passender Branch",
+      "noDirectoryMatch": "Kein Ordner mit notra.json passt",
+      "barHint": "Legt die Site an und deployt {branch}",
+      "barHintNoRepository": "Wähle ein Repository für die Site"
     },
     "detail": {
       "visit": "Öffnen",
@@ -5258,13 +5262,13 @@
     },
     "deploymentsPage": {
       "description": "Alle Builds dieser Site, die neuesten zuerst.",
-      "count": "{count, plural, one {# Deployment} other {# Deployments}}",
       "current": "Aktuell",
       "by": "Deployt von {author}",
       "columns": {
         "deployment": "Deployment",
         "status": "Status",
         "environment": "Umgebung",
+        "author": "Autor",
         "commit": "Commit",
         "branch": "Branch",
         "created": "Erstellt",

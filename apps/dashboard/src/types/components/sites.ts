@@ -93,10 +93,6 @@ export interface SiteDeleteDialogProps extends SiteScope {
   onOpenChange: (open: boolean) => void;
 }
 
-export interface SiteRepositoryLayoutProps {
-  className?: string;
-}
-
 export interface SiteCopyButtonProps {
   value: string;
   /** What is copied, for the accessible name: "Copy {label}". */
@@ -261,6 +257,8 @@ export interface SiteDeploymentsTableProps {
   /** Glow rows that arrive after the first render, e.g. a build that just started. */
   highlightNewRows?: boolean;
   emptyHeight?: number;
+  /** Grow with the rows and let the page scroll, instead of scrolling inside the table. */
+  fitRows?: boolean;
 }
 
 export interface SiteDeploymentDetailPageProps {
@@ -410,4 +408,15 @@ export interface SiteDomainRemoveDialogProps extends SiteScope {
   domain: SiteDomain | null;
   aliasOrigin: string;
   onOpenChange: (open: boolean) => void;
+}
+
+export interface SiteSuggestInputProps {
+  id: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  suggestions: string[];
+  icon: IconSvgElement;
+  placeholder?: string;
+  /** Shown when the typed text matches no suggestion. */
+  emptyLabel: string;
 }
