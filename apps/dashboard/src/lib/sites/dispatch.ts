@@ -12,17 +12,21 @@ import type { SiteJobSweepResult } from "@/types/sites-server";
  * stays pending and the per-minute sweep dispatches it again.
  */
 export async function dispatchSiteJobs(jobIds: string[]): Promise<void> {
+  const results = await Promise.allSettled(
+    jobIds.map((jobId) => startSiteJobRun(jobId))
+  );
   const dispatched: string[] = [];
-  for (const jobId of jobIds) {
-    try {
-      await startSiteJobRun(jobId);
+  for (const [index, result] of results.entries()) {
+    const jobId = jobIds[index] as string;
+    if (result.status === "fulfilled") {
       dispatched.push(jobId);
-    } catch (error) {
-      console.error("sites.dispatch_failed", {
-        jobId,
-        error: error instanceof Error ? error.message : error,
-      });
+      continue;
     }
+    console.error("sites.dispatch_failed", {
+      jobId,
+      error:
+        result.reason instanceof Error ? result.reason.message : result.reason,
+    });
   }
   if (dispatched.length > 0) {
     await markSiteJobsDispatched(dispatched);
@@ -30,8 +34,12 @@ export async function dispatchSiteJobs(jobIds: string[]): Promise<void> {
 }
 
 export async function sweepSiteJobs(): Promise<SiteJobSweepResult> {
-  const reaped = await reapExhaustedSiteJobs();
-  const jobs = await listDispatchableSiteJobs();
+  // Independent: reaping takes jobs out of retries, the listing only returns
+  // jobs that still have attempts left.
+  const [reaped, jobs] = await Promise.all([
+    reapExhaustedSiteJobs(),
+    listDispatchableSiteJobs(),
+  ]);
   await dispatchSiteJobs(jobs.map((job) => job.id));
   return { dispatched: jobs.length, reaped };
 }

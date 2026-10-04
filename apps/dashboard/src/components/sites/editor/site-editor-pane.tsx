@@ -1,25 +1,25 @@
 "use client";
 
-import { GitCompareIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Skeleton } from "@notra/ui/components/ui/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/button";
 import { SiteCodeEditor } from "@/components/sites/editor/site-code-editor";
 import { SiteEditorFileBar } from "@/components/sites/editor/site-editor-file-bar";
-import { SiteFileDiff } from "@/components/sites/editor/site-file-diff";
-import { SITE_EDITOR_LOADING_LINES } from "@/constants/site-editor";
+import { SiteEditorPaneBody } from "@/components/sites/editor/site-editor-pane-body";
 import { SITE_EDITOR_AUTOSAVE_MS } from "@/constants/sites";
 import { useSiteCodeHighlighter } from "@/lib/hooks/use-site-code-highlighter";
+import { useWarnBeforeUnload } from "@/lib/hooks/use-warn-before-unload";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SiteEditorPaneProps } from "@/types/components/site-editor";
 import type { SiteEditorMode, SiteEditorSaveState } from "@/types/site-editor";
 import { toErrorMessage } from "@/utils/error-message";
-import { siteEditStateKey } from "@/utils/site-editor";
+import {
+  isSiteEditorUnsaved,
+  siteEditorHasDraft,
+  siteEditStateKey,
+} from "@/utils/site-editor";
 
 /** One open file: loads it, autosaves edits as a draft, compares it with what's live. */
 export function SiteEditorPane({
@@ -158,15 +158,7 @@ export function SiteEditorPane({
 
   useEffect(() => () => flushOnLeave(), []);
 
-  const unsaved = saveState.status === "dirty" || saveState.status === "saving";
-  useEffect(() => {
-    if (!unsaved) {
-      return;
-    }
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [unsaved]);
+  useWarnBeforeUnload(isSiteEditorUnsaved(saveState));
 
   const handleChange = (next: string) => {
     setContent(next);
@@ -176,81 +168,11 @@ export function SiteEditorPane({
     timerRef.current = setTimeout(flush, SITE_EDITOR_AUTOSAVE_MS);
   };
 
-  const hasDraft =
-    (document?.hasDraft ?? false) ||
-    saveState.status === "saved" ||
-    saveState.status === "saving";
-  const published = document?.published ?? null;
-  const unchanged = published !== null && published === value;
-
-  let body: React.ReactNode;
-  if (readQuery.isPending || !highlighterReady) {
-    body = (
-      <div aria-busy="true" className="space-y-3 py-4 ps-14 pe-6">
-        {SITE_EDITOR_LOADING_LINES.map((width) => (
-          <Skeleton className={`h-3 ${width}`} key={width} />
-        ))}
-      </div>
-    );
-  } else if (readQuery.isError) {
-    body = (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-muted-foreground text-sm text-pretty">
-          {toErrorMessage(readQuery.error, t("loadFailed"))}
-        </p>
-        <Button
-          onClick={() => {
-            void readQuery.refetch();
-          }}
-          size="sm"
-          variant="outline"
-        >
-          {tPage("retry")}
-        </Button>
-      </div>
-    );
-  } else if (mode === "changes" && unchanged) {
-    body = (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-        <HugeiconsIcon
-          aria-hidden="true"
-          className="text-muted-foreground"
-          icon={GitCompareIcon}
-          size={18}
-          strokeWidth={1.5}
-        />
-        <p className="text-muted-foreground max-w-xs text-sm text-pretty">
-          {tPage("changes.none")}
-        </p>
-      </div>
-    );
-  } else if (mode === "changes") {
-    body = (
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <SiteFileDiff after={value} before={published} path={path} />
-      </div>
-    );
-  } else {
-    body = (
-      <SiteCodeEditor
-        diagnostics={diagnostics}
-        editStateKey={`${siteEditStateKey(siteId, path)}:${revision}`}
-        initialValue={value}
-        jump={jump}
-        key={revision}
-        label={tPage("file.contentLabel", { path })}
-        onChange={handleChange}
-        onSave={flush}
-        path={path}
-      />
-    );
-  }
-
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <SiteEditorFileBar
         document={document}
-        hasDraft={hasDraft}
+        hasDraft={siteEditorHasDraft(document, saveState)}
         isDiscarding={discardMutation.isPending}
         mode={mode}
         onDiscard={() => {
@@ -264,7 +186,29 @@ export function SiteEditorPane({
         saveState={saveState}
         site={site}
       />
-      {body}
+      <SiteEditorPaneBody
+        error={readQuery.isError ? readQuery.error : null}
+        isLoading={readQuery.isPending || !highlighterReady}
+        mode={mode}
+        onRetry={() => {
+          void readQuery.refetch();
+        }}
+        path={path}
+        published={document?.published ?? null}
+        value={value}
+      >
+        <SiteCodeEditor
+          diagnostics={diagnostics}
+          editStateKey={`${siteEditStateKey(siteId, path)}:${revision}`}
+          initialValue={value}
+          jump={jump}
+          key={revision}
+          label={tPage("file.contentLabel", { path })}
+          onChange={handleChange}
+          onSave={flush}
+          path={path}
+        />
+      </SiteEditorPaneBody>
     </div>
   );
 }

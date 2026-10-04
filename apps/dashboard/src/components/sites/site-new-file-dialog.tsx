@@ -9,18 +9,13 @@ import {
   ResponsiveDialogTitle,
 } from "@notra/ui/components/shared/responsive-dialog";
 import { Input } from "@notra/ui/components/ui/input";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-  InputGroupText,
-} from "@notra/ui/components/ui/input-group";
 import { Label } from "@notra/ui/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@notra/ui/components/ui/tabs";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
 import { Button } from "@/components/button";
+import { SiteNewFileFolderTabs } from "@/components/sites/site-new-file-folder-tabs";
+import { SiteNewFileNameField } from "@/components/sites/site-new-file-name-field";
 import {
   SITE_NEW_FILE_EXTENSION,
   SITE_NEW_FILE_SLUG_PATTERN,
@@ -38,7 +33,6 @@ export function SiteNewFileDialog({
   onCreate,
 }: SiteNewFileDialogProps) {
   const t = useTranslations("sites.newFile");
-  const tSections = useTranslations("sites.sections");
   const tCommon = useTranslations("common");
   const id = useId();
   const [folder, setFolder] = useState<SiteNewFileFolder>(folders[0] ?? "blog");
@@ -54,13 +48,6 @@ export function SiteNewFileDialog({
     setTitle("");
     setFileName("");
   };
-
-  let hint = slug ? t("pathHint", { path }) : t("invalidName");
-  if (slug && !slugValid) {
-    hint = t("invalidName");
-  } else if (exists) {
-    hint = t("exists", { path });
-  }
 
   return (
     <ResponsiveDialog
@@ -89,29 +76,11 @@ export function SiteNewFileDialog({
             }
           }}
         >
-          {folders.length > 1 ? (
-            <Tabs
-              onValueChange={(value) => {
-                const next = folders.find((candidate) => candidate === value);
-                if (next) {
-                  setFolder(next);
-                }
-              }}
-              value={folder}
-            >
-              <TabsList aria-label={t("section")} className="w-full">
-                {folders.map((candidate) => (
-                  <TabsTrigger
-                    className="flex-1"
-                    key={candidate}
-                    value={candidate}
-                  >
-                    {tSections(candidate)}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-          ) : null}
+          <SiteNewFileFolderTabs
+            folders={folders}
+            onValueChange={setFolder}
+            value={folder}
+          />
           <div className="space-y-2">
             <Label htmlFor={`${id}-title`}>{t("postTitle")}</Label>
             <Input
@@ -126,42 +95,17 @@ export function SiteNewFileDialog({
               value={title}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor={`${id}-file`}>{t("fileName")}</Label>
-            <InputGroup>
-              <InputGroupAddon>
-                <InputGroupText>{folder}/</InputGroupText>
-              </InputGroupAddon>
-              <InputGroupInput
-                aria-describedby={`${id}-hint`}
-                aria-invalid={
-                  (slug.length > 0 && !slugValid) || exists || undefined
-                }
-                autoCapitalize="none"
-                autoComplete="off"
-                id={`${id}-file`}
-                onChange={(event) =>
-                  setFileName(event.target.value.toLowerCase())
-                }
-                placeholder={slugifyFileName(title) || "my-post"}
-                spellCheck={false}
-                value={fileName}
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupText>{SITE_NEW_FILE_EXTENSION}</InputGroupText>
-              </InputGroupAddon>
-            </InputGroup>
-            <p
-              className={
-                exists || (slug.length > 0 && !slugValid)
-                  ? "text-destructive text-xs"
-                  : "text-muted-foreground text-xs"
-              }
-              id={`${id}-hint`}
-            >
-              {hint}
-            </p>
-          </div>
+          <SiteNewFileNameField
+            exists={exists}
+            folder={folder}
+            id={id}
+            onValueChange={setFileName}
+            path={path}
+            placeholder={slugifyFileName(title) || "my-post"}
+            slug={slug}
+            slugValid={slugValid}
+            value={fileName}
+          />
         </form>
         <ResponsiveDialogFooter>
           <Button

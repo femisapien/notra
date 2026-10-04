@@ -1,30 +1,18 @@
 "use client";
 
-import {
-  CheckmarkCircle02Icon,
-  FileEditIcon,
-  PlusSignIcon,
-  Rocket01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@notra/ui/components/ui/sheet";
 import { Editor } from "@pierre/diffs/edit";
 import type { EditorFactory } from "@pierre/diffs/edit";
 import { EditProvider } from "@pierre/diffs/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
 import { useCallback, useMemo, useState } from "react";
-import { toast } from "sonner";
 
-import { Button } from "@/components/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { SiteEditorConflictBanner } from "@/components/sites/editor/site-editor-conflict-banner";
+import { SiteEditorEmptyState } from "@/components/sites/editor/site-editor-empty-state";
+import { SiteEditorFilePicker } from "@/components/sites/editor/site-editor-file-picker";
+import { SiteEditorFilesError } from "@/components/sites/editor/site-editor-files-error";
+import { SiteEditorHeaderActions } from "@/components/sites/editor/site-editor-header-actions";
 import { SiteEditorPane } from "@/components/sites/editor/site-editor-pane";
 import { SiteEditorProblems } from "@/components/sites/editor/site-editor-problems";
 import { SiteEditorStatusBar } from "@/components/sites/editor/site-editor-status-bar";
@@ -33,16 +21,16 @@ import { useSite } from "@/components/sites/site-context";
 import { SiteNewFileDialog } from "@/components/sites/site-new-file-dialog";
 import { SitePublishDialog } from "@/components/sites/site-publish-dialog";
 import { SITE_NEW_FILE_FOLDERS } from "@/constants/sites";
+import {
+  useCreateSiteFile,
+  useRebaseSiteDrafts,
+  useSiteEditorFiles,
+  useValidateSiteDrafts,
+} from "@/lib/hooks/use-site-editor-files";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
-import { dashboardOrpc } from "@/lib/orpc/query";
-import type {
-  SiteEditorJump,
-  SiteEditorNewFile,
-  SiteEditorSaveState,
-} from "@/types/site-editor";
+import type { SiteEditorJump, SiteEditorSaveState } from "@/types/site-editor";
 import type { SiteDiagnostic } from "@/types/sites";
-import { toErrorMessage } from "@/utils/error-message";
-import { listSiteEditorFiles, siteEditorLanguage } from "@/utils/site-editor";
+import { isSiteEditorUnsaved, siteEditorLanguage } from "@/utils/site-editor";
 
 const createSiteEditor: EditorFactory<unknown, undefined> = (
   editorType,
@@ -53,15 +41,19 @@ const createSiteEditor: EditorFactory<unknown, undefined> = (
 export function SiteEditorPage() {
   const { organizationId, siteId, detail } = useSite();
   const t = useTranslations("sites.editorPage");
-  const tEditor = useTranslations("sites.editor");
-  const queryClient = useQueryClient();
   const invalidateSites = useInvalidateSites();
   const { site } = detail;
-  const filesOptions = dashboardOrpc.sites.editor.files.queryOptions({
-    input: { organizationId, siteId },
-    refetchOnWindowFocus: false,
-  });
-  const filesQuery = useQuery(filesOptions);
+  const {
+    filesQuery,
+    data,
+    drafts,
+    treeFiles,
+    editablePaths,
+    sourcePaths,
+    baseCommitSha,
+    refreshDrafts,
+    applyDraftChange,
+  } = useSiteEditorFiles({ organizationId, siteId });
   const [selectedParam, setSelectedParam] = useQueryState(
     "file",
     parseAsString.withOptions({ history: "replace" })
@@ -79,62 +71,14 @@ export function SiteEditorPage() {
   // Bumped after publishing or rebasing so the open file reloads.
   const [editorEpoch, setEditorEpoch] = useState(0);
 
-  const data = filesQuery.data ?? null;
-  const drafts = data?.drafts ?? [];
-  const treeFiles = useMemo(
-    () => listSiteEditorFiles(data?.files ?? [], data?.drafts ?? []),
-    [data]
-  );
-  const editablePaths = new Set(
-    treeFiles.filter((file) => file.editable).map((file) => file.path)
-  );
   const selectedPath =
     selectedParam && editablePaths.has(selectedParam) ? selectedParam : null;
   const draftCount = data ? drafts.length : detail.draftCount;
   const mountedFolders = SITE_NEW_FILE_FOLDERS.filter((folder) =>
     Boolean(site.mounts[folder])
   );
-  const unsaved = saveState.status === "dirty" || saveState.status === "saving";
-
-  // Not all of `sites`: open files must not refetch (and hit GitHub) on every autosave.
-  const refreshDrafts = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: filesOptions.queryKey }),
-      queryClient.invalidateQueries({
-        queryKey: dashboardOrpc.sites.get.key(),
-      }),
-    ]);
-  };
-
-  // Autosaves update the file list in place; refetching it would ask GitHub on every save.
-  const applyDraftChange = (path: string, updatedAt: Date | null) => {
-    queryClient.setQueryData(filesOptions.queryKey, (current) => {
-      if (!current) {
-        return current;
-      }
-      const others = current.drafts.filter((draft) => draft.path !== path);
-      if (updatedAt === null) {
-        return { ...current, drafts: others };
-      }
-      const existing = current.drafts.find((draft) => draft.path === path);
-      const source = current.files.find((file) => file.path === path);
-      return {
-        ...current,
-        drafts: [
-          ...others,
-          {
-            path,
-            deleted: false,
-            baseBlobSha: existing?.baseBlobSha ?? source?.sha ?? null,
-            updatedAt,
-          },
-        ],
-      };
-    });
-    void queryClient.invalidateQueries({
-      queryKey: dashboardOrpc.sites.get.key(),
-    });
-  };
+  const canCreateFile = data !== null && mountedFolders.length > 0;
+  const unsaved = isSiteEditorUnsaved(saveState);
 
   const openFile = useCallback(
     (path: string) => {
@@ -152,57 +96,29 @@ export function SiteEditorPage() {
     [diagnostics, selectedPath]
   );
 
-  const rebaseMutation = useMutation({
-    mutationFn: async (paths: string[]) => {
-      for (const path of paths) {
-        await dashboardOrpc.sites.editor.rebaseDraft.call({
-          organizationId,
-          siteId,
-          path,
-        });
-      }
-    },
-    onSuccess: async () => {
+  const rebaseMutation = useRebaseSiteDrafts({
+    organizationId,
+    siteId,
+    onRebased: () => {
       setConflicts([]);
       setEditorEpoch((epoch) => epoch + 1);
-      await refreshDrafts();
-      toast.success(tEditor("conflict.rebased"));
-    },
-    onError: (error) => {
-      toast.error(toErrorMessage(error, tEditor("conflict.rebaseFailed")));
     },
   });
-
-  const validateMutation = useMutation({
-    mutationFn: () =>
-      dashboardOrpc.sites.editor.validate.call({ organizationId, siteId }),
-    onSuccess: (result) => {
-      setDiagnostics(result.diagnostics);
+  const validateMutation = useValidateSiteDrafts({
+    organizationId,
+    siteId,
+    onValidated: (next) => {
+      setDiagnostics(next);
       setProblemsOpen(true);
     },
-    onError: (error) => {
-      toast.error(toErrorMessage(error, tEditor("validateFailed")));
-    },
   });
-
-  const createMutation = useMutation({
-    mutationFn: (file: SiteEditorNewFile) =>
-      dashboardOrpc.sites.editor.saveDraft.call({
-        organizationId,
-        siteId,
-        path: file.path,
-        content: file.content,
-        baseBlobSha: null,
-        baseCommitSha: data?.commitSha ?? null,
-      }),
-    onSuccess: async (result) => {
-      setNewFileOpen(false);
-      await refreshDrafts();
-      openFile(result.path);
-    },
-    onError: (error) => {
-      toast.error(toErrorMessage(error, tEditor("createFailed")));
-    },
+  const createMutation = useCreateSiteFile({
+    organizationId,
+    siteId,
+    baseCommitSha,
+    refreshDrafts,
+    onSaved: () => setNewFileOpen(false),
+    onCreated: openFile,
   });
 
   const selectDiagnostic = (diagnostic: SiteDiagnostic) => {
@@ -234,25 +150,17 @@ export function SiteEditorPage() {
   let editorSurface: React.ReactNode;
   if (filesQuery.isError) {
     editorSurface = (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-muted-foreground max-w-sm text-sm text-pretty">
-          {toErrorMessage(filesQuery.error, tEditor("filesFailed"))}
-        </p>
-        <Button
-          onClick={() => {
-            void filesQuery.refetch();
-          }}
-          size="sm"
-          variant="outline"
-        >
-          {t("retry")}
-        </Button>
-      </div>
+      <SiteEditorFilesError
+        error={filesQuery.error}
+        onRetry={() => {
+          void filesQuery.refetch();
+        }}
+      />
     );
   } else if (selectedPath) {
     editorSurface = (
       <SiteEditorPane
-        baseCommitSha={data?.commitSha ?? null}
+        baseCommitSha={baseCommitSha}
         diagnostics={fileDiagnostics}
         jump={jump?.path === selectedPath ? jump : null}
         key={`${selectedPath}:${editorEpoch}`}
@@ -267,84 +175,28 @@ export function SiteEditorPage() {
     );
   } else {
     editorSurface = (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <div className="bg-muted text-muted-foreground flex size-10 items-center justify-center rounded-xl">
-          <HugeiconsIcon
-            aria-hidden="true"
-            icon={FileEditIcon}
-            size={18}
-            strokeWidth={1.5}
-          />
-        </div>
-        <div className="max-w-xs space-y-1">
-          <h2 className="text-sm font-medium">{t("empty.title")}</h2>
-          <p className="text-muted-foreground text-sm text-pretty">
-            {t("empty.description")}
-          </p>
-        </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button
-            className="md:hidden"
-            disabled={filesQuery.isPending}
-            onClick={() => setPickerOpen(true)}
-            size="sm"
-            variant="outline"
-          >
-            {t("empty.chooseFile")}
-          </Button>
-          <Button
-            disabled={!data || mountedFolders.length === 0}
-            onClick={() => setNewFileOpen(true)}
-            size="sm"
-            variant="outline"
-          >
-            <HugeiconsIcon icon={PlusSignIcon} size={14} strokeWidth={1.5} />
-            {t("newFile")}
-          </Button>
-        </div>
-      </div>
+      <SiteEditorEmptyState
+        canCreateFile={canCreateFile}
+        filesLoading={filesQuery.isPending}
+        onChooseFile={() => setPickerOpen(true)}
+        onNewFile={() => setNewFileOpen(true)}
+      />
     );
   }
 
   return (
     <EditProvider createEditor={createSiteEditor}>
       <PageHeader description={t("description")} title={t("title")}>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            disabled={!data || mountedFolders.length === 0}
-            onClick={() => setNewFileOpen(true)}
-            variant="outline"
-          >
-            <HugeiconsIcon icon={PlusSignIcon} size={15} strokeWidth={1.5} />
-            {t("newFile")}
-          </Button>
-          <Button
-            disabled={!data || unsaved}
-            loading={validateMutation.isPending}
-            onClick={() => validateMutation.mutate()}
-            variant="outline"
-          >
-            <HugeiconsIcon
-              icon={CheckmarkCircle02Icon}
-              size={15}
-              strokeWidth={1.5}
-            />
-            {t("validate")}
-          </Button>
-          <Button
-            aria-label={t("publishLabel", { count: draftCount })}
-            disabled={draftCount === 0 || unsaved}
-            onClick={() => setPublishOpen(true)}
-          >
-            <HugeiconsIcon icon={Rocket01Icon} size={15} strokeWidth={1.5} />
-            {t("publish")}
-            {draftCount > 0 ? (
-              <span className="bg-primary-foreground/20 -me-0.5 rounded-full px-1.5 text-xs tabular-nums">
-                {draftCount}
-              </span>
-            ) : null}
-          </Button>
-        </div>
+        <SiteEditorHeaderActions
+          canCreateFile={canCreateFile}
+          draftCount={draftCount}
+          filesLoaded={data !== null}
+          isValidating={validateMutation.isPending}
+          onNewFile={() => setNewFileOpen(true)}
+          onPublish={() => setPublishOpen(true)}
+          onValidate={() => validateMutation.mutate()}
+          unsaved={unsaved}
+        />
       </PageHeader>
 
       {conflicts.length > 0 ? (
@@ -395,21 +247,9 @@ export function SiteEditorPage() {
         />
       </div>
 
-      <Sheet onOpenChange={setPickerOpen} open={pickerOpen}>
-        <SheetContent
-          className="gap-0 p-0"
-          // On touch, focusing the filter would pop the keyboard over the tree.
-          initialFocus={(openType) => openType !== "touch"}
-          side="left"
-        >
-          <SheetHeader className="border-b px-4 py-3">
-            <SheetTitle className="text-sm">{t("tree.title")}</SheetTitle>
-          </SheetHeader>
-          <div className="bg-shell flex min-h-0 flex-1 flex-col">
-            {fileTree}
-          </div>
-        </SheetContent>
-      </Sheet>
+      <SiteEditorFilePicker onOpenChange={setPickerOpen} open={pickerOpen}>
+        {fileTree}
+      </SiteEditorFilePicker>
 
       <SitePublishDialog
         draftCount={draftCount}
@@ -427,7 +267,7 @@ export function SiteEditorPage() {
         organizationId={organizationId}
         site={site}
         siteId={siteId}
-        sourcePaths={new Set((data?.files ?? []).map((file) => file.path))}
+        sourcePaths={sourcePaths}
       />
       <SiteNewFileDialog
         existingPaths={editablePaths}

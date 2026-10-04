@@ -1,14 +1,6 @@
 "use client";
 
 import { Folder01Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
-import {
-  ResponsiveDialog,
-  ResponsiveDialogContent,
-  ResponsiveDialogDescription,
-  ResponsiveDialogFooter,
-  ResponsiveDialogHeader,
-  ResponsiveDialogTitle,
-} from "@notra/ui/components/shared/responsive-dialog";
 import { Input } from "@notra/ui/components/ui/input";
 import { Switch } from "@notra/ui/components/ui/switch";
 import { TitleCard } from "@notra/ui/components/ui/title-card";
@@ -17,15 +9,15 @@ import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { useSite } from "@/components/sites/site-context";
-import { SiteDeleteDialog } from "@/components/sites/site-delete-dialog";
 import {
   SiteChoiceGroup,
   SiteSectionsFields,
 } from "@/components/sites/site-form-fields";
+import { SiteSettingsDangerZone } from "@/components/sites/site-settings-danger-zone";
 import { SiteSettingsRow } from "@/components/sites/site-settings-row";
+import { SiteSettingsSaveBar } from "@/components/sites/site-settings-save-bar";
 import { SiteSuggestInput } from "@/components/sites/site-suggest-input";
 import { useRepositorySuggestions } from "@/lib/hooks/use-repository-suggestions";
 import {
@@ -65,7 +57,6 @@ function SiteSettingsForm({
   const tPage = useTranslations("sites.settingsPage");
   const tNew = useTranslations("sites.new");
   const tSections = useTranslations("sites.sections");
-  const tCommon = useTranslations("common");
   const id = useId();
   const invalidateSites = useInvalidateSites();
   const visibilityOptions = useSitePreviewVisibilityOptions();
@@ -79,15 +70,12 @@ function SiteSettingsForm({
     siteId,
     branch: form.productionBranch.trim(),
   });
-  const [offlineOpen, setOfflineOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const patch = siteSettingsPatch(form, site);
   const dirty = Object.keys(patch).length > 0;
   const valid =
     form.name.trim().length > 0 &&
     form.productionBranch.trim().length > 0 &&
     (form.blogEnabled || form.changelogEnabled);
-  const suspended = site.status === "suspended";
 
   const update = <K extends keyof SiteSettingsFormValues>(
     key: K,
@@ -108,23 +96,6 @@ function SiteSettingsForm({
     },
     onError: (error) => {
       toast.error(toErrorMessage(error, t("saveFailed")));
-    },
-  });
-
-  const suspendMutation = useMutation({
-    mutationFn: (next: boolean) =>
-      dashboardOrpc.sites.setSuspended.call({
-        organizationId,
-        siteId,
-        suspended: next,
-      }),
-    onSuccess: async (_result, next) => {
-      toast.success(next ? t("offline.done") : t("offline.restored"));
-      setOfflineOpen(false);
-      await invalidateSites();
-    },
-    onError: (error) => {
-      toast.error(toErrorMessage(error, t("offline.failed")));
     },
   });
 
@@ -268,125 +239,20 @@ function SiteSettingsForm({
           </div>
         </TitleCard>
 
-        {/* Appears only with unsaved changes and stays in reach while scrolling. */}
         {dirty ? (
-          <div className="bg-background/90 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 sticky bottom-4 z-10 mx-auto flex w-fit max-w-full items-center justify-between gap-6 rounded-xl border py-2 pr-2 pl-4 shadow-lg backdrop-blur duration-200">
-            <p className="text-muted-foreground text-sm">{tPage("unsaved")}</p>
-            <div className="flex items-center gap-2">
-              <Button
-                disabled={saveMutation.isPending}
-                onClick={() => setForm(siteSettingsFormFromSite(site))}
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                {tCommon("actions.reset")}
-              </Button>
-              <Button
-                disabled={!valid}
-                loading={saveMutation.isPending}
-                size="sm"
-                type="submit"
-              >
-                {tCommon("actions.saveChanges")}
-              </Button>
-            </div>
-          </div>
+          <SiteSettingsSaveBar
+            canSave={valid}
+            isSaving={saveMutation.isPending}
+            onReset={() => setForm(siteSettingsFormFromSite(site))}
+          />
         ) : null}
       </form>
 
-      <TitleCard
-        as="section"
-        className="border-destructive/50 bg-destructive/5"
-        heading={t("dangerZone")}
-        headingAs="h2"
-      >
-        <div className="divide-border divide-y">
-          <div className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-1">
-            <div className="min-w-0 space-y-0.5">
-              <p className="text-sm font-medium">
-                {suspended ? t("offline.restoreTitle") : t("offline.title")}
-              </p>
-              <p className="text-muted-foreground text-xs">
-                {suspended
-                  ? t("offline.restoreDescription")
-                  : t("offline.description")}
-              </p>
-            </div>
-            {suspended ? (
-              <Button
-                loading={suspendMutation.isPending}
-                onClick={() => suspendMutation.mutate(false)}
-                type="button"
-                variant="outline"
-              >
-                {t("offline.restore")}
-              </Button>
-            ) : (
-              <Button
-                onClick={() => setOfflineOpen(true)}
-                type="button"
-                variant="outline"
-              >
-                {t("offline.action")}
-              </Button>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 py-3 last:pb-1">
-            <div className="min-w-0 space-y-0.5">
-              <p className="text-sm font-medium">{t("delete.title")}</p>
-              <p className="text-muted-foreground text-xs">
-                {t("delete.summary")}
-              </p>
-            </div>
-            <Button
-              onClick={() => setDeleteOpen(true)}
-              type="button"
-              variant="destructive"
-            >
-              {t("delete.action")}
-            </Button>
-          </div>
-        </div>
-      </TitleCard>
-
-      <ResponsiveDialog onOpenChange={setOfflineOpen} open={offlineOpen}>
-        <ResponsiveDialogContent>
-          <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>
-              {t("offline.confirmTitle")}
-            </ResponsiveDialogTitle>
-            <ResponsiveDialogDescription>
-              {t("offline.confirmDescription")}
-            </ResponsiveDialogDescription>
-          </ResponsiveDialogHeader>
-          <ResponsiveDialogFooter>
-            <Button
-              disabled={suspendMutation.isPending}
-              onClick={() => setOfflineOpen(false)}
-              type="button"
-              variant="outline"
-            >
-              {tCommon("actions.cancel")}
-            </Button>
-            <Button
-              loading={suspendMutation.isPending}
-              onClick={() => suspendMutation.mutate(true)}
-              type="button"
-              variant="destructive"
-            >
-              {t("offline.action")}
-            </Button>
-          </ResponsiveDialogFooter>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
-      <SiteDeleteDialog
-        onOpenChange={setDeleteOpen}
-        open={deleteOpen}
+      <SiteSettingsDangerZone
         organizationId={organizationId}
         organizationSlug={organizationSlug}
+        site={site}
         siteId={siteId}
-        siteName={site.name}
       />
     </div>
   );

@@ -12,7 +12,7 @@ import {
 } from "@notra/ui/components/shared/responsive-dialog";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -34,7 +34,6 @@ import { displayUrl } from "@/utils/site-links";
 function useDomainConnectOutcomeToast() {
   const t = useTranslations("sites.domainsPage.connectResult");
   const searchParams = useSearchParams();
-  const router = useRouter();
   const pathname = usePathname();
   const handled = useRef(false);
   const outcome = parseSiteDomainConnectOutcome(
@@ -53,13 +52,17 @@ function useDomainConnectOutcomeToast() {
     } else {
       toast.error(t("error"), { description: t("errorDescription") });
     }
+    // Only the address bar changes: Next.js syncs useSearchParams with the
+    // History API, so there is no navigation and no refetch.
     const next = new URLSearchParams(searchParams.toString());
     next.delete(SITE_DOMAIN_CONNECT_PARAM);
     const query = next.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, {
-      scroll: false,
-    });
-  }, [outcome, pathname, router, searchParams, t]);
+    window.history.replaceState(
+      null,
+      "",
+      query ? `${pathname}?${query}` : pathname
+    );
+  }, [outcome, pathname, searchParams, t]);
 }
 
 function RemoveDomainDialog({

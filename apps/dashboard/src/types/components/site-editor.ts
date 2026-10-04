@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import type {
   SiteCodeAnnotation,
   SiteDraftChange,
@@ -56,6 +58,52 @@ export interface SiteEditorPaneProps {
   onDraftChange: (path: string, updatedAt: Date | null) => void;
   onSaveStateChange: (state: SiteEditorSaveState) => void;
   onOpenFilePicker?: () => void;
+}
+
+export interface SiteEditorPaneBodyProps {
+  path: string;
+  isLoading: boolean;
+  /** Why the file couldn't be read; null once it loaded. */
+  error: Error | null;
+  onRetry: () => void;
+  mode: SiteEditorMode;
+  /** The text in the editor, compared with `published` in the changes view. */
+  value: string;
+  published: string | null;
+  /** The editor, shown in edit mode. */
+  children: ReactNode;
+}
+
+export interface SiteEditorHeaderActionsProps {
+  /** The file list has loaded, so the site can be validated. */
+  filesLoaded: boolean;
+  canCreateFile: boolean;
+  /** Typed text is still on its way to the server. */
+  unsaved: boolean;
+  draftCount: number;
+  isValidating: boolean;
+  onNewFile: () => void;
+  onValidate: () => void;
+  onPublish: () => void;
+}
+
+export interface SiteEditorEmptyStateProps {
+  filesLoading: boolean;
+  canCreateFile: boolean;
+  onChooseFile: () => void;
+  onNewFile: () => void;
+}
+
+export interface SiteEditorFilesErrorProps {
+  error: Error;
+  onRetry: () => void;
+}
+
+export interface SiteEditorFilePickerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** The file tree. */
+  children: ReactNode;
 }
 
 export interface SiteEditorFileBarProps {

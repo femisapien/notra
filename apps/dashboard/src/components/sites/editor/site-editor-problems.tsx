@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import type { SiteEditorProblemsProps } from "@/types/components/site-editor";
 import {
   siteDiagnosticLocation,
+  withDiagnosticKeys,
   siteDiagnosticSeverityRank,
 } from "@/utils/site-diagnostics";
 
@@ -64,7 +65,7 @@ export function SiteEditorProblems({
         </p>
       ) : (
         <ul className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
-          {sorted.map((diagnostic, index) => {
+          {withDiagnosticKeys(sorted).map(({ diagnostic, key }) => {
             const isError = diagnostic.severity === "error";
             const where = siteDiagnosticLocation(diagnostic);
             const row = (
@@ -94,8 +95,7 @@ export function SiteEditorProblems({
               </>
             );
             return (
-              // Diagnostics have no id; position plus code is stable for one result.
-              <li key={`${index}-${diagnostic.code}`}>
+              <li key={key}>
                 {diagnostic.file ? (
                   <button
                     className="hover:bg-muted flex w-full items-start gap-2.5 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors duration-150"

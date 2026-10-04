@@ -108,24 +108,24 @@ export async function writeAgentFiles(
 ): Promise<void> {
   const { outDir, origin } = params;
   const fullText = new Map<AreaPages["area"], string[]>();
+  const writes: Promise<void>[] = [];
   for (const area of params.areas) {
     const texts: string[] = [];
     for (const entry of area.entries) {
       const url = new URL(entry.path, origin).toString();
       const html = params.pageHtml.get(pageFile(entry.path, "html")) ?? "";
       const markdown = entryMarkdown(entry, url, htmlToMarkdown(html, url));
-      await write(outDir, pageFile(entry.path, "md"), markdown);
+      writes.push(write(outDir, pageFile(entry.path, "md"), markdown));
       if (entry.indexable) {
         texts.push(markdown);
       }
     }
     fullText.set(area.area, texts);
-    await write(
-      outDir,
-      pageFile(area.indexPath, "md"),
-      indexMarkdown(area, origin)
+    writes.push(
+      write(outDir, pageFile(area.indexPath, "md"), indexMarkdown(area, origin))
     );
   }
+  await Promise.all(writes);
 
   const scopes = [
     { prefix: "", areas: params.areas },
@@ -133,39 +133,42 @@ export async function writeAgentFiles(
       .filter((area) => area.indexPath !== "/")
       .map((area) => ({ prefix: area.indexPath, areas: [area] })),
   ];
-  for (const scope of scopes) {
-    const fullTextPath = `${scope.prefix}/llms-full.txt`;
-    const llmsPath = `${scope.prefix}/llms.txt`;
-    const areaTitle = scope.prefix ? scope.areas[0]?.title : undefined;
-    // "Acme" + "Changelog" → "Acme Changelog", but "Acme Blog" stays "Acme Blog".
-    let name = params.siteName;
-    if (areaTitle) {
-      name = areaTitle.startsWith(params.siteName)
-        ? areaTitle
-        : `${params.siteName} ${areaTitle}`;
-    }
-    if (!(await exists(join(outDir, llmsPath)))) {
-      await write(
-        outDir,
-        llmsPath,
-        llmsTxt({
-          name,
-          description: params.siteDescription,
-          areas: scope.areas,
-          origin,
+  // Every scope writes its own two files; a customer's own file wins.
+  await Promise.all(
+    scopes.map(async (scope) => {
+      const fullTextPath = `${scope.prefix}/llms-full.txt`;
+      const llmsPath = `${scope.prefix}/llms.txt`;
+      const areaTitle = scope.prefix ? scope.areas[0]?.title : undefined;
+      // "Acme" + "Changelog" → "Acme Changelog", but "Acme Blog" stays "Acme Blog".
+      let name = params.siteName;
+      if (areaTitle) {
+        name = areaTitle.startsWith(params.siteName)
+          ? areaTitle
+          : `${params.siteName} ${areaTitle}`;
+      }
+      if (!(await exists(join(outDir, llmsPath)))) {
+        await write(
+          outDir,
+          llmsPath,
+          llmsTxt({
+            name,
+            description: params.siteDescription,
+            areas: scope.areas,
+            origin,
+            fullTextPath,
+          })
+        );
+      }
+      if (!(await exists(join(outDir, fullTextPath)))) {
+        const pages = scope.areas.flatMap(
+          (area) => fullText.get(area.area) ?? []
+        );
+        await write(
+          outDir,
           fullTextPath,
-        })
-      );
-    }
-    if (!(await exists(join(outDir, fullTextPath)))) {
-      const pages = scope.areas.flatMap(
-        (area) => fullText.get(area.area) ?? []
-      );
-      await write(
-        outDir,
-        fullTextPath,
-        [`# ${name}`, ...pages].join("\n\n---\n\n")
-      );
-    }
-  }
+          [`# ${name}`, ...pages].join("\n\n---\n\n")
+        );
+      }
+    })
+  );
 }

@@ -267,5 +267,5 @@ export const SITE_DOMAIN_URL_SCHEME_PATTERN = /^https?:\/\//i;
 
 export const SITE_CLOUDFLARE_PROVIDER_PATTERN = /cloudflare/i;
 
-export const SITE_DNS_RECORD_GRID =
-  "grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-4 gap-y-1 sm:grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1.3fr)]";
+/** Sites cleaned up in parallel by the daily cleanup cron. */
+export const SITES_CLEANUP_CONCURRENCY = 4;

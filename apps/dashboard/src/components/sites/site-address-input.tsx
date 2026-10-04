@@ -1,0 +1,41 @@
+"use client";
+
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@notra/ui/components/ui/input-group";
+
+import type { SiteAddressInputProps } from "@/types/components/sites";
+
+/** The site's subdomain, with the hosting domain after it. */
+export function SiteAddressInput({
+  id,
+  value,
+  onValueChange,
+  invalid,
+  placeholder,
+  hostingDomain,
+}: SiteAddressInputProps) {
+  return (
+    <InputGroup>
+      <InputGroupInput
+        aria-invalid={invalid || undefined}
+        autoCapitalize="none"
+        autoComplete="off"
+        id={id}
+        maxLength={40}
+        onChange={(event) => onValueChange(event.target.value)}
+        placeholder={placeholder}
+        spellCheck={false}
+        value={value}
+      />
+      {hostingDomain ? (
+        <InputGroupAddon align="inline-end">
+          <InputGroupText>.{hostingDomain}</InputGroupText>
+        </InputGroupAddon>
+      ) : null}
+    </InputGroup>
+  );
+}

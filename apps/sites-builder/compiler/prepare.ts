@@ -13,15 +13,16 @@ import { writeFileEnsured } from "./utils/fs";
 
 export async function readSiteFiles(siteRoot: string) {
   const collected = await collectSiteSource(siteRoot);
-  const files = new Map<string, string | null>();
-  for (const file of collected.files) {
-    files.set(
-      file.path,
+  const texts = await Promise.all(
+    collected.files.map((file) =>
       isTextSourceFile(file.path)
-        ? await readFile(join(siteRoot, file.path), "utf8")
+        ? readFile(join(siteRoot, file.path), "utf8")
         : null
-    );
-  }
+    )
+  );
+  const files = new Map<string, string | null>(
+    collected.files.map((file, index) => [file.path, texts[index] ?? null])
+  );
   return { collected, files };
 }
 
@@ -53,21 +54,25 @@ export async function prepareSite(
   await rm(join(params.workDir, "site"), { recursive: true, force: true });
   await rm(join(params.workDir, "entries"), { recursive: true, force: true });
 
-  for (const file of collected.files) {
-    const target = join(params.workDir, "site", file.path);
-    const transformed = validation.outputs.get(file.path);
-    if (transformed !== undefined) {
-      await writeFileEnsured(target, transformed);
-    } else {
+  await Promise.all(
+    collected.files.map(async (file) => {
+      const target = join(params.workDir, "site", file.path);
+      const transformed = validation.outputs.get(file.path);
+      if (transformed !== undefined) {
+        await writeFileEnsured(target, transformed);
+        return;
+      }
       await mkdir(dirname(target), { recursive: true });
       await cp(join(params.siteRoot, file.path), target);
-    }
-  }
-  for (const [path, source] of validation.outputs) {
-    if (!files.has(path)) {
-      await writeFileEnsured(join(params.workDir, "site", path), source);
-    }
-  }
+    })
+  );
+  await Promise.all(
+    [...validation.outputs]
+      .filter(([path]) => !files.has(path))
+      .map(([path, source]) =>
+        writeFileEnsured(join(params.workDir, "site", path), source)
+      )
+  );
 
   // Customer CSS (Mintlify's style.css), imported after the theme so it can override it.
   const customCss = collected.files
@@ -86,41 +91,43 @@ export async function prepareSite(
   // Customer JavaScript (Mintlify's script.js): copied byte for byte, never run here. Placed in
   // the public dir so every area build and the dev server serve it below the mount; the content
   // hash in the name lets it be cached like the theme's own assets.
-  const customScripts: string[] = [];
-  for (const path of sortCustomScriptPaths(
-    collected.files.map((file) => file.path)
-  )) {
-    const source = await readFile(join(params.siteRoot, path));
-    const name = path.replace(/\.js$/i, "").replace(/[^A-Za-z0-9_-]+/g, "-");
-    // The dev server reads its params once, so names there must survive edits.
-    const fileName = params.stableAssetNames
-      ? `custom-${name}.js`
-      : `custom-${name}.${createHash("sha256").update(source).digest("hex").slice(0, 10)}.js`;
-    await mkdir(join(params.workDir, "site", "public", SITE_ASSETS_DIR), {
-      recursive: true,
-    });
-    await cp(
-      join(params.siteRoot, path),
-      join(params.workDir, "site", "public", SITE_ASSETS_DIR, fileName)
-    );
-    customScripts.push(fileName);
-  }
+  await mkdir(join(params.workDir, "site", "public", SITE_ASSETS_DIR), {
+    recursive: true,
+  });
+  const customScripts = await Promise.all(
+    sortCustomScriptPaths(collected.files.map((file) => file.path)).map(
+      async (path) => {
+        const source = await readFile(join(params.siteRoot, path));
+        const name = path
+          .replace(/\.js$/i, "")
+          .replace(/[^A-Za-z0-9_-]+/g, "-");
+        // The dev server reads its params once, so names there must survive edits.
+        const fileName = params.stableAssetNames
+          ? `custom-${name}.js`
+          : `custom-${name}.${createHash("sha256").update(source).digest("hex").slice(0, 10)}.js`;
+        await cp(
+          join(params.siteRoot, path),
+          join(params.workDir, "site", "public", SITE_ASSETS_DIR, fileName)
+        );
+        return fileName;
+      }
+    )
+  );
 
-  const entries: SiteEntry[] = [];
-  for (const entry of validation.entries) {
-    const source =
-      validation.outputs.get(entry.path) ?? files.get(entry.path) ?? "";
-    await writeFileEnsured(
-      join(
-        params.workDir,
-        "entries",
-        entry.area,
-        `${entry.slug}.${entry.format}`
-      ),
-      source
-    );
-    entries.push(entry);
-  }
+  await Promise.all(
+    validation.entries.map((entry) =>
+      writeFileEnsured(
+        join(
+          params.workDir,
+          "entries",
+          entry.area,
+          `${entry.slug}.${entry.format}`
+        ),
+        validation.outputs.get(entry.path) ?? files.get(entry.path) ?? ""
+      )
+    )
+  );
+  const entries: SiteEntry[] = [...validation.entries];
 
   return {
     validation,

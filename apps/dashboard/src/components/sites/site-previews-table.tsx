@@ -2,62 +2,39 @@
 
 import {
   ArrowUpRight01Icon,
-  Delete02Icon,
   GitBranchIcon,
   GitCommitIcon,
   GitPullRequestIcon,
   Globe02Icon,
-  Link04Icon,
-  MoreHorizontalIcon,
-  Rocket01Icon,
   SquareLock02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  ResponsiveDialog,
-  ResponsiveDialogContent,
-  ResponsiveDialogDescription,
-  ResponsiveDialogFooter,
-  ResponsiveDialogHeader,
-  ResponsiveDialogTitle,
-} from "@notra/ui/components/shared/responsive-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@notra/ui/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@notra/ui/components/ui/tooltip";
-import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/button";
 import { Table, type TableColumn } from "@/components/motion/table";
 import { SiteMeta } from "@/components/sites/site-meta";
+import { SitePreviewDeleteDialog } from "@/components/sites/site-preview-delete-dialog";
+import { SitePreviewRowMenu } from "@/components/sites/site-preview-row-menu";
 import { SiteRelativeTime } from "@/components/sites/site-relative-time";
 import { SiteStatusDot } from "@/components/sites/site-status-dot";
 import {
-  SITE_SHARE_LINK_DAYS,
   SITE_TABLE_COMPACT_EMPTY_HEIGHT,
   SITE_TABLE_EMPTY_HEIGHT,
 } from "@/constants/sites";
-import { useInvalidateSites } from "@/lib/hooks/use-sites";
-import { dashboardOrpc } from "@/lib/orpc/query";
+import { useSitePreviewLinks } from "@/lib/hooks/use-site-preview-links";
 import type {
   SiteOpenPreviewButtonProps,
   SitePreviewsTableProps,
 } from "@/types/components/sites";
 import type { SitePreviewRow } from "@/types/sites";
-import { copyTextToClipboard } from "@/utils/copy-to-clipboard";
-import { toErrorMessage } from "@/utils/error-message";
 import { commitTitle, shortSha } from "@/utils/site-deployments";
 import {
   displayUrl,
@@ -105,70 +82,14 @@ export function SitePreviewsTable({
   const tVisibility = useTranslations("sites.visibility");
   const tCommon = useTranslations("common");
   const router = useRouter();
-  const invalidateSites = useInvalidateSites();
   const [deleteTarget, setDeleteTarget] = useState<SitePreviewRow | null>(null);
   const rowHref = (row: SitePreviewRow) =>
     siteDeploymentHref(organizationSlug, siteId, row.latestDeploymentId);
 
-  const deleteMutation = useMutation({
-    mutationFn: (previewKey: string) =>
-      dashboardOrpc.sites.previews.delete.call({
-        organizationId,
-        siteId,
-        previewKey,
-      }),
-    onSuccess: async () => {
-      toast.success(t("deleted"));
-      setDeleteTarget(null);
-      await invalidateSites();
-    },
-    onError: (error) => {
-      toast.error(toErrorMessage(error, t("deleteFailed")));
-    },
+  const { openPreview, copyShareLink } = useSitePreviewLinks({
+    organizationId,
+    siteId,
   });
-
-  const openPreview = async (row: SitePreviewRow) => {
-    if (row.visibility !== "protected") {
-      window.open(row.url, "_blank", "noopener,noreferrer");
-      return;
-    }
-    // Open synchronously so the popup isn't blocked, then point it at the signed URL.
-    const popup = window.open("", "_blank");
-    try {
-      const { url } = await dashboardOrpc.sites.previews.accessUrl.call({
-        organizationId,
-        siteId,
-        previewKey: row.previewKey,
-        kind: "member",
-      });
-      if (popup) {
-        popup.opener = null;
-        popup.location.href = url;
-      } else {
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
-    } catch (error) {
-      popup?.close();
-      toast.error(toErrorMessage(error, t("openFailed")));
-    }
-  };
-
-  const copyShareLink = async (row: SitePreviewRow) => {
-    try {
-      const { url } = await dashboardOrpc.sites.previews.accessUrl.call({
-        organizationId,
-        siteId,
-        previewKey: row.previewKey,
-        kind: "share",
-      });
-      await copyTextToClipboard(
-        url,
-        t("shareCopied", { days: SITE_SHARE_LINK_DAYS })
-      );
-    } catch (error) {
-      toast.error(toErrorMessage(error, t("shareFailed")));
-    }
-  };
 
   const previewColumn: TableColumn<SitePreviewRow> = {
     key: "preview",
@@ -317,59 +238,12 @@ export function SitePreviewsTable({
           onOpen={() => openPreview(row)}
           tooltip={t("open")}
         />
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                aria-label={t("actionsLabel", {
-                  name: row.branch ?? row.previewKey,
-                })}
-                size="icon-sm"
-                variant="ghost"
-              />
-            }
-          >
-            <HugeiconsIcon icon={MoreHorizontalIcon} size={16} />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            {row.visibility === "protected" ? (
-              <DropdownMenuItem onClick={() => copyShareLink(row)}>
-                <HugeiconsIcon icon={Link04Icon} size={14} strokeWidth={1.5} />
-                {t("copyShareLink")}
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem
-                disabled={!row.served}
-                onClick={() =>
-                  copyTextToClipboard(row.url, tCommon("toasts.copied"))
-                }
-              >
-                <HugeiconsIcon icon={Link04Icon} size={14} strokeWidth={1.5} />
-                {t("copyLink")}
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem onClick={() => router.push(rowHref(row))}>
-              <HugeiconsIcon icon={Rocket01Icon} size={14} strokeWidth={1.5} />
-              {t("viewDeployment")}
-            </DropdownMenuItem>
-            {row.served ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => setDeleteTarget(row)}
-                  variant="destructive"
-                >
-                  <HugeiconsIcon
-                    icon={Delete02Icon}
-                    size={14}
-                    strokeWidth={1.5}
-                  />
-                  {t("delete")}
-                </DropdownMenuItem>
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <SitePreviewRowMenu
+          onCopyShareLink={() => copyShareLink(row)}
+          onDelete={() => setDeleteTarget(row)}
+          onViewDeployment={() => router.push(rowHref(row))}
+          row={row}
+        />
       </span>
     ),
   };
@@ -409,45 +283,16 @@ export function SitePreviewsTable({
         scrollFade={false}
       />
       {compact ? null : (
-        <ResponsiveDialog
+        <SitePreviewDeleteDialog
           onOpenChange={(open) => {
             if (!open) {
               setDeleteTarget(null);
             }
           }}
-          open={deleteTarget !== null}
-        >
-          <ResponsiveDialogContent>
-            <ResponsiveDialogHeader>
-              <ResponsiveDialogTitle>{t("deleteTitle")}</ResponsiveDialogTitle>
-              <ResponsiveDialogDescription>
-                {t("deleteDescription", {
-                  name: deleteTarget?.branch ?? deleteTarget?.previewKey ?? "",
-                })}
-              </ResponsiveDialogDescription>
-            </ResponsiveDialogHeader>
-            <ResponsiveDialogFooter>
-              <Button
-                disabled={deleteMutation.isPending}
-                onClick={() => setDeleteTarget(null)}
-                variant="outline"
-              >
-                {tCommon("actions.cancel")}
-              </Button>
-              <Button
-                loading={deleteMutation.isPending}
-                onClick={() => {
-                  if (deleteTarget) {
-                    deleteMutation.mutate(deleteTarget.previewKey);
-                  }
-                }}
-                variant="destructive"
-              >
-                {t("delete")}
-              </Button>
-            </ResponsiveDialogFooter>
-          </ResponsiveDialogContent>
-        </ResponsiveDialog>
+          organizationId={organizationId}
+          preview={deleteTarget}
+          siteId={siteId}
+        />
       )}
     </>
   );

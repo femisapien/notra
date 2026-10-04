@@ -234,12 +234,12 @@ export async function buildSite(
     });
   }
 
-  let fileCount = 0;
-  let totalBytes = 0;
-  for (const file of await listFiles(options.outDir)) {
-    fileCount += 1;
-    totalBytes += (await stat(file)).size;
-  }
+  const outputFiles = await listFiles(options.outDir);
+  const sizes = await Promise.all(
+    outputFiles.map(async (file) => (await stat(file)).size)
+  );
+  const fileCount = outputFiles.length;
+  const totalBytes = sizes.reduce((sum, size) => sum + size, 0);
   const ok = !diagnostics.some((diagnostic) => diagnostic.severity === "error");
   return {
     ok,

@@ -78,8 +78,8 @@ export function SiteEditorFileBar({
   const breadcrumb = (
     <span className="flex min-w-0 items-center gap-1 truncate text-[13px]">
       {segments.slice(0, -1).map((segment, index) => (
-        // Path segments are positional; the same folder name can repeat.
-        <Fragment key={`${index}-${segment}`}>
+        // The path up to a segment is unique even when folder names repeat.
+        <Fragment key={segments.slice(0, index + 1).join("/")}>
           <span className="text-muted-foreground hidden sm:inline">
             {segment}
           </span>

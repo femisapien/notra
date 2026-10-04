@@ -3,7 +3,7 @@ import type {
   SITE_DEPLOYMENT_STATUSES,
   SITE_DOMAIN_STATUSES,
 } from "@notra/sites-core/constants/sites";
-import type { InferRouterOutputs } from "@orpc/server";
+import type { InferRouterInputs, InferRouterOutputs } from "@orpc/server";
 import type { ReactNode } from "react";
 
 import type {
@@ -15,6 +15,9 @@ import type {
 import type { DashboardRouter } from "@/lib/orpc/router";
 
 type SitesOutputs = InferRouterOutputs<DashboardRouter>["sites"];
+type SitesInputs = InferRouterInputs<DashboardRouter>["sites"];
+
+export type SiteCreateInput = SitesInputs["create"];
 
 export type SiteListResult = SitesOutputs["list"];
 export type SiteListItem = SiteListResult["sites"][number];
@@ -128,6 +131,29 @@ export interface SiteSettingsForm {
   previewVisibility: SitePreviewVisibility;
   publishMode: SitePublishMode;
   showBranding: boolean;
+}
+
+/** The new-site form; text fields hold what was typed, untrimmed. */
+export interface SiteCreateFormValues {
+  repositoryId: string | null;
+  name: string;
+  /** Empty uses the address derived from the name. */
+  slug: string;
+  branch: string;
+  rootDirectory: string;
+  blogEnabled: boolean;
+  blogPath: string;
+  changelogEnabled: boolean;
+  changelogPath: string;
+  previewVisibility: SitePreviewVisibility;
+  publishMode: SitePublishMode;
+}
+
+/** Where a new site goes: its organization, repository and (optionally) project. */
+export interface SiteCreateTarget {
+  organizationId: string;
+  repositoryId: string;
+  projectId: string | null;
 }
 
 export interface SiteSettingsPatch {

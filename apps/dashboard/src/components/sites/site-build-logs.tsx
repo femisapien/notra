@@ -1,13 +1,9 @@
 "use client";
 
 import {
-  Alert02Icon,
   ArrowDown01Icon,
-  Cancel01Icon,
-  CancelCircleIcon,
   Copy01Icon,
   Loading03Icon,
-  Search01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -16,26 +12,16 @@ import {
   TooltipTrigger,
 } from "@notra/ui/components/ui/tooltip";
 import { useLocale, useTranslations } from "next-intl";
-import {
-  type KeyboardEvent,
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/button";
-import {
-  SITE_BUILD_LOG_FOLLOW_THRESHOLD,
-  SITE_BUILD_LOG_ROW_GRID,
-} from "@/constants/sites";
-import { cn } from "@/lib/utils";
+import { SiteBuildLogFilter } from "@/components/sites/site-build-log-filter";
+import { SiteBuildLogRows } from "@/components/sites/site-build-log-rows";
+import { SITE_BUILD_LOG_FOLLOW_THRESHOLD } from "@/constants/sites";
 import type {
-  SiteBuildLogFoldRowProps,
-  SiteBuildLogHighlightProps,
-  SiteBuildLogLineProps,
-  SiteBuildLogLineTextProps,
+  SiteBuildLogCopyButtonProps,
+  SiteBuildLogEmptyProps,
+  SiteBuildLogSummaryProps,
   SiteBuildLogsProps,
 } from "@/types/components/sites";
 import { copyTextToClipboard } from "@/utils/copy-to-clipboard";
@@ -46,113 +32,83 @@ import {
   groupBuildLog,
   logOffsets,
   parseBuildLog,
-  splitLogTag,
 } from "@/utils/site-build-log";
 import { stripAnsi } from "@/utils/site-deployments";
 
-function Highlighted({ text, query }: SiteBuildLogHighlightProps) {
-  const ranges = findMatches(text, query);
-  if (ranges.length === 0) {
-    return text;
-  }
-  const parts: ReactNode[] = [];
-  let cursor = 0;
-  for (const [start, end] of ranges) {
-    if (start > cursor) {
-      parts.push(text.slice(cursor, start));
-    }
-    parts.push(
-      <mark className="bg-primary/15 text-foreground rounded-xs" key={start}>
-        {text.slice(start, end)}
-      </mark>
-    );
-    cursor = end;
-  }
-  parts.push(text.slice(cursor));
-  return parts;
-}
-
-function LineText({ line, query }: SiteBuildLogLineTextProps) {
-  if (line.continued) {
-    return <Highlighted query={query} text={line.text} />;
-  }
-  const { tag, rest } = splitLogTag(line.text);
-  if (!tag) {
-    return <Highlighted query={query} text={line.text} />;
-  }
-  return (
-    <>
-      <span className="text-muted-foreground">{tag}</span>{" "}
-      <Highlighted query={query} text={rest} />
-    </>
-  );
-}
-
-function LogLine({ line, offset, query }: SiteBuildLogLineProps) {
-  const marked =
-    !line.continued && (line.tone === "error" || line.tone === "warning");
-  return (
-    <div
-      className={cn(
-        SITE_BUILD_LOG_ROW_GRID,
-        "[contain-intrinsic-size:auto_1.25rem] [content-visibility:auto]",
-        line.tone === "error" && "bg-destructive/[0.04]",
-        (line.continued || line.tone === "muted") && "text-muted-foreground"
-      )}
-      data-line={line.number}
-    >
-      <span
-        className="text-muted-foreground/60 text-right tabular-nums select-none"
-        title={line.timestamp ?? undefined}
-      >
-        {offset}
-      </span>
-      <span className="flex h-5 items-center">
-        {marked ? (
-          <HugeiconsIcon
-            aria-label={line.tone}
-            className={cn(
-              "size-3.5",
-              line.tone === "error" ? "text-destructive" : "text-warning"
-            )}
-            icon={line.tone === "error" ? CancelCircleIcon : Alert02Icon}
-            role="img"
-            strokeWidth={1.75}
-          />
-        ) : null}
-      </span>
-      <span className="min-h-5 [overflow-wrap:anywhere] whitespace-pre-wrap">
-        <LineText line={line} query={query} />
-      </span>
-    </div>
-  );
-}
-
-function FoldRow({ entry, offsets }: SiteBuildLogFoldRowProps) {
+/** Streaming while the build runs; afterwards line, error and warning counts. */
+function BuildLogSummary({ lines, inProgress }: SiteBuildLogSummaryProps) {
   const t = useTranslations("sites.deploymentPage.log");
-  const [open, setOpen] = useState(false);
-  if (open) {
-    return entry.lines.map((line) => (
-      <LogLine
-        key={line.number}
-        line={line}
-        offset={offsets.get(line.number)}
-        query=""
-      />
-    ));
+  if (inProgress) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <span
+          aria-hidden="true"
+          className="bg-warning size-1.5 rounded-full motion-safe:animate-pulse"
+        />
+        {t("streaming")}
+      </span>
+    );
+  }
+  const errors = countLogLines(lines, "error");
+  const warnings = countLogLines(lines, "warning");
+  const parts = [t("lines", { count: lines.length })];
+  if (errors > 0) {
+    parts.push(t("errors", { count: errors }));
+  }
+  if (warnings > 0) {
+    parts.push(t("warnings", { count: warnings }));
+  }
+  return parts.join(" · ");
+}
+
+/** No output yet: waiting for a builder, starting, or nothing was logged. */
+function BuildLogEmpty({ inProgress, queued }: SiteBuildLogEmptyProps) {
+  const t = useTranslations("sites.deploymentPage.log");
+  let message = t("empty");
+  if (queued) {
+    message = t("waiting");
+  } else if (inProgress) {
+    message = t("starting");
   }
   return (
-    <div className={SITE_BUILD_LOG_ROW_GRID}>
-      <span aria-hidden="true" />
-      <span aria-hidden="true" />
-      <button
-        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 w-fit rounded-sm text-left font-sans transition-colors duration-150 outline-none focus-visible:ring-2"
-        onClick={() => setOpen(true)}
-        type="button"
-      >
-        {t("folded", { count: entry.lines.length })}
-      </button>
+    <div className="text-muted-foreground flex min-h-28 items-center justify-center gap-2 px-4 py-8 text-sm">
+      {inProgress ? (
+        <HugeiconsIcon
+          aria-hidden="true"
+          className="size-4 motion-safe:animate-spin"
+          icon={Loading03Icon}
+          strokeWidth={1.75}
+        />
+      ) : null}
+      {message}
     </div>
+  );
+}
+
+/** Copies the whole log without terminal color codes. */
+function BuildLogCopyButton({ log }: SiteBuildLogCopyButtonProps) {
+  const t = useTranslations("sites.deploymentPage.log");
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            aria-label={t("copy")}
+            disabled={!log}
+            onClick={() => {
+              if (log) {
+                copyTextToClipboard(stripAnsi(log), t("copied"));
+              }
+            }}
+            size="icon-xs"
+            variant="ghost"
+          />
+        }
+      >
+        <HugeiconsIcon icon={Copy01Icon} size={14} />
+      </TooltipTrigger>
+      <TooltipContent>{t("copy")}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -180,8 +136,6 @@ export function SiteBuildLogs({
   const lines = useMemo(() => (log ? parseBuildLog(log) : []), [log]);
   const entries = useMemo(() => groupBuildLog(lines), [lines]);
   const offsets = useMemo(() => logOffsets(lines), [lines]);
-  const warnings = countLogLines(lines, "warning");
-  const errors = countLogLines(lines, "error");
   const trimmedQuery = query.trim();
   const matchingLines = useMemo(
     () =>
@@ -211,13 +165,6 @@ export function SiteBuildLogs({
     }
   }, [log, inProgress, trimmedQuery]);
 
-  const onFilterKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Escape" && query) {
-      event.preventDefault();
-      setQuery("");
-    }
-  };
-
   const jumpToLatest = () => {
     const element = scrollRef.current;
     if (element) {
@@ -227,61 +174,10 @@ export function SiteBuildLogs({
     setFollowing(true);
   };
 
-  let emptyMessage = t("empty");
-  if (queued) {
-    emptyMessage = t("waiting");
-  } else if (inProgress) {
-    emptyMessage = t("starting");
-  }
-
-  let body: ReactNode;
-  if (lines.length === 0) {
-    body = (
-      <div className="text-muted-foreground flex min-h-28 items-center justify-center gap-2 px-4 py-8 text-sm">
-        {inProgress ? (
-          <HugeiconsIcon
-            aria-hidden="true"
-            className="size-4 motion-safe:animate-spin"
-            icon={Loading03Icon}
-            strokeWidth={1.75}
-          />
-        ) : null}
-        {emptyMessage}
-      </div>
-    );
-  } else {
-    let rows: ReactNode;
-    if (trimmedQuery) {
-      rows =
-        matchingLines.length > 0 ? (
-          matchingLines.map((line) => (
-            <LogLine
-              key={line.number}
-              line={line}
-              offset={offsets.get(line.number)}
-              query={trimmedQuery}
-            />
-          ))
-        ) : (
-          <p className="text-muted-foreground px-4 py-6 text-center font-sans text-sm">
-            {t("noMatches")}
-          </p>
-        );
-    } else {
-      rows = entries.map((entry) =>
-        entry.kind === "line" ? (
-          <LogLine
-            key={entry.line.number}
-            line={entry.line}
-            offset={offsets.get(entry.line.number)}
-            query=""
-          />
-        ) : (
-          <FoldRow entry={entry} key={entry.id} offsets={offsets} />
-        )
-      );
-    }
-    body = (
+  const body =
+    lines.length === 0 ? (
+      <BuildLogEmpty inProgress={inProgress} queued={queued} />
+    ) : (
       <div className="relative">
         <div
           aria-busy={inProgress}
@@ -298,7 +194,12 @@ export function SiteBuildLogs({
           ref={scrollRef}
           role="log"
         >
-          {rows}
+          <SiteBuildLogRows
+            entries={entries}
+            matchingLines={matchingLines}
+            offsets={offsets}
+            query={trimmedQuery}
+          />
         </div>
         {inProgress && !following ? (
           <Button
@@ -317,70 +218,16 @@ export function SiteBuildLogs({
         ) : null}
       </div>
     );
-  }
-
-  let summary: ReactNode;
-  if (inProgress) {
-    summary = (
-      <span className="inline-flex items-center gap-1.5">
-        <span
-          aria-hidden="true"
-          className="bg-warning size-1.5 rounded-full motion-safe:animate-pulse"
-        />
-        {t("streaming")}
-      </span>
-    );
-  } else {
-    const parts = [t("lines", { count: lines.length })];
-    if (errors > 0) {
-      parts.push(t("errors", { count: errors }));
-    }
-    if (warnings > 0) {
-      parts.push(t("warnings", { count: warnings }));
-    }
-    summary = parts.join(" · ");
-  }
 
   return (
     <div className="min-w-0">
       <div className="border-border/60 bg-muted/40 overflow-hidden rounded-t-lg border border-b-0 pb-3">
         <div className="flex h-9 min-w-0 items-center gap-2 ps-3 pe-1">
           <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs tabular-nums">
-            {summary}
+            <BuildLogSummary inProgress={inProgress} lines={lines} />
           </span>
           {lines.length > 0 ? (
-            <label className="text-muted-foreground focus-within:text-foreground relative flex h-7 w-32 items-center sm:w-44">
-              <HugeiconsIcon
-                aria-hidden="true"
-                className="pointer-events-none absolute start-2 size-3.5"
-                icon={Search01Icon}
-                strokeWidth={1.75}
-              />
-              <input
-                aria-label={t("filter")}
-                className="text-foreground placeholder:text-muted-foreground hover:bg-background/60 focus:bg-background focus:border-border h-full w-full rounded-md border border-transparent bg-transparent ps-7 pe-6 text-xs transition-colors duration-150 outline-none"
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={onFilterKeyDown}
-                placeholder={t("filter")}
-                spellCheck={false}
-                type="text"
-                value={query}
-              />
-              {query ? (
-                <button
-                  aria-label={t("clearFilter")}
-                  className="hover:text-foreground absolute end-1 flex size-5 items-center justify-center rounded-sm"
-                  onClick={() => setQuery("")}
-                  type="button"
-                >
-                  <HugeiconsIcon
-                    className="size-3"
-                    icon={Cancel01Icon}
-                    strokeWidth={2}
-                  />
-                </button>
-              ) : null}
-            </label>
+            <SiteBuildLogFilter onChange={setQuery} value={query} />
           ) : null}
           {trimmedQuery ? (
             <span
@@ -390,26 +237,7 @@ export function SiteBuildLogs({
               {formatCount(matchingLines.length, locale)}
             </span>
           ) : null}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  aria-label={t("copy")}
-                  disabled={!log}
-                  onClick={() => {
-                    if (log) {
-                      copyTextToClipboard(stripAnsi(log), t("copied"));
-                    }
-                  }}
-                  size="icon-xs"
-                  variant="ghost"
-                />
-              }
-            >
-              <HugeiconsIcon icon={Copy01Icon} size={14} />
-            </TooltipTrigger>
-            <TooltipContent>{t("copy")}</TooltipContent>
-          </Tooltip>
+          <BuildLogCopyButton log={log} />
         </div>
       </div>
       <div className="border-border/60 bg-background relative -mt-3 min-w-0 overflow-hidden rounded-lg border">

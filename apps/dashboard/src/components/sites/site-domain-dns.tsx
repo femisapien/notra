@@ -8,10 +8,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/button";
 import { SiteCopyButton } from "@/components/sites/site-copy-button";
-import {
-  SITE_CLOUDFLARE_PROVIDER_PATTERN,
-  SITE_DNS_RECORD_GRID,
-} from "@/constants/sites";
+import { SITE_CLOUDFLARE_PROVIDER_PATTERN } from "@/constants/sites";
 import { useSiteDomainConnect } from "@/lib/hooks/use-site-domain-connect";
 import type {
   SiteDnsConnectRowProps,
@@ -41,33 +38,38 @@ export function SiteDnsRecordsTable({ records }: SiteDnsRecordsTableProps) {
     return <p className="text-muted-foreground text-sm">{t("noRecords")}</p>;
   }
   return (
-    <div className="min-w-0 text-sm" role="table">
-      <div
-        className={`${SITE_DNS_RECORD_GRID} text-muted-foreground pb-1.5 text-xs max-sm:hidden`}
-        role="row"
-      >
-        <span role="columnheader">{t("type")}</span>
-        <span role="columnheader">{t("name")}</span>
-        <span role="columnheader">{t("value")}</span>
-      </div>
-      {records.map((record) => (
-        <div
-          className={`${SITE_DNS_RECORD_GRID} border-border/60 items-center border-t py-1.5`}
-          key={`${record.type}:${record.name}:${record.value}`}
-          role="row"
-        >
-          <span className="font-mono text-xs font-medium" role="cell">
-            {record.type}
-          </span>
-          <span className="min-w-0" role="cell">
-            <RecordValue label={t("name")} value={record.name} />
-          </span>
-          <span className="min-w-0 max-sm:col-start-2" role="cell">
-            <RecordValue label={t("value")} value={record.value} />
-          </span>
-        </div>
-      ))}
-    </div>
+    <table className="w-full table-fixed text-sm">
+      <colgroup>
+        <col className="w-18" />
+        <col className="w-[43%]" />
+        <col />
+      </colgroup>
+      <thead>
+        <tr className="text-muted-foreground text-left text-xs">
+          <th className="pr-4 pb-1.5 font-normal">{t("type")}</th>
+          <th className="pr-4 pb-1.5 font-normal">{t("name")}</th>
+          <th className="pb-1.5 font-normal">{t("value")}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {records.map((record) => (
+          <tr
+            className="border-border/60 border-t"
+            key={`${record.type}:${record.name}:${record.value}`}
+          >
+            <td className="py-1.5 pr-4 font-mono text-xs font-medium">
+              {record.type}
+            </td>
+            <td className="min-w-0 py-1.5 pr-4">
+              <RecordValue label={t("name")} value={record.name} />
+            </td>
+            <td className="min-w-0 py-1.5">
+              <RecordValue label={t("value")} value={record.value} />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 

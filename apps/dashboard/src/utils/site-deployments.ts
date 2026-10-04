@@ -91,6 +91,33 @@ export function isDeploymentLive(
   );
 }
 
+/** The latest production build when it runs now or failed after the live one; null otherwise. */
+export function pendingProductionDeployment(
+  detail: SiteDetail,
+  liveDeployment: SiteDeployment | null
+): SiteDeployment | null {
+  const latest =
+    detail.deployments.find((deployment) => deployment.kind === "production") ??
+    null;
+  if (!latest || latest.id === liveDeployment?.id) {
+    return null;
+  }
+  return isDeploymentInProgress(latest.status) || latest.status === "failed"
+    ? latest
+    : null;
+}
+
+/** A preview that asks visitors to sign in or enter a password first. */
+export function isDeploymentProtected(
+  deployment: SiteDeploymentRecord,
+  detail: SiteDetail
+): boolean {
+  const visibility =
+    detail.previews.find((preview) => preview.deploymentId === deployment.id)
+      ?.visibility ?? detail.site.previewVisibility;
+  return deployment.kind === "preview" && visibility !== "public";
+}
+
 /** Every URL a live deployment answers on; the first is the primary one. */
 export function deploymentServedUrls(
   deployment: SiteDeploymentRecord,

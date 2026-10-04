@@ -19,9 +19,11 @@ import type {
   SiteDiffLineCounts,
   SiteDraftChange,
   SiteEditorLanguage,
+  SiteEditorSaveState,
   SiteFileTreeFile,
 } from "@/types/site-editor";
 import type {
+  SiteEditorDocument,
   SiteEditorDraft,
   SiteEditorFile,
   SiteMounts,
@@ -162,6 +164,23 @@ export function publishConflictPaths(error: unknown): string[] | null {
     );
   }
   return [];
+}
+
+/** Typed text that hasn't reached the server yet; leaving would lose it. */
+export function isSiteEditorUnsaved(saveState: SiteEditorSaveState): boolean {
+  return saveState.status === "dirty" || saveState.status === "saving";
+}
+
+/** The open file has a draft: stored before, or saved (or saving) since. */
+export function siteEditorHasDraft(
+  document: SiteEditorDocument | null,
+  saveState: SiteEditorSaveState
+): boolean {
+  return (
+    (document?.hasDraft ?? false) ||
+    saveState.status === "saved" ||
+    saveState.status === "saving"
+  );
 }
 
 /** Key for Pierre's in-memory undo history of one site file. */

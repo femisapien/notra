@@ -9,7 +9,7 @@ import {
 import type { SiteDiagnostic } from "@notra/sites-core/types/build";
 
 import { ALLOWED_EXTENSIONS, SAFE_SEGMENT } from "./constants/source";
-import type { CollectedSource } from "./types/source";
+import type { CollectedSource, Inspected } from "./types/source";
 
 /**
  * Lists the files a site may use. Only the known top-level entries are read;
@@ -23,73 +23,92 @@ export async function collectSiteSource(
   const diagnostics: SiteDiagnostic[] = [];
   let totalBytes = 0;
 
-  async function walk(relativeDir: string): Promise<void> {
-    const entries = await readdir(join(siteRoot, relativeDir), {
-      withFileTypes: true,
-    });
-    for (const entry of entries) {
-      const relativePath = relativeDir
-        ? `${relativeDir}/${entry.name}`
-        : entry.name;
-      if (entry.name.startsWith(".") || entry.name === "node_modules") {
-        continue;
-      }
-      if (!SAFE_SEGMENT.test(entry.name)) {
-        diagnostics.push({
+  // Each entry is checked on its own so a directory is stat'ed in parallel;
+  // results are applied in directory order, and `files` is sorted at the end.
+  async function inspect(relativePath: string): Promise<Inspected> {
+    const name = relativePath.slice(relativePath.lastIndexOf("/") + 1);
+    if (name.startsWith(".") || name === "node_modules") {
+      return { kind: "skip" };
+    }
+    if (!SAFE_SEGMENT.test(name)) {
+      return {
+        kind: "diagnostic",
+        diagnostic: {
           severity: "warning",
           file: relativePath,
           code: "unsafe_filename",
           message:
             "Skipped: file names may only use letters, digits, spaces and ._-@()+",
-        });
-        continue;
-      }
-      const stats = await lstat(join(siteRoot, relativePath));
-      if (stats.isSymbolicLink()) {
-        diagnostics.push({
+        },
+      };
+    }
+    const stats = await lstat(join(siteRoot, relativePath));
+    if (stats.isSymbolicLink()) {
+      return {
+        kind: "diagnostic",
+        diagnostic: {
           severity: "warning",
           file: relativePath,
           code: "symlink_skipped",
           message: "Skipped: symbolic links are not followed",
-        });
-        continue;
-      }
-      if (stats.isDirectory()) {
-        await walk(relativePath);
-        continue;
-      }
-      if (!stats.isFile()) {
-        continue;
-      }
-      if (!ALLOWED_EXTENSIONS.has(extname(entry.name).toLowerCase())) {
-        continue;
-      }
-      if (stats.size > SITE_BUILD_LIMITS.maxSingleFileBytes) {
-        diagnostics.push({
+        },
+      };
+    }
+    if (stats.isDirectory()) {
+      return { kind: "directory", path: relativePath };
+    }
+    if (
+      !stats.isFile() ||
+      !ALLOWED_EXTENSIONS.has(extname(name).toLowerCase())
+    ) {
+      return { kind: "skip" };
+    }
+    if (stats.size > SITE_BUILD_LIMITS.maxSingleFileBytes) {
+      return {
+        kind: "diagnostic",
+        diagnostic: {
           severity: "error",
           file: relativePath,
           code: "file_too_large",
           message: `File is larger than ${SITE_BUILD_LIMITS.maxSingleFileBytes / 1024 / 1024} MB`,
-        });
-        continue;
-      }
-      totalBytes += stats.size;
-      files.push({ path: relativePath, size: stats.size });
+        },
+      };
     }
+    return { kind: "file", file: { path: relativePath, size: stats.size } };
   }
 
-  for (const rootEntry of SITE_SOURCE_ROOT_ENTRIES) {
-    const stats = await lstat(join(siteRoot, rootEntry)).catch(() => null);
-    if (!stats || stats.isSymbolicLink()) {
-      continue;
+  async function visit(relativePaths: string[]): Promise<void> {
+    const inspected = await Promise.all(relativePaths.map(inspect));
+    const directories: string[] = [];
+    for (const result of inspected) {
+      if (result.kind === "diagnostic") {
+        diagnostics.push(result.diagnostic);
+      } else if (result.kind === "directory") {
+        directories.push(result.path);
+      } else if (result.kind === "file") {
+        totalBytes += result.file.size;
+        files.push(result.file);
+      }
     }
-    if (stats.isDirectory()) {
-      await walk(rootEntry);
-    } else if (stats.isFile()) {
-      totalBytes += stats.size;
-      files.push({ path: rootEntry, size: stats.size });
-    }
+    await Promise.all(directories.map(walk));
   }
+
+  async function walk(relativeDir: string): Promise<void> {
+    const entries = await readdir(join(siteRoot, relativeDir));
+    await visit(entries.map((name) => `${relativeDir}/${name}`));
+  }
+
+  // Only the known top-level entries are read; a missing one is simply absent.
+  const roots = await Promise.all(
+    SITE_SOURCE_ROOT_ENTRIES.map(async (rootEntry: string) =>
+      (await lstat(join(siteRoot, rootEntry)).catch(() => null))
+        ? rootEntry
+        : null
+    )
+  );
+  await visit(
+    roots.filter((rootEntry): rootEntry is string => rootEntry !== null)
+  );
 
   if (files.length > SITE_BUILD_LIMITS.maxSourceFiles) {
     diagnostics.push({

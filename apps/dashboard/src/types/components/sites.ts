@@ -2,12 +2,15 @@ import type { IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
 
 import type {
+  SiteBuildLogEntry,
   SiteBuildLogFold,
   SiteBuildLogLine,
   SiteChoiceOption,
+  SiteCreateFormValues,
   SiteDeployment,
   SiteDeploymentRecord,
   SiteDeploymentStatus,
+  SiteDeploymentStep,
   SiteDeploymentStepState,
   SiteDetail,
   SiteDomain,
@@ -19,6 +22,7 @@ import type {
   SiteNewFileFolder,
   SitePreviewRow,
   SiteRecord,
+  SiteRepository,
   SiteScope,
   SiteSection,
 } from "@/types/sites";
@@ -42,6 +46,46 @@ export interface SiteCreateFormProps {
   organizationId: string;
   organizationSlug: string;
   hostingDomain: string | null;
+}
+
+export interface SiteCreateSourceFieldsProps {
+  idPrefix: string;
+  organizationId: string;
+  hostingDomain: string | null;
+  form: SiteCreateFormValues;
+  onChange: <K extends keyof SiteCreateFormValues>(
+    key: K,
+    value: SiteCreateFormValues[K]
+  ) => void;
+  /** The picked repository; null until one is. */
+  repository: SiteRepository | null;
+  slugInvalid: boolean;
+}
+
+export interface SiteRepositorySelectProps {
+  id: string;
+  repositories: SiteRepository[];
+  isLoading: boolean;
+  value: string | null;
+  onSelect: (repository: SiteRepository) => void;
+}
+
+export interface SiteAddressInputProps {
+  id: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  invalid: boolean;
+  placeholder: string;
+  /** Shown after the input, e.g. `notra.site`; hidden when unknown. */
+  hostingDomain: string | null;
+}
+
+export interface SiteCreateBarProps {
+  organizationSlug: string;
+  /** The branch the first build will use; null before a repository is picked. */
+  productionBranch: string | null;
+  canSubmit: boolean;
+  isCreating: boolean;
 }
 
 export interface SiteSectionsFieldsProps {
@@ -162,6 +206,30 @@ export interface SitePendingProductionProps {
   deployment: SiteDeployment;
 }
 
+export interface SiteOverviewStatusProps {
+  /** A production build running now or failed after the live one. */
+  pendingProduction: SiteDeployment | null;
+  suspended: boolean;
+  /** A deployment is live. */
+  live: boolean;
+}
+
+export interface SiteOverviewPreviewProps {
+  /** The live site; null when it's offline or nothing is live. */
+  url: string | null;
+  suspended: boolean;
+  /** The very first build is still running. */
+  firstBuild: boolean;
+  live: boolean;
+}
+
+export interface SiteOverviewDomainsProps {
+  /** Custom domains, primary first. */
+  domains: SiteDomain[];
+  /** The site on its Notra address. */
+  aliasUrl: string;
+}
+
 export interface SiteViewAllLinkProps {
   href: string;
   label: string;
@@ -190,6 +258,34 @@ export interface SiteBuildLogLineProps {
 export interface SiteBuildLogFoldRowProps {
   entry: SiteBuildLogFold;
   offsets: Map<number, string>;
+}
+
+export interface SiteBuildLogRowsProps {
+  entries: SiteBuildLogEntry[];
+  /** Lines matching `query`; unused without one. */
+  matchingLines: SiteBuildLogLine[];
+  offsets: Map<number, string>;
+  /** The trimmed filter text; empty shows every entry. */
+  query: string;
+}
+
+export interface SiteBuildLogFilterProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+export interface SiteBuildLogSummaryProps {
+  lines: SiteBuildLogLine[];
+  inProgress: boolean;
+}
+
+export interface SiteBuildLogEmptyProps {
+  inProgress: boolean;
+  queued: boolean;
+}
+
+export interface SiteBuildLogCopyButtonProps {
+  log: string | null;
 }
 
 export interface SiteBuildLogsProps {
@@ -271,6 +367,27 @@ export interface SiteDeploymentDetailProps extends SiteScope {
   log: string | null;
 }
 
+export interface SiteDeploymentActionsProps extends SiteScope {
+  deployment: SiteDeploymentRecord;
+  live: boolean;
+  primaryUrl: string;
+  /** The deployment's list entry, which knows whether it can be restored. */
+  rollbackEntry: SiteDeployment | null;
+  onRollback: () => void;
+}
+
+export interface SiteDeploymentBuildStepProps {
+  step: SiteDeploymentStep;
+  last: boolean;
+  deployment: SiteDeploymentRecord;
+  log: string | null;
+  live: boolean;
+  /** Shown as a small preview on the final step; null for protected or not-live builds. */
+  liveUrl: string | null;
+  logOpen: boolean;
+  onLogOpenChange: (open: boolean) => void;
+}
+
 export interface SiteDeploymentMetaProps {
   deployment: SiteDeploymentRecord;
   detail: SiteDetail;
@@ -305,6 +422,19 @@ export interface SitePreviewsTableProps extends SiteScope {
   emptyState?: ReactNode;
 }
 
+export interface SitePreviewRowMenuProps {
+  row: SitePreviewRow;
+  onCopyShareLink: () => void;
+  onViewDeployment: () => void;
+  onDelete: () => void;
+}
+
+export interface SitePreviewDeleteDialogProps extends SiteScope {
+  /** The preview to delete; null keeps the dialog closed. */
+  preview: SitePreviewRow | null;
+  onOpenChange: (open: boolean) => void;
+}
+
 export interface SiteOpenPreviewButtonProps {
   label: string;
   tooltip: string;
@@ -320,6 +450,18 @@ export interface SitePreviewBranchDialogProps extends SiteScope {
 export interface SiteSettingsFormProps extends SiteScope {
   organizationSlug: string;
   detail: SiteDetail;
+}
+
+export interface SiteSettingsDangerZoneProps extends SiteScope {
+  organizationSlug: string;
+  site: SiteRecord;
+}
+
+export interface SiteSettingsSaveBarProps {
+  /** The changed settings are complete enough to save. */
+  canSave: boolean;
+  isSaving: boolean;
+  onReset: () => void;
 }
 
 export interface SitePublishDialogProps extends SiteScope {
@@ -342,6 +484,27 @@ export interface SiteNewFileDialogProps {
   folders: readonly SiteNewFileFolder[];
   isCreating: boolean;
   onCreate: (path: string, content: string) => void;
+}
+
+export interface SiteNewFileFolderTabsProps {
+  folders: readonly SiteNewFileFolder[];
+  value: SiteNewFileFolder;
+  onValueChange: (folder: SiteNewFileFolder) => void;
+}
+
+export interface SiteNewFileNameFieldProps {
+  /** Prefix for the input and hint ids. */
+  id: string;
+  folder: SiteNewFileFolder;
+  value: string;
+  onValueChange: (value: string) => void;
+  placeholder: string;
+  /** The typed name, or the one derived from the title. */
+  slug: string;
+  slugValid: boolean;
+  /** A file already lives at `path`. */
+  exists: boolean;
+  path: string;
 }
 
 export interface SiteProxySetupProps {

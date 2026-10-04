@@ -3,19 +3,10 @@ import { dirname, join } from "node:path";
 
 /** Every regular file below `root`, recursively, as absolute paths. */
 export async function listFiles(root: string): Promise<string[]> {
-  const result: string[] = [];
-  const walk = async (dir: string) => {
-    for (const entry of await readdir(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(path);
-      } else if (entry.isFile()) {
-        result.push(path);
-      }
-    }
-  };
-  await walk(root);
-  return result;
+  const entries = await readdir(root, { recursive: true, withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile())
+    .map((entry) => join(entry.parentPath, entry.name));
 }
 
 export async function exists(path: string): Promise<boolean> {

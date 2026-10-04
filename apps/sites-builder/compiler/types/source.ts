@@ -27,3 +27,10 @@ export interface PreparedSite {
   /** File names of `script.js` / `scripts/*.js` below `_notra/assets/`, in page order. */
   customScripts: string[];
 }
+
+/** What collecting makes of one path in the site source. */
+export type Inspected =
+  | { kind: "skip" }
+  | { kind: "diagnostic"; diagnostic: SiteDiagnostic }
+  | { kind: "directory"; path: string }
+  | { kind: "file"; file: SiteSourceFile };

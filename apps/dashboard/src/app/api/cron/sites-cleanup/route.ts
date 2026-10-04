@@ -1,8 +1,11 @@
 import { db } from "@notra/db/drizzle";
 import { sites, siteWebhookDeliveries } from "@notra/db/schema";
 import { cleanupSiteDeployments } from "@notra/sites-server/sites";
+import { mapWithConcurrency } from "@notra/sites-server/utils/concurrency";
 import { isDemoMode } from "@notra/utils/demo-mode";
 import { lt, sql } from "drizzle-orm";
+
+import { SITES_CLEANUP_CONCURRENCY } from "@/constants/sites";
 
 export const maxDuration = 300;
 
@@ -20,17 +23,23 @@ export async function GET(request: Request) {
   }
   let deleted = 0;
   const failed: string[] = [];
-  for (const site of await db.select({ id: sites.id }).from(sites)) {
-    try {
-      deleted += (await cleanupSiteDeployments(site.id)).deleted.length;
-    } catch (error) {
-      failed.push(site.id);
-      console.error("sites.cleanup_failed", {
-        siteId: site.id,
-        error: error instanceof Error ? error.message : error,
-      });
+  const allSites = await db.select({ id: sites.id }).from(sites);
+  // A few sites at a time keeps R2 and the database calm on a large fleet.
+  await mapWithConcurrency(
+    allSites,
+    SITES_CLEANUP_CONCURRENCY,
+    async (site) => {
+      try {
+        deleted += (await cleanupSiteDeployments(site.id)).deleted.length;
+      } catch (error) {
+        failed.push(site.id);
+        console.error("sites.cleanup_failed", {
+          siteId: site.id,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
     }
-  }
+  );
   // GitHub only redelivers recent deliveries, so the dedup rows can go after two weeks.
   await db
     .delete(siteWebhookDeliveries)

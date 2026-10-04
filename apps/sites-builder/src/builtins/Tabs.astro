@@ -35,8 +35,8 @@
         button.tabIndex = active ? 0 : -1;
         panels[buttonIndex]!.hidden = !active;
         if (active) {
-          indicator.style.width = `${button.offsetWidth}px`;
-          indicator.style.transform = `translateX(${button.offsetLeft}px)`;
+          // One style write: the indicator has no other inline styles.
+          indicator.style.cssText = `width: ${button.offsetWidth}px; transform: translateX(${button.offsetLeft}px)`;
           if (focus) button.focus();
         }
       });

@@ -9,14 +9,9 @@ import {
   InputGroupInput,
 } from "@notra/ui/components/ui/input-group";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
-import {
-  FileTree,
-  useFileTree,
-  useFileTreeSearch,
-  useFileTreeSelection,
-} from "@pierre/trees/react";
+import { FileTree, useFileTree, useFileTreeSearch } from "@pierre/trees/react";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 import {
   SITE_FILE_TREE_CSS,
@@ -43,8 +38,27 @@ function SiteFileTreeView({
     [files]
   );
   const gitStatus = useMemo(() => siteFileTreeGitStatus(files), [files]);
+  // Clicking or pressing Enter on a row selects it; editable files open. The
+  // tree reports changes as events, so a pick opens once and the page selecting
+  // its own file (selectedPath) never re-opens it. The model keeps the first
+  // options it got, so the listener reads the latest props through a ref.
+  const latest = useRef({ selectedPath, editablePaths, onSelect });
+  useLayoutEffect(() => {
+    latest.current = { selectedPath, editablePaths, onSelect };
+  });
   const { model } = useFileTree({
     paths,
+    onSelectionChange: (selectedPaths) => {
+      const picked = selectedPaths.at(-1);
+      const current = latest.current;
+      if (
+        picked &&
+        picked !== current.selectedPath &&
+        current.editablePaths.has(picked)
+      ) {
+        current.onSelect(picked);
+      }
+    },
     initialExpansion: "closed",
     initialExpandedPaths: siteFileTreeInitialExpandedFolders(
       paths,
@@ -60,7 +74,6 @@ function SiteFileTreeView({
     unsafeCSS: SITE_FILE_TREE_CSS,
   });
   const search = useFileTreeSearch(model);
-  const selection = useFileTreeSelection(model);
   const pathsKey = paths.join("\n");
   const appliedPathsKey = useRef(pathsKey);
 
@@ -106,20 +119,6 @@ function SiteFileTreeView({
     model.getItem(selectedPath)?.select();
     model.scrollToPath(selectedPath, { focus: false, offset: "nearest" });
   }, [model, selectedPath, pathsKey]);
-
-  // Clicking or pressing Enter on a row selects it; editable files open. Only a new
-  // pick counts: when the page opens a file, the stale pick must not reopen the old one.
-  const picked = selection.at(-1) ?? null;
-  const lastPicked = useRef(picked);
-  useEffect(() => {
-    if (picked === lastPicked.current) {
-      return;
-    }
-    lastPicked.current = picked;
-    if (picked && picked !== selectedPath && editablePaths.has(picked)) {
-      onSelect(picked);
-    }
-  }, [picked, selectedPath, editablePaths, onSelect]);
 
   const query = search.value;
   const noMatches = query.length > 0 && search.matchingPaths.length === 0;
