@@ -7,12 +7,16 @@ import { isSameDay, startOfDay } from "date-fns";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useMemo } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 import { Button } from "@/components/button";
 import { ContentCalendarGrid } from "@/components/content/calendar/content-calendar-grid";
 import { EmptyState } from "@/components/empty-state";
-import { SCHEDULE_SLOT_DATE_FORMAT } from "@/constants/content-calendar";
+import {
+  CONTENT_CALENDAR_DATE_PARAM,
+  SCHEDULE_SLOT_DATE_FORMAT,
+} from "@/constants/content-calendar";
 import {
   useContentCalendar,
   useSchedulePost,
@@ -42,12 +46,12 @@ import { getLocalTimezone } from "@/utils/schedule-summary";
 export function ContentCalendarView({
   organizationId,
   organizationSlug,
-  toolbarEnd,
+  toolbarContainer,
 }: ContentCalendarViewProps) {
   const t = useTranslations("content.calendar");
   const tCommon = useTranslations("common.actions");
   const formatDate = useLocalDateFormat();
-  const [anchorKey, setAnchorKey] = useQueryState("date", {
+  const [anchorKey, setAnchorKey] = useQueryState(CONTENT_CALENDAR_DATE_PARAM, {
     clearOnDefault: true,
   });
   const anchor = useMemo(
@@ -121,44 +125,44 @@ export function ContentCalendarView({
 
   const heading = formatDate(anchor, { month: "long", year: "numeric" });
 
-  return (
-    <div className="space-y-3">
-      <div className="flex min-h-8 flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1">
-          <Button
-            aria-label={t("previous")}
-            onClick={() => setAnchor(shiftCalendarMonth(anchor, -1))}
-            size="icon-sm"
-            variant="ghost"
-          >
-            <HugeiconsIcon className="size-4" icon={ArrowLeft01Icon} />
-          </Button>
-          <Button
-            aria-label={t("next")}
-            onClick={() => setAnchor(shiftCalendarMonth(anchor, 1))}
-            size="icon-sm"
-            variant="ghost"
-          >
-            <HugeiconsIcon className="size-4" icon={ArrowRight01Icon} />
-          </Button>
-          <h2 aria-live="polite" className="ml-1 text-sm font-medium">
-            {heading}
-          </h2>
-          {anchorKey ? (
-            <Button
-              onClick={() => {
-                void setAnchorKey(null);
-              }}
-              size="sm"
-              variant="ghost"
-            >
-              {t("today")}
-            </Button>
-          ) : null}
-        </div>
-        {toolbarEnd}
-      </div>
+  const navigation = (
+    <div className="flex items-center gap-1">
+      <Button
+        aria-label={t("previous")}
+        onClick={() => setAnchor(shiftCalendarMonth(anchor, -1))}
+        size="icon-sm"
+        variant="ghost"
+      >
+        <HugeiconsIcon className="size-4" icon={ArrowLeft01Icon} />
+      </Button>
+      <Button
+        aria-label={t("next")}
+        onClick={() => setAnchor(shiftCalendarMonth(anchor, 1))}
+        size="icon-sm"
+        variant="ghost"
+      >
+        <HugeiconsIcon className="size-4" icon={ArrowRight01Icon} />
+      </Button>
+      <h2 aria-live="polite" className="ml-1 text-sm font-medium">
+        {heading}
+      </h2>
+      {anchorKey ? (
+        <Button
+          onClick={() => {
+            void setAnchorKey(null);
+          }}
+          size="sm"
+          variant="ghost"
+        >
+          {t("today")}
+        </Button>
+      ) : null}
+    </div>
+  );
 
+  return (
+    <>
+      {toolbarContainer ? createPortal(navigation, toolbarContainer) : null}
       {isError ? (
         <EmptyState
           action={
@@ -191,6 +195,6 @@ export function ContentCalendarView({
           />
         </div>
       )}
-    </div>
+    </>
   );
 }

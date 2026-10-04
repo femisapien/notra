@@ -43,10 +43,18 @@ export interface ScheduleDestinationStatusListProps {
   contentId: string;
   organizationId: string;
   schedule: PostScheduleView;
+  /** Which network the social destination posts to, for its mark and name. */
+  socialPlatform: ScheduleSocialPlatform | null;
 }
 
-export interface ScheduledPublicationStatusBadgeProps {
+export interface ScheduledPublicationStatusProps {
   status: ScheduledPublicationView["status"];
+  className?: string;
+}
+
+export interface ScheduleDestinationMarkProps {
+  destination: ScheduledPublicationView["destination"];
+  socialPlatform: ScheduleSocialPlatform | null;
 }
 
 /** Everything the UI derives from the statuses of a post's schedule rows. */
@@ -72,7 +80,6 @@ export type ScheduleDialogMode = "create" | "edit" | "locked" | "failed";
 
 export interface ScheduleDialogModeConfig {
   titleKey: "title" | "editTitle" | "statusTitle";
-  descriptionKey: "description" | "statusDescription";
   secondaryAction: "unschedule" | "dismiss" | null;
   canPublishNow: boolean;
   /** The form (when, where, submit) is shown. */

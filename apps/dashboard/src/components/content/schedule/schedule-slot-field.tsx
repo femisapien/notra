@@ -35,10 +35,15 @@ export function ScheduleSlotField({
 
   return (
     <section className="space-y-3">
-      <h3 className="text-sm font-medium">{t("when")}</h3>
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-sm font-medium">{t("when")}</h3>
+        <span className="text-muted-foreground text-xs">{timeZone}</span>
+      </div>
       <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="flex-1 space-y-2">
-          <Label className="text-muted-foreground text-xs" htmlFor={dateId}>
+        {/* Flex, not space-y: the open popover inserts focus guards after the
+            trigger, and space-y would then add a margin under it. */}
+        <div className="flex flex-1 flex-col">
+          <Label className="sr-only" htmlFor={dateId}>
             {t("date")}
           </Label>
           <Popover onOpenChange={setDatePickerOpen} open={datePickerOpen}>
@@ -86,8 +91,8 @@ export function ScheduleSlotField({
             </PopoverContent>
           </Popover>
         </div>
-        <div className="space-y-2">
-          <Label className="text-muted-foreground text-xs" htmlFor={timeId}>
+        <div>
+          <Label className="sr-only" htmlFor={timeId}>
             {t("time")}
           </Label>
           <Input
@@ -100,14 +105,11 @@ export function ScheduleSlotField({
           />
         </div>
       </div>
-      <p
-        className={
-          inPast ? "text-destructive text-xs" : "text-muted-foreground text-xs"
-        }
-        role={inPast ? "alert" : undefined}
-      >
-        {inPast ? t("inPast") : t("timeZoneHint", { timeZone })}
-      </p>
+      {inPast ? (
+        <p className="text-destructive text-xs" role="alert">
+          {t("inPast")}
+        </p>
+      ) : null}
     </section>
   );
 }

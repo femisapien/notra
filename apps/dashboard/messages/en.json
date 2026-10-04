@@ -6144,8 +6144,6 @@
       "description": "Posts and collections in one place.",
       "loadingDescription": "Every batch of generated content, organized into collections.",
       "allContent": "All content",
-      "viewToggle": "Content view",
-      "viewGrid": "Grid",
       "loadFailedTitle": "Couldn't load content",
       "loadFailedDescription": "Try loading your content again.",
       "emptyTitle": "No content yet",
@@ -6225,34 +6223,27 @@
         "saveFirst": "Save your changes first. Scheduled posts go out as saved.",
         "title": "Schedule post",
         "editTitle": "Edit schedule",
-        "description": "Pick when “{title}” goes live. Notra publishes it automatically at that time.",
         "when": "When",
         "date": "Date",
         "pickDate": "Pick a date",
         "time": "Time",
         "inPast": "This time has already passed.",
-        "timeZoneHint": "Times are in {timeZone}.",
         "where": "Where",
-        "whereHint": "The post is always marked as published in Notra. Add where else it should go out.",
         "github": {
-          "label": "Publish to GitHub",
-          "hint": "Opens a pull request with the post now, so there is time to review it.",
+          "hint": "Opens a pull request now, so there is time to review it.",
           "merge": "Merge at the scheduled time",
-          "mergeHint": "Required checks and branch protection can delay the merge; Notra keeps retrying for about an hour.",
-          "openOnlyHint": "Only the pull request is updated at the scheduled time. You merge it yourself."
+          "mergeHint": "Checks can delay the merge. Notra retries for about an hour.",
+          "openOnlyHint": "Only updates the pull request. You merge it yourself."
         },
         "social": {
-          "label": "Post to {platform}",
-          "hint": "Posts the saved text from the selected account.",
+          "hint": "Posts the saved text.",
           "noAccounts": "No account connected yet. <link>Connect one</link> to post automatically.",
           "account": "Account",
           "accountMissing": "The account this post was scheduled from is no longer connected. Pick another account or turn this off.",
           "loadFailed": "Couldn't load your connected accounts. Try again later or turn this off."
         },
-        "notraAlways": "Scheduled posts are published in Notra too, even if another destination fails.",
-        "currentSlot": "Currently scheduled for {date}.",
         "unschedule": "Unschedule",
-        "dismiss": "Clear",
+        "dismiss": "Clear schedule",
         "publishNow": "Publish now",
         "saveSchedule": "Save schedule",
         "schedule": "Schedule",
@@ -6277,11 +6268,11 @@
         "retryAnyway": "Retry anyway",
         "retryPending": "Last attempt failed ({error}). Notra retries automatically.",
         "statusTitle": "Publishing status",
-        "statusDescription": "Where “{title}” went out. Retry a failed destination, or clear the schedule to plan it again."
+        "moreActions": "More actions",
+        "always": "Always"
       },
       "preview": {
-        "when": "{date} · {state}",
-        "dragHint": "Drag to another day to move it."
+        "when": "{date} · {state}"
       },
       "day": {
         "open": "Show everything on {date}",

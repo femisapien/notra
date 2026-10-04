@@ -1,5 +1,6 @@
 "use client";
 
+import { scheduleDestinationsForContentType } from "@notra/ai/utils/schedule-destinations";
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -40,37 +41,6 @@ import {
 import { readStoredGitHubPublishRepositoryId } from "@/utils/github-publish-repository-preference";
 import { getLocalTimezone } from "@/utils/schedule-summary";
 
-/** The current slot of a schedule being edited, and the unsaved-edits hint. */
-function ScheduleFormNotes({
-  currentSlot,
-  hasUnsavedChanges,
-}: {
-  currentSlot: string | undefined;
-  hasUnsavedChanges: boolean;
-}) {
-  const t = useTranslations("content.calendar.schedule");
-  const formatDate = useLocalDateFormat();
-  return (
-    <>
-      {currentSlot ? (
-        <p className="text-muted-foreground text-xs">
-          {t("currentSlot", {
-            date: formatDate(new Date(currentSlot), {
-              dateStyle: "full",
-              timeStyle: "short",
-            }),
-          })}
-        </p>
-      ) : null}
-      {hasUnsavedChanges ? (
-        <p className="text-muted-foreground text-xs" role="status">
-          {t("saveFirst")}
-        </p>
-      ) : null}
-    </>
-  );
-}
-
 function ScheduleContentForm({
   onOpenChange,
   organizationId,
@@ -108,6 +78,7 @@ function ScheduleContentForm({
     form,
   });
 
+  const { socialPlatform } = scheduleDestinationsForContentType(contentType);
   const summary = summarizePostSchedule(schedule);
   const mode = getScheduleDialogMode(summary);
   const config = SCHEDULE_DIALOG_MODES[mode];
@@ -163,9 +134,7 @@ function ScheduleContentForm({
     <form className="contents" onSubmit={handleSubmit}>
       <ResponsiveDialogHeader>
         <ResponsiveDialogTitle>{t(config.titleKey)}</ResponsiveDialogTitle>
-        <ResponsiveDialogDescription>
-          {t(config.descriptionKey, { title })}
-        </ResponsiveDialogDescription>
+        <ResponsiveDialogDescription>{title}</ResponsiveDialogDescription>
       </ResponsiveDialogHeader>
 
       <div className="min-w-0 space-y-6">
@@ -174,6 +143,7 @@ function ScheduleContentForm({
             contentId={contentId}
             organizationId={organizationId}
             schedule={schedule}
+            socialPlatform={socialPlatform}
           />
         ) : null}
 
@@ -197,10 +167,11 @@ function ScheduleContentForm({
               organizationSlug={organizationSlug}
             />
 
-            <ScheduleFormNotes
-              currentSlot={mode === "edit" ? schedule?.scheduledAt : undefined}
-              hasUnsavedChanges={hasUnsavedChanges}
-            />
+            {hasUnsavedChanges ? (
+              <p className="text-muted-foreground text-xs" role="status">
+                {t("saveFirst")}
+              </p>
+            ) : null}
           </>
         ) : null}
       </div>
@@ -229,7 +200,11 @@ export function ScheduleContentDialog({
 }: ScheduleContentDialogProps) {
   return (
     <ResponsiveDialog onOpenChange={onOpenChange} open={open}>
-      <ResponsiveDialogContent className="min-w-0 sm:max-w-[560px]">
+      <ResponsiveDialogContent
+        className="min-w-0 sm:max-w-[560px]"
+        // The drawer pads its direct children, but the form sits in between.
+        drawerClassName="[&>form>*:not([data-slot=sheet-header]):not([data-slot=sheet-footer])]:px-4"
+      >
         {/* Remount per open so the form starts from the current schedule. */}
         {open ? (
           <ScheduleContentForm onOpenChange={onOpenChange} {...props} />

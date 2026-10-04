@@ -1,8 +1,10 @@
 "use client";
 
+import { TooltipProvider } from "@notra/ui/components/ui/tooltip";
 import { isSameMonth } from "date-fns";
 
 import { ContentCalendarDay } from "@/components/content/calendar/content-calendar-day";
+import { CONTENT_CALENDAR_TOOLTIP_DELAY_MS } from "@/constants/content-calendar";
 import { useLocalDateFormat } from "@/lib/hooks/use-local-date-format";
 import type { ContentCalendarGridProps } from "@/types/content/calendar";
 import { calendarDayKey } from "@/utils/content-calendar";
@@ -18,8 +20,9 @@ export function ContentCalendarGrid({
 
   // Dualtone, like the content tables: weekdays sit on the shell, the
   // days are the lifted body overlapping it.
+  // One shared tooltip glides between the chips instead of reopening.
   return (
-    <div>
+    <TooltipProvider delay={CONTENT_CALENDAR_TOOLTIP_DELAY_MS}>
       <div className="border-shell-border bg-shell overflow-hidden rounded-t-2xl border border-b-0 pb-5">
         <div className="grid grid-cols-7">
           {days.slice(0, 7).map((day) => (
@@ -47,6 +50,6 @@ export function ContentCalendarGrid({
           ))}
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

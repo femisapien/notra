@@ -6144,8 +6144,6 @@
       "description": "Beiträge und Sammlungen an einem Ort.",
       "loadingDescription": "Alle erstellten Inhalte, organisiert in Sammlungen.",
       "allContent": "Alle Inhalte",
-      "viewToggle": "Inhaltsansicht",
-      "viewGrid": "Raster",
       "loadFailedTitle": "Inhalte konnten nicht geladen werden",
       "loadFailedDescription": "Versuch, deine Inhalte neu zu laden.",
       "emptyTitle": "Noch keine Inhalte",
@@ -6225,34 +6223,27 @@
         "saveFirst": "Speichere zuerst deine Änderungen. Geplante Beiträge gehen so raus, wie sie gespeichert sind.",
         "title": "Beitrag planen",
         "editTitle": "Planung bearbeiten",
-        "description": "Wähle, wann „{title}“ live geht. Notra veröffentlicht den Beitrag dann automatisch.",
         "when": "Wann",
         "date": "Datum",
         "pickDate": "Datum wählen",
         "time": "Uhrzeit",
         "inPast": "Dieser Zeitpunkt ist schon vorbei.",
-        "timeZoneHint": "Zeiten in {timeZone}.",
         "where": "Wo",
-        "whereHint": "Der Beitrag wird immer in Notra als veröffentlicht markiert. Wähle, wo er außerdem erscheinen soll.",
         "github": {
-          "label": "Auf GitHub veröffentlichen",
-          "hint": "Öffnet jetzt schon einen Pull Request, damit Zeit für ein Review bleibt.",
+          "hint": "Öffnet jetzt einen Pull Request, damit Zeit für ein Review bleibt.",
           "merge": "Zum geplanten Zeitpunkt mergen",
-          "mergeHint": "Pflicht-Checks und Branch-Schutz können den Merge verzögern; Notra versucht es etwa eine Stunde lang weiter.",
-          "openOnlyHint": "Zum geplanten Zeitpunkt wird nur der Pull Request aktualisiert. Mergen musst du selbst."
+          "mergeHint": "Checks können den Merge verzögern. Notra versucht es etwa eine Stunde lang.",
+          "openOnlyHint": "Aktualisiert nur den Pull Request. Mergen musst du selbst."
         },
         "social": {
-          "label": "Auf {platform} posten",
-          "hint": "Postet den gespeicherten Text mit dem gewählten Account.",
+          "hint": "Postet den gespeicherten Text.",
           "noAccounts": "Noch kein Account verbunden. <link>Verbinde einen</link>, um automatisch zu posten.",
           "account": "Account",
           "accountMissing": "Der Account, über den dieser Beitrag geplant wurde, ist nicht mehr verbunden. Wähle einen anderen Account oder schalte dies aus.",
           "loadFailed": "Deine verbundenen Accounts konnten nicht geladen werden. Versuche es später erneut oder schalte dies aus."
         },
-        "notraAlways": "Geplante Beiträge werden auch in Notra veröffentlicht, selbst wenn ein anderes Ziel fehlschlägt.",
-        "currentSlot": "Aktuell geplant für {date}.",
         "unschedule": "Planung aufheben",
-        "dismiss": "Entfernen",
+        "dismiss": "Planung entfernen",
         "publishNow": "Jetzt veröffentlichen",
         "saveSchedule": "Planung speichern",
         "schedule": "Planen",
@@ -6277,11 +6268,11 @@
         "retryAnyway": "Trotzdem erneut versuchen",
         "retryPending": "Letzter Versuch fehlgeschlagen ({error}). Notra versucht es automatisch erneut.",
         "statusTitle": "Veröffentlichungsstatus",
-        "statusDescription": "Wo „{title}“ erschienen ist. Versuch ein fehlgeschlagenes Ziel erneut oder entferne die Planung, um neu zu planen."
+        "moreActions": "Weitere Aktionen",
+        "always": "Immer"
       },
       "preview": {
-        "when": "{date} · {state}",
-        "dragHint": "Auf einen anderen Tag ziehen, um zu verschieben."
+        "when": "{date} · {state}"
       },
       "day": {
         "open": "Alles am {date} anzeigen",

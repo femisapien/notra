@@ -22,6 +22,12 @@ export const CONTENT_CALENDAR_MAX_PROJECTED_RUNS = 62;
 export const CONTENT_CALENDAR_PREFETCH_STALE_MS = 30_000;
 
 /** Poll intervals of the month view, by how close its schedules are to going out. */
+/** Query param holding the calendar's month, as any day in it. */
+export const CONTENT_CALENDAR_DATE_PARAM = "date";
+
+/** Hover time before the first chip tooltip opens; later ones glide over. */
+export const CONTENT_CALENDAR_TOOLTIP_DELAY_MS = 300;
+
 export const CONTENT_CALENDAR_POLL_MS = {
   active: 15_000,
   idle: 60_000,
@@ -47,40 +53,37 @@ export const SCHEDULE_SLOT_DATE_FORMAT = {
   minute: "2-digit",
 } as const satisfies DateTimeFormatOptions;
 
-export const SCHEDULED_PUBLICATION_STATUS_BADGE_VARIANTS = {
-  scheduled: "info",
-  publishing: "warning",
-  published: "success",
-  failed: "destructive",
-  canceled: "outline",
+/** The dot beside a destination's status, in its tooltip and status list. */
+export const SCHEDULED_PUBLICATION_STATUS_DOTS = {
+  scheduled: "bg-info",
+  publishing: "bg-warning",
+  published: "bg-success",
+  failed: "bg-destructive",
+  canceled: "bg-muted-foreground",
 } as const;
 
 /** What the schedule dialog shows and offers in each mode. */
 export const SCHEDULE_DIALOG_MODES = {
   create: {
     titleKey: "title",
-    descriptionKey: "description",
     secondaryAction: null,
     canPublishNow: false,
     editable: true,
   },
   edit: {
     titleKey: "editTitle",
-    descriptionKey: "description",
     secondaryAction: "unschedule",
     canPublishNow: true,
     editable: true,
   },
   locked: {
     titleKey: "statusTitle",
-    descriptionKey: "statusDescription",
     secondaryAction: "unschedule",
     canPublishNow: false,
     editable: false,
   },
   failed: {
     titleKey: "statusTitle",
-    descriptionKey: "statusDescription",
     secondaryAction: "dismiss",
     canPublishNow: false,
     editable: false,

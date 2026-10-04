@@ -8,15 +8,7 @@ import { useTranslations } from "next-intl";
 export function ContentCalendarSkeleton() {
   const tContentShared = useTranslations("content.shared");
   return (
-    <div
-      aria-label={tContentShared("loadingContent")}
-      className="space-y-3"
-      role="status"
-    >
-      <div className="flex min-h-8 flex-wrap items-center justify-between gap-3">
-        <Skeleton className="h-8 w-48 rounded-md" />
-        <Skeleton className="h-8 w-52 rounded-lg" />
-      </div>
+    <div aria-label={tContentShared("loadingContent")} role="status">
       <Skeleton className="h-[38rem] w-full rounded-2xl max-sm:h-[24rem]" />
     </div>
   );

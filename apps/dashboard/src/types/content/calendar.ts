@@ -1,5 +1,4 @@
 import type { ContentCalendarEntryView } from "@notra/ai/types/scheduled-publications";
-import type { ReactNode } from "react";
 
 import type { Trigger } from "@/types/triggers/triggers";
 
@@ -36,8 +35,8 @@ export type CalendarDropHandler = (postId: string, day: Date) => void;
 export interface ContentCalendarViewProps {
   organizationId: string;
   organizationSlug: string;
-  /** Rendered at the end of the calendar's header row (the view switcher). */
-  toolbarEnd?: ReactNode;
+  /** Where the month navigation renders: the end of the page's tab row. */
+  toolbarContainer: HTMLElement | null;
 }
 
 export interface ContentCalendarGridProps {

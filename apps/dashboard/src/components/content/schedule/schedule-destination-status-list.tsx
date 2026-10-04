@@ -3,107 +3,101 @@
 import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ScheduledPublicationView } from "@notra/ai/types/scheduled-publications";
-import { Badge } from "@notra/ui/components/ui/badge";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/button";
-import { SCHEDULED_PUBLICATION_STATUS_BADGE_VARIANTS } from "@/constants/content-calendar";
+import { ScheduleDestinationMark } from "@/components/content/schedule/schedule-destination-mark";
+import { ScheduledPublicationStatus } from "@/components/content/schedule/scheduled-publication-status";
 import { useRetryScheduledPublication } from "@/lib/hooks/use-content-calendar";
-import type {
-  ScheduleDestinationStatusListProps,
-  ScheduledPublicationStatusBadgeProps,
-} from "@/types/content/schedule";
-
-export function ScheduledPublicationStatusBadge({
-  status,
-}: ScheduledPublicationStatusBadgeProps) {
-  const t = useTranslations("content.calendar.schedule");
-  return (
-    <Badge variant={SCHEDULED_PUBLICATION_STATUS_BADGE_VARIANTS[status]}>
-      {t(`statuses.${status}`)}
-    </Badge>
-  );
-}
+import type { ScheduleDestinationStatusListProps } from "@/types/content/schedule";
 
 function DestinationRow({
   contentId,
   organizationId,
   publication,
-}: {
-  contentId: string;
-  organizationId: string;
+  socialPlatform,
+}: Omit<ScheduleDestinationStatusListProps, "schedule"> & {
   publication: ScheduledPublicationView;
 }) {
   const t = useTranslations("content.calendar.schedule");
   const retry = useRetryScheduledPublication(organizationId);
+  const failed = publication.status === "failed";
   const outcomeUnknown = publication.errorCode === "outcome_unknown";
+  let note: string | null = null;
+  if (failed) {
+    note = outcomeUnknown
+      ? t("outcomeUnknown")
+      : (publication.lastError ?? t("failedFallback"));
+  } else if (publication.status === "scheduled" && publication.attempts > 0) {
+    note = t("retryPending", { error: publication.lastError ?? "" });
+  }
 
   return (
-    <li className="flex flex-col gap-1.5 py-2.5 first:pt-0 last:pb-0">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium">
-          {t(`destinations.${publication.destination}`)}
-        </span>
-        <div className="flex items-center gap-2">
+    <li className="flex flex-col gap-1 px-3 py-2.5">
+      <div className="flex min-h-7 items-center justify-between gap-3">
+        <ScheduleDestinationMark
+          destination={publication.destination}
+          socialPlatform={socialPlatform}
+        />
+        <div className="flex shrink-0 items-center gap-2">
+          <ScheduledPublicationStatus
+            className="text-muted-foreground"
+            status={publication.status}
+          />
           {publication.resultUrl ? (
-            <a
-              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 text-xs underline-offset-4 hover:underline"
-              href={publication.resultUrl}
-              rel="noopener noreferrer"
-              target="_blank"
+            <Button
+              aria-label={t("viewResult")}
+              nativeButton={false}
+              render={
+                <a
+                  href={publication.resultUrl}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                />
+              }
+              size="icon-sm"
+              variant="ghost"
             >
-              {t("viewResult")}
-              <HugeiconsIcon className="size-3" icon={ArrowUpRight01Icon} />
-            </a>
+              <HugeiconsIcon icon={ArrowUpRight01Icon} />
+            </Button>
           ) : null}
-          <ScheduledPublicationStatusBadge status={publication.status} />
+          {failed ? (
+            <Button
+              disabled={retry.isPending}
+              onClick={() =>
+                retry.mutate({
+                  contentId,
+                  scheduledPublicationId: publication.id,
+                })
+              }
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {outcomeUnknown ? t("retryAnyway") : t("retry")}
+            </Button>
+          ) : null}
         </div>
       </div>
-      {publication.status === "failed" ? (
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-muted-foreground text-xs text-pretty">
-            {outcomeUnknown
-              ? t("outcomeUnknown")
-              : (publication.lastError ?? t("failedFallback"))}
-          </p>
-          <Button
-            disabled={retry.isPending}
-            onClick={() =>
-              retry.mutate({
-                contentId,
-                scheduledPublicationId: publication.id,
-              })
-            }
-            size="xs"
-            type="button"
-            variant="outline"
-          >
-            {outcomeUnknown ? t("retryAnyway") : t("retry")}
-          </Button>
-        </div>
-      ) : null}
-      {publication.status === "scheduled" && publication.attempts > 0 ? (
-        <p className="text-muted-foreground text-xs text-pretty">
-          {t("retryPending", { error: publication.lastError ?? "" })}
-        </p>
+      {note ? (
+        <p className="text-muted-foreground pl-6 text-xs text-pretty">{note}</p>
       ) : null}
     </li>
   );
 }
 
+/** Where a post went out: one row per destination with its status. */
 export function ScheduleDestinationStatusList({
-  contentId,
-  organizationId,
   schedule,
+  ...rowProps
 }: ScheduleDestinationStatusListProps) {
   return (
-    <ul className="divide-border divide-y rounded-lg border px-3 py-2.5">
+    <ul className="bg-card ring-foreground/10 divide-border divide-y rounded-xl ring-1">
       {schedule.publications.map((publication) => (
         <DestinationRow
-          contentId={contentId}
           key={publication.id}
-          organizationId={organizationId}
           publication={publication}
+          {...rowProps}
         />
       ))}
     </ul>

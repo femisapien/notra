@@ -3,15 +3,15 @@
 import { RepeatIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@notra/ui/components/ui/hover-card";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@notra/ui/components/ui/tooltip";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import type { DragEvent } from "react";
 
-import { ScheduledPublicationStatusBadge } from "@/components/content/schedule/schedule-destination-status-list";
+import { ScheduledPublicationStatus } from "@/components/content/schedule/scheduled-publication-status";
 import { CONTENT_CALENDAR_DRAG_MIME } from "@/constants/content-calendar";
 import { useLocalDateFormat } from "@/lib/hooks/use-local-date-format";
 import { cn } from "@/lib/utils";
@@ -22,18 +22,44 @@ import type {
 import { summarizePostSchedule } from "@/utils/content-calendar";
 import { OutputTypeIcon } from "@/utils/output-types";
 
-const STATE_ACCENTS: Record<CalendarEntryState, string> = {
-  published: "before:bg-success",
-  scheduled: "before:bg-info",
-  publishing: "before:bg-warning",
-  failed: "before:bg-destructive",
-  partial: "before:bg-destructive",
+// Each state tints the whole chip, like an event in a calendar app, and
+// colors its time and the bar a chip shrinks to on phones. Published posts
+// are done, so they stay quiet.
+const STATE_STYLES: Record<
+  CalendarEntryState,
+  { chip: string; time: string; bar: string }
+> = {
+  published: {
+    chip: "bg-muted/60 hover:bg-muted ring-border/60 text-muted-foreground",
+    time: "text-muted-foreground",
+    bar: "max-sm:before:bg-success",
+  },
+  scheduled: {
+    chip: "bg-info/8 hover:bg-info/14 ring-info/20",
+    time: "text-info",
+    bar: "max-sm:before:bg-info",
+  },
+  publishing: {
+    chip: "bg-warning/8 hover:bg-warning/14 ring-warning/20",
+    time: "text-warning",
+    bar: "max-sm:before:bg-warning",
+  },
+  failed: {
+    chip: "bg-destructive/8 hover:bg-destructive/14 ring-destructive/20",
+    time: "text-destructive",
+    bar: "max-sm:before:bg-destructive",
+  },
+  partial: {
+    chip: "bg-destructive/8 hover:bg-destructive/14 ring-destructive/20",
+    time: "text-destructive",
+    bar: "max-sm:before:bg-destructive",
+  },
 };
 
 // Time on its own line and the title on up to two lines below it, so a
 // narrow month cell still shows most of the title.
 const chipBase =
-  "relative flex w-full min-w-0 flex-col items-start rounded-md py-1 pr-1.5 pl-2.5 text-left text-xs leading-4 transition-colors duration-150 ease-out focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none";
+  "relative flex w-full min-w-0 flex-col items-start gap-0.5 rounded-lg px-2.5 py-1.5 text-left text-xs leading-4 transition-colors duration-150 ease-out focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none";
 
 // Phones: a cell chip shrinks to a colored bar and lets taps through to the
 // day, which opens the day list with full titles.
@@ -47,14 +73,13 @@ export function ContentCalendarItemChip({
   variant,
 }: ContentCalendarItemChipProps) {
   const t = useTranslations("content.calendar");
-  const tCard = useTranslations("content.card");
   const formatDate = useLocalDateFormat();
   const inCell = variant === "cell";
   const time = formatDate(item.at, { hour: "numeric", minute: "2-digit" });
-  const fullDate = formatDate(item.at, {
-    weekday: "long",
+  const shortDate = formatDate(item.at, {
+    weekday: "short",
+    month: "short",
     day: "numeric",
-    month: "long",
     hour: "numeric",
     minute: "2-digit",
   });
@@ -62,34 +87,40 @@ export function ContentCalendarItemChip({
   if (item.kind === "automation") {
     const label = t("chip.automation", { name: item.trigger.name, time });
     return (
-      <Link
-        aria-label={label}
-        className={cn(
-          chipBase,
-          "text-muted-foreground hover:bg-muted hover:text-foreground border-border border border-dashed",
-          inCell && BAR_ON_PHONES
-        )}
-        href={`/${organizationSlug}/automation/schedules`}
-        title={label}
-      >
-        <span
-          className={cn(
-            "flex items-center gap-1 tabular-nums",
-            inCell && HIDDEN_ON_PHONES
-          )}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Link
+              aria-label={label}
+              className={cn(
+                chipBase,
+                "text-muted-foreground hover:bg-muted hover:text-foreground border-border border border-dashed",
+                inCell && BAR_ON_PHONES
+              )}
+              href={`/${organizationSlug}/automation/schedules`}
+            />
+          }
         >
-          <HugeiconsIcon className="size-3 shrink-0" icon={RepeatIcon} />
-          {time}
-        </span>
-        <span
-          className={cn(
-            "break-words",
-            inCell && cn("line-clamp-2", HIDDEN_ON_PHONES)
-          )}
-        >
-          {item.trigger.name}
-        </span>
-      </Link>
+          <span
+            className={cn(
+              "flex items-center gap-1 tabular-nums",
+              inCell && HIDDEN_ON_PHONES
+            )}
+          >
+            <HugeiconsIcon className="size-3 shrink-0" icon={RepeatIcon} />
+            {time}
+          </span>
+          <span
+            className={cn(
+              "break-words",
+              inCell && cn("line-clamp-2", HIDDEN_ON_PHONES)
+            )}
+          >
+            {item.trigger.name}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="right">{label}</TooltipContent>
+      </Tooltip>
     );
   }
 
@@ -114,18 +145,21 @@ export function ContentCalendarItemChip({
   };
 
   return (
-    <HoverCard>
-      <HoverCardTrigger
+    <Tooltip>
+      <TooltipTrigger
         render={
           <Link
             aria-label={label}
             className={cn(
               chipBase,
-              "bg-muted/60 hover:bg-muted before:absolute before:inset-y-1.5 before:left-1 before:w-0.5 before:rounded-full",
-              STATE_ACCENTS[state],
-              state === "published" && "text-muted-foreground",
+              "ring-1 ring-inset",
+              STATE_STYLES[state].chip,
               inCell &&
-                cn(BAR_ON_PHONES, "max-sm:before:inset-0 max-sm:before:w-full"),
+                cn(
+                  BAR_ON_PHONES,
+                  "max-sm:before:absolute max-sm:before:inset-0",
+                  STATE_STYLES[state].bar
+                ),
               draggable && "cursor-grab active:cursor-grabbing"
             )}
             draggable={draggable}
@@ -136,7 +170,8 @@ export function ContentCalendarItemChip({
       >
         <span
           className={cn(
-            "text-muted-foreground flex items-center gap-1 text-[0.6875rem] tabular-nums",
+            "flex items-center gap-1 text-[0.6875rem] font-medium tabular-nums",
+            STATE_STYLES[state].time,
             inCell && HIDDEN_ON_PHONES
           )}
         >
@@ -148,53 +183,40 @@ export function ContentCalendarItemChip({
         </span>
         <span
           className={cn(
-            "break-words",
+            "font-medium break-words",
             inCell && cn("line-clamp-2", HIDDEN_ON_PHONES)
           )}
         >
           {entry.post.title}
         </span>
-      </HoverCardTrigger>
-      <HoverCardContent align="start" className="w-72 space-y-2.5" side="right">
-        <div className="space-y-1">
-          <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-            <OutputTypeIcon
-              className="size-3.5 shrink-0"
-              outputType={entry.post.contentType}
-            />
-            {tCard("type", {
-              type: entry.post.contentType,
-              fallback: entry.post.contentType,
-            })}
-          </p>
-          <p className="text-sm leading-snug font-medium text-pretty">
+      </TooltipTrigger>
+      <TooltipContent align="start" side="right">
+        <div className="flex max-w-64 flex-col gap-1">
+          <p className="leading-snug font-medium text-pretty">
             {entry.post.title}
           </p>
-          <p className="text-muted-foreground text-xs">
-            {t("preview.when", { date: fullDate, state: stateLabel })}
+          <p className="text-muted-foreground">
+            {t("preview.when", { date: shortDate, state: stateLabel })}
           </p>
+          {/* With Notra alone the line above already says it all. */}
+          {entry.kind === "scheduled" &&
+          entry.schedule.publications.length > 1 ? (
+            <ul className="mt-1 flex flex-col gap-1">
+              {entry.schedule.publications.map((publication) => (
+                <li
+                  className="flex items-center justify-between gap-4"
+                  key={publication.id}
+                >
+                  <span className="text-muted-foreground">
+                    {t(`schedule.destinations.${publication.destination}`)}
+                  </span>
+                  <ScheduledPublicationStatus status={publication.status} />
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
-        {entry.kind === "scheduled" ? (
-          <ul className="divide-border divide-y border-t">
-            {entry.schedule.publications.map((publication) => (
-              <li
-                className="flex items-center justify-between gap-3 py-1.5 text-xs"
-                key={publication.id}
-              >
-                <span>
-                  {t(`schedule.destinations.${publication.destination}`)}
-                </span>
-                <ScheduledPublicationStatusBadge status={publication.status} />
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {draggable ? (
-          <p className="text-muted-foreground text-xs">
-            {t("preview.dragHint")}
-          </p>
-        ) : null}
-      </HoverCardContent>
-    </HoverCard>
+      </TooltipContent>
+    </Tooltip>
   );
 }

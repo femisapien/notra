@@ -17,13 +17,11 @@ import { useCollections } from "@/lib/hooks/use-collections";
 import type { ContentCollectionsSectionProps } from "@/types/content/collection";
 import type { TablePaginationState } from "@/types/table";
 
-/** The content page's list and grid views of collections. */
+/** The content page's table of collections. */
 export function ContentCollectionsSection({
   organizationId,
   organizationSlug,
   initialProjectId,
-  view,
-  toolbarEnd,
 }: ContentCollectionsSectionProps) {
   const t = useTranslations("content.list");
   const tCommon = useTranslations("common.actions");
@@ -56,12 +54,7 @@ export function ContentCollectionsSection({
 
   return (
     <div className="space-y-3">
-      <div className="flex min-h-8 flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-medium">{t("allContent")}</h2>
-        {toolbarEnd}
-      </div>
-
-      {isPending ? <CollectionsPageSkeleton view={view} /> : null}
+      {isPending ? <CollectionsPageSkeleton /> : null}
 
       {isError ? (
         <EmptyState
@@ -100,7 +93,6 @@ export function ContentCollectionsSection({
           organizationId={organizationId}
           organizationSlug={organizationSlug}
           pagination={pagination}
-          view={view}
         />
       )}
     </div>
