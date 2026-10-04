@@ -42,6 +42,11 @@ import {
   hasGitHubStatus,
 } from "@/utils/github-publish-failure";
 
+// GitHub's 405 reasons that waiting won't fix: a required check that already
+// failed, and a branch protection rule that wants the branch up to date
+// (updating it would push a new head and restart the checks).
+const GITHUB_MERGE_NEEDS_PERSON_REGEX = /is failing|not up to date/i;
+
 const RETRYABLE_ORPC_CODES = new Set([
   "INTERNAL_SERVER_ERROR",
   "BAD_GATEWAY",
@@ -82,11 +87,19 @@ function publicErrorMessage(error: unknown, fallback: string) {
 
 /**
  * Pending checks (405), rate limits and upstream errors clear up on their own.
- * A missing pull request, lost access, a rejected request, or a branch that
- * moved after Notra pushed it (409) needs a person.
+ * A missing pull request, lost access, a rejected request, a branch that
+ * moved after Notra pushed it (409), a failed required check, or a branch
+ * that must first be brought up to date needs a person.
  */
 function isRetryableGitHubMergeError(error: unknown) {
   if ([404, 409, 422].some((status) => hasGitHubStatus(error, status))) {
+    return false;
+  }
+  if (
+    hasGitHubStatus(error, 405) &&
+    error instanceof Error &&
+    GITHUB_MERGE_NEEDS_PERSON_REGEX.test(error.message)
+  ) {
     return false;
   }
   const kind = classifyGitHubPublishFailure(error);
