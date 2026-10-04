@@ -4,6 +4,7 @@ import type {
   ScheduledPublicationView,
 } from "@notra/ai/types/scheduled-publications";
 import type { ScheduleSocialPlatform } from "@notra/ai/utils/schedule-destinations";
+import type { ReactNode } from "react";
 
 import type { CalendarEntryState } from "@/types/content/calendar";
 import type { GitHubPublishRepositorySelectionFieldProps } from "@/types/content/detail";
@@ -55,6 +56,15 @@ export interface ScheduledPublicationStatusProps {
 export interface ScheduleDestinationMarkProps {
   destination: ScheduledPublicationView["destination"];
   socialPlatform: ScheduleSocialPlatform | null;
+}
+
+export interface ScheduleDestinationToggleRowProps extends ScheduleDestinationMarkProps {
+  hint: ReactNode;
+  checked: boolean;
+  disabled?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  /** Settings shown under the row, like the repository picker. */
+  children: ReactNode;
 }
 
 /** Everything the UI derives from the statuses of a post's schedule rows. */

@@ -47,7 +47,8 @@ export function TruncateWithTooltip({
     if (!element) {
       return;
     }
-    setTruncated(isOverflowing(element));
+    // Observing reports the current size right away, so this also measures
+    // on mount.
     const observer = new ResizeObserver(() => {
       setTruncated(isOverflowing(element));
     });

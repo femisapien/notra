@@ -58,7 +58,7 @@ export function ScheduleDialogFooter({
   }
 
   return (
-    <ResponsiveDialogFooter className="sm:justify-between">
+    <ResponsiveDialogFooter>
       {config.canPublishNow || config.secondaryAction ? (
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -66,6 +66,7 @@ export function ScheduleDialogFooter({
             render={
               <Button
                 aria-label={t("moreActions")}
+                className="sm:mr-auto"
                 size="icon"
                 type="button"
                 variant="outline"
@@ -95,9 +96,7 @@ export function ScheduleDialogFooter({
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-      ) : (
-        <span aria-hidden="true" className="max-sm:hidden" />
-      )}
+      ) : null}
       <Button disabled={!canSubmit} type="submit">
         {submitLabel}
       </Button>

@@ -2,6 +2,7 @@
 
 import { RepeatIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { scheduleDestinationsForContentType } from "@notra/ai/utils/schedule-destinations";
 import {
   Tooltip,
   TooltipContent,
@@ -14,9 +15,11 @@ import type { DragEvent } from "react";
 import { ScheduledPublicationStatus } from "@/components/content/schedule/scheduled-publication-status";
 import { CONTENT_CALENDAR_DRAG_MIME } from "@/constants/content-calendar";
 import { useLocalDateFormat } from "@/lib/hooks/use-local-date-format";
+import { useScheduleDestinationName } from "@/lib/hooks/use-schedule-destination-name";
 import { cn } from "@/lib/utils";
 import type {
   CalendarEntryState,
+  ContentCalendarChipFaceProps,
   ContentCalendarItemChipProps,
 } from "@/types/content/calendar";
 import { summarizePostSchedule } from "@/utils/content-calendar";
@@ -25,6 +28,11 @@ import { OutputTypeIcon } from "@/utils/output-types";
 // Each state tints the whole chip, like an event in a calendar app, and
 // colors its time and the bar a chip shrinks to on phones. Published posts
 // are done, so they stay quiet.
+const FAILED_STYLE = {
+  chip: "bg-destructive/8 hover:bg-destructive/14 ring-destructive/20",
+  time: "text-destructive",
+  bar: "max-sm:before:bg-destructive",
+};
 const STATE_STYLES: Record<
   CalendarEntryState,
   { chip: string; time: string; bar: string }
@@ -44,16 +52,8 @@ const STATE_STYLES: Record<
     time: "text-warning",
     bar: "max-sm:before:bg-warning",
   },
-  failed: {
-    chip: "bg-destructive/8 hover:bg-destructive/14 ring-destructive/20",
-    time: "text-destructive",
-    bar: "max-sm:before:bg-destructive",
-  },
-  partial: {
-    chip: "bg-destructive/8 hover:bg-destructive/14 ring-destructive/20",
-    time: "text-destructive",
-    bar: "max-sm:before:bg-destructive",
-  },
+  failed: FAILED_STYLE,
+  partial: FAILED_STYLE,
 };
 
 // Time on its own line and the title on up to two lines below it, so a
@@ -67,6 +67,40 @@ const BAR_ON_PHONES =
   "max-sm:pointer-events-none max-sm:h-1.5 max-sm:overflow-hidden max-sm:p-0";
 const HIDDEN_ON_PHONES = "max-sm:sr-only";
 
+/** A chip's face: an icon and the time, then the title on up to two lines. */
+function ChipFace({
+  icon,
+  time,
+  title,
+  inCell,
+  timeClassName,
+  titleClassName,
+}: ContentCalendarChipFaceProps) {
+  return (
+    <>
+      <span
+        className={cn(
+          "flex items-center gap-1 tabular-nums",
+          timeClassName,
+          inCell && HIDDEN_ON_PHONES
+        )}
+      >
+        {icon}
+        {time}
+      </span>
+      <span
+        className={cn(
+          "break-words",
+          titleClassName,
+          inCell && cn("line-clamp-2", HIDDEN_ON_PHONES)
+        )}
+      >
+        {title}
+      </span>
+    </>
+  );
+}
+
 export function ContentCalendarItemChip({
   item,
   organizationSlug,
@@ -74,6 +108,7 @@ export function ContentCalendarItemChip({
 }: ContentCalendarItemChipProps) {
   const t = useTranslations("content.calendar");
   const formatDate = useLocalDateFormat();
+  const destinationName = useScheduleDestinationName();
   const inCell = variant === "cell";
   const time = formatDate(item.at, { hour: "numeric", minute: "2-digit" });
   const shortDate = formatDate(item.at, {
@@ -101,23 +136,14 @@ export function ContentCalendarItemChip({
             />
           }
         >
-          <span
-            className={cn(
-              "flex items-center gap-1 tabular-nums",
-              inCell && HIDDEN_ON_PHONES
-            )}
-          >
-            <HugeiconsIcon className="size-3 shrink-0" icon={RepeatIcon} />
-            {time}
-          </span>
-          <span
-            className={cn(
-              "break-words",
-              inCell && cn("line-clamp-2", HIDDEN_ON_PHONES)
-            )}
-          >
-            {item.trigger.name}
-          </span>
+          <ChipFace
+            icon={
+              <HugeiconsIcon className="size-3 shrink-0" icon={RepeatIcon} />
+            }
+            inCell={inCell}
+            time={time}
+            title={item.trigger.name}
+          />
         </TooltipTrigger>
         <TooltipContent side="right">{label}</TooltipContent>
       </Tooltip>
@@ -125,6 +151,9 @@ export function ContentCalendarItemChip({
   }
 
   const { entry, state } = item;
+  const { socialPlatform } = scheduleDestinationsForContentType(
+    entry.post.contentType
+  );
   const draggable =
     entry.kind === "scheduled" &&
     summarizePostSchedule(entry.schedule).editable;
@@ -168,27 +197,22 @@ export function ContentCalendarItemChip({
           />
         }
       >
-        <span
-          className={cn(
-            "flex items-center gap-1 text-[0.6875rem] font-medium tabular-nums",
-            STATE_STYLES[state].time,
-            inCell && HIDDEN_ON_PHONES
+        <ChipFace
+          icon={
+            <OutputTypeIcon
+              className="size-3 shrink-0"
+              outputType={entry.post.contentType}
+            />
+          }
+          inCell={inCell}
+          time={time}
+          timeClassName={cn(
+            "text-[0.6875rem] font-medium",
+            STATE_STYLES[state].time
           )}
-        >
-          <OutputTypeIcon
-            className="size-3 shrink-0"
-            outputType={entry.post.contentType}
-          />
-          {time}
-        </span>
-        <span
-          className={cn(
-            "font-medium break-words",
-            inCell && cn("line-clamp-2", HIDDEN_ON_PHONES)
-          )}
-        >
-          {entry.post.title}
-        </span>
+          title={entry.post.title}
+          titleClassName="font-medium"
+        />
       </TooltipTrigger>
       <TooltipContent align="start" side="right">
         <div className="flex max-w-64 flex-col gap-1">
@@ -208,7 +232,10 @@ export function ContentCalendarItemChip({
                   key={publication.id}
                 >
                   <span className="text-muted-foreground">
-                    {t(`schedule.destinations.${publication.destination}`)}
+                    {destinationName({
+                      destination: publication.destination,
+                      socialPlatform,
+                    })}
                   </span>
                   <ScheduledPublicationStatus status={publication.status} />
                 </li>

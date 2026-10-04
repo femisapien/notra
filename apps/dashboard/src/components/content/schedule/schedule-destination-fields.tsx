@@ -16,6 +16,7 @@ import { type ReactNode, useId } from "react";
 import { GitHubPublishRepositoryField } from "@/components/content/github-publish-repository-field";
 import { ScheduleDestinationMark } from "@/components/content/schedule/schedule-destination-mark";
 import type {
+  ScheduleDestinationToggleRowProps,
   ScheduleGitHubDestinationProps,
   ScheduleSocialDestinationProps,
   ScheduleWhereSectionProps,
@@ -24,6 +25,44 @@ import type { ConnectedAccount } from "@/types/hooks/connected-accounts";
 
 function accountLabel(account: ConnectedAccount) {
   return `${account.displayName} · @${account.username}`;
+}
+
+/**
+ * One opt-in destination of the "Where" list: its mark and hint, a switch,
+ * and below them its settings, indented under the name.
+ */
+function DestinationToggleRow({
+  destination,
+  socialPlatform,
+  hint,
+  checked,
+  disabled,
+  onCheckedChange,
+  children,
+}: ScheduleDestinationToggleRowProps) {
+  const switchId = useId();
+  return (
+    <li className="flex flex-col gap-3 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0 space-y-0.5">
+          <Label htmlFor={switchId}>
+            <ScheduleDestinationMark
+              destination={destination}
+              socialPlatform={socialPlatform}
+            />
+          </Label>
+          <p className="text-muted-foreground pl-6 text-xs">{hint}</p>
+        </div>
+        <Switch
+          checked={checked}
+          disabled={disabled}
+          id={switchId}
+          onCheckedChange={onCheckedChange}
+        />
+      </div>
+      <div className="flex flex-col gap-3 pl-6 empty:hidden">{children}</div>
+    </li>
+  );
 }
 
 function ScheduleGitHubDestination({
@@ -37,31 +76,18 @@ function ScheduleGitHubDestination({
   onRepositoryChange,
 }: ScheduleGitHubDestinationProps) {
   const t = useTranslations("content.calendar.schedule");
-  const githubId = useId();
   const mergeId = useId();
 
   return (
-    <li className="flex flex-col gap-3 px-3 py-2.5">
-      <div className="flex items-center justify-between gap-4">
-        <div className="min-w-0 space-y-0.5">
-          <Label htmlFor={githubId}>
-            <ScheduleDestinationMark
-              destination="github"
-              socialPlatform={null}
-            />
-          </Label>
-          <p className="text-muted-foreground pl-6 text-xs">
-            {t("github.hint")}
-          </p>
-        </div>
-        <Switch
-          checked={enabled}
-          id={githubId}
-          onCheckedChange={onEnabledChange}
-        />
-      </div>
+    <DestinationToggleRow
+      checked={enabled}
+      destination="github"
+      hint={t("github.hint")}
+      onCheckedChange={onEnabledChange}
+      socialPlatform={null}
+    >
       {enabled ? (
-        <div className="flex flex-col gap-3 pl-6">
+        <>
           <GitHubPublishRepositoryField
             {...fieldProps}
             isPublishing={isBusy}
@@ -81,9 +107,9 @@ function ScheduleGitHubDestination({
               onCheckedChange={onMergeChange}
             />
           </div>
-        </div>
+        </>
       ) : null}
-    </li>
+    </DestinationToggleRow>
   );
 }
 
@@ -94,7 +120,6 @@ function ScheduleSocialDestination({
   onAccountChange,
 }: ScheduleSocialDestinationProps) {
   const t = useTranslations("content.calendar.schedule");
-  const socialId = useId();
   const { accounts, selectedAccount, accountMissing, checked } = option;
   const showAccountPicker =
     checked && (accounts.length > 1 || (accountMissing && accounts.length > 0));
@@ -116,56 +141,44 @@ function ScheduleSocialDestination({
   }
 
   return (
-    <li className="flex flex-col gap-3 px-3 py-2.5">
-      <div className="flex items-center justify-between gap-4">
-        <div className="min-w-0 space-y-0.5">
-          <Label htmlFor={socialId}>
-            <ScheduleDestinationMark
-              destination="social"
-              socialPlatform={option.platform}
-            />
-          </Label>
-          <p className="text-muted-foreground pl-6 text-xs">{hint}</p>
-        </div>
-        <Switch
-          checked={checked}
-          disabled={!option.toggleable}
-          id={socialId}
-          onCheckedChange={onEnabledChange}
-        />
-      </div>
+    <DestinationToggleRow
+      checked={checked}
+      destination="social"
+      disabled={!option.toggleable}
+      hint={hint}
+      onCheckedChange={onEnabledChange}
+      socialPlatform={option.platform}
+    >
       {showAccountPicker ? (
-        <div className="pl-6">
-          <Select
-            onValueChange={(value) => onAccountChange(value ?? "")}
-            value={selectedAccount?.id ?? ""}
-          >
-            <SelectTrigger aria-label={t("social.account")} className="w-full">
-              <SelectValue>
-                {(value) => {
-                  const account = accounts.find(
-                    (candidate) => candidate.id === value
-                  );
-                  return account ? accountLabel(account) : t("social.account");
-                }}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {accounts.map((account) => (
-                <SelectItem key={account.id} value={account.id}>
-                  {accountLabel(account)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select
+          onValueChange={(value) => onAccountChange(value ?? "")}
+          value={selectedAccount?.id ?? ""}
+        >
+          <SelectTrigger aria-label={t("social.account")} className="w-full">
+            <SelectValue>
+              {(value) => {
+                const account = accounts.find(
+                  (candidate) => candidate.id === value
+                );
+                return account ? accountLabel(account) : t("social.account");
+              }}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {accounts.map((account) => (
+              <SelectItem key={account.id} value={account.id}>
+                {accountLabel(account)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       ) : null}
       {checked && accountMissing ? (
-        <p className="text-destructive pl-6 text-xs" role="alert">
+        <p className="text-destructive text-xs" role="alert">
           {t("social.accountMissing")}
         </p>
       ) : null}
-    </li>
+    </DestinationToggleRow>
   );
 }
 

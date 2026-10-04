@@ -1,4 +1,5 @@
 import type { ContentCalendarEntryView } from "@notra/ai/types/scheduled-publications";
+import type { ReactNode } from "react";
 
 import type { Trigger } from "@/types/triggers/triggers";
 
@@ -60,4 +61,13 @@ export interface ContentCalendarItemChipProps {
   organizationSlug: string;
   /** `cell` sits in a month cell; `list` is the roomier day popover row. */
   variant: "cell" | "list";
+}
+
+export interface ContentCalendarChipFaceProps {
+  icon: ReactNode;
+  time: string;
+  title: string;
+  inCell: boolean;
+  timeClassName?: string;
+  titleClassName?: string;
 }

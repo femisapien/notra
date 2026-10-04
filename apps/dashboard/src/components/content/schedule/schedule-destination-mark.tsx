@@ -4,9 +4,8 @@ import { Github } from "@notra/ui/components/ui/svgs/github";
 import { Linkedin } from "@notra/ui/components/ui/svgs/linkedin";
 import { Notra } from "@notra/ui/components/ui/svgs/notra";
 import { XTwitter } from "@notra/ui/components/ui/svgs/twitter";
-import { useTranslations } from "next-intl";
 
-import { SOCIAL_PLATFORM_LABELS } from "@/constants/social-connect";
+import { useScheduleDestinationName } from "@/lib/hooks/use-schedule-destination-name";
 import type { ScheduleDestinationMarkProps } from "@/types/content/schedule";
 
 const MARK_CLASS = "size-4 shrink-0";
@@ -34,15 +33,11 @@ function DestinationIcon({
 
 /** A destination's brand mark and name, e.g. GitHub or X. */
 export function ScheduleDestinationMark(props: ScheduleDestinationMarkProps) {
-  const t = useTranslations("content.calendar.schedule");
-  const name =
-    props.destination === "social" && props.socialPlatform
-      ? SOCIAL_PLATFORM_LABELS[props.socialPlatform]
-      : t(`destinations.${props.destination}`);
+  const destinationName = useScheduleDestinationName();
   return (
     <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
       <DestinationIcon {...props} />
-      <span className="truncate">{name}</span>
+      <span className="truncate">{destinationName(props)}</span>
     </span>
   );
 }
