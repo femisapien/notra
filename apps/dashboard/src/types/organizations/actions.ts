@@ -82,6 +82,14 @@ export interface RemoveMemberInput {
   organizationId?: string;
 }
 
+export interface OrganizationLookupInput {
+  query?: { organizationId?: string; organizationSlug?: string };
+}
+
+export interface OrganizationScopedQueryInput {
+  query?: { organizationId?: string };
+}
+
 export interface ListMembersInput {
   query?: {
     organizationId?: string;
