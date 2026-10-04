@@ -37,6 +37,8 @@ import {
   requireSiteRepository,
   siteRepositoryToken,
 } from "./github";
+import { siteNameRejection } from "./moderation";
+import { closeAllPreviews } from "./previews";
 import { r2DeletePrefix, r2ListPrefixes } from "./r2";
 import {
   claimHostRecord,
@@ -150,6 +152,16 @@ export async function createSite(
     requestedSlug ?? (await uniqueSlug(slugifySiteName(input.name) || "site"));
   const siteId = `site_${crypto.randomUUID().replaceAll("-", "")}`;
   const aliasHost = siteAliasHost(slug, getSitesHostingDomain());
+  const rejection = await siteNameRejection({
+    organizationId: input.organizationId,
+    userId: input.userId,
+    name: input.name,
+    address: aliasHost,
+    slug,
+  });
+  if (rejection) {
+    throw new SiteInputError(rejection);
+  }
 
   // Claim the hostname first: R2's create-only write is the global uniqueness check for hosts.
   await claimHostRecord(aliasHost, { siteId, kind: "alias" });
@@ -348,7 +360,16 @@ export async function updateSiteSettings(
   userId: string
 ): Promise<UpdateSiteSettingsResult> {
   const values: Partial<typeof sites.$inferInsert> = {};
-  if (patch.name !== undefined) {
+  if (patch.name !== undefined && patch.name.trim() !== site.name) {
+    const rejection = await siteNameRejection({
+      organizationId: site.organizationId,
+      userId,
+      name: patch.name.trim(),
+      address: siteAliasHost(site.slug, getSitesHostingDomain()),
+    });
+    if (rejection) {
+      throw new SiteInputError(rejection);
+    }
     values.name = patch.name.trim();
   }
   if (patch.productionBranch !== undefined) {

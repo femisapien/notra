@@ -75,6 +75,13 @@ CREATE TABLE "site_jobs" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "site_slug_grants" (
+	"slug" text PRIMARY KEY NOT NULL,
+	"organization_id" text NOT NULL,
+	"note" text,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "site_webhook_deliveries" (
 	"delivery_id" text PRIMARY KEY NOT NULL,
 	"event" text NOT NULL,
@@ -118,6 +125,7 @@ ALTER TABLE "site_drafts" ADD CONSTRAINT "site_drafts_site_id_sites_id_fk" FOREI
 ALTER TABLE "site_drafts" ADD CONSTRAINT "site_drafts_updated_by_user_id_users_id_fk" FOREIGN KEY ("updated_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "site_jobs" ADD CONSTRAINT "site_jobs_site_id_sites_id_fk" FOREIGN KEY ("site_id") REFERENCES "public"."sites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "site_jobs" ADD CONSTRAINT "site_jobs_deployment_id_site_deployments_id_fk" FOREIGN KEY ("deployment_id") REFERENCES "public"."site_deployments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "site_slug_grants" ADD CONSTRAINT "site_slug_grants_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sites" ADD CONSTRAINT "sites_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sites" ADD CONSTRAINT "sites_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sites" ADD CONSTRAINT "sites_repository_id_github_integrations_id_fk" FOREIGN KEY ("repository_id") REFERENCES "public"."github_integrations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint

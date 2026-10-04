@@ -4281,6 +4281,20 @@ export const siteJobs = pgTable(
   ]
 );
 
+/**
+ * Hand-granted site addresses. Reserved addresses (popular companies) are
+ * refused unless the creator has a matching company email; a row here lets
+ * one organization take the address anyway. Insert it by hand for support.
+ */
+export const siteSlugGrants = pgTable("site_slug_grants", {
+  slug: text("slug").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 /** Durable GitHub delivery dedup: the insert is the claim. */
 export const siteWebhookDeliveries = pgTable("site_webhook_deliveries", {
   deliveryId: text("delivery_id").primaryKey(),
