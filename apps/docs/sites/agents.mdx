@@ -34,6 +34,14 @@ If you forward paths from your own website, `/llms.txt` belongs to your website.
 - `robots.txt` allows search engines and AI crawlers (GPTBot, ClaudeBot, PerplexityBot and others) on your canonical address and links to `llms.txt` and the sitemaps. Previews are never indexed.
 - Every page includes schema.org data (`BlogPosting` for posts) plus Open Graph tags, a canonical URL and an RSS feed.
 
+## AI traffic analytics
+
+Sites report their own visits to [AI Traffic](/geo/traffic), with nothing to install. Crawlers, AI agents and visitors arriving from ChatGPT, Claude, Perplexity and other assistants show up under the project the site belongs to. Other visitors are discarded, and previews are never counted.
+
+- A site counts toward the project that was active when it was created. Sites created before that count toward the organization's oldest project.
+- Visits are reported under the site's canonical address. A page forwarded from `acme.com/blog` counts as `acme.com/blog`.
+- If your website also runs the [Notra SDK](/geo/traffic) and forwards paths to the site, the site's report is the one that counts. The same page view is never counted twice.
+
 <Note>
 When you forward paths through your own host, keep the request's `Accept` header. Vercel, Next.js, Netlify and Cloudflare rewrites do this by default.
 </Note>

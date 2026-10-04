@@ -1,3 +1,6 @@
+import { db } from "@notra/db/drizzle";
+import { sites } from "@notra/db/schema";
+import { buildGeoIngestSiteToken } from "@notra/geo-core/geo/ingest";
 import { SITE_R2_KEYS } from "@notra/sites-core/constants/sites";
 import {
   siteHostRecordSchema,
@@ -96,9 +99,21 @@ export async function mutateServingState<T>(
         now: new Date(),
       });
     const outcome = mutate(state);
-    if ("skip" in outcome) {
+    // The preview password and the traffic token are derived on every write,
+    // so a lost or stale state.json gets them back with the next state write.
+    const previewPassword = await readPreviewPasswordFromDb(site.id);
+    const trafficToken = buildGeoIngestSiteToken(site.id);
+    const derivedInSync =
+      samePreviewPassword(state.previewPassword, previewPassword) &&
+      state.trafficToken === trafficToken;
+    if ("skip" in outcome && (!current || derivedInSync)) {
       return outcome.result;
     }
+    const write: SiteServingState = {
+      ...("skip" in outcome ? state : outcome.write),
+      previewPassword,
+      trafficToken,
+    };
     try {
       await r2Put(SITE_R2_KEYS.state(site.id), JSON.stringify(write), {
         contentType: JSON_CONTENT_TYPE,
@@ -191,6 +206,15 @@ export async function setServingPreviewVisibility(
     write: setPreviewVisibilityInState(state, visibility, new Date()),
     result: undefined,
   }));
+}
+
+/**
+ * Re-mirrors the database's preview access and the traffic token into an
+ * existing state.json. Every state write does this anyway; this is the repair
+ * path when nothing else writes.
+ */
+export async function syncServingPreviewAccess(site: ServingSiteRef) {
+  await mutateServingState(site, () => ({ skip: true, result: undefined }));
 }
 
 /**

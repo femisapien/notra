@@ -71,7 +71,8 @@ export interface GeoJourneyResolution {
   path: string;
 }
 
-export type GeoIngestDropReason = "visitor_type" | "host";
+/** `site`: a Notra Site serves this page and reports it itself. */
+export type GeoIngestDropReason = "visitor_type" | "host" | "site";
 
 export type GeoIngestResult =
   | {

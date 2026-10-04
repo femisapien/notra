@@ -1229,6 +1229,25 @@ export interface GeoIngestIdentity {
   organizationId: string;
   projectId: string | null;
   generation: number;
+  /** Set when a Notra Site reports its own traffic with a site token. */
+  site?: GeoIngestSiteScope;
+}
+
+/** A Notra Site as ingest sees it: who owns it and which hosts it serves. */
+export interface GeoIngestSiteScope {
+  id: string;
+  hosts: string[];
+}
+
+export interface GeoIngestSite extends GeoIngestSiteScope {
+  organizationId: string;
+  projectId: string;
+}
+
+/** Where an organization's sites live, so an SDK event for the same page is not counted twice. */
+export interface GeoIngestSitePrefix {
+  host: string;
+  mounts: string[];
 }
 
 /** Everything needed to install tracking except the token itself. */

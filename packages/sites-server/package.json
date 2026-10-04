@@ -14,6 +14,7 @@
     "@aws-sdk/client-s3": "^3.1136.0",
     "@notra/ai": "workspace:*",
     "@notra/db": "workspace:*",
+    "@notra/geo-core": "workspace:*",
     "@notra/sites-compiler": "workspace:*",
     "@notra/sites-core": "workspace:*",
     "@upstash/box": "^0.5.0",

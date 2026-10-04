@@ -23,6 +23,9 @@ export default {
       dashboardUrl: env.DASHBOARD_URL,
       previewSecret: env.PREVIEW_SECRET,
       devHostOverrideToken: env.DEV_HOST_OVERRIDE_TOKEN ?? null,
+      passwordAttemptLimiter: env.PREVIEW_PASSWORD_LIMITER ?? null,
+      trafficIngestUrl: env.TRAFFIC_INGEST_URL || null,
+      fetch: (url, init) => fetch(url, init),
       waitUntil: (promise) => ctx.waitUntil(promise),
       now: () => new Date(),
     });

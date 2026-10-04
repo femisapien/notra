@@ -18,6 +18,8 @@
   "vars": {
     "HOSTING_DOMAIN": "notra.site",
     "DASHBOARD_URL": "https://app.usenotra.com",
+    // Production page views go to AI traffic analytics (auth: per-site token in state.json).
+    "TRAFFIC_INGEST_URL": "https://ingest.usenotra.com/api/geo/ingest",
   },
   // Secrets: PREVIEW_SECRET (required), DEV_HOST_OVERRIDE_TOKEN (dev only, never in production)
   "env": {
@@ -42,6 +44,8 @@
       "vars": {
         "HOSTING_DOMAIN": "sites.localhost",
         "DASHBOARD_URL": "http://localhost:3000",
+        // Local dashboard ingest; `wrangler dev --var TRAFFIC_INGEST_URL:…` points it elsewhere.
+        "TRAFFIC_INGEST_URL": "http://localhost:3000/api/geo/ingest",
       },
     },
   },

@@ -39,6 +39,10 @@ async function lookupProject(identity: GeoIngestIdentity): Promise<boolean> {
 export async function isGeoIngestIdentityActive(
   identity: GeoIngestIdentity
 ): Promise<boolean> {
+  // A site identity was just resolved from the database (or its short cache).
+  if (identity.site) {
+    return true;
+  }
   const key = identityCacheKey(identity);
   const client = redis;
   // Both reads are independent round trips; the generation still decides first.

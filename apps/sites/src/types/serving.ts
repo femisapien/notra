@@ -10,6 +10,8 @@ export interface ResolvedDeployment {
   siteId: string;
   deploymentId: string;
   isPreview: boolean;
+  /** Production only: previews are never reported as traffic. */
+  trafficToken: string | null;
 }
 
 export interface LoadedManifest {

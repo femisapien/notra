@@ -26,6 +26,8 @@ export const createSiteInputSchema = z.object({
   mounts: siteMountsInputSchema,
   previewVisibility: z.enum(["public", "protected"]).default("protected"),
   publishMode: z.enum(["pull_request", "direct"]).default("pull_request"),
+  /** The project its AI traffic is attributed to; the organization's oldest one when unset. */
+  projectId: z.string().min(1).optional(),
 });
 
 export const updateSiteInputSchema = siteScopeInputSchema.extend({

@@ -84,6 +84,10 @@ async function lookupAllowedHosts(
 export async function loadIngestAllowedHosts(
   identity: GeoIngestIdentity
 ): Promise<string[] | null> {
+  // A site reports only its own pages, never the brand website's.
+  if (identity.site) {
+    return identity.site.hosts;
+  }
   const key = geoIngestHostsCacheKey(
     identity.organizationId,
     identity.projectId

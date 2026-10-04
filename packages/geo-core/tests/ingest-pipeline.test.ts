@@ -9,9 +9,11 @@ const ingestGeoTrafficEvents = mock(
   async (): Promise<typeof STORED | null> => STORED
 );
 const isGeoIngestIdentityActive = mock(async () => true);
-const loadIngestAllowedHosts = mock(async (): Promise<string[] | null> => [
-  "example.com",
-]);
+const loadIngestAllowedHosts = mock(
+  async (_identity?: GeoIngestIdentity): Promise<string[] | null> => [
+    "example.com",
+  ]
+);
 const ratelimitLimit = mock(
   async (): Promise<
     Pick<Awaited<ReturnType<Ratelimit["limit"]>>, "success" | "reason">
@@ -25,6 +27,22 @@ const verifyGeoIngestToken = mock((): GeoIngestIdentity => ({
   projectId: "proj_1",
   generation: 1,
 }));
+const verifyGeoIngestSiteToken = mock((token: string): string | null =>
+  token === "nst.site_1.good" ? "site_1" : null
+);
+const loadIngestSite = mock(async (siteId: string) =>
+  siteId === "site_1"
+    ? {
+        id: "site_1",
+        organizationId: "org_2",
+        projectId: "proj_2",
+        hosts: ["acme.com"],
+      }
+    : null
+);
+const loadOrganizationSitePrefixes = mock(
+  async (): Promise<{ host: string; mounts: string[] }[] | null> => []
+);
 const resolveJourneyId = mock(() => ({ journeyId: "journey_1", path: "/" }));
 
 mock.module("@notra/analytics/tinybird/client", () => ({
@@ -32,6 +50,8 @@ mock.module("@notra/analytics/tinybird/client", () => ({
 }));
 mock.module("@notra/geo-core/geo/ingest", () => ({
   verifyGeoIngestToken,
+  verifyGeoIngestSiteToken,
+  isGeoIngestSiteToken: (token: string) => token.startsWith("nst."),
   getGeoIngestTokenGeneration: async () => 1,
   geoIngestHostsCacheKey: () => "hosts:key",
 }));
@@ -40,6 +60,10 @@ mock.module("../src/ingest/identity", () => ({
 }));
 mock.module("../src/ingest/hosts", () => ({
   loadIngestAllowedHosts,
+}));
+mock.module("../src/ingest/sites", () => ({
+  loadIngestSite,
+  loadOrganizationSitePrefixes,
 }));
 mock.module("../src/ingest/analytics", () => ({
   trackGeoIngestAnalytics,
@@ -65,10 +89,11 @@ function ingestRequest(
     method: "GET",
     url: "https://example.com/",
     userAgent: "GPTBot",
-  }
+  },
+  token = "token_1"
 ) {
   return {
-    headers: new Headers({ authorization: "Bearer token_1" }),
+    headers: new Headers({ authorization: `Bearer ${token}` }),
     json: async () => body,
   } as never;
 }
@@ -104,6 +129,7 @@ describe("runGeoIngest ordering", () => {
     loadIngestAllowedHosts.mockImplementation(async () => ["example.com"]);
     ratelimitLimit.mockImplementation(async () => ({ success: true }));
     ingestGeoTrafficEvents.mockImplementation(async () => STORED);
+    loadOrganizationSitePrefixes.mockImplementation(async () => []);
   });
 
   test("fails instead of acknowledging when Tinybird is not configured", async () => {
@@ -325,5 +351,76 @@ describe("runGeoIngest ordering", () => {
     if (outcome._tag === "Failure") {
       expect(outcome.failure).toBeInstanceOf(GeoIngestUnparseableUrlError);
     }
+  });
+
+  test("a site token ingests under the site's project and only for its host", async () => {
+    // The real lookup answers a site identity with the site's own hosts.
+    loadIngestAllowedHosts.mockImplementation(
+      async (identity?: GeoIngestIdentity) =>
+        identity?.site ? identity.site.hosts : ["example.com"]
+    );
+    const page = {
+      method: "GET",
+      url: "https://acme.com/blog/a",
+      userAgent: "GPTBot",
+    };
+    const outcome = await run(ingestRequest(page, "nst.site_1.good"));
+    expect(outcome).toMatchObject({
+      _tag: "Success",
+      success: {
+        outcome: "ingested",
+        organizationId: "org_2",
+        projectId: "proj_2",
+      },
+    });
+    expect(verifyGeoIngestToken).not.toHaveBeenCalled();
+
+    const elsewhere = await run(
+      ingestRequest({ ...page, url: "https://example.com/" }, "nst.site_1.good")
+    );
+    expect(elsewhere).toMatchObject({
+      _tag: "Success",
+      success: { outcome: "dropped", reason: "host" },
+    });
+  });
+
+  test("a forged or orphaned site token is a 401", async () => {
+    const forged = await run(ingestRequest(undefined, "nst.site_1.bad"));
+    expect(forged._tag === "Failure" && forged.failure).toBeInstanceOf(
+      GeoIngestInvalidTokenError
+    );
+    verifyGeoIngestSiteToken.mockImplementationOnce(() => "site_gone");
+    const orphaned = await run(ingestRequest(undefined, "nst.site_gone.sig"));
+    expect(orphaned._tag === "Failure" && orphaned.failure).toBeInstanceOf(
+      GeoIngestInvalidTokenError
+    );
+  });
+
+  test("the SDK does not count a page a Notra Site already reports", async () => {
+    loadOrganizationSitePrefixes.mockImplementation(async () => [
+      { host: "example.com", mounts: ["/blog"] },
+    ]);
+    const proxied = await run(
+      ingestRequest({
+        method: "GET",
+        url: "https://example.com/blog/a",
+        userAgent: "GPTBot",
+      })
+    );
+    expect(proxied).toMatchObject({
+      _tag: "Success",
+      success: { outcome: "dropped", reason: "site" },
+    });
+    const outside = await run(
+      ingestRequest({
+        method: "GET",
+        url: "https://example.com/blogroll",
+        userAgent: "GPTBot",
+      })
+    );
+    expect(outside).toMatchObject({
+      _tag: "Success",
+      success: { outcome: "ingested" },
+    });
   });
 });

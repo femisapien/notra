@@ -9,6 +9,8 @@ import {
   GEO_INGEST_PATH,
   GEO_INGEST_SECRET_ENV,
   GEO_INGEST_SECRET_FALLBACK_ENV,
+  GEO_INGEST_SITE_TOKEN_PREFIX,
+  GEO_INGEST_SITE_TOKEN_SIGNING_DOMAIN,
   GEO_INGEST_TOKEN_ENV,
   GEO_INGEST_TOKEN_SEPARATOR,
 } from "../constants/geo";
@@ -155,6 +157,60 @@ export function buildGeoIngestToken(
   return `${payload}${GEO_INGEST_TOKEN_SEPARATOR}${signature}`;
 }
 
+function signaturesMatch(signature: string, expected: string): boolean {
+  const signatureBytes = Buffer.from(signature);
+  const expectedBytes = Buffer.from(expected);
+  // Compare byte lengths: a multi-byte signature with the right character
+  // count would otherwise make timingSafeEqual throw.
+  return (
+    signatureBytes.length === expectedBytes.length &&
+    timingSafeEqual(signatureBytes, expectedBytes)
+  );
+}
+
+/**
+ * The token a Notra Site's worker reports its traffic with. It names only the
+ * site: organization and project are looked up at ingest, so moving a site to
+ * another project never needs a new token. It never rotates; deleting the
+ * site is what revokes it.
+ */
+export function buildGeoIngestSiteToken(siteId: string): string | null {
+  const secret = getGeoIngestSecret();
+  if (!secret) {
+    return null;
+  }
+  const signature = sign(
+    `${GEO_INGEST_SITE_TOKEN_SIGNING_DOMAIN}${siteId}`,
+    secret
+  );
+  return `${GEO_INGEST_SITE_TOKEN_PREFIX}${siteId}${GEO_INGEST_TOKEN_SEPARATOR}${signature}`;
+}
+
+export function isGeoIngestSiteToken(token: string): boolean {
+  return token.startsWith(GEO_INGEST_SITE_TOKEN_PREFIX);
+}
+
+/** The site id a site token was issued for, or null when the signature is wrong. */
+export function verifyGeoIngestSiteToken(token: string): string | null {
+  const secret = getGeoIngestSecret();
+  if (!(secret && isGeoIngestSiteToken(token))) {
+    return null;
+  }
+  const body = token.slice(GEO_INGEST_SITE_TOKEN_PREFIX.length);
+  const separatorIndex = body.lastIndexOf(GEO_INGEST_TOKEN_SEPARATOR);
+  if (separatorIndex <= 0) {
+    return null;
+  }
+  const siteId = body.slice(0, separatorIndex);
+  const expected = sign(
+    `${GEO_INGEST_SITE_TOKEN_SIGNING_DOMAIN}${siteId}`,
+    secret
+  );
+  return signaturesMatch(body.slice(separatorIndex + 1), expected)
+    ? siteId
+    : null;
+}
+
 export function verifyGeoIngestToken(token: string): GeoIngestIdentity | null {
   const secret = getGeoIngestSecret();
   if (!secret) {
@@ -168,17 +224,7 @@ export function verifyGeoIngestToken(token: string): GeoIngestIdentity | null {
 
   const payload = token.slice(0, separatorIndex);
   const signature = token.slice(separatorIndex + 1);
-  const expected = sign(payload, secret);
-  const signatureBytes = Buffer.from(signature);
-  const expectedBytes = Buffer.from(expected);
-  // Compare byte lengths: a multi-byte signature with the right character
-  // count would otherwise make timingSafeEqual throw.
-  if (signatureBytes.length !== expectedBytes.length) {
-    return null;
-  }
-
-  const matches = timingSafeEqual(signatureBytes, expectedBytes);
-  if (!matches) {
+  if (!signaturesMatch(signature, sign(payload, secret))) {
     return null;
   }
 

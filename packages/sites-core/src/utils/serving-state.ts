@@ -21,6 +21,9 @@ export function createInitialServingState(
     production: null,
     previews: {},
     removedPreviews: {},
+    previewPassword: null,
+    trafficToken: null,
+    revokedSessions: {},
     updatedAt: params.now.toISOString(),
   };
 }

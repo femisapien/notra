@@ -104,6 +104,24 @@ export const siteServingStateSchema = z.object({
   removedPreviews: z
     .record(z.string(), z.number().int().nonnegative())
     .default({}),
+  /** Lets visitors into protected previews with a password, next to Notra login. */
+  previewPassword: sitePreviewPasswordSchema.nullable().default(null),
+  /** Signed token the worker reports AI traffic with. Null when tracking is unavailable. */
+  trafficToken: z.string().nullable().default(null),
+  /**
+   * userId → when their preview sessions (sign-out, access lost) and share
+   * links (access lost) were revoked, in ms. Tokens issued at or before that
+   * stop working. Entries are pruned once every token they cover has expired.
+   */
+  revokedSessions: z
+    .record(
+      z.string(),
+      z.object({
+        sessions: z.number().int().nonnegative().optional(),
+        shareLinks: z.number().int().nonnegative().optional(),
+      })
+    )
+    .default({}),
   updatedAt: z.string(),
 });
 

@@ -6,6 +6,7 @@ import {
   siteDomains,
   sites,
 } from "@notra/db/schema";
+import { isGeoIngestConfigured } from "@notra/geo-core/geo/ingest";
 import { organizationIdInputSchema } from "@notra/schemas/dashboard/auth/organization";
 import {
   addSiteDomainInputSchema,
@@ -265,6 +266,15 @@ export const sitesRouter = {
         listSiteDrafts(site.id),
       ]);
       const live = liveDeploymentsFromState(state);
+      // Repair: a state.json that lost or missed the password or the traffic
+      // token gets them back.
+      if (
+        state &&
+        (state.previewPassword?.version !== site.previewPassword?.version ||
+          (state.trafficToken === null && isGeoIngestConfigured()))
+      ) {
+        after(() => syncServingPreviewAccess(site));
+      }
       return {
         site: serializeSite(site, state),
         cnameTarget: siteCnameTarget(),

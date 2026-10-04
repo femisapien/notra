@@ -29,7 +29,8 @@ import {
   previewAccessDenied,
 } from "./preview-auth";
 import { html, markdownNotFound, robotsTxt, serveFile } from "./responses";
-import type { ResolvedDeployment } from "./types/serving";
+import { isReportableResponse, reportTraffic } from "./traffic";
+import type { LoadedManifest, ResolvedDeployment } from "./types/serving";
 import type { SitesDeps } from "./types/worker";
 import {
   markdownTwin,
@@ -102,6 +103,7 @@ async function resolveDeployment(
           siteId,
           deploymentId: state.production.deploymentId,
           isPreview: false,
+          trafficToken: state.trafficToken,
         }
       : html(notDeployedPage(), 404);
   }
@@ -132,7 +134,12 @@ async function resolveDeployment(
       return denied;
     }
   }
-  return { siteId, deploymentId: pointer.deploymentId, isPreview: true };
+  return {
+    siteId,
+    deploymentId: pointer.deploymentId,
+    isPreview: true,
+    trafficToken: null,
+  };
 }
 
 async function serveDeployment(
@@ -143,13 +150,56 @@ async function serveDeployment(
   origin: string,
   resolved: ResolvedDeployment
 ): Promise<Response> {
-  const { siteId, deploymentId, isPreview } = resolved;
+  const { siteId, deploymentId, trafficToken } = resolved;
   const loaded = await loadManifest(deps, siteId, deploymentId);
   if (!loaded) {
     throw new StateUnavailableError(
       `Manifest missing for active deployment ${deploymentId}`
     );
   }
+  const response = await serveFromManifest(
+    deps,
+    request,
+    url,
+    host,
+    origin,
+    resolved,
+    loaded
+  );
+  if (
+    trafficToken &&
+    deps.trafficIngestUrl &&
+    request.method === "GET" &&
+    isReportableResponse(response)
+  ) {
+    // Reported under the public origin, so a page proxied from acme.com/blog
+    // counts for acme.com, the same page the SDK would have reported.
+    const { publicOrigin } = loaded.manifest.target;
+    deps.waitUntil(
+      reportTraffic({
+        fetch: deps.fetch,
+        ingestUrl: deps.trafficIngestUrl,
+        token: trafficToken,
+        request,
+        publicUrl: new URL(`${url.pathname}${url.search}`, publicOrigin).href,
+        proxied: new URL(publicOrigin).hostname !== host,
+      })
+    );
+  }
+  return response;
+}
+
+/** Robots, redirects, the file itself, or the area's own 404 page. */
+async function serveFromManifest(
+  deps: SitesDeps,
+  request: Request,
+  url: URL,
+  host: string,
+  origin: string,
+  resolved: ResolvedDeployment,
+  loaded: LoadedManifest
+): Promise<Response> {
+  const { siteId, deploymentId, isPreview } = resolved;
   const path = normalizeRequestPath(url.pathname);
   if (path === null) {
     return html(notFoundPage(), 400);

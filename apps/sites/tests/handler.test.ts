@@ -126,7 +126,15 @@ function setup(state: Partial<SiteServingState> = {}) {
     dashboardUrl: "https://app.example.com",
     previewSecret: SECRET,
     devHostOverrideToken: null,
-    waitUntil: () => undefined,
+    passwordAttemptLimiter: null,
+    trafficIngestUrl: "https://ingest.example.com/api/geo/ingest",
+    fetch: async (url, init) => {
+      reports.push({ url, init });
+      return new Response(null, { status: 202 });
+    },
+    waitUntil: (promise) => {
+      pending.push(promise);
+    },
     now: () => new Date("2026-10-03T12:00:00Z"),
   };
   const request = (url: string, headers: Record<string, string> = {}) =>
@@ -257,6 +265,38 @@ describe("production serving", () => {
     ).text();
     expect(robots).toContain("Allow: /");
     expect(robots).toContain("Sitemap: https://blog.acme.com/blog/sitemap.xml");
+  });
+
+  test("production pages are reported as traffic under the public origin", async () => {
+    const { request, reports, settle } = setup({
+      trafficToken: "nst.site_a.sig",
+    });
+    await request("https://acme.notra.site/blog/post?ref=x", {
+      "user-agent": "GPTBot/1.2",
+      "x-forwarded-for": "203.0.113.9, 10.0.0.1",
+    });
+    await request("https://acme.notra.site/blog/_notra/assets/app.css");
+    await request("https://pr-7--acme.notra.site/blog/");
+    await settle();
+
+    expect(reports).toHaveLength(1);
+    const [report] = reports;
+    expect(report?.url).toBe("https://ingest.example.com/api/geo/ingest");
+    expect(new Headers(report?.init.headers).get("authorization")).toBe(
+      "Bearer nst.site_a.sig"
+    );
+    const payload = JSON.parse(String(report?.init.body));
+    // Proxied from acme.com: the page is acme.com's, the visitor is the forwarded one.
+    expect(payload.url).toBe("https://acme.com/blog/post?ref=x");
+    expect(payload.userAgent).toBe("GPTBot/1.2");
+    expect(payload.ip).toBe("203.0.113.9");
+  });
+
+  test("no traffic token, no report", async () => {
+    const { request, reports, settle } = setup();
+    await request("https://blog.acme.com/blog/");
+    await settle();
+    expect(reports).toHaveLength(0);
   });
 
   test("takedown wins over everything and the state is re-read", async () => {
