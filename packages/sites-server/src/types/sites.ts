@@ -32,6 +32,7 @@ export interface SiteSettingsPatch {
   previewsEnabled?: boolean;
   previewVisibility?: Site["previewVisibility"];
   publishMode?: Site["publishMode"];
+  showBranding?: boolean;
 }
 
 export interface CreateSiteResult {
@@ -47,6 +48,8 @@ export interface BranchPreviewResult {
 export interface UpdateSiteSettingsResult {
   site: Site;
   rebuildJobId: string | null;
+  /** Turning previews off closes every open preview. */
+  previewRemovalJobIds: string[];
 }
 
 export interface SiteCleanupResult {

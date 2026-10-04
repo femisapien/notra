@@ -1,5 +1,7 @@
+import { SITE_CSP_MAX_LENGTH } from "@notra/sites-core/constants/security";
 import {
   SITE_AREAS,
+  SITE_PREVIEW_PASSWORD_ALGORITHM,
   SITE_PREVIEW_VISIBILITIES,
   SITE_STATUSES,
 } from "@notra/sites-core/constants/sites";
@@ -23,6 +25,8 @@ export const siteBuildTargetSchema = z.object({
   mounts: siteMountsSchema,
   /** Previews and direct alias visits must never be indexed. */
   noindex: z.boolean(),
+  /** "Powered by Notra" badge. Deployments from before the setting had it on. */
+  branding: z.boolean().default(true),
 });
 
 export const siteManifestFileSchema = z.object({
@@ -71,6 +75,21 @@ export const sitePreviewPointerSchema = z.object({
   sequence: z.number().int().nonnegative(),
   activatedAt: z.string(),
   expiresAt: z.string().nullable(),
+});
+
+/**
+ * Salted PBKDF2 hash of the preview password; the plain password is never stored.
+ * `version` changes on every set, so sessions from an older password stop working.
+ */
+export const sitePreviewPasswordSchema = z.object({
+  algorithm: z.literal(SITE_PREVIEW_PASSWORD_ALGORITHM),
+  iterations: z.number().int().positive(),
+  /** base64url */
+  salt: z.string().min(1),
+  /** base64url */
+  hash: z.string().min(1),
+  version: z.string().min(1),
+  updatedAt: z.string(),
 });
 
 /** `sites/{siteId}/state.json`, the only object the worker trusts for what to serve. */

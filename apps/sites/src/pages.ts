@@ -1,40 +1,104 @@
+import { SITE_PREVIEW_AUTH_PATH } from "@notra/sites-core/constants/sites";
+
+import {
+  LOCK_ICON_SVG,
+  NOTRA_HOME_URL,
+  NOTRA_MARK_SVG,
+  SYSTEM_PAGE_CSS,
+} from "./constants/pages";
+import type {
+  PreviewGateError,
+  PreviewGatePage,
+  SystemPageContent,
+} from "./types/pages";
 import { escapeHtml } from "./utils/html";
 
-function page(title: string, body: string): string {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(title)}</title><style>:root{color-scheme:light dark}body{margin:0;min-height:100dvh;display:grid;place-items:center;font:16px/1.6 ui-sans-serif,system-ui,sans-serif;background:light-dark(#fafaf9,#0d0d0f);color:light-dark(#18181b,#f2f2f3)}main{max-width:28rem;padding:2rem;text-align:center}h1{font-size:1.4rem;margin:0 0 .5rem;letter-spacing:-.01em}p{margin:0 0 1.25rem;color:light-dark(#5f5f66,#a0a0a8)}a{display:inline-block;padding:.55rem 1rem;border-radius:999px;background:light-dark(#18181b,#f2f2f3);color:light-dark(#fff,#18181b);text-decoration:none;font-weight:500}</style></head><body><main>${body}</main></body></html>`;
+const GATE_ERRORS: Record<PreviewGateError, string> = {
+  wrong_password: "That password isn't right. Try again.",
+  too_many_attempts: "Too many attempts. Wait a minute, then try again.",
+  forbidden:
+    "Your Notra account doesn't have access to this site. Ask for a share link.",
+  invalid_link: "This link has expired or is invalid. Sign in to continue.",
+};
+
+/** Shared shell of every page the worker renders itself: Notra mark top left, one calm centered panel. */
+function page({ title, body }: SystemPageContent): string {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><meta name="referrer" content="same-origin"><title>${escapeHtml(title)}</title><style>${SYSTEM_PAGE_CSS}</style></head><body><header><a class="brand" href="${NOTRA_HOME_URL}" aria-label="Notra">${NOTRA_MARK_SVG}<span>Notra</span></a></header><main><div class="panel">${body}</div></main></body></html>`;
+}
+
+function statusPage(code: string, heading: string, text: string): string {
+  return page({
+    title: heading,
+    body: `<p class="code">${code}</p><h1>${heading}</h1><p>${text}</p>`,
+  });
 }
 
 export function notFoundPage(): string {
-  return page(
-    "Not found",
-    "<h1>Page not found</h1><p>There is nothing at this address.</p>"
+  return statusPage(
+    "404",
+    "Page not found",
+    "There is nothing at this address."
   );
 }
 
 export function notDeployedPage(): string {
-  return page(
-    "Not published yet",
-    "<h1>Nothing published yet</h1><p>This site exists, but its first deployment has not finished.</p>"
+  return statusPage(
+    "404",
+    "Nothing published yet",
+    "This site exists, but its first deployment hasn't finished."
   );
 }
 
 export function unavailablePage(): string {
-  return page(
-    "Unavailable",
-    "<h1>This site is unavailable</h1><p>It has been taken offline.</p>"
+  return statusPage(
+    "410",
+    "This site is unavailable",
+    "It has been taken offline."
   );
 }
 
-export function previewLockedPage(signInUrl: string): string {
-  return page(
-    "Protected preview",
-    `<h1>This preview is private</h1><p>Sign in with an account that has access to this site, or ask for a share link.</p><a href="${escapeHtml(signInUrl)}">Continue with Notra</a>`
+export function previewClosedPage(): string {
+  return statusPage(
+    "410",
+    "This preview is closed",
+    "Its pull request was closed or the preview was deleted. The live site may already have the changes."
   );
 }
 
 export function serviceErrorPage(): string {
-  return page(
+  return statusPage(
+    "503",
     "Temporarily unavailable",
-    "<h1>Temporarily unavailable</h1><p>Please try again in a moment.</p>"
+    "Please try again in a moment."
   );
+}
+
+function passwordForm(next: string, error: PreviewGateError | null): string {
+  const passwordError =
+    error === "wrong_password" || error === "too_many_attempts";
+  const describedBy = passwordError
+    ? ' aria-invalid="true" aria-describedby="password-error"'
+    : "";
+  const message = passwordError
+    ? `<p class="error" id="password-error" role="alert">${GATE_ERRORS[error]}</p>`
+    : "";
+  return `<div class="divider">or</div><form method="post" action="${SITE_PREVIEW_AUTH_PATH}"><input type="hidden" name="next" value="${escapeHtml(next)}"><div><label for="password">Preview password</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128"${describedBy}${passwordError ? " autofocus" : ""}></div>${message}<button class="button secondary" type="submit">Continue with password</button></form>`;
+}
+
+export function previewLockedPage(params: PreviewGatePage): string {
+  const { signInUrl, passwordEnabled, next, error } = params;
+  let notice = "";
+  if (error === "forbidden" && passwordEnabled) {
+    notice = `<p class="notice" role="status">Your Notra account doesn't have access to this site. Enter the preview password or ask for a share link.</p>`;
+  } else if (error === "forbidden" || error === "invalid_link") {
+    notice = `<p class="notice" role="status">${GATE_ERRORS[error]}</p>`;
+  }
+  const lead = passwordEnabled
+    ? "Sign in with a Notra account that has access to this site, or enter the preview password."
+    : "Sign in with a Notra account that has access to this site, or ask for a share link.";
+  const form = passwordEnabled ? passwordForm(next, error) : "";
+  return page({
+    title: "Private preview",
+    body: `<div class="icon">${LOCK_ICON_SVG}</div><h1>This preview is private</h1><p>${lead}</p>${notice}<div class="actions"><a class="button primary" href="${escapeHtml(signInUrl)}"><span class="chip">${NOTRA_MARK_SVG.replace('width="22" height="22"', 'width="14" height="14"')}</span>Continue with Notra</a>${form}</div>`,
+  });
 }

@@ -7,6 +7,14 @@
   "workers_dev": false,
   "observability": { "enabled": true },
   "r2_buckets": [{ "binding": "SITES_BUCKET", "bucket_name": "notra-sites" }],
+  // Preview password attempts: 10 per minute per client IP and preview, per Cloudflare location.
+  "ratelimits": [
+    {
+      "name": "PREVIEW_PASSWORD_LIMITER",
+      "namespace_id": "4101",
+      "simple": { "limit": 10, "period": 60 },
+    },
+  ],
   "vars": {
     "HOSTING_DOMAIN": "notra.site",
     "DASHBOARD_URL": "https://app.usenotra.com",
@@ -22,6 +30,13 @@
           "binding": "SITES_BUCKET",
           "bucket_name": "notra-sites-dev",
           "remote": true,
+        },
+      ],
+      "ratelimits": [
+        {
+          "name": "PREVIEW_PASSWORD_LIMITER",
+          "namespace_id": "4102",
+          "simple": { "limit": 10, "period": 60 },
         },
       ],
       "vars": {

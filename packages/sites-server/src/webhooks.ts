@@ -125,7 +125,7 @@ async function handlePush(payload: PushPayload): Promise<string[]> {
     }
     // Manual branch previews follow their branch: a new commit updates the preview.
     const previewKey = branchPreviewKey(branch, site.slug);
-    if (await isPreviewOpen(site.id, previewKey)) {
+    if (site.previewsEnabled && (await isPreviewOpen(site.id, previewKey))) {
       const jobId = await enqueueOrSkip({
         siteId: site.id,
         kind: "preview",

@@ -2,6 +2,7 @@ import { db } from "@notra/db/drizzle";
 import {
   githubAppInstallations,
   githubIntegrations,
+  projects,
   siteDomains,
   sites,
 } from "@notra/db/schema";
@@ -20,6 +21,7 @@ import {
   sitePreviewAccessInputSchema,
   sitePreviewInputSchema,
   siteScopeInputSchema,
+  siteSetPreviewPasswordInputSchema,
   updateSiteInputSchema,
 } from "@notra/schemas/dashboard/sites";
 import { SITE_R2_KEYS } from "@notra/sites-core/constants/sites";
@@ -64,7 +66,10 @@ import {
   setSiteSuspended,
   updateSiteSettings,
 } from "@notra/sites-server/sites";
-import { readServingState } from "@notra/sites-server/state";
+import {
+  readServingState,
+  syncServingPreviewAccess,
+} from "@notra/sites-server/state";
 import type { Site } from "@notra/sites-server/types/sites";
 import {
   buildTargetForDeployment,
@@ -278,8 +283,18 @@ export const sitesRouter = {
         headers: context.headers,
         organizationId: input.organizationId,
       });
+      const project = input.projectId
+        ? await db.query.projects.findFirst({
+            columns: { id: true },
+            where: and(
+              eq(projects.id, input.projectId),
+              eq(projects.organizationId, input.organizationId)
+            ),
+          })
+        : undefined;
       const result = await createSite({
         organizationId: input.organizationId,
+        projectId: project?.id ?? null,
         userId: access.user.id,
         name: input.name,
         slug: input.slug || undefined,
@@ -310,7 +325,7 @@ export const sitesRouter = {
         ...patch
       } = input;
       const result = await updateSiteSettings(site, patch, userId);
-      dispatchLater([result.rebuildJobId]);
+      dispatchLater([result.rebuildJobId, ...result.previewRemovalJobIds]);
       return {
         site: serializeSite(result.site, await servingState(site.id)),
         rebuilding: Boolean(result.rebuildJobId),
@@ -432,7 +447,7 @@ export const sitesRouter = {
     accessUrl: sitesProcedure
       .input(sitePreviewAccessInputSchema)
       .handler(async ({ context, input }) => {
-        const { site } = await requireSite(context, input);
+        const { site, userId } = await requireSite(context, input);
         const next =
           input.next ?? site.mounts.blog ?? site.mounts.changelog ?? "/";
         return await previewAccessUrl({
@@ -440,7 +455,18 @@ export const sitesRouter = {
           previewKey: input.previewKey,
           next,
           kind: input.kind,
+          userId,
         });
+      }),
+
+    /** Sets, changes (`password`) or removes (`null`) the preview password. Admins only. */
+    setPassword: sitesProcedure
+      .input(siteSetPreviewPasswordInputSchema)
+      .handler(async ({ context, input }) => {
+        assertNotDemo();
+        const { site } = await requireSite(context, input, { admin: true });
+        await setSitePreviewPassword(site, input.password);
+        return { passwordSet: input.password !== null };
       }),
   },
 

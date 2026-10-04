@@ -5,6 +5,7 @@ import type {
   siteManifestFileSchema,
   siteManifestSchema,
   siteMountsSchema,
+  sitePreviewPasswordSchema,
   sitePreviewPointerSchema,
   siteRedirectRuleSchema,
   siteServingPointerSchema,
@@ -28,3 +29,5 @@ export interface SiteMountedArea {
   area: SiteArea;
   mount: string;
 }
+
+export type SitePreviewPassword = z.infer<typeof sitePreviewPasswordSchema>;

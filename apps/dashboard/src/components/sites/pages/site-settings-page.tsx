@@ -1,5 +1,6 @@
 "use client";
 
+import { Folder01Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -9,7 +10,6 @@ import {
   ResponsiveDialogTitle,
 } from "@notra/ui/components/shared/responsive-dialog";
 import { Input } from "@notra/ui/components/ui/input";
-import { Label } from "@notra/ui/components/ui/label";
 import { Switch } from "@notra/ui/components/ui/switch";
 import { TitleCard } from "@notra/ui/components/ui/title-card";
 import { useMutation } from "@tanstack/react-query";
@@ -31,7 +31,6 @@ import {
 } from "@/lib/hooks/use-site-choice-options";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
-import { cn } from "@/lib/utils";
 import type { SiteSettingsFormProps } from "@/types/components/sites";
 import type { SiteSettingsForm as SiteSettingsFormValues } from "@/types/sites";
 import { toErrorMessage } from "@/utils/error-message";
@@ -62,6 +61,7 @@ function SiteSettingsForm({
   const t = useTranslations("sites.settings");
   const tPage = useTranslations("sites.settingsPage");
   const tNew = useTranslations("sites.new");
+  const tSections = useTranslations("sites.sections");
   const tCommon = useTranslations("common");
   const id = useId();
   const invalidateSites = useInvalidateSites();
@@ -121,7 +121,7 @@ function SiteSettingsForm({
   });
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
       <PageHeader description={tPage("description")} title={tPage("title")} />
       <form
         className="space-y-6"
@@ -133,9 +133,8 @@ function SiteSettingsForm({
         }}
       >
         <TitleCard as="section" heading={t("general")} headingAs="h2">
-          <div className="grid gap-4 py-1 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor={`${id}-name`}>{tNew("name")}</Label>
+          <div className="divide-border divide-y">
+            <SiteSettingsRow htmlFor={`${id}-name`} label={tNew("name")}>
               <Input
                 id={`${id}-name`}
                 maxLength={80}
@@ -166,80 +165,98 @@ function SiteSettingsForm({
               <Input
                 aria-describedby={`${id}-root-hint`}
                 id={`${id}-root`}
-                onChange={(event) =>
-                  update("rootDirectory", event.target.value)
-                }
+                onValueChange={(value) => update("rootDirectory", value)}
                 placeholder={tNew("rootDirectoryPlaceholder")}
                 spellCheck={false}
                 value={form.rootDirectory}
               />
-              <p
-                className="text-muted-foreground text-xs"
-                id={`${id}-root-hint`}
-              >
-                {tNew("rootDirectoryHint")}
-              </p>
-            </div>
+            </SiteSettingsRow>
           </div>
         </TitleCard>
 
         <TitleCard as="section" heading={t("content")} headingAs="h2">
-          <div className="space-y-2 py-1">
-            <SiteSectionsFields
-              blogEnabled={form.blogEnabled}
-              blogPath={form.blogPath}
-              changelogEnabled={form.changelogEnabled}
-              changelogPath={form.changelogPath}
-              idPrefix={id}
-              onBlogEnabledChange={(value) => update("blogEnabled", value)}
-              onBlogPathChange={(value) => update("blogPath", value)}
-              onChangelogEnabledChange={(value) =>
-                update("changelogEnabled", value)
-              }
-              onChangelogPathChange={(value) => update("changelogPath", value)}
-            />
-            <p className="text-muted-foreground text-xs">{t("rebuildHint")}</p>
+          <div className="divide-border divide-y">
+            <SiteSettingsRow
+              description={tPage("sectionsHint")}
+              label={tSections("title")}
+            >
+              <SiteSectionsFields
+                blogEnabled={form.blogEnabled}
+                blogPath={form.blogPath}
+                changelogEnabled={form.changelogEnabled}
+                changelogPath={form.changelogPath}
+                hideTitle
+                idPrefix={id}
+                onBlogEnabledChange={(value) => update("blogEnabled", value)}
+                onBlogPathChange={(value) => update("blogPath", value)}
+                onChangelogEnabledChange={(value) =>
+                  update("changelogEnabled", value)
+                }
+                onChangelogPathChange={(value) =>
+                  update("changelogPath", value)
+                }
+              />
+            </SiteSettingsRow>
           </div>
         </TitleCard>
 
         <TitleCard as="section" heading={t("previews")} headingAs="h2">
-          <div className="space-y-4 py-1">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-0.5">
-                <label
-                  className="text-sm font-medium"
-                  htmlFor={`${id}-previews`}
-                >
-                  {t("previewsEnabled")}
-                </label>
-                <p className="text-muted-foreground text-xs">
-                  {t("previewsEnabledHint")}
-                </p>
+          <div className="divide-border divide-y">
+            <SiteSettingsRow
+              description={t("previewsEnabledHint")}
+              htmlFor={`${id}-previews`}
+              label={t("previewsEnabled")}
+            >
+              <div className="flex lg:pt-1.5">
+                <Switch
+                  checked={form.previewsEnabled}
+                  id={`${id}-previews`}
+                  onCheckedChange={(value) => update("previewsEnabled", value)}
+                />
               </div>
-              <Switch
-                checked={form.previewsEnabled}
-                id={`${id}-previews`}
-                onCheckedChange={(value) => update("previewsEnabled", value)}
+            </SiteSettingsRow>
+            <SiteSettingsRow label={tNew("previewVisibility")}>
+              <SiteChoiceGroup
+                disabled={!form.previewsEnabled}
+                hideLabel
+                label={tNew("previewVisibility")}
+                onValueChange={(value) => update("previewVisibility", value)}
+                options={visibilityOptions}
+                value={form.previewVisibility}
               />
-            </div>
-            <SiteChoiceGroup
-              disabled={!form.previewsEnabled}
-              label={tNew("previewVisibility")}
-              onValueChange={(value) => update("previewVisibility", value)}
-              options={visibilityOptions}
-              value={form.previewVisibility}
-            />
+            </SiteSettingsRow>
           </div>
         </TitleCard>
 
         <TitleCard as="section" heading={t("publishing")} headingAs="h2">
-          <div className="py-1">
-            <SiteChoiceGroup
-              label={tNew("publishMode")}
-              onValueChange={(value) => update("publishMode", value)}
-              options={publishModeOptions}
-              value={form.publishMode}
-            />
+          <div className="divide-border divide-y">
+            <SiteSettingsRow label={tNew("publishMode")}>
+              <SiteChoiceGroup
+                hideLabel
+                label={tNew("publishMode")}
+                onValueChange={(value) => update("publishMode", value)}
+                options={publishModeOptions}
+                value={form.publishMode}
+              />
+            </SiteSettingsRow>
+          </div>
+        </TitleCard>
+
+        <TitleCard as="section" heading={tPage("branding")} headingAs="h2">
+          <div className="divide-border divide-y">
+            <SiteSettingsRow
+              description={tPage("brandingHint")}
+              htmlFor={`${id}-branding`}
+              label={tPage("brandingLabel")}
+            >
+              <div className="flex lg:pt-1.5">
+                <Switch
+                  checked={form.showBranding}
+                  id={`${id}-branding`}
+                  onCheckedChange={(value) => update("showBranding", value)}
+                />
+              </div>
+            </SiteSettingsRow>
           </div>
         </TitleCard>
 

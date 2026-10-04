@@ -20,17 +20,20 @@ export function normalizeBuildTarget(target: SiteBuildTarget): SiteBuildTarget {
     publicOrigin: origin,
     mounts: normalizeSiteMounts(target.mounts),
     noindex: target.noindex,
+    branding: target.branding !== false,
   };
 }
 
-/** Same hash = same URLs, so a rollback to that deployment keeps canonicals, feeds and assets valid. */
+/** Same hash = same URLs and footer branding, so a rollback to that deployment keeps canonicals, feeds and assets valid. */
 export async function hashBuildTarget(
   target: SiteBuildTarget
 ): Promise<string> {
-  const normalized = normalizeBuildTarget(target);
+  const { branding, ...normalized } = normalizeBuildTarget(target);
+  // Only the non-default branding value enters the hash, so deployments from before the setting stay restorable.
+  const hashed = branding ? normalized : { ...normalized, branding };
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(stableStringify(normalized))
+    new TextEncoder().encode(stableStringify(hashed))
   );
   return [...new Uint8Array(digest)]
     .map((byte) => byte.toString(16).padStart(2, "0"))

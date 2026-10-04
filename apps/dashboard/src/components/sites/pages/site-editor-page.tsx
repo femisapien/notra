@@ -90,9 +90,6 @@ export function SiteEditorPage() {
   );
   const selectedPath =
     selectedParam && editablePaths.has(selectedParam) ? selectedParam : null;
-  const selectedDraft = selectedPath
-    ? drafts.find((draft) => draft.path === selectedPath)
-    : undefined;
   const draftCount = data ? drafts.length : detail.draftCount;
   const mountedFolders = SITE_NEW_FILE_FOLDERS.filter((folder) =>
     Boolean(site.mounts[folder])
@@ -257,10 +254,6 @@ export function SiteEditorPage() {
       <SiteEditorPane
         baseCommitSha={data?.commitSha ?? null}
         diagnostics={fileDiagnostics}
-        draftUpdatedAt={
-          selectedDraft ? new Date(selectedDraft.updatedAt) : null
-        }
-        hasConflict={conflicts.includes(selectedPath)}
         jump={jump?.path === selectedPath ? jump : null}
         key={`${selectedPath}:${editorEpoch}`}
         onDraftChange={applyDraftChange}
@@ -368,9 +361,12 @@ export function SiteEditorPage() {
         />
       ) : null}
 
-      <div className="border-shell-border bg-shell flex h-[calc(100dvh-15.5rem)] min-h-[28rem] flex-col rounded-2xl border p-0.5">
+      <div
+        className="border-shell-border bg-shell flex min-h-[28rem] flex-1 basis-0 flex-col rounded-2xl border p-0.5"
+        data-site-editor=""
+      >
         <div className="flex min-h-0 flex-1 gap-0.5">
-          <aside className="hidden w-60 shrink-0 flex-col md:flex lg:w-64">
+          <aside className="hidden w-60 shrink-0 flex-col md:flex lg:w-72">
             {fileTree}
           </aside>
           <div className="bg-background shadow-lift flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[14px] border">

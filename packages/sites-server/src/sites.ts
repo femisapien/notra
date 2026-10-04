@@ -233,6 +233,9 @@ export async function createBranchPreview(
   branch: string,
   userId: string
 ): Promise<BranchPreviewResult> {
+  if (!site.previewsEnabled) {
+    throw new SiteInputError("Previews are turned off for this site");
+  }
   if (branch === site.productionBranch) {
     throw new SiteInputError("The production branch is already deployed live");
   }
@@ -315,7 +318,7 @@ export async function rollbackToDeployment(
   });
   if ((await hashBuildTarget(currentTarget)) !== target.configHash) {
     throw new SiteInputError(
-      "This deployment was built for a different domain or path. Redeploy its commit instead."
+      "This deployment was built for a different domain, path or branding setting. Redeploy its commit instead."
     );
   }
   if ((await restoreProductionDeployment(site, target)) !== "live") {
@@ -374,6 +377,9 @@ export async function updateSiteSettings(
   if (patch.publishMode !== undefined) {
     values.publishMode = patch.publishMode;
   }
+  if (patch.showBranding !== undefined) {
+    values.showBranding = patch.showBranding;
+  }
   const [updated] = await db
     .update(sites)
     .set(values)
@@ -388,18 +394,24 @@ export async function updateSiteSettings(
   ) {
     await setServingPreviewVisibility(updated, patch.previewVisibility);
   }
-  // Path, branch or root changes need a new build. The current release stays live until it succeeds.
+  // Path, branch, root or branding changes need a new build. The current release stays live until it succeeds.
   const needsRebuild =
     (values.mounts &&
       JSON.stringify(values.mounts) !== JSON.stringify(site.mounts)) ||
     (values.productionBranch &&
       values.productionBranch !== site.productionBranch) ||
     (values.rootDirectory !== undefined &&
-      values.rootDirectory !== site.rootDirectory);
+      values.rootDirectory !== site.rootDirectory) ||
+    (values.showBranding !== undefined &&
+      values.showBranding !== site.showBranding);
   const rebuildJobId = needsRebuild
     ? await deployBranchHead(updated, { trigger: "config", userId })
     : null;
-  return { site: updated, rebuildJobId };
+  const previewRemovalJobIds =
+    site.previewsEnabled && !updated.previewsEnabled
+      ? await closeAllPreviews(updated)
+      : [];
+  return { site: updated, rebuildJobId, previewRemovalJobIds };
 }
 
 /** Switches the canonical origin (verified domain) and rebuilds; the old release serves until the new one is live. */

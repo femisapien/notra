@@ -15,12 +15,11 @@ import { cn } from "@/lib/utils";
 import type { SiteFileDiffProps } from "@/types/components/site-editor";
 import { siteCodeThemeType } from "@/utils/site-editor";
 
-/** One file's draft against its published version, rendered by Pierre. */
+/** One file's draft against its published version, stacked, rendered by Pierre. */
 export function SiteFileDiff({
   path,
   before,
   after,
-  diffStyle,
   className,
 }: SiteFileDiffProps) {
   const { resolvedTheme } = useTheme();
@@ -36,7 +35,7 @@ export function SiteFileDiff({
     () => ({
       theme: SITE_CODE_THEME,
       themeType: siteCodeThemeType(resolvedTheme),
-      diffStyle,
+      diffStyle: "unified",
       disableFileHeader: true,
       overflow: "wrap",
       hunkSeparators: "line-info-basic",
@@ -44,7 +43,7 @@ export function SiteFileDiff({
       lineDiffType: "word",
       unsafeCSS: SITE_CODE_DIFF_CSS,
     }),
-    [diffStyle, resolvedTheme]
+    [resolvedTheme]
   );
 
   return (

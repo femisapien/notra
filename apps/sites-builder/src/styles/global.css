@@ -216,11 +216,79 @@
     padding: 0;
   }
 
+  .btn-sm {
+    height: 1.875rem;
+    padding: 0 0.75rem;
+    border-radius: 0.625rem;
+    font-size: 0.8125rem;
+  }
+
   @supports (corner-shape: squircle) {
     .btn {
       corner-shape: squircle;
       border-radius: 0.75rem;
     }
+
+    .btn-sm {
+      border-radius: 0.625rem;
+    }
+  }
+}
+
+/* Mobile navbar menu: a popover sheet that drops from under the header (light dismiss + Esc built in). */
+.site-menu {
+  position: fixed;
+  inset: 3.5rem 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+  background: var(--page-background);
+  color: var(--foreground);
+  box-shadow: 0 16px 24px -16px rgb(0 0 0 / 0.12);
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 150ms ease-out,
+    transform 150ms ease-out,
+    overlay 150ms allow-discrete,
+    display 150ms allow-discrete;
+}
+
+.site-menu:not(:popover-open) {
+  opacity: 0;
+  transform: translateY(-0.25rem);
+}
+
+@starting-style {
+  .site-menu:popover-open {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+}
+
+.site-menu::backdrop {
+  background: transparent;
+}
+
+.site-menu-close,
+[data-site-header]:has(.site-menu:popover-open) .site-menu-open {
+  display: none;
+}
+
+[data-site-header]:has(.site-menu:popover-open) .site-menu-close {
+  display: block;
+}
+
+[data-site-header]:has(.site-menu:popover-open) {
+  border-bottom-color: var(--border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-menu {
+    transition: none;
   }
 }
 

@@ -1,15 +1,13 @@
 "use client";
 
 import {
+  Alert02Icon,
   ArrowDown01Icon,
   ArrowUpRight01Icon,
   Copy01Icon,
   Delete02Icon,
   GithubIcon,
-  LayoutTwoColumnIcon,
-  Loading03Icon,
   MoreHorizontalIcon,
-  LayoutTwoRowIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -20,94 +18,36 @@ import {
   DropdownMenuTrigger,
 } from "@notra/ui/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@notra/ui/components/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@notra/ui/components/ui/tooltip";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Fragment } from "react";
 
 import { Button } from "@/components/button";
-import { SITE_EDITOR_SAVED_TICK_MS } from "@/constants/site-editor";
-import { useNow } from "@/lib/hooks/use-now";
 import { cn } from "@/lib/utils";
 import type {
-  SiteEditorDraftChipProps,
   SiteEditorFileBarProps,
+  SiteEditorSaveErrorProps,
 } from "@/types/components/site-editor";
 import type { SiteEditorMode } from "@/types/site-editor";
 import { copyTextToClipboard } from "@/utils/copy-to-clipboard";
-import { formatRelative } from "@/utils/format-relative";
 import { siteFileGithubUrl, siteFileLiveUrl } from "@/utils/site-editor";
 
-function SiteEditorDraftChip({
-  saveState,
-  savedAt,
-  hasDraft,
-  hasConflict,
-  isNewFile,
-}: SiteEditorDraftChipProps) {
+/** Autosave is silent; only a failed save speaks up. */
+function SiteEditorSaveError({ error }: SiteEditorSaveErrorProps) {
   const t = useTranslations("sites.editorPage.state");
-  const tCommon = useTranslations("common");
-  const locale = useLocale();
-  const showsTime = saveState.status === "saved" || saveState.status === "idle";
-  const now = useNow(showsTime && savedAt !== null, SITE_EDITOR_SAVED_TICK_MS);
-
-  let dot = "bg-muted-foreground/40";
-  let label = t("published");
-  let spinning = false;
-  if (hasConflict) {
-    dot = "bg-destructive";
-    label = t("conflict");
-  } else if (saveState.status === "error") {
-    dot = "bg-destructive";
-    label = t("error");
-  } else if (saveState.status === "saving") {
-    spinning = true;
-    label = t("saving");
-  } else if (saveState.status === "dirty") {
-    dot = "bg-warning/50 ring-1 ring-warning";
-    label = t("unsaved");
-  } else if (hasDraft || isNewFile) {
-    dot = isNewFile ? "bg-success" : "bg-warning";
-    const kind = isNewFile ? t("newFile") : t("draft");
-    label = savedAt
-      ? t("savedAgo", {
-          kind,
-          time: formatRelative(
-            savedAt.toISOString(),
-            locale,
-            tCommon("labels.justNow").toLocaleLowerCase(locale),
-            now
-          ),
-        })
-      : kind;
-  }
-
   return (
     <span
-      aria-live="polite"
-      className={cn(
-        "text-muted-foreground inline-flex min-w-0 items-center gap-1.5 text-xs whitespace-nowrap",
-        (hasConflict || saveState.status === "error") && "text-destructive"
-      )}
-      title={saveState.status === "error" ? saveState.error : label}
+      className="text-destructive inline-flex min-w-0 shrink-0 items-center gap-1 text-xs whitespace-nowrap"
+      role="alert"
+      title={error}
     >
-      {spinning ? (
-        <HugeiconsIcon
-          aria-hidden="true"
-          className="shrink-0 motion-safe:animate-spin"
-          icon={Loading03Icon}
-          size={12}
-        />
-      ) : (
-        <span
-          aria-hidden="true"
-          className={cn("size-1.5 shrink-0 rounded-full", dot)}
-        />
-      )}
-      <span className="sr-only truncate lg:not-sr-only">{label}</span>
+      <HugeiconsIcon
+        aria-hidden="true"
+        className="shrink-0"
+        icon={Alert02Icon}
+        size={13}
+        strokeWidth={1.5}
+      />
+      <span className="sr-only sm:not-sr-only">{t("error")}</span>
     </span>
   );
 }
@@ -117,14 +57,10 @@ export function SiteEditorFileBar({
   path,
   document,
   saveState,
-  savedAt,
   hasDraft,
-  hasConflict,
   isDiscarding,
   mode,
-  diffStyle,
   onModeChange,
-  onDiffStyleChange,
   onDiscard,
   onOpenFilePicker,
 }: SiteEditorFileBarProps) {
@@ -138,7 +74,6 @@ export function SiteEditorFileBar({
       : null;
   const githubUrl = isNewFile ? null : siteFileGithubUrl(site, path);
   const canDiscard = hasDraft || isNewFile;
-  const nextDiffStyle = diffStyle === "split" ? "unified" : "split";
 
   const breadcrumb = (
     <span className="flex min-w-0 items-center gap-1 truncate text-[13px]">
@@ -189,41 +124,11 @@ export function SiteEditorFileBar({
         >
           {breadcrumb}
         </div>
-        <SiteEditorDraftChip
-          hasConflict={hasConflict}
-          hasDraft={hasDraft}
-          isNewFile={isNewFile}
-          savedAt={savedAt}
-          saveState={saveState}
-        />
+        {saveState.status === "error" ? (
+          <SiteEditorSaveError error={saveState.error} />
+        ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        {mode === "changes" ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  aria-label={t(`diffStyle.${nextDiffStyle}`)}
-                  className="text-muted-foreground hidden sm:inline-flex"
-                  onClick={() => onDiffStyleChange(nextDiffStyle)}
-                  size="icon-sm"
-                  variant="ghost"
-                />
-              }
-            >
-              <HugeiconsIcon
-                icon={
-                  nextDiffStyle === "split"
-                    ? LayoutTwoColumnIcon
-                    : LayoutTwoRowIcon
-                }
-                size={15}
-                strokeWidth={1.5}
-              />
-            </TooltipTrigger>
-            <TooltipContent>{t(`diffStyle.${nextDiffStyle}`)}</TooltipContent>
-          </Tooltip>
-        ) : null}
         <Tabs
           onValueChange={(value) => onModeChange(value as SiteEditorMode)}
           value={mode}

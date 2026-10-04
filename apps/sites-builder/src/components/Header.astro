@@ -1,6 +1,7 @@
 ---
 import { areaHref, config, href, params } from "../lib/params";
 import { logoFor } from "../lib/theme";
+import Icon from "./Icon.astro";
 import ThemeToggle from "./ThemeToggle.astro";
 
 const lightLogo = logoFor("light");
@@ -9,54 +10,111 @@ const logoHref = typeof config.logo === "object" && config.logo.href ? config.lo
 const sections = (["blog", "changelog"] as const)
   .map((area) => ({ area, label: area === "blog" ? "Blog" : "Changelog", href: areaHref(area), active: area === params.area }))
   .filter((section) => section.href !== null);
+const { links, cta } = config.navbar;
+// Below `md` the external links and the CTA move into a menu; the sections always stay visible.
+const hasMenu = links.length > 0 || Boolean(cta);
 ---
 
-<header class="sticky top-0 z-30 border-b border-border bg-[color-mix(in_oklab,var(--page-background)_85%,transparent)] backdrop-blur-md">
-  <div class="flex h-14 w-full items-center gap-5 px-5 sm:px-6">
-    <a href={logoHref} class="flex min-w-0 shrink-0 items-center gap-2 text-sm font-semibold">
+<header
+  data-site-header
+  class="sticky top-0 z-30 border-b border-transparent bg-[color-mix(in_oklab,var(--page-background)_88%,transparent)] backdrop-blur-lg transition-[border-color] duration-200 ease-out data-scrolled:border-border"
+>
+  <div class="flex h-14 w-full items-center gap-3 px-5 sm:px-6">
+    <a href={logoHref} class="flex min-w-0 items-center gap-2.5 rounded-md text-[0.9375rem] font-semibold tracking-[-0.01em]">
       {
         lightLogo && (
           <>
-            <img src={lightLogo} alt="" width="20" height="20" class="size-5 rounded object-contain dark:hidden" />
-            <img src={darkLogo ?? lightLogo} alt="" width="20" height="20" class="hidden size-5 rounded object-contain dark:block" />
+            <img src={lightLogo} alt="" width="24" height="24" class="size-6 shrink-0 rounded-md object-contain dark:hidden" />
+            <img src={darkLogo ?? lightLogo} alt="" width="24" height="24" class="hidden size-6 shrink-0 rounded-md object-contain dark:block" />
           </>
         )
       }
-      <span class="truncate">{config.name}</span>
+      <span class="truncate" title={config.name}>{config.name}</span>
     </a>
 
     {
       sections.length > 1 && (
-        <nav aria-label="Sections" class="flex items-center gap-4 text-sm">
-          {sections.map((section) => (
-            <a
-              href={section.href}
-              aria-current={section.active ? "page" : undefined}
-              class:list={["transition-colors", section.active ? "text-foreground" : "text-muted-foreground hover:text-foreground"]}
-            >
-              {section.label}
-            </a>
-          ))}
-        </nav>
+        <>
+          <span aria-hidden="true" class="h-4 w-px shrink-0 bg-border" />
+          <nav aria-label="Sections" class="-ml-1 flex shrink-0 items-center gap-0.5 text-sm">
+            {sections.map((section) => (
+              <a
+                href={section.href}
+                aria-current={section.active ? "page" : undefined}
+                class:list={[
+                  "flex h-7 items-center rounded-full px-2.5 transition-colors duration-150 ease-out",
+                  section.active ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                ]}
+              >
+                {section.label}
+              </a>
+            ))}
+          </nav>
+        </>
       )
     }
 
-    <nav aria-label="Main" class="ml-auto flex items-center gap-4 text-sm">
+    <div class="ml-auto flex shrink-0 items-center gap-1">
       {
-        config.navbar.links.map((link) => (
-          <a href={link.href} class="hidden text-muted-foreground transition-colors hover:text-foreground md:inline">
-            {link.label}
-          </a>
-        ))
+        links.length > 0 && (
+          <nav aria-label="Main" class="mr-2 hidden items-center gap-5 text-sm md:flex">
+            {links.map((link) => (
+              <a href={link.href} class="text-muted-foreground transition-colors duration-150 ease-out hover:text-foreground">
+                {link.label}
+              </a>
+            ))}
+          </nav>
+        )
       }
       <ThemeToggle />
       {
-        config.navbar.cta && (
-          <a href={config.navbar.cta.href} class="btn btn-primary">
-            {config.navbar.cta.label}
+        cta && (
+          <a href={cta.href} class="btn btn-primary btn-sm ml-2 hidden md:inline-flex">
+            {cta.label}
           </a>
         )
       }
-    </nav>
+      {
+        hasMenu && (
+          <button type="button" popovertarget="site-menu" aria-label="Menu" class="btn btn-ghost btn-icon md:hidden">
+            <Icon name="menu" size={16} class="site-menu-open" />
+            <Icon name="close" size={16} class="site-menu-close" />
+          </button>
+        )
+      }
+    </div>
   </div>
+
+  {
+    hasMenu && (
+      <div id="site-menu" popover class="site-menu md:hidden">
+        <nav aria-label="Main" class="flex flex-col px-5 py-2 sm:px-6">
+          {links.map((link) => (
+            <a href={link.href} class="flex h-11 items-center border-b border-border text-[0.9375rem] last:border-b-0">
+              {link.label}
+            </a>
+          ))}
+        </nav>
+        {
+          cta && (
+            <div class="px-5 pt-1 pb-4 sm:px-6">
+              <a href={cta.href} class="btn btn-primary w-full justify-center">
+                {cta.label}
+              </a>
+            </div>
+          )
+        }
+      </div>
+    )
+  }
 </header>
+
+<script>
+  // The hairline only appears once content scrolls under the header.
+  const header = document.querySelector<HTMLElement>("[data-site-header]");
+  if (header) {
+    const sync = () => header.toggleAttribute("data-scrolled", window.scrollY > 4);
+    window.addEventListener("scroll", sync, { passive: true });
+    sync();
+  }
+</script>

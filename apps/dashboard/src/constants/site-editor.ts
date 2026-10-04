@@ -34,9 +34,6 @@ export const SITE_FILE_TREE_SKELETON_ROWS = [
   "w-1/3",
 ] as const;
 
-/** How the "saved 3s ago" label refreshes. */
-export const SITE_EDITOR_SAVED_TICK_MS = 5000;
-
 /** Namespace for Pierre's in-memory undo history, one entry per site file. */
 export const SITE_EDITOR_EDIT_STATE_PREFIX = "notra-site";
 
@@ -142,6 +139,9 @@ ${SITE_CODE_BASE_CSS}
 /**
  * The tree renders in a shadow root too. Rows take the house look: quiet labels, the
  * open file lifted onto the background like a selected tab, and one dot for drafts.
+ * Pierre's focus ring is gone: the keyboard cursor is a background tint, shown only
+ * while focus is inside the tree (typing in the filter leaves every row calm).
+ * Names end in a plain ellipsis; Pierre's middle truncation misfires on some widths.
  */
 export const SITE_FILE_TREE_CSS = `
 :host {
@@ -151,8 +151,8 @@ export const SITE_FILE_TREE_CSS = `
   --trees-bg-muted-override: color-mix(in oklab, var(--background) 60%, transparent);
   --trees-selected-bg-override: var(--background);
   --trees-selected-fg-override: var(--foreground);
-  --trees-selected-focused-border-color-override: var(--shell-border);
-  --trees-focus-ring-color-override: var(--ring);
+  --trees-focus-ring-color-override: transparent;
+  --trees-selected-focused-border-color-override: transparent;
   --trees-border-color-override: var(--shell-border);
   --trees-indent-guide-bg-override: transparent;
   --trees-font-family-override: var(--font-inter);
@@ -166,8 +166,24 @@ export const SITE_FILE_TREE_CSS = `
   --trees-status-modified-override: var(--warning);
   --trees-file-icon-color: color-mix(in oklab, var(--muted-foreground) 80%, transparent);
 }
+button[data-type='item']::before {
+  content: none;
+}
 button[data-type='item'][data-item-selected] {
   box-shadow: 0 0 0 1px var(--shell-border), 0 1px 2px rgb(0 0 0 / 0.05);
+}
+:host(:focus-within) button[data-type='item'][data-item-focused]:not([data-item-selected]) {
+  background-color: color-mix(in oklab, var(--foreground) 7%, transparent);
+}
+[data-item-section='content'] {
+  white-space: nowrap;
+}
+[data-item-section='content'] :is(div, span) {
+  display: inline;
+  direction: ltr;
+}
+[data-item-section='content'] :is([data-truncate-content='overflow'], [data-truncate-marker-cell], [data-truncate-fill]) {
+  display: none;
 }
 [data-item-git-status] > [data-item-section='content'] {
   color: inherit;

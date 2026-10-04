@@ -5,9 +5,9 @@ import Icon from "./Icon.astro";
 
 {
   !config.appearance.strict && (
-    <button type="button" data-theme-toggle class="text-muted-foreground transition-colors hover:text-foreground" aria-label="Toggle dark mode">
-      <Icon name="sun" size={15} class="dark:hidden" />
-      <Icon name="moon" size={15} class="hidden dark:block" />
+    <button type="button" data-theme-toggle class="btn btn-ghost btn-icon" aria-label="Toggle dark mode">
+      <Icon name="sun" size={16} class="dark:hidden" />
+      <Icon name="moon" size={16} class="hidden dark:block" />
     </button>
   )
 }

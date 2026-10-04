@@ -36,6 +36,7 @@ export const updateSiteInputSchema = siteScopeInputSchema.extend({
   previewsEnabled: z.boolean().optional(),
   previewVisibility: z.enum(["public", "protected"]).optional(),
   publishMode: z.enum(["pull_request", "direct"]).optional(),
+  showBranding: z.boolean().optional(),
 });
 
 export const setSiteSuspendedInputSchema = siteScopeInputSchema.extend({
@@ -62,6 +63,11 @@ export const sitePreviewInputSchema = siteScopeInputSchema.extend({
 export const sitePreviewAccessInputSchema = sitePreviewInputSchema.extend({
   kind: z.enum(["member", "share"]).default("member"),
   next: z.string().max(500).optional(),
+});
+
+/** `null` removes the password; previews then open with Notra login and share links only. */
+export const siteSetPreviewPasswordInputSchema = siteScopeInputSchema.extend({
+  password: z.string().min(8).max(128).nullable(),
 });
 
 export const addSiteDomainInputSchema = siteScopeInputSchema.extend({

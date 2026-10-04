@@ -42,9 +42,13 @@ export interface BuildParams {
   deploymentId: string;
   noindex: boolean;
   includeDrafts: boolean;
+  /** "Powered by Notra" badge in the footer (site setting). */
+  branding: boolean;
   workDir: string;
   publicFiles: string[];
   /** Mounts of every area, for cross-links between blog and changelog. */
   mounts: { blog?: string; changelog?: string };
   config: SiteThemeConfig;
+  /** Rendered as-is at the end of `<head>`; inline code is already escaped. */
+  headScripts: HeadScript[];
 }

@@ -15,6 +15,7 @@ import {
   updateMembershipRoleInWorkOS,
 } from "@/lib/organizations/workos-sync";
 import { authorizedProcedure } from "@/lib/orpc/base";
+import { revokeSitePreviewAccess } from "@/lib/sites/preview-revocation";
 import {
   deleteOrganizationChatFiles,
   deleteOrganizationFiles,
@@ -209,6 +210,7 @@ export const userRouter = {
           await Effect.runPromise(
             removeMembershipFromWorkOS(input.organizationId, context.user.id)
           );
+          await revokeSitePreviewAccess(input.organizationId, context.user.id);
         }
 
         if (shouldCleanupDeletedOrganization) {
@@ -334,6 +336,7 @@ export const userRouter = {
           await Effect.runPromise(
             removeMembershipFromWorkOS(transfer.orgId, context.user.id)
           );
+          await revokeSitePreviewAccess(transfer.orgId, context.user.id);
         } else {
           await Effect.runPromise(
             deleteOrganizationFromWorkOS(outcome.workosOrgId)

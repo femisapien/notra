@@ -217,6 +217,26 @@ export function siteFileTreeFolderHandle(
   return item && "expand" in item ? item : null;
 }
 
+/**
+ * Moves real focus onto a row inside Pierre's shadow root, so the tree's own keyboard
+ * handling (arrows, Enter, Escape) takes over from the filter input.
+ */
+export function focusSiteFileTreeRow(
+  model: FileTreeModel,
+  path: string
+): boolean {
+  const row = model
+    .getFileTreeContainer()
+    ?.shadowRoot?.querySelector<HTMLElement>(
+      `button[data-item-path="${CSS.escape(path)}"]`
+    );
+  if (!row) {
+    return false;
+  }
+  row.focus();
+  return true;
+}
+
 function isSiteFolderCollapsedByDefault(folder: string): boolean {
   return SITE_EDITOR_COLLAPSED_FOLDERS.some(
     (collapsed) => folder === collapsed || folder.startsWith(`${collapsed}/`)

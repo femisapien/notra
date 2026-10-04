@@ -54,6 +54,8 @@ export interface SiteSectionsFieldsProps {
   onChangelogEnabledChange: (value: boolean) => void;
   onBlogPathChange: (value: string) => void;
   onChangelogPathChange: (value: string) => void;
+  /** Hides the "Sections" heading when a surrounding row already labels the fields. */
+  hideTitle?: boolean;
 }
 
 export interface SiteSectionRowProps {
@@ -72,6 +74,16 @@ export interface SiteChoiceGroupProps<T extends string> {
   options: SiteChoiceOption<T>[];
   onValueChange: (value: T) => void;
   disabled?: boolean;
+  /** Keeps the label for screen readers only, when a surrounding row already shows it. */
+  hideLabel?: boolean;
+}
+
+export interface SiteSettingsRowProps {
+  label: string;
+  /** Id of the control the label belongs to; without it the label is plain text. */
+  htmlFor?: string;
+  description?: ReactNode;
+  children: ReactNode;
 }
 
 export interface SiteDeleteDialogProps extends SiteScope {

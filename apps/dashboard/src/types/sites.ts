@@ -127,6 +127,7 @@ export interface SiteSettingsForm {
   previewsEnabled: boolean;
   previewVisibility: SitePreviewVisibility;
   publishMode: SitePublishMode;
+  showBranding: boolean;
 }
 
 export interface SiteSettingsPatch {
@@ -137,6 +138,7 @@ export interface SiteSettingsPatch {
   previewsEnabled?: boolean;
   previewVisibility?: SitePreviewVisibility;
   publishMode?: SitePublishMode;
+  showBranding?: boolean;
 }
 
 export type SiteDomainRecord = SiteDomain["records"][number];

@@ -182,7 +182,7 @@ export function SiteOverviewHero() {
 
   return (
     <InstrumentModule action={status} eyebrow={t("production")} variant="table">
-      <div className="grid gap-5 md:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] md:gap-8">
+      <div className="grid gap-5 md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] md:gap-6">
         {previewUrl ? (
           <a
             aria-hidden="true"
@@ -198,7 +198,7 @@ export function SiteOverviewHero() {
           preview
         )}
 
-        <ul className="flex min-w-0 flex-col justify-center gap-3.5">
+        <ul className="flex min-w-0 flex-col justify-center gap-2.5">
           <InfoRow icon={Globe02Icon} label={t("domains")}>
             {customDomains.length > 0 ? (
               customDomains.map((domain) => (

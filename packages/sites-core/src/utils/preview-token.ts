@@ -1,28 +1,10 @@
-import type { SitePreviewTokenClaims } from "@notra/sites-core/types/preview-token";
+import type {
+  ReadSitePreviewToken,
+  SitePreviewTokenClaims,
+} from "@notra/sites-core/types/preview-token";
+import { fromBase64Url, toBase64Url } from "@notra/sites-core/utils/base64url";
 
 const encoder = new TextEncoder();
-
-function toBase64Url(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return btoa(binary)
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replace(/=+$/, "");
-}
-
-function fromBase64Url(value: string): Uint8Array<ArrayBuffer> {
-  const base64 = value.replaceAll("-", "+").replaceAll("_", "/");
-  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-  const binary = atob(padded);
-  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes;
-}
 
 async function importKey(secret: string): Promise<CryptoKey> {
   return await crypto.subtle.importKey(
@@ -50,11 +32,12 @@ export async function signSitePreviewToken(
   return `${payload}.${toBase64Url(signature)}`;
 }
 
-export async function verifySitePreviewToken(
+/** Checks the signature and shape only; `expired` tells whether `exp` has passed. */
+export async function readSitePreviewToken(
   token: string,
   secret: string,
   nowSeconds: number = Math.floor(Date.now() / 1000)
-): Promise<SitePreviewTokenClaims | null> {
+): Promise<ReadSitePreviewToken | null> {
   const [payload, signature, extra] = token.split(".");
   if (!(payload && signature) || extra !== undefined) {
     return null;
@@ -73,16 +56,22 @@ export async function verifySitePreviewToken(
     const claims = JSON.parse(
       new TextDecoder().decode(fromBase64Url(payload))
     ) as SitePreviewTokenClaims;
-    if (typeof claims.exp !== "number" || claims.exp <= nowSeconds) {
+    if (typeof claims.exp !== "number" || typeof claims.siteId !== "string") {
       return null;
     }
-    if (typeof claims.siteId !== "string") {
-      return null;
-    }
-    return claims;
+    return { claims, expired: claims.exp <= nowSeconds };
   } catch {
     return null;
   }
+}
+
+export async function verifySitePreviewToken(
+  token: string,
+  secret: string,
+  nowSeconds: number = Math.floor(Date.now() / 1000)
+): Promise<SitePreviewTokenClaims | null> {
+  const read = await readSitePreviewToken(token, secret, nowSeconds);
+  return read && !read.expired ? read.claims : null;
 }
 
 /** A token is scoped to one site and optionally one preview; `previewKey: null` unlocks all previews of the site. */

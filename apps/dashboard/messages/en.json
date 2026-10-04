@@ -5597,21 +5597,10 @@
         "edit": "Edit",
         "changes": "Changes",
         "more": "More actions",
-        "discardNew": "Discard new file",
-        "diffStyle": {
-          "split": "Show side by side",
-          "unified": "Show inline"
-        }
+        "discardNew": "Discard new file"
       },
       "state": {
-        "published": "Published version",
-        "draft": "Draft",
-        "newFile": "New file",
-        "savedAgo": "{kind} · saved {time}",
-        "unsaved": "Unsaved changes",
-        "saving": "Saving…",
-        "error": "Couldn't save",
-        "conflict": "Changed on GitHub"
+        "error": "Couldn't save"
       },
       "status": {
         "check": "Check for problems",
@@ -5635,8 +5624,53 @@
     },
     "settingsPage": {
       "title": "Settings",
-      "description": "Repository, sections, previews and publishing for this site.",
-      "unsaved": "You have unsaved changes"
+      "description": "Repository, sections, previews, publishing and branding for this site.",
+      "unsaved": "You have unsaved changes",
+      "branding": "Branding",
+      "brandingLabel": "Notra branding",
+      "brandingHint": "Shows a small “Powered by Notra” badge in the footer. Changing it rebuilds the site.",
+      "sectionsHint": "Paths on your site. Changing them rebuilds the site; the current version stays live until the build succeeds."
+    },
+    "previewAccess": {
+      "title": "Preview access",
+      "description": "Choose whether pull requests get previews and who can open them.",
+      "trigger": {
+        "members": "Notra login",
+        "password": "Login or password",
+        "public": "Public previews",
+        "off": "Previews off"
+      },
+      "turnOn": "Turn on",
+      "buildLabel": "Build previews",
+      "buildDescription": "Every pull request into <branch></branch> gets its own preview.",
+      "buildOffWarning": "{count, plural, one {The open preview closes} other {All # open previews close}} when you save. Turn previews back on and the next push builds them again.",
+      "buildOffHint": "New pull requests won't build a preview.",
+      "whoLabel": "Who can open previews",
+      "modes": {
+        "members": {
+          "title": "Notra login",
+          "description": "Members of your organization and people with a share link."
+        },
+        "password": {
+          "title": "Notra login or password",
+          "description": "Anyone with the password can open previews too."
+        },
+        "public": {
+          "title": "Anyone with the link",
+          "description": "No sign-in. Previews are never indexed."
+        }
+      },
+      "passwordLabel": "Preview password",
+      "newPasswordLabel": "New password",
+      "passwordHint": "At least {min} characters. Share it with the people who should see previews.",
+      "changeHint": "At least {min} characters. Everyone who used the old password has to enter the new one.",
+      "passwordSet": "Password set <time></time>",
+      "changePassword": "Change",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "save": "Save",
+      "saved": "Preview access updated",
+      "saveFailed": "Couldn't update preview access"
     }
   },
   "analytics": {

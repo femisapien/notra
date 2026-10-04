@@ -24,6 +24,7 @@ import {
 } from "@/constants/site-editor";
 import type { SiteFileTreeProps } from "@/types/components/site-editor";
 import {
+  focusSiteFileTreeRow,
   siteFileAncestors,
   siteFileTreeFolderHandle,
   siteFileTreeGitStatus,
@@ -122,6 +123,55 @@ function SiteFileTreeView({
 
   const query = search.value;
   const noMatches = query.length > 0 && search.matchingPaths.length === 0;
+  const filterRef = useRef<HTMLInputElement>(null);
+
+  // Typing keeps focus in the filter; Pierre only tracks the first match as its cursor.
+  const handleFilterKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (event.key === "Escape" && query) {
+      event.preventDefault();
+      search.setValue(null);
+      return;
+    }
+    if (!query) {
+      return;
+    }
+    const focused = model.getFocusedPath();
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (!(focused && search.matchingPaths.includes(focused))) {
+        search.focusNextMatch();
+      }
+      const target = model.getFocusedPath();
+      if (target) {
+        focusSiteFileTreeRow(model, target);
+      }
+      return;
+    }
+    // Enter opens the first match, like a quick-open list.
+    if (event.key === "Enter" && focused && editablePaths.has(focused)) {
+      event.preventDefault();
+      search.setValue(null);
+      onSelect(focused);
+    }
+  };
+
+  // ArrowUp from the first match hands focus back to the filter. Capture runs before
+  // the tree's own handler inside its shadow root.
+  const handleTreeKeyDownCapture = (
+    event: React.KeyboardEvent<HTMLElement>
+  ) => {
+    if (
+      event.key === "ArrowUp" &&
+      query &&
+      model.getFocusedPath() === search.matchingPaths[0]
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      filterRef.current?.focus();
+    }
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -136,27 +186,9 @@ function SiteFileTreeView({
             autoComplete="off"
             className="text-[13px]"
             onChange={(event) => search.setValue(event.target.value || null)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape" && query) {
-                event.preventDefault();
-                search.setValue(null);
-              }
-              if (event.key === "ArrowDown") {
-                event.preventDefault();
-                search.focusNextMatch();
-              }
-              // Enter opens the highlighted match, like a quick-open list.
-              const focused = model.getFocusedPath();
-              if (
-                event.key === "Enter" &&
-                focused &&
-                editablePaths.has(focused)
-              ) {
-                event.preventDefault();
-                onSelect(focused);
-              }
-            }}
+            onKeyDown={handleFilterKeyDown}
             placeholder={t("filter")}
+            ref={filterRef}
             spellCheck={false}
             value={query}
           />
@@ -183,6 +215,7 @@ function SiteFileTreeView({
         className="block min-h-0 flex-1 px-1 pb-1"
         hidden={noMatches}
         model={model}
+        onKeyDownCapture={handleTreeKeyDownCapture}
       />
     </div>
   );

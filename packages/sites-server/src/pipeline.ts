@@ -129,6 +129,8 @@ async function buildAndPublish(
       mounts: deployment.target.mounts,
       noindex: deployment.target.noindex,
       includeDrafts: deployment.kind === "preview",
+      // Rows from before the setting carry no flag; they were built with the badge.
+      branding: deployment.target.branding !== false,
     },
     onLog: (log) => writeBuildLog(site.id, deployment.id, log),
   });

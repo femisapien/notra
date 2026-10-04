@@ -3,6 +3,7 @@ import { cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 
+import { SITE_CSP_MAX_SCRIPT_HASHES } from "@notra/sites-core/constants/security";
 import { siteBuildRequestSchema } from "@notra/sites-core/schemas/build";
 import type {
   SiteBuildRequest,
@@ -113,6 +114,7 @@ export async function buildSite(
         deploymentId: options.target.deploymentId,
         noindex: options.target.noindex,
         includeDrafts: options.target.includeDrafts,
+        branding: options.target.branding,
         workDir,
         publicFiles: prepared.publicFiles,
         mounts,

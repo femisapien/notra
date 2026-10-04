@@ -97,7 +97,11 @@ async function main() {
     // Same toolchain and theme as production; previews one area at a time.
     const workDir = join(TOOLCHAIN_ROOT, ".notra", "work");
     const prepare = async () => {
-      const prepared = await prepareSite({ siteRoot, workDir });
+      const prepared = await prepareSite({
+        siteRoot,
+        workDir,
+        stableAssetNames: true,
+      });
       printDiagnostics([
         ...prepared.collectDiagnostics,
         ...prepared.validation.diagnostics,
@@ -129,6 +133,7 @@ async function main() {
         deploymentId: "local",
         noindex: true,
         includeDrafts: true,
+        branding: true,
         workDir,
         publicFiles: prepared.publicFiles,
         mounts,

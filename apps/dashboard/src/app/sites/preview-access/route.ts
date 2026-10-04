@@ -1,5 +1,8 @@
+import { SITE_PREVIEW_AUTH_PATH } from "@notra/sites-core/constants/sites";
+import { safePreviewNextPath } from "@notra/sites-core/utils/preview-path";
 import { getSite } from "@notra/sites-server/deployments";
 import { previewAccessUrl } from "@notra/sites-server/preview-access";
+import { sitePreviewOrigin } from "@notra/sites-server/urls";
 import type { NextRequest } from "next/server";
 
 import { SITE_PREVIEW_KEY_PATTERN } from "@/constants/sites";
@@ -13,7 +16,7 @@ import { assertOrganizationAccess } from "@/lib/auth/organization";
 export async function GET(request: NextRequest) {
   const siteId = request.nextUrl.searchParams.get("site") ?? "";
   const previewKey = request.nextUrl.searchParams.get("preview") ?? "";
-  const next = request.nextUrl.searchParams.get("next") ?? "/";
+  const next = safePreviewNextPath(request.nextUrl.searchParams.get("next"));
   if (
     !(siteId.startsWith("site_") && SITE_PREVIEW_KEY_PATTERN.test(previewKey))
   ) {
@@ -23,22 +26,29 @@ export async function GET(request: NextRequest) {
   if (!site) {
     return new Response("Preview not found", { status: 404 });
   }
+  let userId: string;
   try {
-    await assertOrganizationAccess({
+    const access = await assertOrganizationAccess({
       headers: request.headers,
       organizationId: site.organizationId,
     });
+    userId = access.user.id;
   } catch {
-    return new Response(
-      "You don't have access to this preview. Ask for a share link.",
-      { status: 403 }
+    // Back to the preview's own gate, which explains it and still offers the password.
+    const denied = new URL(
+      SITE_PREVIEW_AUTH_PATH,
+      sitePreviewOrigin(site.slug, previewKey)
     );
+    denied.searchParams.set("error", "forbidden");
+    denied.searchParams.set("next", next);
+    return Response.redirect(denied, 302);
   }
   const { url } = await previewAccessUrl({
     site,
     previewKey,
     next,
     kind: "member",
+    userId,
   });
   return Response.redirect(url, 302);
 }

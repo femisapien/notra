@@ -3,10 +3,9 @@
 import {
   GitBranchIcon,
   GitPullRequestIcon,
-  Globe02Icon,
   InformationCircleIcon,
   PlusSignIcon,
-  SquareLock02Icon,
+  ViewOffIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -29,20 +28,22 @@ import { Input } from "@notra/ui/components/ui/input";
 import { Label } from "@notra/ui/components/ui/label";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { useSite } from "@/components/sites/site-context";
+import { SitePreviewAccessDialog } from "@/components/sites/site-preview-access-dialog";
 import { SitePreviewsTable } from "@/components/sites/site-previews-table";
-import { SITE_SHARE_LINK_DAYS } from "@/constants/sites";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SitePreviewBranchDialogProps } from "@/types/components/sites";
 import { toErrorMessage } from "@/utils/error-message";
-import { siteHref } from "@/utils/site-links";
+import {
+  sitePreviewAccessMode,
+  sitePreviewAccessModeConfig,
+} from "@/utils/site-preview-access";
 import { sitePreviewRows } from "@/utils/site-previews";
 
 function PreviewBranchDialog({
@@ -132,43 +133,35 @@ function PreviewBranchDialog({
 export function SitePreviewsPage() {
   const { organizationId, organizationSlug, siteId, detail } = useSite();
   const t = useTranslations("sites.previewsPage");
+  const tAccess = useTranslations("sites.previewAccess");
   const [branchDialogOpen, setBranchDialogOpen] = useState(false);
+  const [accessOpen, setAccessOpen] = useState(false);
   const { site } = detail;
   const rows = sitePreviewRows(detail);
-  const settingsHref = siteHref(organizationSlug, siteId, "settings");
-  const isProtected = site.previewVisibility === "protected";
+  const accessMode = sitePreviewAccessModeConfig(sitePreviewAccessMode(site));
 
   return (
     <>
-      <PageHeader
-        description={
-          <>
-            {t("description")}{" "}
-            <Link
-              className="text-foreground decoration-foreground/25 hover:decoration-foreground inline-flex items-center gap-1 align-bottom font-medium underline underline-offset-4 transition-colors"
-              href={settingsHref}
-            >
-              <HugeiconsIcon
-                aria-hidden="true"
-                className="size-3.5"
-                icon={isProtected ? SquareLock02Icon : Globe02Icon}
-                strokeWidth={1.5}
-              />
-              {isProtected
-                ? t("accessProtected", { days: SITE_SHARE_LINK_DAYS })
-                : t("accessPublic")}
-            </Link>
-          </>
-        }
-        title={t("title")}
-      >
-        <Button
-          disabled={!site.previewsEnabled}
-          onClick={() => setBranchDialogOpen(true)}
-        >
-          <HugeiconsIcon icon={PlusSignIcon} size={16} />
-          {t("branchTitle")}
-        </Button>
+      <PageHeader description={t("description")} title={t("title")}>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => setAccessOpen(true)} variant="outline">
+            <HugeiconsIcon
+              icon={site.previewsEnabled ? accessMode.icon : ViewOffIcon}
+              size={16}
+              strokeWidth={1.5}
+            />
+            {site.previewsEnabled
+              ? tAccess(`trigger.${accessMode.mode}`)
+              : tAccess("trigger.off")}
+          </Button>
+          <Button
+            disabled={!site.previewsEnabled}
+            onClick={() => setBranchDialogOpen(true)}
+          >
+            <HugeiconsIcon icon={PlusSignIcon} size={16} />
+            {t("branchTitle")}
+          </Button>
+        </div>
       </PageHeader>
 
       {site.previewsEnabled ? null : (
@@ -180,12 +173,13 @@ export function SitePreviewsPage() {
             strokeWidth={1.5}
           />
           {t("disabled")}
-          <Link
-            className="text-foreground decoration-foreground/25 hover:decoration-foreground font-medium underline underline-offset-4 transition-colors duration-150"
-            href={settingsHref}
+          <button
+            className="text-foreground decoration-foreground/25 hover:decoration-foreground cursor-pointer font-medium underline underline-offset-4 transition-colors duration-150"
+            onClick={() => setAccessOpen(true)}
+            type="button"
           >
-            {t("turnOn")}
-          </Link>
+            {tAccess("turnOn")}
+          </button>
         </p>
       )}
 
@@ -225,6 +219,8 @@ export function SitePreviewsPage() {
         rows={rows}
         siteId={siteId}
       />
+
+      <SitePreviewAccessDialog onOpenChange={setAccessOpen} open={accessOpen} />
 
       <PreviewBranchDialog
         onOpenChange={setBranchDialogOpen}

@@ -17,11 +17,7 @@ import { SITE_EDITOR_AUTOSAVE_MS } from "@/constants/sites";
 import { useSiteCodeHighlighter } from "@/lib/hooks/use-site-code-highlighter";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SiteEditorPaneProps } from "@/types/components/site-editor";
-import type {
-  SiteDiffStyle,
-  SiteEditorMode,
-  SiteEditorSaveState,
-} from "@/types/site-editor";
+import type { SiteEditorMode, SiteEditorSaveState } from "@/types/site-editor";
 import { toErrorMessage } from "@/utils/error-message";
 import { siteEditStateKey } from "@/utils/site-editor";
 
@@ -32,8 +28,6 @@ export function SiteEditorPane({
   site,
   path,
   baseCommitSha,
-  draftUpdatedAt,
-  hasConflict,
   diagnostics,
   jump,
   onDraftChange,
@@ -55,7 +49,6 @@ export function SiteEditorPane({
     status: "idle",
   });
   const [mode, setMode] = useState<SiteEditorMode>("edit");
-  const [diffStyle, setDiffStyle] = useState<SiteDiffStyle>("unified");
   // Remounts the editor with fresh text (and a fresh undo history) after a discard.
   const [revision, setRevision] = useState(0);
   // Jumping to a problem's line always lands in the editor.
@@ -98,10 +91,7 @@ export function SiteEditorPane({
     onSuccess: (result, text) => {
       rememberSaved(text);
       if (pendingRef.current === null) {
-        updateSaveState({
-          status: "saved",
-          savedAt: new Date(result.updatedAt),
-        });
+        updateSaveState({ status: "saved" });
       }
       onDraftChange(path, new Date(result.updatedAt));
     },
@@ -190,7 +180,6 @@ export function SiteEditorPane({
     (document?.hasDraft ?? false) ||
     saveState.status === "saved" ||
     saveState.status === "saving";
-  const savedAt = saveState.savedAt ?? (hasDraft ? draftUpdatedAt : null);
   const published = document?.published ?? null;
   const unchanged = published !== null && published === value;
 
@@ -238,12 +227,7 @@ export function SiteEditorPane({
   } else if (mode === "changes") {
     body = (
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <SiteFileDiff
-          after={value}
-          before={published}
-          diffStyle={diffStyle}
-          path={path}
-        />
+        <SiteFileDiff after={value} before={published} path={path} />
       </div>
     );
   } else {
@@ -265,13 +249,10 @@ export function SiteEditorPane({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <SiteEditorFileBar
-        diffStyle={diffStyle}
         document={document}
-        hasConflict={hasConflict}
         hasDraft={hasDraft}
         isDiscarding={discardMutation.isPending}
         mode={mode}
-        onDiffStyleChange={setDiffStyle}
         onDiscard={() => {
           pendingRef.current = null;
           cancelPending();
@@ -280,7 +261,6 @@ export function SiteEditorPane({
         onModeChange={setMode}
         onOpenFilePicker={onOpenFilePicker}
         path={path}
-        savedAt={savedAt}
         saveState={saveState}
         site={site}
       />

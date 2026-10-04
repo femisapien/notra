@@ -35,8 +35,29 @@ export const SITE_MAX_REMOVED_PREVIEWS = 200;
 
 export const SITE_PREVIEW_COOKIE = "__notra_preview";
 export const SITE_PREVIEW_AUTH_PATH = "/_notra/auth";
+/** Share-link and password sessions. */
 export const SITE_PREVIEW_SESSION_SECONDS = 60 * 60 * 12;
+/**
+ * Member sessions are short: the dashboard re-checks membership every hour.
+ * The cookie outlives the token so the worker can renew it silently by
+ * bouncing through the dashboard (no click) while the member is signed in.
+ */
+export const SITE_PREVIEW_MEMBER_SESSION_SECONDS = 60 * 60;
+export const SITE_PREVIEW_MEMBER_RENEW_SECONDS = 60 * 60 * 24 * 7;
 export const SITE_PREVIEW_SHARE_LINK_SECONDS = 60 * 60 * 24 * 7;
+/** Sign-out link on preview hosts; clears the preview session cookie. */
+export const SITE_PREVIEW_SIGN_OUT_PATH = "/_notra/auth/sign-out";
+
+/**
+ * Preview passwords are stored as PBKDF2-SHA256 hashes in the serving state.
+ * 100k iterations is the most Workers' WebCrypto accepts for PBKDF2.
+ */
+export const SITE_PREVIEW_PASSWORD_ALGORITHM = "PBKDF2-SHA256";
+export const SITE_PREVIEW_PASSWORD_ITERATIONS = 100_000;
+export const SITE_PREVIEW_PASSWORD_SALT_BYTES = 16;
+export const SITE_PREVIEW_PASSWORD_HASH_BYTES = 32;
+export const SITE_PREVIEW_PASSWORD_MIN_LENGTH = 8;
+export const SITE_PREVIEW_PASSWORD_MAX_LENGTH = 128;
 
 export const SITE_BUILD_LIMITS = {
   /** Wall clock for the whole sandbox build, both areas included. */

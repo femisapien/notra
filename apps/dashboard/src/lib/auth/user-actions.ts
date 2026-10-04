@@ -24,12 +24,14 @@ import { runAction } from "@/lib/actions/run-action";
 import { validateActionInput } from "@/lib/actions/validate-input";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { readRequestHeaders } from "@/lib/analytics/request-headers";
+import { getAuthIdentity } from "@/lib/auth/server";
 import { clearAuthSessionCookie } from "@/lib/auth/session-cookie";
 import { clearSignedCookie } from "@/lib/auth/signed-cookie";
 import { isWorkOSNotFound } from "@/lib/auth/workos-error";
 import { clearLocaleCookie, writeLocaleCookie } from "@/lib/i18n/locale-cookie";
 import { organizationActionMessage } from "@/lib/organizations/action-messages";
 import { requireSession } from "@/lib/organizations/guards";
+import { revokeSitePreviewSessions } from "@/lib/sites/preview-revocation";
 import type { SessionUser } from "@/types/auth/session";
 import type {
   SignOutActionOptions,
@@ -52,6 +54,11 @@ export async function signOutAction(options?: SignOutActionOptions) {
   if (isDemoMode()) {
     await clearSignedCookie(DEMO_SESSION_COOKIE);
     redirect(DEMO_EXIT_URL);
+  }
+  // Preview hosts keep their own cookies; end those sessions before the dashboard one.
+  const identity = await getAuthIdentity().catch(() => null);
+  if (identity) {
+    await revokeSitePreviewSessions(identity.user.id);
   }
   await signOut(parsed.success ? parsed.data : undefined);
 }

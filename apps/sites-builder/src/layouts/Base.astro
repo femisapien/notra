@@ -67,6 +67,11 @@ const darkFavicon = faviconFor("dark");
       const dark = mode === "dark" || (mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
       document.documentElement.classList.toggle("dark", dark);
     </script>
+    {
+      params.headScripts.map((script) =>
+        script.kind === "external" ? <script is:inline src={script.src} {...script.attributes} /> : <script is:inline set:html={script.code} />
+      )
+    }
   </head>
   <body class="flex min-h-dvh flex-col font-sans text-foreground">
     <Header />

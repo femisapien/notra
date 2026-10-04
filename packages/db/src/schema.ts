@@ -12,6 +12,7 @@ import type { SiteDiagnostic } from "@notra/sites-core/types/build";
 import type {
   SiteBuildTarget,
   SiteMounts,
+  SitePreviewPassword,
 } from "@notra/sites-core/types/deployment";
 import { relations, sql } from "drizzle-orm";
 import {
@@ -4105,6 +4106,13 @@ export const sites = pgTable(
     publishMode: text("publish_mode", { enum: SITE_PUBLISH_MODES })
       .notNull()
       .default("pull_request"),
+    /** "Powered by Notra" badge in the site footer; part of the build target. */
+    showBranding: boolean("show_branding").notNull().default(true),
+    /**
+     * Preview password as a salted PBKDF2 hash (never the password). Source of
+     * truth; every serving-state write mirrors it into state.json for the worker.
+     */
+    previewPassword: jsonb("preview_password").$type<SitePreviewPassword>(),
     status: text("status", { enum: SITE_STATUSES }).notNull().default("active"),
     suspendedReason: text("suspended_reason"),
     /**

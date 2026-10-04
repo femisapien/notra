@@ -38,12 +38,14 @@ export function buildTargetForDeployment(
       publicOrigin: sitePreviewOrigin(params.site.slug, params.previewKey),
       mounts: params.site.mounts,
       noindex: true,
+      branding: params.site.showBranding,
     };
   }
   return {
     publicOrigin: params.site.publicOrigin,
     mounts: params.site.mounts,
     noindex: false,
+    branding: params.site.showBranding,
   };
 }
 

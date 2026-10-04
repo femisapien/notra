@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { Data, Effect } from "effect";
 
 import { upsertMembership } from "@/lib/auth/membership-upsert";
+import { revokeSitePreviewAccess } from "@/lib/sites/preview-revocation";
 
 class WebhookSyncError extends Data.TaggedError("WebhookSyncError")<{
   readonly message: string;
@@ -154,4 +155,5 @@ export const removeMembershipFromWebhook = Effect.fn(
     catch: (cause) =>
       new WebhookSyncError({ message: "Failed to remove membership", cause }),
   });
+  yield* Effect.promise(() => revokeSitePreviewAccess(organizationId, userId));
 });

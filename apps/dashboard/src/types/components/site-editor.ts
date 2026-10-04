@@ -1,6 +1,5 @@
 import type {
   SiteCodeAnnotation,
-  SiteDiffStyle,
   SiteDraftChange,
   SiteEditorJump,
   SiteEditorLanguage,
@@ -42,7 +41,6 @@ export interface SiteFileDiffProps {
   /** Null when the file doesn't exist on that side (new or deleted). */
   before: string | null;
   after: string | null;
-  diffStyle: SiteDiffStyle;
   className?: string;
 }
 
@@ -52,8 +50,6 @@ export interface SiteEditorPaneProps {
   site: SiteRecord;
   path: string;
   baseCommitSha: string | null;
-  draftUpdatedAt: Date | null;
-  hasConflict: boolean;
   diagnostics: readonly SiteDiagnostic[];
   jump: SiteEditorJump | null;
   /** A draft landed (`updatedAt`) or was discarded (`null`). */
@@ -67,24 +63,17 @@ export interface SiteEditorFileBarProps {
   path: string;
   document: SiteEditorDocument | null;
   saveState: SiteEditorSaveState;
-  savedAt: Date | null;
   hasDraft: boolean;
-  hasConflict: boolean;
   isDiscarding: boolean;
   mode: SiteEditorMode;
-  diffStyle: SiteDiffStyle;
   onModeChange: (mode: SiteEditorMode) => void;
-  onDiffStyleChange: (style: SiteDiffStyle) => void;
   onDiscard: () => void;
   onOpenFilePicker?: () => void;
 }
 
-export interface SiteEditorDraftChipProps {
-  saveState: SiteEditorSaveState;
-  savedAt: Date | null;
-  hasDraft: boolean;
-  hasConflict: boolean;
-  isNewFile: boolean;
+export interface SiteEditorSaveErrorProps {
+  /** The failed save's message, shown on hover. */
+  error: string | undefined;
 }
 
 export interface SiteEditorStatusBarProps {

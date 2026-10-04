@@ -1,10 +1,13 @@
 ---
-import { config, href } from "../lib/params";
+import { config, href, params } from "../lib/params";
 import { socialIcon } from "../utils/icons";
 import Icon from "./Icon.astro";
+import PoweredByNotra from "./PoweredByNotra.astro";
 
 const socials = Object.entries(config.footer.socials);
 const year = new Date().getUTCFullYear();
+// Sites without the setting (older build requests) keep the badge.
+const showBranding = params.branding !== false;
 ---
 
 <footer class="border-t border-border">
@@ -14,15 +17,17 @@ const year = new Date().getUTCFullYear();
       {config.footer.links.map((link) => <a href={link.href} class="transition-colors hover:text-foreground">{link.label}</a>)}
       <a href={href("feed.xml")} class="transition-colors hover:text-foreground">RSS</a>
     </div>
-    <div class="flex items-center gap-4">
-      {
-        socials.map(([name, url]) => (
-          <a href={url} rel="noopener" aria-label={name} class="transition-colors hover:text-foreground">
-            <Icon name={socialIcon(name)} size={15} />
-          </a>
-        ))
-      }
-      <a href="https://usenotra.com/?ref=sites" rel="noopener" class="transition-colors hover:text-foreground">Powered by Notra</a>
-    </div>
+    {
+      (socials.length > 0 || showBranding) && (
+        <div class="flex items-center gap-4">
+          {socials.map(([name, url]) => (
+            <a href={url} rel="noopener" aria-label={name} class="transition-colors hover:text-foreground">
+              <Icon name={socialIcon(name)} size={15} />
+            </a>
+          ))}
+          {showBranding && <PoweredByNotra />}
+        </div>
+      )
+    }
   </div>
 </footer>

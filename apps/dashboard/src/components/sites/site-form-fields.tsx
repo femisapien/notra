@@ -31,11 +31,15 @@ export function SiteChoiceGroup<T extends string>({
   options,
   onValueChange,
   disabled = false,
+  hideLabel = false,
 }: SiteChoiceGroupProps<T>) {
   const id = useId();
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium" id={`${id}-label`}>
+      <p
+        className={cn("text-sm font-medium", hideLabel && "sr-only")}
+        id={`${id}-label`}
+      >
         {label}
       </p>
       <RadioGroup
@@ -132,15 +136,18 @@ export function SiteSectionsFields({
   onChangelogEnabledChange,
   onBlogPathChange,
   onChangelogPathChange,
+  hideTitle = false,
 }: SiteSectionsFieldsProps) {
   const t = useTranslations("sites.sections");
   const noneEnabled = !(blogEnabled || changelogEnabled);
   return (
     <div className="space-y-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-sm font-medium">{t("title")}</p>
-        <p className="text-muted-foreground text-xs">{t("pathHint")}</p>
-      </div>
+      {hideTitle ? null : (
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-sm font-medium">{t("title")}</p>
+          <p className="text-muted-foreground text-xs">{t("pathHint")}</p>
+        </div>
+      )}
       <div className="divide-border bg-card divide-y rounded-lg border">
         <SectionRow
           description={t("blogDescription")}

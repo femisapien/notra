@@ -5,8 +5,6 @@ import type { SiteDiagnostic } from "@/types/sites";
 export interface SiteEditorSaveState {
   status: "idle" | "dirty" | "saving" | "saved" | "error";
   error?: string;
-  /** When the last autosave landed, for "Draft · saved 3s ago". */
-  savedAt?: Date;
 }
 
 /** What the status bar calls a file; `text` covers anything else. */
@@ -20,8 +18,6 @@ export type SiteEditorLanguage =
 
 /** Edit the draft, or compare it with the published version. */
 export type SiteEditorMode = "edit" | "changes";
-
-export type SiteDiffStyle = "unified" | "split";
 
 /** How a draft changes the repository when it is published. */
 export type SiteDraftChange = "added" | "modified" | "deleted";

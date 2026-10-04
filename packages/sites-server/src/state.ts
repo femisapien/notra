@@ -5,6 +5,7 @@ import {
 } from "@notra/sites-core/schemas/deployment";
 import type {
   SiteHostRecord,
+  SitePreviewPassword,
   SitePreviewPointer,
   SiteServingState,
 } from "@notra/sites-core/types/deployment";
@@ -20,6 +21,7 @@ import {
   removePreviewFromState,
   setPreviewVisibilityInState,
 } from "@notra/sites-core/utils/serving-state";
+import { eq } from "drizzle-orm";
 
 import { CAS_ATTEMPTS, JSON_CONTENT_TYPE } from "./constants/state";
 import { R2PreconditionFailedError, r2DeleteKey, r2GetText, r2Put } from "./r2";
@@ -31,6 +33,35 @@ import type {
 
 export class SiteHostConflictError extends Error {
   readonly name = "SiteHostConflictError";
+}
+
+/** Field by field: jsonb and the schema order keys differently. */
+function samePreviewPassword(
+  a: SitePreviewPassword | null,
+  b: SitePreviewPassword | null
+): boolean {
+  if (a === null || b === null) {
+    return a === b;
+  }
+  return (
+    a.version === b.version &&
+    a.hash === b.hash &&
+    a.salt === b.salt &&
+    a.iterations === b.iterations &&
+    a.algorithm === b.algorithm &&
+    a.updatedAt === b.updatedAt
+  );
+}
+
+async function readPreviewPasswordFromDb(
+  siteId: string
+): Promise<SitePreviewPassword | null> {
+  const [row] = await db
+    .select({ previewPassword: sites.previewPassword })
+    .from(sites)
+    .where(eq(sites.id, siteId))
+    .limit(1);
+  return row?.previewPassword ?? null;
 }
 
 export async function readServingState(
@@ -69,7 +100,7 @@ export async function mutateServingState<T>(
       return outcome.result;
     }
     try {
-      await r2Put(SITE_R2_KEYS.state(site.id), JSON.stringify(outcome.write), {
+      await r2Put(SITE_R2_KEYS.state(site.id), JSON.stringify(write), {
         contentType: JSON_CONTENT_TYPE,
         cacheControl: "no-store",
         ...(current

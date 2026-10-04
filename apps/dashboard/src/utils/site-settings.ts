@@ -31,6 +31,7 @@ export function siteSettingsFormFromSite(site: SiteRecord): SiteSettingsForm {
     previewsEnabled: site.previewsEnabled,
     previewVisibility: site.previewVisibility,
     publishMode: site.publishMode,
+    showBranding: site.showBranding,
   };
 }
 
@@ -72,6 +73,9 @@ export function siteSettingsPatch(
   }
   if (form.publishMode !== site.publishMode) {
     patch.publishMode = form.publishMode;
+  }
+  if (form.showBranding !== site.showBranding) {
+    patch.showBranding = form.showBranding;
   }
   return patch;
 }

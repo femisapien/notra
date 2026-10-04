@@ -5597,21 +5597,10 @@
         "edit": "Bearbeiten",
         "changes": "Änderungen",
         "more": "Weitere Aktionen",
-        "discardNew": "Neue Datei verwerfen",
-        "diffStyle": {
-          "split": "Nebeneinander zeigen",
-          "unified": "Untereinander zeigen"
-        }
+        "discardNew": "Neue Datei verwerfen"
       },
       "state": {
-        "published": "Veröffentlichte Version",
-        "draft": "Entwurf",
-        "newFile": "Neue Datei",
-        "savedAgo": "{kind} · gespeichert {time}",
-        "unsaved": "Nicht gespeichert",
-        "saving": "Speichert…",
-        "error": "Speichern fehlgeschlagen",
-        "conflict": "Auf GitHub geändert"
+        "error": "Speichern fehlgeschlagen"
       },
       "status": {
         "check": "Auf Probleme prüfen",
@@ -5635,8 +5624,53 @@
     },
     "settingsPage": {
       "title": "Einstellungen",
-      "description": "Repository, Bereiche, Previews und Veröffentlichen für diese Site.",
-      "unsaved": "Du hast ungespeicherte Änderungen"
+      "description": "Repository, Bereiche, Previews, Veröffentlichen und Branding für diese Site.",
+      "unsaved": "Du hast ungespeicherte Änderungen",
+      "branding": "Branding",
+      "brandingLabel": "Notra-Branding",
+      "brandingHint": "Zeigt ein kleines „Powered by Notra“-Badge im Footer. Eine Änderung baut die Site neu.",
+      "sectionsHint": "Pfade auf deiner Site. Eine Änderung baut die Site neu; die aktuelle Version bleibt live, bis der Build fertig ist."
+    },
+    "previewAccess": {
+      "title": "Zugriff auf Vorschauen",
+      "description": "Lege fest, ob Pull Requests Vorschauen bekommen und wer sie öffnen kann.",
+      "trigger": {
+        "members": "Notra-Login",
+        "password": "Login oder Passwort",
+        "public": "Öffentliche Vorschauen",
+        "off": "Vorschauen aus"
+      },
+      "turnOn": "Einschalten",
+      "buildLabel": "Vorschauen bauen",
+      "buildDescription": "Jeder Pull Request in <branch></branch> bekommt eine eigene Vorschau.",
+      "buildOffWarning": "{count, plural, one {Die offene Vorschau wird} other {Alle # offenen Vorschauen werden}} beim Speichern geschlossen. Schaltest du Vorschauen wieder ein, baut der nächste Push sie neu.",
+      "buildOffHint": "Neue Pull Requests bekommen keine Vorschau.",
+      "whoLabel": "Wer Vorschauen öffnen kann",
+      "modes": {
+        "members": {
+          "title": "Notra-Login",
+          "description": "Mitglieder deiner Organisation und alle mit einem Freigabelink."
+        },
+        "password": {
+          "title": "Notra-Login oder Passwort",
+          "description": "Wer das Passwort kennt, kann Vorschauen auch öffnen."
+        },
+        "public": {
+          "title": "Alle mit dem Link",
+          "description": "Ohne Anmeldung. Vorschauen werden nie indexiert."
+        }
+      },
+      "passwordLabel": "Passwort für Vorschauen",
+      "newPasswordLabel": "Neues Passwort",
+      "passwordHint": "Mindestens {min} Zeichen. Teile es mit allen, die Vorschauen sehen sollen.",
+      "changeHint": "Mindestens {min} Zeichen. Wer das alte Passwort benutzt hat, muss das neue eingeben.",
+      "passwordSet": "Passwort gesetzt <time></time>",
+      "changePassword": "Ändern",
+      "showPassword": "Passwort anzeigen",
+      "hidePassword": "Passwort verbergen",
+      "save": "Speichern",
+      "saved": "Zugriff auf Vorschauen aktualisiert",
+      "saveFailed": "Zugriff konnte nicht aktualisiert werden"
     }
   },
   "analytics": {

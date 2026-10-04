@@ -1,4 +1,7 @@
-import { SITE_PREVIEW_AUTH_PATH } from "@notra/sites-core/constants/sites";
+import {
+  SITE_PREVIEW_AUTH_PATH,
+  SITE_PREVIEW_SIGN_OUT_PATH,
+} from "@notra/sites-core/constants/sites";
 import type { ParsedSiteHost } from "@notra/sites-core/types/hosts";
 import { parseSiteHost } from "@notra/sites-core/utils/hosts";
 import {
@@ -16,10 +19,15 @@ import {
 import {
   notDeployedPage,
   notFoundPage,
+  previewClosedPage,
   serviceErrorPage,
   unavailablePage,
 } from "./pages";
-import { handlePreviewAuth, previewAccessDenied } from "./preview-auth";
+import {
+  handlePreviewAuth,
+  handlePreviewSignOut,
+  previewAccessDenied,
+} from "./preview-auth";
 import { html, markdownNotFound, robotsTxt, serveFile } from "./responses";
 import type { ResolvedDeployment } from "./types/serving";
 import type { SitesDeps } from "./types/worker";
@@ -83,6 +91,12 @@ async function resolveDeployment(
   }
 
   if (parsedHost.kind !== "preview") {
+    if (request.method === "POST") {
+      return new Response("Method not allowed", {
+        status: 405,
+        headers: { Allow: "GET, HEAD" },
+      });
+    }
     return state.production
       ? {
           siteId,
@@ -91,24 +105,29 @@ async function resolveDeployment(
         }
       : html(notDeployedPage(), 404);
   }
-  const pointer = state.previews[parsedHost.previewKey];
-  if (!pointer || isPreviewExpired(pointer, deps.now())) {
-    return html(notFoundPage(), 404);
+  const { previewKey } = parsedHost;
+  const pointer = state.previews[previewKey];
+  // Closed pull requests and deleted previews leave a tombstone: say so instead of a bare 404.
+  if (pointer && isPreviewExpired(pointer, deps.now())) {
+    return html(previewClosedPage(), 410);
   }
+  if (!pointer) {
+    return previewKey in state.removedPreviews
+      ? html(previewClosedPage(), 410)
+      : html(notFoundPage(), 404);
+  }
+  const context = { deps, request, url, origin, state, siteId, previewKey };
   if (url.pathname === SITE_PREVIEW_AUTH_PATH) {
-    return await handlePreviewAuth(deps, url, siteId, parsedHost.previewKey);
+    return await handlePreviewAuth(context);
+  }
+  if (url.pathname === SITE_PREVIEW_SIGN_OUT_PATH) {
+    return handlePreviewSignOut(context);
   }
   if (url.pathname === "/robots.txt") {
     return robotsTxt(null, false, origin);
   }
   if (pointer.visibility === "protected") {
-    const denied = await previewAccessDenied(
-      deps,
-      request,
-      url,
-      siteId,
-      parsedHost.previewKey
-    );
+    const denied = await previewAccessDenied(context);
     if (denied) {
       return denied;
     }
@@ -116,7 +135,6 @@ async function resolveDeployment(
   return { siteId, deploymentId: pointer.deploymentId, isPreview: true };
 }
 
-/** Robots, redirects, the file itself, or the area's own 404 page. */
 async function serveDeployment(
   deps: SitesDeps,
   request: Request,
@@ -206,13 +224,19 @@ export async function handleSiteRequest(
   request: Request,
   deps: SitesDeps
 ): Promise<Response> {
-  if (request.method !== "GET" && request.method !== "HEAD") {
+  const url = new URL(request.url);
+  // The only POST is the preview password form.
+  const allowsPost = url.pathname === SITE_PREVIEW_AUTH_PATH;
+  if (
+    request.method !== "GET" &&
+    request.method !== "HEAD" &&
+    !(allowsPost && request.method === "POST")
+  ) {
     return new Response("Method not allowed", {
       status: 405,
-      headers: { Allow: "GET, HEAD" },
+      headers: { Allow: allowsPost ? "GET, HEAD, POST" : "GET, HEAD" },
     });
   }
-  const url = new URL(request.url);
   const host = requestHost(deps, request, url);
   const parsedHost = parseSiteHost(host, deps.hostingDomain);
   if (!parsedHost) {

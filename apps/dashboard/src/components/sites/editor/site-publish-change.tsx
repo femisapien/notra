@@ -68,14 +68,7 @@ export function SitePublishChange({
       </p>
     );
   } else {
-    diff = (
-      <SiteFileDiff
-        after={after}
-        before={before}
-        diffStyle="unified"
-        path={path}
-      />
-    );
+    diff = <SiteFileDiff after={after} before={before} path={path} />;
   }
 
   return (

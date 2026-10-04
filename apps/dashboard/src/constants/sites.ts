@@ -18,6 +18,7 @@ import type { IconSvgElement } from "@hugeicons/react";
 
 import type {
   SiteDeploymentFilters,
+  SiteDeploymentKind,
   SiteDeploymentStatus,
   SiteDeploymentStepKey,
   SiteDeploymentStepState,

@@ -36,6 +36,7 @@ function manifest(
       publicOrigin,
       mounts: { blog: "/blog", changelog: "/changelog" },
       noindex: false,
+      branding: true,
     },
     configHash: "h",
     createdAt: "2026-10-03T00:00:00Z",
@@ -108,6 +109,8 @@ function setup(state: Partial<SiteServingState> = {}) {
       );
     }
   }
+  const reports: { url: string; init: RequestInit }[] = [];
+  const pending: Promise<unknown>[] = [];
   const deps: SitesDeps = {
     bucket: {
       get: async (key) => {
@@ -128,7 +131,8 @@ function setup(state: Partial<SiteServingState> = {}) {
   };
   const request = (url: string, headers: Record<string, string> = {}) =>
     handleSiteRequest(new Request(url, { headers }), deps);
-  return { objects, put, deps, request };
+  const settle = () => Promise.all(pending);
+  return { objects, put, deps, request, reports, settle };
 }
 
 beforeEach(() => resetCachesForTests());
@@ -339,7 +343,14 @@ describe("previews", () => {
     const { request } = setup();
     const exp = Math.floor(new Date("2026-10-03T13:00:00Z").getTime() / 1000);
     const token = await signSitePreviewToken(
-      { siteId: SITE, previewKey: null, exp, kind: "member" },
+      {
+        siteId: SITE,
+        previewKey: null,
+        exp,
+        kind: "member",
+        userId: "user_1",
+        issuedAt: Date.parse("2026-10-03T11:59:00Z"),
+      },
       SECRET
     );
     const login = await request(
