@@ -16,8 +16,8 @@ import {
   DataTable,
   type TableColumn,
 } from "@notra/ui/components/ui/data-table";
-import { useLocale, useTranslations } from "next-intl";
 import { type RefObject, useRef, useState } from "react";
+import { useLocale, useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { PromptSuggestionSheet } from "@/components/geo/prompt-suggestion-sheet";

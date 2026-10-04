@@ -11,11 +11,11 @@ import {
   InfiniteDataTable,
   type TableColumn,
 } from "@notra/ui/components/ui/data-table";
-import { useLocale, useTranslations } from "next-intl";
-import Link from "next/link";
 import { useState } from "react";
+import { useLocale, useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
+import Link from "@/components/framework/link";
 import { EngineIcon } from "@/components/geo/engine-icon";
 import { JourneyEmpty } from "@/components/geo/journey-empty";
 import { JourneyPathSummary } from "@/components/geo/journey-path-summary";

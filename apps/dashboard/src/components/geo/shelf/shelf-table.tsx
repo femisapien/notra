@@ -18,7 +18,7 @@ import {
   TooltipTrigger,
 } from "@notra/ui/components/ui/tooltip";
 import { useIsMobile } from "@notra/ui/hooks/use-mobile";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { EmptyState } from "@/components/empty-state";
@@ -111,16 +111,24 @@ function CitationsCell({ row }: { row: GeoShelfRow }) {
   );
 }
 
-function CompetitorsCell({ row }: { row: GeoShelfRow }) {
+function CompetitorsCell({
+  row,
+  competitorCount,
+}: {
+  row: GeoShelfRow;
+  competitorCount: number;
+}) {
   const logoStackLabels = useLogoStackLabels();
   const t = useTranslations("geo.shelf.shelfTable");
   const tGeoShared = useTranslations("geo.shared");
   const tStates = useTranslations("common.states");
   if (row.presentCompetitors.length === 0) {
-    const unknownCount = row.competitorPlacements.filter(
-      (placement) => placement.status === "unknown"
+    // Unchecked competitors are not stored, so "none on the page" needs a
+    // classified placement for every tracked competitor.
+    const checkedCount = row.competitorPlacements.filter(
+      (placement) => placement.status !== "unknown"
     ).length;
-    const isUnchecked = unknownCount > 0;
+    const isUnchecked = checkedCount < competitorCount;
     const label = isUnchecked ? tGeoShared("notChecked") : tStates("none");
     const description = isUnchecked
       ? t("competitorsUnchecked")
@@ -219,6 +227,7 @@ export function ShelfTable({
   pendingSourceIds,
   hasScanData,
   onAddShelf,
+  competitorCount,
 }: GeoShelfTableProps) {
   const t = useTranslations("geo.shelf.shelfTable");
   const tGeoShared = useTranslations("geo.shared");
@@ -267,7 +276,9 @@ export function ShelfTable({
       key: "competitors",
       header: tCommon("labels.competitors"),
       width: GEO_SHELF_TABLE_COLUMN.competitors.width,
-      cell: (row) => <CompetitorsCell row={row} />,
+      cell: (row) => (
+        <CompetitorsCell competitorCount={competitorCount} row={row} />
+      ),
       sortValue: (row) => row.presentCompetitors.length,
     },
     {

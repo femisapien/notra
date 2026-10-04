@@ -7,7 +7,7 @@ import {
   DataTable,
   type TableColumn,
 } from "@notra/ui/components/ui/data-table";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "use-intl";
 
 import { EngineIcon } from "@/components/geo/engine-icon";
 import { GEO_DIRECTIONS_PAGES } from "@/constants/geo-directions";

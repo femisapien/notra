@@ -9,8 +9,8 @@ import { normalizePageSize } from "@notra/ui/lib/data-table";
 import { cn } from "@notra/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useAutumnClient } from "autumn-js/react";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { parseAsInteger, useQueryState } from "nuqs";
+import { useFormatter, useLocale, useTranslations } from "use-intl";
 
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
 import { CREDIT_EVENTS_PAGE_SIZE } from "@/constants/billing-credits";

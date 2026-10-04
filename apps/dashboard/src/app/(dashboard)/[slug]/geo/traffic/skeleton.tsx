@@ -3,7 +3,7 @@
 import { GEO_TRAFFIC_FUNNEL_STAGES } from "@notra/geo-core/constants/geo";
 import { DataTableSkeleton } from "@notra/ui/components/ui/data-table";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { GeoRangePicker } from "@/components/geo/geo-range-picker";
 import { GeoSectionSkeleton } from "@/components/geo/skeleton-parts";

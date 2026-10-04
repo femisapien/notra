@@ -5,8 +5,8 @@ import type { GeoJourney } from "@notra/geo-core/types/geo";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
 import { DataTableSkeleton } from "@notra/ui/components/ui/data-table";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
-import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { JourneyDetailSheet } from "@/components/geo/journey-detail-sheet";
 import { JourneyGroupSheet } from "@/components/geo/journey-group-sheet";

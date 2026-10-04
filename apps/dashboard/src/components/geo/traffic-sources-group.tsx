@@ -12,7 +12,7 @@ import {
 } from "@notra/ui/constants/table";
 import { useCollapsibleColumns } from "@notra/ui/hooks/use-collapsible-columns";
 import { tableMinWidthCss } from "@notra/ui/lib/data-table";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import {
   TRAFFIC_SOURCE_BAND_LABEL_KEYS,

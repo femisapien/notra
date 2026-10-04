@@ -3,7 +3,7 @@
 import { DataTableSkeleton } from "@notra/ui/components/ui/data-table";
 import { Kbd } from "@notra/ui/components/ui/kbd";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { GeoSectionSkeleton } from "@/components/geo/skeleton-parts";

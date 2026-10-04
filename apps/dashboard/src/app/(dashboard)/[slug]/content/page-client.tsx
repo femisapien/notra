@@ -4,9 +4,9 @@ import { GridViewIcon, ListViewIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@notra/ui/components/ui/button";
 import { normalizePageSize } from "@notra/ui/lib/data-table";
-import { useTranslations } from "next-intl";
 import { parseAsInteger, parseAsStringLiteral, useQueryState } from "nuqs";
 import { useMemo } from "react";
+import { useTranslations } from "use-intl";
 
 import { CollectionsView } from "@/components/content/collections-view";
 import { LazyCreateContentDialog } from "@/components/content/lazy-create-content-dialog";

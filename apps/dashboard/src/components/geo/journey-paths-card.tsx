@@ -9,8 +9,8 @@ import {
   DataTable,
   type TableColumn,
 } from "@notra/ui/components/ui/data-table";
-import { useTranslations } from "next-intl";
 import { useMemo } from "react";
+import { useTranslations } from "use-intl";
 
 import { JourneyCountCell } from "@/components/geo/journey-count-cell";
 import { JourneyStatCard } from "@/components/geo/journey-stat-card";

@@ -11,9 +11,9 @@ import {
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
 import { Switch } from "@notra/ui/components/ui/switch";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
 import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "use-intl";
 
 import { UsageAlertForm } from "@/components/billing/usage-alert-form";
 import { Button } from "@/components/button";

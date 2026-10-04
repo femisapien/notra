@@ -1,4 +1,110 @@
-"use server";
+import { createServerFn } from "@tanstack/react-start";
+
+const createOrganizationServerFn = createServerFn({ method: "POST" })
+  .validator((data: Parameters<typeof createOrganizationActionImpl>) => data)
+  .handler(({ data }) => createOrganizationActionImpl(...data));
+export const createOrganizationAction = (
+  ...data: Parameters<typeof createOrganizationActionImpl>
+) => createOrganizationServerFn({ data });
+
+const updateOrganizationServerFn = createServerFn({ method: "POST" })
+  .validator((data: Parameters<typeof updateOrganizationActionImpl>) => data)
+  .handler(({ data }) => updateOrganizationActionImpl(...data));
+export const updateOrganizationAction = (
+  ...data: Parameters<typeof updateOrganizationActionImpl>
+) => updateOrganizationServerFn({ data });
+
+const listOrganizationsServerFn = createServerFn({ method: "POST" }).handler(
+  () => listOrganizationsActionImpl()
+);
+export const listOrganizationsAction = () => listOrganizationsServerFn();
+
+const setActiveOrganizationServerFn = createServerFn({ method: "POST" })
+  .validator((data: Parameters<typeof setActiveOrganizationActionImpl>) => data)
+  .handler(({ data }) => setActiveOrganizationActionImpl(...data));
+export const setActiveOrganizationAction = (
+  ...data: Parameters<typeof setActiveOrganizationActionImpl>
+) => setActiveOrganizationServerFn({ data });
+
+const getOrganizationSummaryServerFn = createServerFn({ method: "POST" })
+  .validator(
+    (data: Parameters<typeof getOrganizationSummaryActionImpl>) => data
+  )
+  .handler(({ data }) => getOrganizationSummaryActionImpl(...data));
+export const getOrganizationSummaryAction = (
+  ...data: Parameters<typeof getOrganizationSummaryActionImpl>
+) => getOrganizationSummaryServerFn({ data });
+
+const getFullOrganizationServerFn = createServerFn({ method: "POST" })
+  .validator((data: unknown) => {
+    if (!Array.isArray(data)) {
+      throw new Error("Invalid action arguments");
+    }
+    return data as Parameters<typeof getFullOrganizationActionImpl>;
+  })
+  .handler(({ data }) => getFullOrganizationActionImpl(...data));
+export const getFullOrganizationAction = (
+  ...data: Parameters<typeof getFullOrganizationActionImpl>
+) => getFullOrganizationServerFn({ data });
+
+const listMembersServerFn = createServerFn({ method: "POST" })
+  .validator((data: unknown) => {
+    if (!Array.isArray(data)) {
+      throw new Error("Invalid action arguments");
+    }
+    return data as Parameters<typeof listMembersActionImpl>;
+  })
+  .handler(({ data }) => listMembersActionImpl(...data));
+export const listMembersAction = (
+  ...data: Parameters<typeof listMembersActionImpl>
+) => listMembersServerFn({ data });
+
+const updateMemberRoleServerFn = createServerFn({ method: "POST" })
+  .validator((data: Parameters<typeof updateMemberRoleActionImpl>) => data)
+  .handler(({ data }) => updateMemberRoleActionImpl(...data));
+export const updateMemberRoleAction = (
+  ...data: Parameters<typeof updateMemberRoleActionImpl>
+) => updateMemberRoleServerFn({ data });
+
+const removeMemberServerFn = createServerFn({ method: "POST" })
+  .validator((data: Parameters<typeof removeMemberActionImpl>) => data)
+  .handler(({ data }) => removeMemberActionImpl(...data));
+export const removeMemberAction = (
+  ...data: Parameters<typeof removeMemberActionImpl>
+) => removeMemberServerFn({ data });
+
+const listInvitationsServerFn = createServerFn({ method: "POST" })
+  .validator((data: unknown) => {
+    if (!Array.isArray(data)) {
+      throw new Error("Invalid action arguments");
+    }
+    return data as Parameters<typeof listInvitationsActionImpl>;
+  })
+  .handler(({ data }) => listInvitationsActionImpl(...data));
+export const listInvitationsAction = (
+  ...data: Parameters<typeof listInvitationsActionImpl>
+) => listInvitationsServerFn({ data });
+
+const inviteMemberServerFn = createServerFn({ method: "POST" })
+  .validator((data: Parameters<typeof inviteMemberActionImpl>) => data)
+  .handler(({ data }) => inviteMemberActionImpl(...data));
+export const inviteMemberAction = (
+  ...data: Parameters<typeof inviteMemberActionImpl>
+) => inviteMemberServerFn({ data });
+
+const cancelInvitationServerFn = createServerFn({ method: "POST" })
+  .validator((data: Parameters<typeof cancelInvitationActionImpl>) => data)
+  .handler(({ data }) => cancelInvitationActionImpl(...data));
+export const cancelInvitationAction = (
+  ...data: Parameters<typeof cancelInvitationActionImpl>
+) => cancelInvitationServerFn({ data });
+
+const resendInvitationServerFn = createServerFn({ method: "POST" })
+  .validator((data: Parameters<typeof resendInvitationActionImpl>) => data)
+  .handler(({ data }) => resendInvitationActionImpl(...data));
+export const resendInvitationAction = (
+  ...data: Parameters<typeof resendInvitationActionImpl>
+) => resendInvitationServerFn({ data });
 
 import { autumn } from "@notra/ai/billing/autumn";
 import { checkTeamMembersLimit } from "@notra/ai/billing/team-members";
@@ -20,13 +126,12 @@ import {
 } from "@notra/schemas/dashboard/organizations/actions";
 import { isDemoMode } from "@notra/utils/demo-mode";
 import { ORPCError } from "@orpc/server";
-import { getWorkOS } from "@workos-inc/authkit-nextjs";
+import { getCookie, setCookie } from "@tanstack/react-start/server";
 import type { Invitation } from "@workos-inc/node";
+import { getWorkOS } from "@workos/authkit-session";
 import { and, count, desc, eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { isValid as isNotDisposableEmail } from "mailchecker";
-import { getTranslations } from "next-intl/server";
-import { cookies } from "next/headers";
 
 import { ACTION_ERROR_CODES } from "@/constants/actions";
 import { QUOTA_FEATURES } from "@/constants/analytics-events";
@@ -44,6 +149,7 @@ import {
 } from "@/lib/analytics/posthog-server";
 import { readRequestHeaders } from "@/lib/analytics/request-headers";
 import { readWorkOSError } from "@/lib/auth/workos-error";
+import { getTranslations } from "@/lib/i18n/server";
 import { organizationActionMessage } from "@/lib/organizations/action-messages";
 import {
   requireManagerMembership,
@@ -197,7 +303,6 @@ const mapInvitation = (invitation: Invitation): InvitationSummary => ({
   status: invitation.state,
   expiresAt: new Date(invitation.expiresAt),
   createdAt: new Date(invitation.createdAt),
-  acceptInvitationUrl: invitation.acceptInvitationUrl,
 });
 
 const requireWorkOSOrganizationId = Effect.fn(
@@ -267,7 +372,7 @@ const requireInvitationManagement = Effect.fn(
   };
 });
 
-export async function createOrganizationAction(
+async function createOrganizationActionImpl(
   rawInput: CreateOrganizationInput
 ): Promise<ActionResult<OrganizationRow>> {
   return runAction(
@@ -436,11 +541,7 @@ export async function createOrganizationAction(
       });
 
       if (!input.keepCurrentActiveOrganization) {
-        const cookieStore = yield* tryDb(
-          () => cookies(),
-          "Failed to access cookies"
-        );
-        cookieStore.set(LAST_VISITED_ORGANIZATION_COOKIE, slug, {
+        setCookie(LAST_VISITED_ORGANIZATION_COOKIE, slug, {
           path: "/",
           maxAge: LAST_VISITED_ORGANIZATION_COOKIE_MAX_AGE,
         });
@@ -451,7 +552,7 @@ export async function createOrganizationAction(
   );
 }
 
-export async function updateOrganizationAction(
+async function updateOrganizationActionImpl(
   rawInput: UpdateOrganizationInput
 ): Promise<ActionResult<OrganizationRow>> {
   return runAction(
@@ -515,21 +616,14 @@ export async function updateOrganizationAction(
         });
       }
 
-      if (updates.slug) {
-        const cookieStore = yield* tryDb(
-          () => cookies(),
-          "Failed to access cookies"
-        );
-
-        if (
-          cookieStore.get(LAST_VISITED_ORGANIZATION_COOKIE)?.value !==
-          organization.slug
-        ) {
-          cookieStore.set(LAST_VISITED_ORGANIZATION_COOKIE, organization.slug, {
-            path: "/",
-            maxAge: LAST_VISITED_ORGANIZATION_COOKIE_MAX_AGE,
-          });
-        }
+      if (
+        updates.slug &&
+        getCookie(LAST_VISITED_ORGANIZATION_COOKIE) !== organization.slug
+      ) {
+        setCookie(LAST_VISITED_ORGANIZATION_COOKIE, organization.slug, {
+          path: "/",
+          maxAge: LAST_VISITED_ORGANIZATION_COOKIE_MAX_AGE,
+        });
       }
 
       return organization;
@@ -537,7 +631,7 @@ export async function updateOrganizationAction(
   );
 }
 
-export async function listOrganizationsAction(): Promise<
+async function listOrganizationsActionImpl(): Promise<
   ActionResult<OrganizationRow[]>
 > {
   return runAction(
@@ -577,7 +671,7 @@ function findOrganizationForSelection(input: SetActiveOrganizationInput) {
   return Promise.resolve(undefined);
 }
 
-export async function setActiveOrganizationAction(
+async function setActiveOrganizationActionImpl(
   rawInput: SetActiveOrganizationInput
 ): Promise<ActionResult<OrganizationRow>> {
   return runAction(
@@ -605,11 +699,7 @@ export async function setActiveOrganizationAction(
 
       yield* requireMembership(session, organization.id);
 
-      const cookieStore = yield* tryDb(
-        () => cookies(),
-        "Failed to access cookies"
-      );
-      cookieStore.set(LAST_VISITED_ORGANIZATION_COOKIE, organization.slug, {
+      setCookie(LAST_VISITED_ORGANIZATION_COOKIE, organization.slug, {
         path: "/",
         maxAge: LAST_VISITED_ORGANIZATION_COOKIE_MAX_AGE,
       });
@@ -619,7 +709,7 @@ export async function setActiveOrganizationAction(
   );
 }
 
-export async function getOrganizationSummaryAction(
+async function getOrganizationSummaryActionImpl(
   rawSlug: string
 ): Promise<ActionResult<OrganizationRow>> {
   return runAction(
@@ -655,7 +745,7 @@ export async function getOrganizationSummaryAction(
   );
 }
 
-export async function getFullOrganizationAction(rawInput?: {
+async function getFullOrganizationActionImpl(rawInput?: {
   query?: { organizationId?: string; organizationSlug?: string };
 }): Promise<ActionResult<FullOrganization | null>> {
   return runAction(
@@ -726,7 +816,7 @@ export async function getFullOrganizationAction(rawInput?: {
   );
 }
 
-export async function listMembersAction(
+async function listMembersActionImpl(
   rawInput?: ListMembersInput
 ): Promise<ActionResult<MembersListResult>> {
   return runAction(
@@ -762,7 +852,7 @@ export async function listMembersAction(
   );
 }
 
-export async function updateMemberRoleAction(
+async function updateMemberRoleActionImpl(
   rawInput: UpdateMemberRoleInput
 ): Promise<ActionResult<MemberWithUser | null>> {
   return runAction(
@@ -863,7 +953,7 @@ export async function updateMemberRoleAction(
   );
 }
 
-export async function removeMemberAction(
+async function removeMemberActionImpl(
   rawInput: RemoveMemberInput
 ): Promise<ActionResult<{ removed: boolean }>> {
   return runAction(
@@ -877,6 +967,9 @@ export async function removeMemberAction(
         session,
         input.organizationId
       );
+      // Before the lookup: a non-member must not learn from the error which
+      // emails belong to the organization.
+      yield* requireMembership(session, organizationId);
 
       const isEmail = input.memberIdOrEmail.includes("@");
 
@@ -958,7 +1051,7 @@ export async function removeMemberAction(
   );
 }
 
-export async function listInvitationsAction(rawInput?: {
+async function listInvitationsActionImpl(rawInput?: {
   query?: { organizationId?: string };
 }): Promise<ActionResult<InvitationSummary[]>> {
   return runAction(
@@ -993,7 +1086,7 @@ export async function listInvitationsAction(rawInput?: {
   );
 }
 
-export async function inviteMemberAction(
+async function inviteMemberActionImpl(
   rawInput: InviteMemberInput
 ): Promise<ActionResult<InvitationSummary>> {
   return runAction(
@@ -1099,7 +1192,7 @@ export async function inviteMemberAction(
   );
 }
 
-export async function cancelInvitationAction(
+async function cancelInvitationActionImpl(
   rawInput: InvitationActionInput
 ): Promise<ActionResult<InvitationSummary>> {
   return runAction(
@@ -1127,7 +1220,7 @@ export async function cancelInvitationAction(
   );
 }
 
-export async function resendInvitationAction(
+async function resendInvitationActionImpl(
   rawInput: InvitationActionInput
 ): Promise<ActionResult<InvitationSummary>> {
   return runAction(

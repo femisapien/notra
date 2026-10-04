@@ -13,9 +13,9 @@ import {
   InputGroupInput,
 } from "@notra/ui/components/ui/input-group";
 import { Tabs, TabsList, TabsTrigger } from "@notra/ui/components/ui/tabs";
-import { useFormatter, useNow, useTranslations } from "next-intl";
 import { parseAsInteger, useQueryState } from "nuqs";
 import { useState } from "react";
+import { useFormatter, useNow, useTranslations } from "use-intl";
 
 import { TABLE_ROW_HEIGHT } from "@/constants/table";
 import { useSitemapPages } from "@/lib/hooks/use-brand-sitemaps";

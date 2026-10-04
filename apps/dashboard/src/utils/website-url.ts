@@ -2,7 +2,8 @@ import { publicWebsiteUrlSchema } from "@notra/geo-core/schemas/url";
 import { PublicUrlValidationError } from "@notra/utils/url";
 import { assertPublicWebsiteUrlResolution } from "@notra/utils/website-url";
 import { ORPCError } from "@orpc/server";
-import { getTranslations } from "next-intl/server";
+
+import { getTranslations } from "@/lib/i18n/server";
 
 import { ratelimit } from "./ratelimit";
 

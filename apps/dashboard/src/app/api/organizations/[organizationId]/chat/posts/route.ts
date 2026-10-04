@@ -12,9 +12,9 @@ import { createChatPostSchema } from "@notra/schemas/dashboard/content";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { marked } from "marked";
 import { nanoid } from "nanoid";
-import { after, NextResponse } from "next/server";
 
 import { assertOrganizationAccess } from "@/lib/auth/organization";
+import { afterResponse } from "@/lib/framework/after-response";
 import type { RouteContext } from "@/types/api/routes";
 
 export async function POST(
@@ -32,7 +32,7 @@ export async function POST(
     await request.json().catch(() => null)
   );
   if (!parsed.success) {
-    return NextResponse.json(
+    return Response.json(
       { error: "Invalid post payload", details: parsed.error.issues },
       { status: 400 }
     );
@@ -149,18 +149,18 @@ export async function POST(
   });
 
   if (!result) {
-    return NextResponse.json(
+    return Response.json(
       { error: "Failed to create chat collection" },
       { status: 500 }
     );
   }
 
-  after(async () => {
+  afterResponse(async () => {
     await maybeGenerateCollectionTitle({
       collectionId: result.collectionId,
       organizationId,
     });
   });
 
-  return NextResponse.json({ postId: result.postId, status: result.status });
+  return Response.json({ postId: result.postId, status: result.status });
 }

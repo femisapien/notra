@@ -16,7 +16,7 @@ import {
   InfiniteDataTable,
   type TableColumn,
 } from "@notra/ui/components/ui/data-table";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { AgentFeedbackAgent } from "@/components/agent-feedback/feedback-agent-icon";
 import {

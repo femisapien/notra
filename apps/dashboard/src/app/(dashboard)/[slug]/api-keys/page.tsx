@@ -78,7 +78,6 @@ import type {
   KeyResponseData,
   V2KeysCreateKeyResponseData,
 } from "@unkey/api/models/components";
-import { useLocale, useTranslations } from "next-intl";
 import {
   parseAsArrayOf,
   parseAsString,
@@ -92,6 +91,7 @@ import {
   useReducer,
 } from "react";
 import { toast } from "sonner";
+import { useLocale, useTranslations } from "use-intl";
 import * as z from "zod";
 
 import { ApiKeyRevealField } from "@/components/api-keys/api-key-reveal-field";

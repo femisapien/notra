@@ -8,9 +8,9 @@ import {
   type TableColumn,
 } from "@notra/ui/components/ui/data-table";
 import { Input } from "@notra/ui/components/ui/input";
-import { useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
 import { useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { CompetitorLogo } from "@/components/geo/competitor-logo";

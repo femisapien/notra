@@ -5,7 +5,7 @@ import {
   DataTable,
   type TableColumn,
 } from "@notra/ui/components/ui/data-table";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "use-intl";
 
 import { TABLE_MAX_HEIGHT, TABLE_ROW_HEIGHT } from "@/constants/table";
 import type { BillingInvoice, InvoicesTableProps } from "@/types/billing/plan";

@@ -10,8 +10,8 @@ import {
   DataTable,
   type TableColumn,
 } from "@notra/ui/components/ui/data-table";
-import { useLocale, useTranslations } from "next-intl";
 import { useMemo } from "react";
+import { useLocale, useTranslations } from "use-intl";
 
 import { EmptyStateTablePreview } from "@/components/empty-state-preview";
 import { CompetitorLogo } from "@/components/geo/competitor-logo";

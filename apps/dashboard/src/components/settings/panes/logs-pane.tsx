@@ -3,7 +3,6 @@
 import type { SortState } from "@notra/ui/components/ui/data-table";
 import { normalizePageSize } from "@notra/ui/lib/data-table";
 import { useQuery } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
 import {
   parseAsInteger,
   parseAsString,
@@ -11,6 +10,7 @@ import {
   useQueryState,
 } from "nuqs";
 import { useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { useLogColumns } from "@/app/(dashboard)/[slug]/settings/logs/columns";
 import { LogsDataTable } from "@/app/(dashboard)/[slug]/settings/logs/data-table";

@@ -12,7 +12,7 @@ import {
   DataTable,
   type TableColumn,
 } from "@notra/ui/components/ui/data-table";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "use-intl";
 
 import { ChartSparkline } from "@/components/charts/chart-sparkline";
 import { DirectionDelta } from "@/components/geo/directions/direction-delta";

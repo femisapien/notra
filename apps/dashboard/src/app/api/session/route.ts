@@ -1,12 +1,10 @@
-import type { NextRequest } from "next/server";
-
 import { getAuthIdentity, getAuthSession } from "@/lib/auth/server";
 import { buildSessionCorsHeaders } from "@/lib/auth/session-cors";
 import { readLocaleCookie, writeLocaleCookie } from "@/lib/i18n/locale-cookie";
 import type { ClientSessionData } from "@/types/auth/session";
 import { isDashboardLocale } from "@/utils/i18n";
 
-export function OPTIONS(request: NextRequest) {
+export function OPTIONS(request: Request) {
   return new Response(null, {
     status: 204,
     headers: {
@@ -17,9 +15,9 @@ export function OPTIONS(request: NextRequest) {
   });
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   const headers = buildSessionCorsHeaders(request.headers.get("origin"));
-  if (request.nextUrl.searchParams.get("view") === "navbar") {
+  if (new URL(request.url).searchParams.get("view") === "navbar") {
     const identity = await getAuthIdentity();
     return Response.json({ isAuthenticated: Boolean(identity) }, { headers });
   }

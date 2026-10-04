@@ -14,8 +14,8 @@ import {
 } from "@notra/ui/components/ui/data-table";
 import { TABLE_FRAME_INSET_PX } from "@notra/ui/constants/table";
 import { formatDistanceToNowStrict } from "date-fns";
-import { useTranslations } from "next-intl";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { StatusSpinner } from "@/components/geo/status-spinner";
 import { useBriefStatusLabels } from "@/lib/hooks/use-brief-status-labels";

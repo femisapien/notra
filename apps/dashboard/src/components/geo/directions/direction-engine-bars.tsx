@@ -5,8 +5,8 @@ import {
   DataTable,
   type TableColumn,
 } from "@notra/ui/components/ui/data-table";
-import { useTranslations } from "next-intl";
 import { useMemo } from "react";
+import { useTranslations } from "use-intl";
 
 import { EngineIcon } from "@/components/geo/engine-icon";
 import { GEO_DIRECTIONS_ENGINES } from "@/constants/geo-directions";

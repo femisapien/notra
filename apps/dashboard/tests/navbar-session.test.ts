@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
-import { NextRequest } from "next/server";
-
 const getAuthIdentity = mock(
   async () => null as { user: { id: string } } | null
 );
@@ -21,7 +19,7 @@ describe("navbar session view", () => {
   test("returns only authentication status without resolving an organization", async () => {
     getAuthIdentity.mockResolvedValue({ user: { id: "user-test" } });
     const response = await GET(
-      new NextRequest("https://app.usenotra.com/api/session?view=navbar", {
+      new Request("https://app.usenotra.com/api/session?view=navbar", {
         headers: { origin: "https://www.usenotra.com" },
       })
     );
@@ -40,7 +38,7 @@ describe("navbar session view", () => {
 
   test("does not authenticate a missing or rejected identity", async () => {
     const response = await GET(
-      new NextRequest("https://app.usenotra.com/api/session?view=navbar")
+      new Request("https://app.usenotra.com/api/session?view=navbar")
     );
     expect(await response.json()).toEqual({ isAuthenticated: false });
     expect(getAuthSession).not.toHaveBeenCalled();
@@ -48,7 +46,7 @@ describe("navbar session view", () => {
 
   test("keeps the default session response unchanged", async () => {
     const response = await GET(
-      new NextRequest("https://app.usenotra.com/api/session")
+      new Request("https://app.usenotra.com/api/session")
     );
     expect(await response.json()).toBeNull();
     expect(getAuthSession).toHaveBeenCalledTimes(1);

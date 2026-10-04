@@ -21,8 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@notra/ui/components/ui/select";
-import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { useWebhookColumns } from "@/components/webhooks/columns";

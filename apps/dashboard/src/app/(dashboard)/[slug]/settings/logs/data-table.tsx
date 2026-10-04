@@ -3,7 +3,7 @@
 import { AnalyticsUpIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { DataTable } from "@notra/ui/components/ui/data-table";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { EmptyState } from "@/components/empty-state";
 import { TABLE_ROW_HEIGHT } from "@/constants/table";
