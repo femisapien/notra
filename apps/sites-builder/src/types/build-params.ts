@@ -33,6 +33,11 @@ export interface SiteThemeConfig {
   changelog?: { title?: string; description?: string };
 }
 
+/** A `<head>` script from integrations or the customer's `script.js` / `scripts/*.js` (see @notra/sites-core). */
+export type HeadScript =
+  | { kind: "external"; src: string; attributes: Record<string, string | true> }
+  | { kind: "inline"; code: string };
+
 /** Written by the notra-sites CLI for each area build; already validated there. */
 export interface BuildParams {
   area: "blog" | "changelog";

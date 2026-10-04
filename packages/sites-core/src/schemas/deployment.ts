@@ -48,6 +48,13 @@ export const siteRedirectRuleSchema = z.object({
   ]),
 });
 
+/** A whole Content-Security-Policy header value: printable ASCII only, so it can never split the header. */
+export const siteContentSecurityPolicySchema = z
+  .string()
+  .min(1)
+  .max(SITE_CSP_MAX_LENGTH)
+  .regex(/^[\u0020-\u007E]+$/);
+
 export const siteManifestSchema = z.object({
   version: z.literal(1),
   siteId: z.string(),
@@ -60,6 +67,8 @@ export const siteManifestSchema = z.object({
   totalBytes: z.number().int().nonnegative(),
   files: z.array(siteManifestFileSchema),
   redirects: z.array(siteRedirectRuleSchema),
+  /** Sent with every HTML page of the deployment. Absent on older deployments and when the site turned it off. */
+  contentSecurityPolicy: siteContentSecurityPolicySchema.optional(),
 });
 
 export const siteServingPointerSchema = z.object({

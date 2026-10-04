@@ -107,9 +107,9 @@ export async function createSite(
     )
     .where(
       and(
-        eq(githubIntegrations.id, input.repositoryId),
-        eq(githubIntegrations.organizationId, input.organizationId),
-        eq(githubAppInstallations.organizationId, input.organizationId)
+        eq(githubIntegrations.id, repositoryId),
+        eq(githubIntegrations.organizationId, organizationId),
+        eq(githubAppInstallations.organizationId, organizationId)
       )
     )
     .limit(1);

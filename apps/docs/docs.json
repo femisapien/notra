@@ -116,6 +116,7 @@
               "sites/overview",
               "sites/repository",
               "sites/components",
+              "sites/analytics-and-scripts",
               "sites/publishing",
               "sites/domains",
               "sites/agents"

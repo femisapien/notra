@@ -169,29 +169,22 @@ export function SiteCreateForm({
         }
       }}
     >
-      <section className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor={`${id}-repository`}>
-            {tCommon("labels.repository")}
-          </Label>
-          <Select
-            disabled={repositoriesQuery.isPending}
-            items={repositories.map((candidate) => ({
-              value: candidate.id,
-              label: repositoryLabel(candidate),
-            }))}
-            onValueChange={(value) => {
-              const next = repositories.find((item) => item.id === value);
-              if (!next) {
-                return;
-              }
-              setRepositoryId(next.id);
-              setBranch(next.defaultBranch ?? "");
-              if (!name.trim()) {
-                setName(next.repo ?? "");
-              }
-            }}
-            value={repositoryId}
+      <TitleCard as="section" heading={tSettings("general")} headingAs="h2">
+        <div className="divide-border divide-y">
+          <SiteSettingsRow
+            description={
+              <>
+                {t("repositoryHint")}{" "}
+                <Link
+                  className="text-foreground underline-offset-4 hover:underline"
+                  href={`/${organizationSlug}/integrations/github`}
+                >
+                  {t("manageRepositories")}
+                </Link>
+              </>
+            }
+            htmlFor={`${id}-repository`}
+            label={tCommon("labels.repository")}
           >
             <SelectTrigger className="w-full" id={`${id}-repository`}>
               <SelectValue
@@ -219,22 +212,23 @@ export function SiteCreateForm({
                       icon={SquareLock02Icon}
                       size={12}
                     />
-                  ) : null}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <FieldDescription>
-            {t("repositoryHint")}{" "}
-            <Link href={`/${organizationSlug}/integrations/github`}>
-              {t("manageRepositories")}
-            </Link>
-          </FieldDescription>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor={`${id}-name`}>{t("name")}</Label>
+                    <span className="truncate">
+                      {repositoryLabel(candidate)}
+                    </span>
+                    {candidate.private ? (
+                      <HugeiconsIcon
+                        aria-label={t("private")}
+                        className="text-muted-foreground"
+                        icon={SquareLock02Icon}
+                        size={12}
+                      />
+                    ) : null}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SiteSettingsRow>
+          <SiteSettingsRow htmlFor={`${id}-name`} label={t("name")}>
             <Input
               autoComplete="off"
               id={`${id}-name`}

@@ -76,6 +76,13 @@ export async function serveFile(params: ServeFileParams): Promise<Response> {
   if (isPreview) {
     headers.set("X-Robots-Tag", "noindex, nofollow");
   }
+  // Customer pages only; the worker's own pages (password form, errors) go through `html()`.
+  if (
+    params.contentSecurityPolicy &&
+    file.contentType.startsWith("text/html")
+  ) {
+    headers.set("Content-Security-Policy", params.contentSecurityPolicy);
+  }
   for (const [name, value] of Object.entries(params.extraHeaders ?? {})) {
     headers.set(name, value);
   }

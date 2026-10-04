@@ -65,6 +65,7 @@ export async function publishDeploymentFiles(
       destination: rule.destination,
       status: rule.permanent ? 308 : 307,
     })),
+    contentSecurityPolicy: params.result.contentSecurityPolicy ?? undefined,
   };
   await r2Put(
     SITE_R2_KEYS.manifest(site.id, deployment.id),

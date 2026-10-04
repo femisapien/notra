@@ -12,6 +12,8 @@ changelog/*.mdx         # changelog entries, one file per release
 snippets/*.mdx          # reusable content
 snippets/*.jsx          # your own React components
 public/                 # images and other static files
+style.css, styles/*.css # custom CSS
+script.js, scripts/*.js # custom JavaScript, see Analytics and scripts
 ```
 
 Files and folders starting with `_` are never published as pages. Everything else in `blog/` and `changelog/` becomes a page; the file path is the URL (`blog/2026/launch.mdx` → `/blog/2026/launch`).
@@ -66,6 +68,8 @@ Sites use the `notra` theme: the look of the Notra dashboard, with a light and a
 ### Custom CSS
 
 Add a `style.css` (or any `.css` file in `styles/`) to the site root. It loads on every page after the theme, so it can override anything. Tailwind classes also work inside your MDX and components.
+
+For JavaScript and analytics, see [Analytics and scripts](/sites/analytics-and-scripts).
 
 ## Frontmatter
 

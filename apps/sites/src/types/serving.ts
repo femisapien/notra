@@ -33,6 +33,8 @@ export interface ServeFileParams {
   file: SiteManifestFile;
   status: number;
   isPreview: boolean;
+  /** The deployment's policy from its manifest; only sent with HTML. */
+  contentSecurityPolicy?: string;
   extraHeaders?: Record<string, string>;
 }
 

@@ -1,8 +1,11 @@
+import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import type { SiteEntry } from "@notra/sites-compiler/types/diagnostics";
 import { isTextSourceFile, validateSite } from "@notra/sites-compiler/validate";
+import { SITE_ASSETS_DIR } from "@notra/sites-core/constants/sites";
+import { sortCustomScriptPaths } from "@notra/sites-core/utils/custom-scripts";
 
 import { collectSiteSource } from "./collect";
 import type { PreparedSite, PrepareSiteParams } from "./types/source";
@@ -43,6 +46,7 @@ export async function prepareSite(
       collectDiagnostics: collected.diagnostics,
       publicFiles,
       entries: [],
+      customScripts: [],
     };
   }
 
@@ -79,6 +83,29 @@ export async function prepareSite(
     .join("\n");
   await writeFileEnsured(join(params.workDir, "custom.css"), `${customCss}\n`);
 
+  // Customer JavaScript (Mintlify's script.js): copied byte for byte, never run here. Placed in
+  // the public dir so every area build and the dev server serve it below the mount; the content
+  // hash in the name lets it be cached like the theme's own assets.
+  const customScripts: string[] = [];
+  for (const path of sortCustomScriptPaths(
+    collected.files.map((file) => file.path)
+  )) {
+    const source = await readFile(join(params.siteRoot, path));
+    const name = path.replace(/\.js$/i, "").replace(/[^A-Za-z0-9_-]+/g, "-");
+    // The dev server reads its params once, so names there must survive edits.
+    const fileName = params.stableAssetNames
+      ? `custom-${name}.js`
+      : `custom-${name}.${createHash("sha256").update(source).digest("hex").slice(0, 10)}.js`;
+    await mkdir(join(params.workDir, "site", "public", SITE_ASSETS_DIR), {
+      recursive: true,
+    });
+    await cp(
+      join(params.siteRoot, path),
+      join(params.workDir, "site", "public", SITE_ASSETS_DIR, fileName)
+    );
+    customScripts.push(fileName);
+  }
+
   const entries: SiteEntry[] = [];
   for (const entry of validation.entries) {
     const source =
@@ -100,5 +127,6 @@ export async function prepareSite(
     collectDiagnostics: collected.diagnostics,
     publicFiles,
     entries,
+    customScripts,
   };
 }

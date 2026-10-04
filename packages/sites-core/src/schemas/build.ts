@@ -1,5 +1,6 @@
 import {
   siteAreaSchema,
+  siteContentSecurityPolicySchema,
   siteMountsSchema,
 } from "@notra/sites-core/schemas/deployment";
 import { z } from "zod";
@@ -27,6 +28,8 @@ export const siteBuildRequestSchema = z.object({
   mounts: siteMountsSchema,
   noindex: z.boolean().default(false),
   includeDrafts: z.boolean().default(false),
+  /** "Powered by Notra" badge in the footer. */
+  branding: z.boolean().default(true),
 });
 
 export const siteBuildRedirectSchema = z.object({
@@ -52,4 +55,8 @@ export const siteBuildResultSchema = z.object({
   totalBytes: z.number().int().nonnegative(),
   /** From notra.json. */
   redirects: z.array(siteBuildRedirectSchema).max(500),
+  /** From notra.json and the built HTML; null when turned off or built by an older toolchain. */
+  contentSecurityPolicy: siteContentSecurityPolicySchema
+    .nullable()
+    .default(null),
 });

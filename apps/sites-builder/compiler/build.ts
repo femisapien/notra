@@ -9,6 +9,7 @@ import type {
   SiteBuildRequest,
   SiteBuildResult,
 } from "@notra/sites-core/types/build";
+import { buildSiteContentSecurityPolicy } from "@notra/sites-core/utils/content-security-policy";
 import {
   listMountedAreas,
   normalizeSiteMounts,
@@ -21,6 +22,8 @@ import { prepareSite } from "./prepare";
 import type { AreaPages } from "./types/agent-files";
 import type { AstroPackageJson, BuildSiteOptions } from "./types/build";
 import { listFiles } from "./utils/fs";
+import { siteHeadScripts } from "./utils/head-scripts";
+import { inlineScriptHashes } from "./utils/inline-scripts";
 import { rewritePublicAssetUrls } from "./utils/public-assets";
 
 function astroBin(toolchainRoot: string): string {
@@ -87,6 +90,7 @@ export async function buildSite(
       fileCount: 0,
       totalBytes: 0,
       redirects: [],
+      contentSecurityPolicy: null,
     };
   }
 
@@ -119,6 +123,7 @@ export async function buildSite(
         publicFiles: prepared.publicFiles,
         mounts,
         config,
+        headScripts: siteHeadScripts(config, mount, prepared.customScripts),
       })
     );
     const started = Date.now();
@@ -147,6 +152,7 @@ export async function buildSite(
         fileCount: 0,
         totalBytes: 0,
         redirects: [],
+        contentSecurityPolicy: null,
       };
     }
 
@@ -201,6 +207,33 @@ export async function buildSite(
     pageHtml,
   });
 
+  // One policy for every page: the theme's inline scripts are the same everywhere, so the
+  // union of all pages stays small. Computed from the final HTML, after URL rewriting.
+  const scriptHashes = new Set<string>();
+  for (const html of pageHtml.values()) {
+    for (const hash of inlineScriptHashes(html)) {
+      scriptHashes.add(hash);
+    }
+  }
+  let contentSecurityPolicy: string | null = null;
+  if (
+    config.security.contentSecurityPolicy &&
+    scriptHashes.size > SITE_CSP_MAX_SCRIPT_HASHES
+  ) {
+    diagnostics.push({
+      severity: "error",
+      file: null,
+      code: "csp_too_many_inline_scripts",
+      message: `The pages contain ${scriptHashes.size} different inline scripts; the limit is ${SITE_CSP_MAX_SCRIPT_HASHES}. Move them into scripts/*.js, or set security.contentSecurityPolicy to false in notra.json.`,
+    });
+  } else {
+    contentSecurityPolicy = buildSiteContentSecurityPolicy({
+      integrations: config.integrations,
+      security: config.security,
+      scriptHashes,
+    });
+  }
+
   let fileCount = 0;
   let totalBytes = 0;
   for (const file of await listFiles(options.outDir)) {
@@ -215,6 +248,7 @@ export async function buildSite(
     fileCount,
     totalBytes,
     redirects: config.redirects,
+    contentSecurityPolicy,
   };
 }
 

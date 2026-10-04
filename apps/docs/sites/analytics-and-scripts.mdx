@@ -1,0 +1,109 @@
+---
+title: "Analytics and scripts"
+description: "Add an analytics provider, run your own JavaScript, and control which origins your site may load from."
+---
+
+## Analytics integrations
+
+Add an analytics provider under `integrations` in `notra.json`. Notra adds the provider's script tag to the `<head>` of every page and allows its hosts in the [Content-Security-Policy](#content-security-policy).
+
+```json notra.json
+{
+  "name": "Acme",
+  "integrations": {
+    "databuddy": { "clientId": "your-client-id", "trackWebVitals": true },
+    "plausible": { "domain": "acme.com" }
+  }
+}
+```
+
+You can turn on several providers at once. Notra checks every ID against the provider's format. If an ID is wrong or a key is unknown, the build fails with an error that points to the setting.
+
+| Integration | Settings | Notes |
+| --- | --- | --- |
+| `databuddy` | `clientId`, `trackWebVitals`, `trackErrors` | `trackErrors` needs a paid Databuddy plan. |
+| `plausible` | `domain`, `scriptUrl` | `domain` is the site's domain as you added it in Plausible. Use `scriptUrl` for self-hosted Plausible, a proxy, or a script extension such as `https://plausible.io/js/script.outbound-links.js`. |
+| `posthog` | `apiKey`, `apiHost` | `apiKey` is the project API key (`phc_…`). `apiHost` defaults to `https://us.i.posthog.com`. Set it to `https://eu.i.posthog.com` for EU Cloud, or to your reverse proxy. |
+| `ga4` | `measurementId` | Google Analytics 4, for example `G-ABC123XYZ9`. |
+| `gtm` | `tagId` | Google Tag Manager container, for example `GTM-ABCD123`. |
+| `umami` | `websiteId`, `scriptUrl` | `scriptUrl` defaults to Umami Cloud. Set it for a self-hosted Umami. |
+| `fathom` | `siteId` | The site ID from Fathom's embed code. |
+
+```json notra.json
+{
+  "integrations": {
+    "posthog": { "apiKey": "phc_…", "apiHost": "https://eu.i.posthog.com" },
+    "ga4": { "measurementId": "G-ABC123XYZ9" },
+    "umami": { "websiteId": "94db1cb1-74f4-4a40-ad6c-962362670409" },
+    "fathom": { "siteId": "ABCDEFG" }
+  }
+}
+```
+
+<Note>
+Previews use the same integrations as your live site. To keep previews out of your numbers, filter by hostname in your analytics tool. Preview hosts look like `pr-7--acme.notra.site`.
+</Note>
+
+## Custom scripts
+
+Add a `script.js` to the site root, or any number of `.js` files to a `scripts/` folder. They work like [custom CSS](/sites/repository#custom-css), but for JavaScript.
+
+```text
+script.js               # runs first
+scripts/chat-widget.js  # then scripts/, sorted by path
+scripts/tracking/hotjar.js
+```
+
+Notra loads every script on every page with `defer`, from your site's own address. They run in the order shown above after the page has loaded.
+
+- Write plain browser JavaScript. These files are not modules, so `import` and `export` don't work in them. Use `document.createElement("script")` to load a library from another host.
+- The build only checks the syntax and never runs your scripts. A syntax error fails the build and shows the file and line.
+- Your MDX can't import these files. For a component, use a [snippet](/sites/components) in `snippets/` instead.
+
+```js scripts/external-links.js
+// Open links to other sites in a new tab.
+for (const link of document.querySelectorAll("main a[href^='http']")) {
+  if (link.host !== location.host) {
+    link.target = "_blank";
+    link.rel = "noopener";
+  }
+}
+```
+
+## Content-Security-Policy
+
+Every page comes with a `Content-Security-Policy` header that says where scripts may come from and which servers they may connect to. Notra builds it from your repository:
+
+- **Scripts** can come from your site, the analytics integrations you turned on, and your `allowedOrigins`. Inline scripts are allowed only if they were on the page at build time: Notra hashes every one of them, so nobody can inject a new one later.
+- **Connections** (`fetch`, beacons, WebSockets) are allowed to your site, your integrations and your `allowedOrigins`.
+- **Images, styles, fonts, videos and embeds** are not limited, so posts can still show images and videos from anywhere.
+
+If your custom scripts or components load code from another host or call an API, add that origin:
+
+```json notra.json
+{
+  "security": {
+    "allowedOrigins": [
+      "https://widget.intercom.io",
+      "https://*.intercom.io",
+      "wss://*.intercom.io"
+    ]
+  }
+}
+```
+
+Origins must start with `https://` or `wss://` and have no path. `https://*.example.com` covers every subdomain. A `wss://` origin only allows connections, not scripts. You can list up to 32 origins.
+
+<Warning>
+Google Tag Manager loads whatever tags you set up in the container. If a tag loads code from another host, add that host to `allowedOrigins`. Custom HTML tags add inline scripts that weren't on the page at build time, so the policy blocks them. If you rely on them, turn the policy off.
+</Warning>
+
+To turn the policy off entirely:
+
+```json notra.json
+{
+  "security": { "contentSecurityPolicy": false }
+}
+```
+
+If a script doesn't run, open your browser's developer console. Any request the policy blocked is listed there with the origin you need to add.

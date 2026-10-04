@@ -1,3 +1,7 @@
+import {
+  siteIntegrationsSchema,
+  siteSecuritySchema,
+} from "@notra/sites-core/schemas/site-integrations";
 import { z } from "zod";
 
 const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}){1,2}$/;
@@ -64,6 +68,8 @@ const shikiThemeName = z
  * Mirrors Mintlify's appearance settings: an opinionated `theme`, brand
  * `colors`, `fonts`, `background`, `appearance` and code block styling, plus
  * any `style.css` / `styles/*.css` in the repository for everything else.
+ * Analytics come from `integrations` presets; `script.js` / `scripts/*.js`
+ * add custom JavaScript, limited by the Content-Security-Policy in `security`.
  */
 export const siteConfigSchema = z.object({
   $schema: z.string().optional(),
@@ -134,6 +140,8 @@ export const siteConfigSchema = z.object({
   blog: areaSchema.optional(),
   changelog: areaSchema.optional(),
   redirects: z.array(redirectSchema).max(500).default([]),
+  integrations: siteIntegrationsSchema,
+  security: siteSecuritySchema,
 });
 
 export const blogFrontmatterSchema = z.object({

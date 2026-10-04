@@ -15,6 +15,7 @@ import {
 import { buildSite, readBuildTarget, runAstro } from "./build";
 import { USAGE } from "./constants/cli";
 import { prepareSite, readSiteFiles } from "./prepare";
+import { siteHeadScripts } from "./utils/head-scripts";
 
 const TOOLCHAIN_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
@@ -138,6 +139,11 @@ async function main() {
         publicFiles: prepared.publicFiles,
         mounts,
         config: prepared.validation.config,
+        headScripts: siteHeadScripts(
+          prepared.validation.config,
+          selected.mount,
+          prepared.customScripts
+        ),
       })
     );
     let timer: ReturnType<typeof setTimeout> | undefined;

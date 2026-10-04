@@ -14,6 +14,8 @@ export interface CollectedSource {
 export interface PrepareSiteParams {
   siteRoot: string;
   workDir: string;
+  /** Name custom scripts without a content hash (dev server). */
+  stableAssetNames?: boolean;
 }
 
 export interface PreparedSite {
@@ -22,4 +24,6 @@ export interface PreparedSite {
   /** Absolute URL paths of files in `public/`, e.g. `/images/logo.svg`. */
   publicFiles: string[];
   entries: SiteEntry[];
+  /** File names of `script.js` / `scripts/*.js` below `_notra/assets/`, in page order. */
+  customScripts: string[];
 }

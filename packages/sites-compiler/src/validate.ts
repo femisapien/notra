@@ -6,6 +6,8 @@ import {
 } from "@notra/sites-core/schemas/site-config";
 import type { SiteDiagnostic } from "@notra/sites-core/types/build";
 import type { SiteConfig } from "@notra/sites-core/types/site-config";
+import { isCustomScriptPath } from "@notra/sites-core/utils/custom-scripts";
+import { Parser } from "acorn";
 import { parse as parseYaml } from "yaml";
 
 import { analyzeJsxSnippet } from "./jsx";
@@ -17,6 +19,7 @@ import type {
   SiteValidationInput,
   SiteValidationResult,
 } from "./types/validate";
+import { offsetToLineColumn } from "./utils/paths";
 
 const TEXT_EXTENSIONS = /\.(?:mdx?|jsx?|json|txt|css|svg)$/i;
 const ENTRY_FILE = /^(blog|changelog)\/(.+)\.(mdx?)$/;
@@ -95,6 +98,28 @@ function validateFrontmatter(
 }
 
 /**
+ * `script.js` / `scripts/*.js` run in the browser as classic deferred scripts.
+ * Only parsed here, so a syntax error shows up in the build instead of the console.
+ */
+function validateCustomScript(path: string, source: string): SiteDiagnostic[] {
+  try {
+    Parser.parse(source, { ecmaVersion: "latest", sourceType: "script" });
+    return [];
+  } catch (error) {
+    const pos = (error as { pos?: number }).pos ?? 0;
+    return [
+      {
+        severity: "error",
+        file: path,
+        ...offsetToLineColumn(source, pos),
+        code: "script_syntax",
+        message: `Syntax error: ${(error as Error).message.replace(/\s*\(\d+:\d+\)$/, "")}. Custom scripts are plain browser JavaScript, not modules.`,
+      },
+    ];
+  }
+}
+
+/**
  * Validates a whole site without executing any of its code and produces the
  * transformed sources the Astro build consumes. Safe to run in the control
  * plane (dashboard editor, webhook pre-check) and inside the build sandbox.
@@ -102,7 +127,10 @@ function validateFrontmatter(
 export function validateSite(input: SiteValidationInput): SiteValidationResult {
   const diagnostics: SiteDiagnostic[] = [];
   const outputs = new Map<string, string>();
-  const paths = new Set(input.files.keys());
+  // Custom scripts are page-level JavaScript, not snippets: MDX cannot import them.
+  const paths = new Set(
+    [...input.files.keys()].filter((path) => !isCustomScriptPath(path))
+  );
 
   let config: SiteConfig | null = null;
   const rawConfig = input.files.get(SITE_CONFIG_FILENAME);
@@ -141,6 +169,10 @@ export function validateSite(input: SiteValidationInput): SiteValidationResult {
   const componentExports = new Map<string, readonly string[]>();
   for (const [path, content] of input.files) {
     if (!/\.jsx?$/i.test(path) || content === null) {
+      continue;
+    }
+    if (isCustomScriptPath(path)) {
+      diagnostics.push(...validateCustomScript(path, content));
       continue;
     }
     const analysis = analyzeJsxSnippet(path, content);

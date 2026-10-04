@@ -133,3 +133,24 @@ describe("site contract", () => {
     expect(result.entries.map((entry) => entry.slug)).toEqual(["post"]);
   });
 });
+
+describe("custom scripts", () => {
+  test("script.js and scripts/*.js are browser scripts, not snippets", () => {
+    const result = run({
+      // Snippet rules (no default export, no imports) do not apply here.
+      "script.js": "window.dataLayer = window.dataLayer || [];",
+      "scripts/chat.js":
+        "document.addEventListener('DOMContentLoaded', () => {});",
+      "scripts/broken.js": "const a = ;",
+      "blog/post.mdx": post('import { X } from "/scripts/chat.js";\n\n<X />'),
+    });
+    expect(errors(result)).toEqual(
+      expect.arrayContaining([
+        "scripts/broken.js:1 script_syntax",
+        "blog/post.mdx:6 import",
+      ])
+    );
+    expect(errors(result)).not.toContain("script.js:1 script_syntax");
+    expect(result.outputs.has("scripts/chat.js")).toBe(false);
+  });
+});

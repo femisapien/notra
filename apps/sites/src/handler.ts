@@ -224,7 +224,14 @@ async function serveFromManifest(
       },
     });
   }
-  const fileParams = { deps, request, siteId, deploymentId, isPreview };
+  const fileParams = {
+    deps,
+    request,
+    siteId,
+    deploymentId,
+    isPreview,
+    contentSecurityPolicy: loaded.manifest.contentSecurityPolicy,
+  };
   const markdownFile = resolveMarkdownFile(loaded.files, path);
   if (markdownFile) {
     return await serveFile({ ...fileParams, file: markdownFile, status: 200 });

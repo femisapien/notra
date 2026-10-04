@@ -86,7 +86,14 @@ export const SITE_SOURCE_ROOT_ENTRIES = [
   // Custom CSS, loaded on every page after the theme (like Mintlify's style.css).
   "style.css",
   "styles",
+  // Custom JavaScript, loaded on every page with `defer` (like Mintlify's script.js).
+  "script.js",
+  "scripts",
 ] as const;
+
+/** `script.js` and every `.js` file below `scripts/`; copied as-is, never executed by the build. */
+export const SITE_CUSTOM_SCRIPT_FILENAME = "script.js";
+export const SITE_CUSTOM_SCRIPTS_DIR = "scripts";
 
 export const SITE_SOURCE_EXTENSIONS = [
   ".md",
