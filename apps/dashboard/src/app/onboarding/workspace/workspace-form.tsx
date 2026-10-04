@@ -35,6 +35,7 @@ import {
 } from "@/constants/onboarding";
 import { useHeardAboutLabels } from "@/lib/hooks/use-heard-about-labels";
 import { extractDomain } from "@/lib/onboarding/company-logo";
+import { continueAfterWorkspace } from "@/lib/onboarding/continue-after-workspace";
 import {
   MAX_LOGO_FILE_SIZE_MB,
   readFileAsDataUrl,
@@ -173,7 +174,7 @@ export function WorkspaceForm({
           logoSourceUrl: null,
           value,
         });
-        window.location.assign("/onboarding/visibility");
+        await continueAfterWorkspace(currentOrg, value);
       } catch (err) {
         toast.error(
           err instanceof Error && err.message ? err.message : t("createFailed")

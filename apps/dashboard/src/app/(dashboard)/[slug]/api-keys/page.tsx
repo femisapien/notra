@@ -88,6 +88,7 @@ import {
   type ComponentType,
   type ReactNode,
   useEffect,
+  useEffectEvent,
   useReducer,
 } from "react";
 import { toast } from "sonner";
@@ -109,6 +110,8 @@ import {
 import { API_KEY_CARD_ITEMS, API_KEY_PRESETS } from "@/lib/api-keys/presets";
 import { expandLegacyApiKeyScopes } from "@/lib/api-keys/scopes";
 import { useApiKeyExpirationItems } from "@/lib/hooks/use-api-key-expiration-items";
+import { useHasActivePlan } from "@/lib/hooks/use-plan";
+import { useSettingsModal } from "@/lib/hooks/use-settings-modal";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type {
   ApiKeyAccessMode,
@@ -261,7 +264,13 @@ function getDefaultEditExpiration(
   return "90d";
 }
 
-function ApiKeysHeader({ onCreate }: { onCreate: () => void }) {
+function ApiKeysHeader({
+  createDisabled,
+  onCreate,
+}: {
+  createDisabled: boolean;
+  onCreate: () => void;
+}) {
   const t = useTranslations("apiKeys");
   const tCommon2 = useTranslations("common");
   return (
@@ -271,7 +280,11 @@ function ApiKeysHeader({ onCreate }: { onCreate: () => void }) {
       title={tCommon2("labels.apiKeys")}
     >
       <div className="flex items-center gap-2">
-        <Button className="gap-1.5" onClick={onCreate}>
+        <Button
+          className="gap-1.5"
+          disabled={createDisabled}
+          onClick={onCreate}
+        >
           <HugeiconsIcon className="size-4" icon={Add01Icon} />
           {t("createKey")}
           <Kbd className="ml-1 hidden sm:inline-flex">C</Kbd>
@@ -835,9 +848,36 @@ export default function ApiKeysPage() {
     newKeyConfig.scopes !== null &&
     newKeyConfig.expiration !== null;
 
+  const { isLocked: planLocked, isLoading: planLoading } = useHasActivePlan();
+  const { openSettings } = useSettingsModal();
+  const tMembers = useTranslations("members");
+  const tBilling = useTranslations("errors.billing");
+  // Creating a key needs an active plan; say so up front instead of after
+  // the user has filled in the form.
+  const openCreateDialog = () => {
+    // Until billing has loaded we cannot tell, and an open form would only be
+    // rejected on submit.
+    if (planLoading) {
+      return false;
+    }
+    if (planLocked) {
+      toast.error(tBilling("subscriptionRequired"), {
+        action: {
+          label: tMembers("viewPlans"),
+          onClick: () => openSettings("billing"),
+        },
+      });
+      return false;
+    }
+    dispatchUi({ type: "createDialogChanged", open: true });
+    return true;
+  };
+
   useHotkey(
     "C",
-    () => dispatchUi({ type: "createDialogChanged", open: true }),
+    () => {
+      openCreateDialog();
+    },
     {
       enabled: !(
         dialogOpen ||
@@ -868,11 +908,16 @@ export default function ApiKeysPage() {
     expiration: newKeyExpiration,
   };
 
+  // A preconfigured link waits for billing, so a free plan gets the hint
+  // instead of a form it cannot submit.
+  const openPreconfiguredDialog = useEffectEvent(() => {
+    openCreateDialog();
+  });
   useEffect(() => {
-    if (hasNewKeyConfig) {
-      dispatchUi({ type: "createDialogChanged", open: true });
+    if (hasNewKeyConfig && !planLoading) {
+      openPreconfiguredDialog();
     }
-  }, [hasNewKeyConfig]);
+  }, [hasNewKeyConfig, planLoading]);
 
   const handlePresetSelect = (id: string) => {
     const preset = API_KEY_PRESETS.find((item) => item.id === id);
@@ -886,8 +931,9 @@ export default function ApiKeysPage() {
       expiration: preset.expiration,
     };
     dispatchUi({ type: "createErrorChanged", createError: null });
-    dispatchUi({ type: "createDialogChanged", open: true });
-    setNewKeyConfig(config);
+    if (openCreateDialog()) {
+      setNewKeyConfig(config);
+    }
   };
 
   const getCreateErrorMessage = (field: PropertyKey | undefined) => {
@@ -1061,9 +1107,10 @@ export default function ApiKeysPage() {
     <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
       <div className="w-full space-y-6 px-4 lg:px-6">
         <ApiKeysHeader
-          onCreate={() =>
-            dispatchUi({ type: "createDialogChanged", open: true })
-          }
+          createDisabled={planLoading}
+          onCreate={() => {
+            openCreateDialog();
+          }}
         />
 
         <DemoApiCallout />
