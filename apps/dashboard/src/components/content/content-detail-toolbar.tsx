@@ -20,7 +20,7 @@ import { Button } from "@/components/button";
 import { ImageExportTargetIcon } from "@/components/content/image-export-target-icon";
 import { PostSocialButton } from "@/components/content/post-social-button";
 import { PublishContentToGitHubDialog } from "@/components/content/publish-content-to-github-dialog";
-import { ContentScheduleButton } from "@/components/content/schedule/content-schedule-button";
+import { ContentPublishButton } from "@/components/content/schedule/content-publish-button";
 import { WriterExecute } from "@/components/geo/writer/writer-execute";
 import { IMAGE_EXPORT_TARGETS } from "@/constants/image-export";
 import { IMAGE_EXPORT_DOWNLOAD_TARGET } from "@/constants/studio-analytics";
@@ -242,6 +242,25 @@ function ContentDetailPublishActions({
   if (document.isGeoWriterPlanMode) {
     return document.isGeoWriterBriefMissing ? null : <WriterExecute.Button />;
   }
+  const publishButton = (
+    <Button
+      disabled={
+        document.isTogglingStatus ||
+        document.isGeoArticleLoading ||
+        document.hasChanges ||
+        document.isSaving
+      }
+      onClick={document.handleToggleStatus}
+      size="sm"
+      variant={content.status === "draft" ? "default" : "outline"}
+    >
+      {publishLabel}
+      <HugeiconsIcon
+        className="size-4"
+        icon={content.status === "published" ? TextIcon : SentIcon}
+      />
+    </Button>
+  );
   return (
     <>
       <ContentDetailGitHubAction
@@ -251,34 +270,20 @@ function ContentDetailPublishActions({
         organizationId={organizationId}
         organizationSlug={organizationSlug}
       />
-      {document.isGeoArticleLoading ? null : (
-        <ContentScheduleButton
+      {document.isGeoArticleLoading ? (
+        publishButton
+      ) : (
+        <ContentPublishButton
           contentId={contentId}
           contentType={content.contentType}
           hasUnsavedChanges={document.hasChanges || document.isSaving}
           organizationId={organizationId}
           organizationSlug={organizationSlug}
+          publishButton={publishButton}
           published={content.status === "published"}
           title={document.title}
         />
       )}
-      <Button
-        disabled={
-          document.isTogglingStatus ||
-          document.isGeoArticleLoading ||
-          document.hasChanges ||
-          document.isSaving
-        }
-        onClick={document.handleToggleStatus}
-        size="sm"
-        variant={content.status === "draft" ? "default" : "outline"}
-      >
-        {publishLabel}
-        <HugeiconsIcon
-          className="size-4"
-          icon={content.status === "published" ? TextIcon : SentIcon}
-        />
-      </Button>
     </>
   );
 }

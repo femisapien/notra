@@ -13,7 +13,7 @@
     },
     {
       "path": "/api/cron/scheduled-publications",
-      "schedule": "* * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/geo-scan",

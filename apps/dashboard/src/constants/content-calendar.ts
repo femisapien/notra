@@ -89,3 +89,10 @@ export const SCHEDULE_DIALOG_MODES = {
     editable: false,
   },
 } as const satisfies Record<ScheduleDialogMode, ScheduleDialogModeConfig>;
+
+/**
+ * A QStash wake that lands this much before its due time (clock skew between
+ * QStash and us) still claims what was due then, instead of claiming nothing
+ * and leaving the post to the next cron sweep.
+ */
+export const SCHEDULED_PUBLICATION_WAKE_EARLY_TOLERANCE_MS = 60 * 1000;

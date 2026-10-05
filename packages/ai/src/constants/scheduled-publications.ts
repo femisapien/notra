@@ -18,7 +18,10 @@ export const SCHEDULED_PUBLICATION_START_RETRY_MS = MINUTE_MS;
  */
 export const SCHEDULED_PUBLICATION_START_BUDGET_MS = 6 * 60 * MINUTE_MS;
 
-/** Claims per sweep. The cron runs every minute, so a backlog drains fast. */
+/**
+ * Claims per sweep. Each due time also wakes its post through QStash, so the
+ * cron sweep is the safety net for lost wakes and expired leases.
+ */
 export const SCHEDULED_PUBLICATION_SWEEP_LIMIT = 50;
 
 /**
@@ -32,6 +35,10 @@ export const SCHEDULED_PUBLICATION_RETRY_DELAYS_MS = [
   15 * MINUTE_MS,
   60 * MINUTE_MS,
 ] as const;
+
+/** Dashboard route QStash calls when a post's schedule is due. */
+export const SCHEDULED_PUBLICATION_WAKE_ROUTE_PATH =
+  "/api/workflows/scheduled-publication-wake";
 
 /** Farthest ahead a post can be scheduled. */
 export const SCHEDULED_PUBLICATION_MAX_LEAD_MS = 366 * 24 * 60 * MINUTE_MS;

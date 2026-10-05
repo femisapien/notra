@@ -7,7 +7,10 @@ import {
 import { QSTASH_DESTINATION_REJECTION_PATTERN } from "../constants/qstash";
 import { CUSTOM_SCHEDULE_DEFAULT_INTERVAL_DAYS } from "../constants/schedule-interval";
 import { QstashScheduleSetupError } from "../schemas/qstash";
-import type { CreateQstashRouteScheduleProps } from "../types/qstash";
+import type {
+  CreateQstashRouteScheduleProps,
+  PublishQstashRouteMessageProps,
+} from "../types/qstash";
 import { toUtcDateString } from "../utils/schedule-interval";
 import {
   getConfiguredAppUrl,
@@ -209,6 +212,24 @@ export async function createQstashRouteSchedule({
   }
 
   return resolvedScheduleId;
+}
+
+/** Sends one message to an app route, held by QStash until `notBefore`. */
+export async function publishQstashRouteMessage({
+  path,
+  body,
+  notBefore,
+  deduplicationId,
+}: PublishQstashRouteMessageProps) {
+  const client = getQStashClient();
+  const appUrl = getScheduleAppUrl();
+  await client.publishJSON({
+    url: `${appUrl}${path}`,
+    body,
+    // Whole seconds, rounded up so the message never lands before the time.
+    notBefore: Math.ceil(notBefore.getTime() / 1000),
+    deduplicationId,
+  });
 }
 
 export async function deleteQstashSchedule(scheduleId: string) {

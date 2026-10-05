@@ -9,6 +9,7 @@ import type {
   ScheduledPublicationDestinationConfig,
   ScheduledPublicationResult,
 } from "@notra/db/types/scheduled-publications";
+import { isDemoMode } from "@notra/utils/demo-mode";
 import {
   and,
   asc,
@@ -34,7 +35,9 @@ import {
   SCHEDULED_PUBLICATION_START_BUDGET_MS,
   SCHEDULED_PUBLICATION_START_RETRY_MS,
   SCHEDULED_PUBLICATION_SWEEP_LIMIT,
+  SCHEDULED_PUBLICATION_WAKE_ROUTE_PATH,
 } from "../constants/scheduled-publications";
+import { publishQstashRouteMessage } from "../qstash/triggers";
 import type {
   BegunScheduledPublicationAttempt,
   ClaimedScheduledPublication,
@@ -239,6 +242,32 @@ function carriedPullRequest(
 }
 
 /**
+ * Asks QStash to wake a post's schedule at `dueAt`, so it publishes on time
+ * instead of at the next cron sweep. The wake only claims whatever of the post
+ * is due by then, so a stale one (rescheduled, canceled, already published)
+ * claims nothing, and a lost one leaves the row to the sweep. Best effort.
+ */
+async function wakeScheduledPublications(postId: string, dueAt: Date) {
+  if (isDemoMode() || !process.env.QSTASH_TOKEN) {
+    return;
+  }
+  try {
+    await publishQstashRouteMessage({
+      path: SCHEDULED_PUBLICATION_WAKE_ROUTE_PATH,
+      body: { postId, dueAt: dueAt.toISOString() },
+      notBefore: dueAt,
+      deduplicationId: `${postId}-${dueAt.getTime()}`,
+    });
+  } catch (error) {
+    console.error("[ScheduledPublication] Failed to queue wake", {
+      postId,
+      dueAt,
+      error,
+    });
+  }
+}
+
+/**
  * Schedules a post, replacing any schedule that has not started yet.
  *
  * Every schedule publishes the post in Notra; external destinations are added
@@ -385,6 +414,7 @@ export async function schedulePostPublication(
     throw error;
   }
 
+  await wakeScheduledPublications(params.postId, params.scheduledAt);
   const schedule = await getPostSchedule({
     organizationId: params.organizationId,
     postId: params.postId,
@@ -477,6 +507,9 @@ export async function publishPostScheduleNow(params: {
       )
     )
     .returning({ id: scheduledPublications.id });
+  if (moved.length > 0) {
+    await wakeScheduledPublications(params.postId, now);
+  }
   return moved.length;
 }
 
@@ -515,9 +548,11 @@ export async function retryScheduledPublication(params: {
         )
       )
       .returning({ postId: scheduledPublications.postId });
-    return row
-      ? { ok: true, postId: row.postId }
-      : { ok: false, reason: "not_found" };
+    if (!row) {
+      return { ok: false, reason: "not_found" };
+    }
+    await wakeScheduledPublications(row.postId, now);
+    return { ok: true, postId: row.postId };
   } catch (error) {
     if (isUniqueViolation(error)) {
       return { ok: false, reason: "conflict" };
@@ -667,8 +702,16 @@ export async function releaseScheduledPublicationClaim(
       ),
     })
     .where(fence)
-    .returning({ id: scheduledPublications.id });
-  return released.length > 0 ? "released" : "superseded";
+    .returning({
+      postId: scheduledPublications.postId,
+      nextAttemptAt: scheduledPublications.nextAttemptAt,
+    });
+  const [row] = released;
+  if (!row) {
+    return "superseded";
+  }
+  await wakeScheduledPublications(row.postId, row.nextAttemptAt);
+  return "released";
 }
 
 /**
@@ -837,12 +880,20 @@ export async function finishScheduledPublicationAttempt(
       ...(outcome.result ? { result: outcome.result } : {}),
     })
     .where(fence)
-    .returning({ status: scheduledPublications.status });
+    .returning({
+      status: scheduledPublications.status,
+      postId: scheduledPublications.postId,
+      nextAttemptAt: scheduledPublications.nextAttemptAt,
+    });
   if (!updated) {
     return "superseded";
   }
   if (updated.status === "canceled") {
     return "canceled";
   }
-  return retry ? "retry_scheduled" : "failed";
+  if (!retry) {
+    return "failed";
+  }
+  await wakeScheduledPublications(updated.postId, updated.nextAttemptAt);
+  return "retry_scheduled";
 }

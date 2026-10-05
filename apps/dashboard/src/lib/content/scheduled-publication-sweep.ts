@@ -11,15 +11,18 @@ import type { ScheduledPublicationSweepResult } from "@/types/content/scheduled-
  * Claims every due scheduled publication and starts one workflow per row.
  *
  * The rows are the schedule, so nothing here has to be remembered between
- * ticks: a row whose start fails is handed back to be picked up a minute
+ * ticks: a row whose start fails is handed back to be retried a minute
  * later, and a row whose run dies keeps its lease until it expires and the
- * next sweep takes it over. `postId` narrows the sweep for "publish now".
+ * next sweep takes it over. `postId` narrows the sweep to one post, for
+ * "publish now" and QStash wakes.
  */
 export async function runScheduledPublicationSweep(options?: {
   postId?: string;
+  now?: Date;
 }): Promise<ScheduledPublicationSweepResult> {
   const claims = await claimDueScheduledPublications({
     postId: options?.postId,
+    now: options?.now,
   });
   const results = await Promise.allSettled(
     claims.map((claim) =>

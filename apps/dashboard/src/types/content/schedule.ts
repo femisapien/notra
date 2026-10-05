@@ -28,7 +28,7 @@ export interface ScheduleContentDialogProps {
   hasUnsavedChanges: boolean;
 }
 
-export interface ContentScheduleButtonProps {
+export interface ContentPublishButtonProps {
   organizationId: string;
   organizationSlug: string;
   contentId: string;
@@ -36,8 +36,9 @@ export interface ContentScheduleButtonProps {
   title: string;
   /** The post has unsaved edits or is saving them. */
   hasUnsavedChanges: boolean;
-  /** A published post only shows the button while a schedule needs it. */
-  published?: boolean;
+  published: boolean;
+  /** Publish (or move to draft); scheduling rides along in its menu. */
+  publishButton: ReactNode;
 }
 
 export interface ScheduleDestinationStatusListProps {

@@ -3,9 +3,10 @@ import { runScheduledPublicationSweep } from "@/lib/content/scheduled-publicatio
 export const maxDuration = 60;
 
 /**
- * Vercel Cron entry point for scheduled publishing, every minute. The due
- * stamps live on `scheduled_publications`, so a missed tick only delays a
- * post until the next one.
+ * Vercel Cron safety net for scheduled publishing, every five minutes. Due
+ * times normally arrive as QStash wakes; this sweep picks up whatever a lost
+ * wake or an expired lease left behind. The due stamps live on
+ * `scheduled_publications`, so nothing is lost between ticks.
  */
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;

@@ -61,7 +61,7 @@ function publishDueNow(postId: string) {
     try {
       await runScheduledPublicationSweep({ postId });
     } catch (error) {
-      // The cron picks the rows up within a minute.
+      // The QStash wake queued with the change picks the rows up.
       console.error("[ScheduledPublication] Immediate sweep failed", {
         postId,
         error,
