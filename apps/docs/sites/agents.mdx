@@ -16,11 +16,13 @@ Each post, changelog entry and index page also exists as clean Markdown, with a 
 curl -H "Accept: text/markdown" https://acme.com/blog/launch
 ```
 
-HTML pages point to their Markdown version with `<link rel="alternate" type="text/markdown">` and a `Link` response header.
+HTML pages point to their Markdown version with `<link rel="alternate" type="text/markdown">` and a `Link` response header. Responses carry `Vary: Accept`, so caches keep the two apart. The Markdown version names the HTML page as its canonical URL, so search engines never list it in place of the page.
+
+A page that doesn't exist answers with a real `404`. Agents that ask for Markdown, or request a `.md` URL, get the error as Markdown with links to the section index and `llms.txt`.
 
 ## llms.txt
 
-[llms.txt](https://llmstxt.org) lists every published page with a link to its Markdown, and `llms-full.txt` contains all of them in one file.
+[llms.txt](https://llmstxt.org) lists every published page with a link to its Markdown, a one-line summary (the `description`, or the first paragraph) and its date, followed by a short note on how to cite the site and links to the feeds and sitemaps. `llms-full.txt` contains all pages in one file.
 
 | URL | Contains |
 | --- | --- |
@@ -29,10 +31,14 @@ HTML pages point to their Markdown version with `<link rel="alternate" type="tex
 
 If you forward paths from your own website, `/llms.txt` belongs to your website. Link the section files from your own `llms.txt`, or forward `/llms.txt` to Notra too. Drafts and posts with `noindex: true` are left out. A `public/llms.txt` in your repository replaces the generated one.
 
-## Crawlers and structured data
+## Search engines and structured data
 
-- `robots.txt` allows search engines and AI crawlers (GPTBot, ClaudeBot, PerplexityBot and others) on your canonical address and links to `llms.txt` and the sitemaps. Previews are never indexed.
-- Every page includes schema.org data (`BlogPosting` for posts) plus Open Graph tags, a canonical URL and an RSS feed.
+- `robots.txt` allows search engines and AI crawlers (GPTBot, ClaudeBot, PerplexityBot and others) on your canonical address and links to `llms.txt` and the sitemaps. Your Notra address disallows crawling once traffic reaches the site through your own domain, and every page names the canonical address, so the same post is never indexed twice.
+- Previews, drafts, `noindex: true` posts and 404 pages are marked `noindex`.
+- Each section has a sitemap (`/blog/sitemap.xml`) with the last change of every page and an RSS feed (`/blog/feed.xml`) with summaries, authors and tags. Every page links to the feeds of both sections.
+- Every page includes schema.org data: `BlogPosting` for posts and `TechArticle` for changelog entries (headline, description, publish and update dates, authors, image), `Blog` or `CollectionPage` for the indexes, breadcrumbs, and your company as publisher (`name`, `logo` and the profiles in `footer.socials`).
+- Open Graph and X tags use the post's `image`, or your logo when it has none. Use a PNG or JPEG for `image`: social networks don't show SVG. The X account comes from an `x` or `twitter` entry in `footer.socials`.
+- Pages without a `description` use their first paragraph for search results and link previews.
 
 ## AI traffic analytics
 
