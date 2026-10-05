@@ -1,10 +1,14 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { ArrowReloadHorizontalIcon, X } from "@hugeicons/core-free-icons";
+import {
+  ArrowReloadHorizontalIcon,
+  File02Icon,
+  X,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { ContentType } from "@notra/ai/schemas/content";
 import { createdPostToolOutputSchema } from "@notra/ai/schemas/post";
+import { chatTodoListSchema } from "@notra/ai/schemas/todos";
 import type {
   ChatAttachment,
   ChatInputHandle,
@@ -20,6 +24,7 @@ import {
   MessageContent,
   MessageResponse,
 } from "@notra/ui/components/ai-elements/message";
+import { Button } from "@notra/ui/components/ui/button";
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -64,10 +69,12 @@ import { ChatActivityStatus } from "@/components/ai/chat-activity-status";
 import { ChatAssistantParts } from "@/components/ai/chat-assistant-parts";
 import { ChatReasoningBlock } from "@/components/ai/chat-reasoning-block";
 import { ChatSubagentToolPart } from "@/components/ai/chat-subagent-tool-part";
+import { ChatTodoList } from "@/components/ai/chat-todo-list";
 import { ChatToolBlock } from "@/components/ai/chat-tool-block";
 import { getMcpToolServerId } from "@/components/ai/chat-tool-block/mcp/utils";
 import { AssistantMetadataHover } from "@/components/chat/assistant-metadata-hover";
 import { AttachmentPreviewDialog } from "@/components/chat/attachment-preview";
+import { ChatContentPanel } from "@/components/chat/chat-content-panel";
 import { ChatImageAttachment } from "@/components/chat/chat-image-attachment";
 import {
   ChatInputAdvanced,
@@ -88,6 +95,7 @@ import {
   UserMessageActions,
   UserMessageTextBubble,
 } from "@/components/chat/user-message-actions";
+import { useRightPanel } from "@/components/dashboard/right-panel-context";
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
 import { CHAT_ACTIVE_STREAM_POLL_INTERVAL_MS } from "@/constants/chat-active-stream";
 import { ACTIVITY_STEP_SETTLE_MS } from "@/constants/chat-activity";
@@ -96,8 +104,13 @@ import {
   AVAILABLE_MODELS,
   ZDR_AVAILABLE_MODELS,
 } from "@/constants/chat-models";
+import {
+  CHAT_CREATE_TOOL_TYPES,
+  CHAT_POST_EDIT_TOOL_NAMES,
+  CHAT_REFERENCE_TOKEN_SPLIT_REGEX,
+  UPDATE_TODOS_TOOL_NAME,
+} from "@/constants/chat-posts";
 import { TOOL_TIMER_THRESHOLD_SECONDS } from "@/constants/chat-tool-timer";
-import { INTEGRATION_REFERENCE_TOKEN_SPLIT_REGEX } from "@/constants/integration-reference";
 import { MIRROR_WORKING_TIMEOUT_MS } from "@/constants/slack-mirror";
 import { localStorageKeys } from "@/constants/storage";
 import { trackEvent } from "@/lib/analytics/posthog-client";
@@ -131,7 +144,6 @@ import type {
 } from "@/types/analytics/studio-events";
 import type { ChatMessageAuthor } from "@/types/chat";
 import type {
-  CreateToolContentType,
   StandaloneChatPageClientProps,
   UserImageGridProps,
 } from "@/types/components/chat-page";
@@ -149,6 +161,7 @@ import {
   toChatMessageAuthor,
 } from "@/utils/chat-message-author";
 import { buildChatMinimapTurns } from "@/utils/chat-minimap";
+import { getChatPosts, parsePostReferenceValue } from "@/utils/chat-posts";
 import {
   CHAT_PREFERENCES_STORAGE_KEY,
   DEFAULT_CHAT_PREFERENCES,
@@ -246,24 +259,10 @@ function CompletedToolTimer({
   return children ?? null;
 }
 
-const CREATE_TOOL_TYPES = {
-  "tool-createBlogPost": "blog_post",
-  "tool-createChangelog": "changelog",
-  "tool-createInvestorUpdate": "investor_update",
-  "tool-createLinkedInPost": "linkedin_post",
-  "tool-createTwitterPost": "twitter_post",
-} satisfies Record<string, ContentType>;
-
 type RenderableToolPart = DynamicToolUIPart | ToolUIPart;
 
 function isCreateTool(type: string): boolean {
-  return type in CREATE_TOOL_TYPES;
-}
-
-function getCreateToolContentType(
-  type: keyof typeof CREATE_TOOL_TYPES
-): CreateToolContentType {
-  return CREATE_TOOL_TYPES[type];
+  return type in CHAT_CREATE_TOOL_TYPES;
 }
 
 function hasSendableParts(message: ChatUIMessage): boolean {
@@ -394,6 +393,27 @@ function UserImageGrid({ children }: UserImageGridProps) {
         </m.button>
       )}
     </m.div>
+  );
+}
+
+function ChatContentPanelToggle({
+  count,
+  onOpen,
+}: {
+  count: number;
+  onOpen: () => void;
+}) {
+  const t = useTranslations("chat.contentPanel");
+  return (
+    <Button
+      className="absolute top-3 right-4 z-20 hidden lg:inline-flex"
+      onClick={onOpen}
+      size="sm"
+      variant="outline"
+    >
+      <HugeiconsIcon className="size-4" icon={File02Icon} strokeWidth={1.8} />
+      {t("toggle", { count })}
+    </Button>
   );
 }
 
@@ -733,6 +753,123 @@ function StandaloneChatPageClient({
   const replaceChatMessages = useEffectEvent((next: []) => {
     setMessages(next);
   });
+
+  const chatPosts = useMemo(() => getChatPosts(messages), [messages]);
+  const postMentions = useMemo(
+    () =>
+      chatPosts.flatMap((post) =>
+        post.postId
+          ? [
+              {
+                postId: post.postId,
+                title: post.title || tCommon("labels.untitled"),
+                contentType: post.contentType,
+              },
+            ]
+          : []
+      ),
+    [chatPosts, tCommon]
+  );
+  const postTitlesById = useMemo(
+    () => new Map(postMentions.map((post) => [post.postId, post.title])),
+    [postMentions]
+  );
+  const { active: activeRightPanel, closePanel, openPanel } = useRightPanel();
+  const isPreviewOpen = activeRightPanel === "preview";
+  // Preview tabs: each post opens at most once, in the order it was opened.
+  const [previewTabIds, setPreviewTabIds] = useState<string[]>([]);
+  const [previewToolCallId, setPreviewToolCallId] = useState<string | null>(
+    null
+  );
+  const openPostPreview = useCallback(
+    (toolCallId: string) => {
+      setPreviewTabIds((tabs) =>
+        tabs.includes(toolCallId) ? tabs : [...tabs, toolCallId]
+      );
+      setPreviewToolCallId(toolCallId);
+      openPanel("preview");
+    },
+    [openPanel]
+  );
+  const closePostPreviewTab = useCallback(
+    (toolCallId: string) => {
+      const index = previewTabIds.indexOf(toolCallId);
+      const remaining = previewTabIds.filter((id) => id !== toolCallId);
+      setPreviewTabIds(remaining);
+      if (previewToolCallId === toolCallId) {
+        setPreviewToolCallId(
+          remaining[Math.min(index, remaining.length - 1)] ?? null
+        );
+      }
+      if (remaining.length === 0) {
+        closePanel("preview");
+      }
+    },
+    [closePanel, previewTabIds, previewToolCallId]
+  );
+  const openContentPanel = useCallback(() => {
+    const activeTab =
+      previewToolCallId && previewTabIds.includes(previewToolCallId)
+        ? previewToolCallId
+        : (previewTabIds.at(-1) ?? chatPosts.at(-1)?.toolCallId);
+    if (activeTab) {
+      openPostPreview(activeTab);
+    }
+  }, [chatPosts, openPostPreview, previewTabIds, previewToolCallId]);
+  const handleAskForPostChanges = useCallback(
+    (post: { postId: string; title: string }) => {
+      chatInputRef.current?.insertPostReference({
+        postId: post.postId,
+        title: post.title || tCommon("labels.untitled"),
+      });
+    },
+    [tCommon]
+  );
+
+  // While the preview is open it follows the newest post the agent starts.
+  const latestPostToolCallId = chatPosts.at(-1)?.toolCallId ?? null;
+  const [followedPostToolCallId, setFollowedPostToolCallId] =
+    useState(latestPostToolCallId);
+  if (followedPostToolCallId !== latestPostToolCallId) {
+    setFollowedPostToolCallId(latestPostToolCallId);
+    if (isPreviewOpen && latestPostToolCallId) {
+      setPreviewTabIds((tabs) =>
+        tabs.includes(latestPostToolCallId)
+          ? tabs
+          : [...tabs, latestPostToolCallId]
+      );
+      setPreviewToolCallId(latestPostToolCallId);
+    }
+  }
+
+  // updatePost and editPost change a saved post mid-reply; refetch it as soon
+  // as each call lands so the preview tracks the agent's edits.
+  const refreshedPostEditsRef = useRef(new Set<string>());
+  useEffect(() => {
+    const lastMessage = messages.at(-1);
+    if (lastMessage?.role !== "assistant") {
+      return;
+    }
+    for (const part of lastMessage.parts) {
+      if (
+        !isToolUIPart(part) ||
+        part.state !== "output-available" ||
+        !CHAT_POST_EDIT_TOOL_NAMES.has(getToolName(part)) ||
+        refreshedPostEditsRef.current.has(part.toolCallId)
+      ) {
+        continue;
+      }
+      refreshedPostEditsRef.current.add(part.toolCallId);
+      const edited = createdPostToolOutputSchema.safeParse(part.output);
+      if (edited.success) {
+        void queryClient.invalidateQueries({
+          queryKey: dashboardOrpc.content.get.queryKey({
+            input: { organizationId, contentId: edited.data.postId },
+          }),
+        });
+      }
+    }
+  }, [messages, organizationId, queryClient]);
 
   const [isStopping, setIsStopping] = useState(false);
   const [isWaitingForActiveStream, setIsWaitingForActiveStream] =
@@ -1295,15 +1432,19 @@ function StandaloneChatPageClient({
     [extractUserMessageContent]
   );
 
-  const toDisplayText = useCallback((serialized: string) => {
-    return serialized.replace(
-      INTEGRATION_REFERENCE_TOKEN_SPLIT_REGEX,
-      (match) => {
+  const toDisplayText = useCallback(
+    (serialized: string) => {
+      return serialized.replace(CHAT_REFERENCE_TOKEN_SPLIT_REGEX, (match) => {
+        const postId = parsePostReferenceValue(match);
+        if (postId) {
+          return `@${postTitlesById.get(postId) ?? tCommon("labels.untitled")}`;
+        }
         const item = parseReferenceValue(match);
         return item ? getReferenceDisplay(item) : match;
-      }
-    );
-  }, []);
+      });
+    },
+    [postTitlesById, tCommon]
+  );
 
   const handleStartEditMessage = useCallback((messageId: string) => {
     setEditingMessageId(messageId);
@@ -2069,7 +2210,9 @@ function StandaloneChatPageClient({
       (isToolUIPart(part) && isChatSubagentName(getToolName(part))) ||
       (isToolUIPart(part) &&
         part.type !== "dynamic-tool" &&
-        (isCreateTool(part.type) || part.type === "tool-createImage")),
+        (isCreateTool(part.type) ||
+          part.type === "tool-createImage" ||
+          part.type === `tool-${UPDATE_TODOS_TOOL_NAME}`)),
   });
   // Between steps of an assistant reply the indicator would blink in and out
   // for a few frames, so it only appears once that gap actually lasts.
@@ -2080,6 +2223,39 @@ function StandaloneChatPageClient({
       immediate: messages.at(-1)?.role !== "assistant",
     }
   );
+
+  // A message shows one checklist, where the plan was first written, with
+  // the latest state of every later update.
+  function renderTodoPart(toolPart: RenderableToolPart, messageId: string) {
+    const message = messages.find((entry) => entry.id === messageId);
+    const todoParts =
+      message?.parts.filter(
+        (part) =>
+          isToolUIPart(part) && getToolName(part) === UPDATE_TODOS_TOOL_NAME
+      ) ?? [];
+    if (todoParts[0] !== toolPart) {
+      return null;
+    }
+    const latest = todoParts.findLast((part) => {
+      const parsed = chatTodoListSchema.safeParse(
+        isToolUIPart(part) ? part.input : undefined
+      );
+      return parsed.success;
+    });
+    const todos = chatTodoListSchema.safeParse(
+      latest && isToolUIPart(latest) ? latest.input : undefined
+    );
+    if (!todos.success) {
+      return null;
+    }
+    return (
+      <ChatTodoList
+        isActive={messageId === chatActivity.activeMessageId}
+        key={toolPart.toolCallId}
+        todos={todos.data.todos}
+      />
+    );
+  }
 
   function renderPart(
     part: ChatUIMessage["parts"][number],
@@ -2095,7 +2271,8 @@ function StandaloneChatPageClient({
       const hasInlineReference =
         text.includes("integration/github/") ||
         text.includes("integration/linear/") ||
-        text.includes("integration/mcp/");
+        text.includes("integration/mcp/") ||
+        text.includes("@post/");
 
       if (hasInlineReference) {
         return (
@@ -2103,7 +2280,11 @@ function StandaloneChatPageClient({
             className="size-full wrap-break-word whitespace-pre-wrap"
             key={`${messageId}-text-${index}`}
           >
-            {renderTextWithIntegrationReferences(text, mcpLogosByConnectionId)}
+            {renderTextWithIntegrationReferences(
+              text,
+              mcpLogosByConnectionId,
+              postTitlesById
+            )}
           </div>
         );
       }
@@ -2176,9 +2357,10 @@ function StandaloneChatPageClient({
         toolPart.type === "dynamic-tool" ? null : toolPart.type;
 
       if (staticToolType && isCreateTool(staticToolType)) {
-        const contentType = getCreateToolContentType(
-          staticToolType as keyof typeof CREATE_TOOL_TYPES
-        );
+        const contentType =
+          CHAT_CREATE_TOOL_TYPES[
+            staticToolType as keyof typeof CHAT_CREATE_TOOL_TYPES
+          ];
         const input = toolPart.input as
           | { title?: string; markdown?: string }
           | undefined;
@@ -2443,8 +2625,11 @@ function StandaloneChatPageClient({
               organizationId={organizationId}
               organizationSlug={organizationSlug}
               postId={savedPost?.postId}
+              onOpenPreview={() => openPostPreview(toolPart.toolCallId)}
               onRevise={() => {
-                if (isInputEmpty) {
+                if (savedPost?.postId) {
+                  handleAskForPostChanges({ postId: savedPost.postId, title });
+                } else if (isInputEmpty) {
                   chatInputRef.current?.setText(t("revisePrefill", { title }));
                 } else {
                   chatInputRef.current?.focus();
@@ -2460,6 +2645,10 @@ function StandaloneChatPageClient({
             />
           </CompletedToolTimer>
         );
+      }
+
+      if (toolName === UPDATE_TODOS_TOOL_NAME) {
+        return renderTodoPart(toolPart, messageId);
       }
 
       if (isChatSubagentName(toolName)) {
@@ -2645,7 +2834,13 @@ function StandaloneChatPageClient({
   return (
     <>
       <LazyMotion features={loadMotionFeatures} strict>
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="@container/chat relative flex min-w-0 flex-1 flex-col overflow-hidden">
+          {chatPosts.length > 0 && !isPreviewOpen ? (
+            <ChatContentPanelToggle
+              count={chatPosts.length}
+              onOpen={openContentPanel}
+            />
+          ) : null}
           <MessageScrollerProvider autoScroll>
             <ChatScrollOnSend
               lastUserMessageId={
@@ -2795,7 +2990,9 @@ function StandaloneChatPageClient({
                                     (isToolUIPart(part) &&
                                       part.type !== "dynamic-tool" &&
                                       (isCreateTool(part.type) ||
-                                        part.type === "tool-createImage"))
+                                        part.type === "tool-createImage" ||
+                                        part.type ===
+                                          `tool-${UPDATE_TODOS_TOOL_NAME}`))
                                   }
                                   messageId={message.id}
                                   parts={message.parts}
@@ -2936,6 +3133,7 @@ function StandaloneChatPageClient({
                   draftStorageKey={draftStorageKey}
                   error={null}
                   initialValue={initialQuery ?? undefined}
+                  postMentions={postMentions}
                   isLoading={isLoading}
                   isStopping={isStopping}
                   model={effectiveSelectedModel}
@@ -2970,6 +3168,19 @@ function StandaloneChatPageClient({
         }}
         open={previewAttachment !== null}
       />
+      {chatPosts.length > 0 ? (
+        <ChatContentPanel
+          activeToolCallId={previewToolCallId}
+          onActivateTab={setPreviewToolCallId}
+          onAskForChanges={handleAskForPostChanges}
+          onCloseTab={closePostPreviewTab}
+          onOpenTab={openPostPreview}
+          openToolCallIds={previewTabIds}
+          organizationId={organizationId}
+          organizationSlug={organizationSlug}
+          posts={chatPosts}
+        />
+      ) : null}
     </>
   );
 }

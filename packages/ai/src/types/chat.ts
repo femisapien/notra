@@ -70,6 +70,8 @@ export interface ChatImageAttachmentProps {
 
 export interface ChatInputHandle {
   setText: (text: string) => void;
+  /** Tags a post from this chat at the caret, or at the end of the draft. */
+  insertPostReference: (post: { postId: string; title: string }) => void;
   submit: () => void;
   focus: () => void;
 }

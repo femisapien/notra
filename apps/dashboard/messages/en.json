@@ -5518,7 +5518,8 @@
       "mention": {
         "noneConnected": "No context or MCP tools connected",
         "noMatches": "No matches found",
-        "connectIntegrations": "Connect integrations"
+        "connectIntegrations": "Connect integrations",
+        "postsGroup": "In this chat"
       },
       "options": {
         "githubRepository": "GitHub repository",
@@ -5710,6 +5711,25 @@
     "quote": {
       "quoteSelection": "Quote selected text",
       "removeQuote": "Remove quote"
+    },
+    "contentPanel": {
+      "title": "Content",
+      "toggle": "Content ({count})",
+      "expand": "Expand preview",
+      "collapse": "Exit full width",
+      "close": "Collapse panel",
+      "empty": "Posts the agent writes in this chat show up here.",
+      "status": {
+        "writing": "Writing…",
+        "unsaved": "Not saved yet",
+        "draft": "Draft"
+      },
+      "openTab": "Open another post",
+      "closeTab": "Close {title}"
+    },
+    "todos": {
+      "label": "Plan",
+      "progress": "{completed} of {total} done"
     }
   },
   "content": {
@@ -6491,7 +6511,8 @@
       "saveDraftFailedRetry": "Failed to save draft. Try again.",
       "saveDraftFailedInline": "Could not save the draft. Try again.",
       "contentRegion": "{type} content",
-      "askForChanges": "Ask for changes"
+      "askForChanges": "Ask for changes",
+      "openPreview": "Preview"
     }
   },
   "comments": {

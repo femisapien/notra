@@ -5518,7 +5518,8 @@
       "mention": {
         "noneConnected": "Kein Kontext und keine MCP-Tools verbunden",
         "noMatches": "Keine Treffer gefunden",
-        "connectIntegrations": "Integrationen verbinden"
+        "connectIntegrations": "Integrationen verbinden",
+        "postsGroup": "In diesem Chat"
       },
       "options": {
         "githubRepository": "GitHub-Repository",
@@ -5710,6 +5711,25 @@
     "quote": {
       "quoteSelection": "Markierten Text zitieren",
       "removeQuote": "Zitat entfernen"
+    },
+    "contentPanel": {
+      "title": "Inhalte",
+      "toggle": "Inhalte ({count})",
+      "expand": "Vorschau vergrößern",
+      "collapse": "Volle Breite verlassen",
+      "close": "Panel einklappen",
+      "empty": "Beiträge, die der Agent in diesem Chat schreibt, erscheinen hier.",
+      "status": {
+        "writing": "Wird geschrieben…",
+        "unsaved": "Noch nicht gespeichert",
+        "draft": "Entwurf"
+      },
+      "openTab": "Weiteren Beitrag öffnen",
+      "closeTab": "{title} schließen"
+    },
+    "todos": {
+      "label": "Plan",
+      "progress": "{completed} von {total} erledigt"
     }
   },
   "content": {
@@ -6491,7 +6511,8 @@
       "saveDraftFailedRetry": "Entwurf konnte nicht gespeichert werden. Versuch es noch einmal.",
       "saveDraftFailedInline": "Der Entwurf konnte nicht gespeichert werden. Versuch es noch einmal.",
       "contentRegion": "Inhalt: {type}",
-      "askForChanges": "Änderungen anfragen"
+      "askForChanges": "Änderungen anfragen",
+      "openPreview": "Vorschau"
     }
   },
   "comments": {

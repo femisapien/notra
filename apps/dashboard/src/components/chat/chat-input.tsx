@@ -88,6 +88,7 @@ import { useAutumnRefreshListener } from "@/lib/hooks/use-autumn-refresh-listene
 import { useBillingCustomer } from "@/lib/hooks/use-billing-customer";
 import { useChatModelLabels } from "@/lib/hooks/use-chat-model-labels";
 import { useChatSkillSlash } from "@/lib/hooks/use-chat-skill-slash";
+import { useOutputTypeLabel } from "@/lib/hooks/use-output-type-label";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import { dragEventHasFiles } from "@/lib/upload/chat";
 import {
@@ -100,8 +101,10 @@ import {
   isImageMimeType,
 } from "@/lib/upload/mime";
 import type { ChatMessageAuthor } from "@/types/chat";
+import type { ChatPostMention } from "@/types/chat-posts";
 import type {
   ChatContextOption,
+  ChatMentionOption,
   ChatModelOption,
 } from "@/types/components/chat-input";
 import type { GitHubRepository } from "@/types/integrations";
@@ -114,6 +117,7 @@ import {
   getIntegrationReferenceValue,
   getReferenceDisplay,
 } from "@/utils/integration-reference";
+import { OutputTypeIcon } from "@/utils/output-types";
 import { prepareChatImage } from "@/utils/prepare-chat-image";
 import {
   extractSkillDraftTokens,
@@ -135,6 +139,7 @@ import { ChatQueue, type QueuedMessage } from "./chat-queue";
 import { ChatSkillSlashMenu } from "./chat-skill-slash-menu";
 import { ChatSkillTagChips } from "./chat-skill-tag-chips";
 import {
+  createPostReferenceElement,
   serializeEditorWithReferences,
   serializeFragmentWithReferences,
 } from "./integration-reference";
@@ -449,7 +454,31 @@ interface PendingUploadItem {
   filename: string;
 }
 
+function getMentionGroup(option: ChatMentionOption | undefined) {
+  if (option?.kind === "post") {
+    return "post";
+  }
+  return option?.kind === "mcp" ? "mcp" : "context";
+}
+
+function ChatPostMentionContent({ post }: { post: ChatPostMention }) {
+  const getOutputTypeLabel = useOutputTypeLabel();
+  return (
+    <>
+      <OutputTypeIcon
+        className="size-3.5 shrink-0"
+        outputType={post.contentType}
+      />
+      <span className="min-w-0 flex-1 truncate">{post.title}</span>
+      <span className="text-muted-foreground shrink-0 text-xs">
+        {getOutputTypeLabel(post.contentType)}
+      </span>
+    </>
+  );
+}
+
 function ChatMentionMenu({
+  hasPostMentions,
   contextOptionsCount,
   filteredMentionItems,
   insertMention,
@@ -459,9 +488,10 @@ function ChatMentionMenu({
   mentionListRef,
   organizationSlug,
 }: {
+  hasPostMentions: boolean;
   contextOptionsCount: number;
-  filteredMentionItems: ChatContextOption[];
-  insertMention: (option: ChatContextOption) => void;
+  filteredMentionItems: ChatMentionOption[];
+  insertMention: (option: ChatMentionOption) => void;
   isInContext: (item: ContextItem) => boolean;
   listboxId: string;
   mentionIndex: number;
@@ -488,19 +518,26 @@ function ChatMentionMenu({
           role="listbox"
         >
           {filteredMentionItems.map((option, idx) => {
-            const inContext = isInContext(option.contextItem);
+            const inContext =
+              option.kind !== "post" && isInContext(option.contextItem);
             const previousOption = filteredMentionItems[idx - 1];
             const startsGroup =
               idx === 0 ||
-              (previousOption?.kind === "mcp") !== (option.kind === "mcp");
+              getMentionGroup(previousOption) !== getMentionGroup(option);
             const selected = idx === mentionIndex;
             return (
               <div key={option.id}>
                 {startsGroup ? (
                   <div className="px-2 py-1.5 text-xs font-semibold">
-                    {option.kind === "mcp"
+                    {getMentionGroup(option) === "post"
+                      ? t("mention.postsGroup")
+                      : null}
+                    {getMentionGroup(option) === "mcp"
                       ? t("contextPicker.mcpGroup")
-                      : tChatShared("context")}
+                      : null}
+                    {getMentionGroup(option) === "context"
+                      ? tChatShared("context")
+                      : null}
                   </div>
                 ) : null}
                 <button
@@ -518,7 +555,11 @@ function ChatMentionMenu({
                   role="option"
                   type="button"
                 >
-                  <ChatContextOptionContent option={option} />
+                  {option.kind === "post" ? (
+                    <ChatPostMentionContent post={option.post} />
+                  ) : (
+                    <ChatContextOptionContent option={option} />
+                  )}
                   {inContext ? (
                     <span className="text-success shrink-0 text-xs">
                       {tCommon2("labels.added")}
@@ -545,11 +586,13 @@ function ChatMentionMenu({
         {filteredMentionItems.length === 0 ? (
           <div className="flex flex-col items-center gap-1 px-3 py-4 text-center">
             <span className="text-muted-foreground text-xs">
-              {contextOptionsCount === 0
+              {contextOptionsCount === 0 && !hasPostMentions
                 ? t("mention.noneConnected")
                 : t("mention.noMatches")}
             </span>
-            {contextOptionsCount === 0 && organizationSlug ? (
+            {contextOptionsCount === 0 &&
+            !hasPostMentions &&
+            organizationSlug ? (
               <Link
                 className="text-primary text-xs hover:underline"
                 href={`/${organizationSlug}/integrations`}
@@ -1025,6 +1068,8 @@ function ChatComposerContextPicker({
   );
 }
 
+const EMPTY_POST_MENTIONS: readonly ChatPostMention[] = [];
+
 interface ChatInputAdvancedProps {
   availableModels?: readonly ChatModelOption[];
   onSend?: (value: string, attachments: ChatAttachment[]) => void;
@@ -1052,6 +1097,8 @@ interface ChatInputAdvancedProps {
   showAuthorAvatars?: boolean;
   onEmptyChange?: (isEmpty: boolean) => void;
   draftStorageKey?: string;
+  /** Posts from this chat that `@` can tag. */
+  postMentions?: readonly ChatPostMention[];
   ref?: Ref<ChatInputHandle>;
 }
 
@@ -1075,9 +1122,9 @@ function handleComposerEditorKeyDown(
     setMentionQuery,
   }: {
     editor: HTMLDivElement | null;
-    filteredMentionItems: ChatContextOption[];
+    filteredMentionItems: ChatMentionOption[];
     handleSend: () => void;
-    insertMention: (option: ChatContextOption) => void;
+    insertMention: (option: ChatMentionOption) => void;
     mentionAnchorRef: RefObject<{ node: Node; offset: number } | null>;
     mentionIndex: number;
     mentionQuery: string | null;
@@ -1271,6 +1318,7 @@ export function ChatInputAdvanced({
   showAuthorAvatars = false,
   onEmptyChange,
   draftStorageKey,
+  postMentions = EMPTY_POST_MENTIONS,
   ref,
 }: ChatInputAdvancedProps) {
   const t = useTranslations("chat.input");
@@ -1821,15 +1869,27 @@ export function ChatInputAdvanced({
     [context]
   );
 
-  const filteredMentionItems = useMemo(() => {
+  const postMentionOptions = useMemo(
+    () =>
+      postMentions.map((post): ChatMentionOption => ({
+        id: `post-${post.postId}`,
+        kind: "post",
+        label: post.title,
+        searchText: `${post.title} ${post.contentType.replaceAll("_", " ")}`,
+        post,
+      })),
+    [postMentions]
+  );
+
+  const filteredMentionItems = useMemo((): ChatMentionOption[] => {
     if (mentionQuery === null) {
       return [];
     }
     const q = mentionQuery.trim().toLowerCase();
-    return contextOptions.filter((option) =>
+    return [...postMentionOptions, ...contextOptions].filter((option) =>
       option.searchText.toLowerCase().includes(q)
     );
-  }, [contextOptions, mentionQuery]);
+  }, [contextOptions, mentionQuery, postMentionOptions]);
 
   const readEditorText = useCallback(() => {
     const editor = editorRef.current;
@@ -1841,6 +1901,28 @@ export function ChatInputAdvanced({
   const submitRef = useRef<() => void>(() => {
     // noop
   });
+
+  const insertPostChip = useCallback(
+    (post: { postId: string; title: string }, range: Range) => {
+      const editor = editorRef.current;
+      if (!editor) {
+        return;
+      }
+      const spacer = document.createTextNode("\u00A0");
+      range.deleteContents();
+      range.insertNode(spacer);
+      range.insertNode(createPostReferenceElement(post));
+      const caret = document.createRange();
+      caret.setStartAfter(spacer);
+      caret.collapse(true);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(caret);
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+      editor.focus();
+    },
+    []
+  );
 
   useImperativeHandle(
     ref,
@@ -1860,6 +1942,31 @@ export function ChatInputAdvanced({
         sel?.removeAllRanges();
         sel?.addRange(range);
       },
+      insertPostReference: (post) => {
+        const editor = editorRef.current;
+        if (!editor) {
+          return;
+        }
+        const selection = window.getSelection();
+        const current =
+          selection && selection.rangeCount > 0
+            ? selection.getRangeAt(0)
+            : null;
+        let range: Range;
+        if (current && editor.contains(current.startContainer)) {
+          range = current;
+        } else {
+          range = document.createRange();
+          range.selectNodeContents(editor);
+          range.collapse(false);
+          const text = editor.textContent ?? "";
+          if (text && !/\s$/.test(text)) {
+            range.insertNode(document.createTextNode("\u00A0"));
+            range.collapse(false);
+          }
+        }
+        insertPostChip(post, range);
+      },
       focus: () => {
         editorRef.current?.focus();
       },
@@ -1867,7 +1974,7 @@ export function ChatInputAdvanced({
         submitRef.current();
       },
     }),
-    []
+    [insertPostChip]
   );
 
   const persistDraft = useCallback(
@@ -2103,7 +2210,7 @@ export function ChatInputAdvanced({
   }, [closeSlashMenu, initialValue]);
 
   const insertMention = useCallback(
-    (option: ChatContextOption) => {
+    (option: ChatMentionOption) => {
       const editor = editorRef.current;
       const anchor = mentionAnchorRef.current;
       if (!editor || !anchor) {
@@ -2121,6 +2228,13 @@ export function ChatInputAdvanced({
       const replaceRange = document.createRange();
       replaceRange.setStart(anchor.node, anchor.offset);
       replaceRange.setEnd(cursor.startContainer, cursor.startOffset);
+
+      if (option.kind === "post") {
+        mentionAnchorRef.current = null;
+        setMentionQuery(null);
+        insertPostChip(option.post, replaceRange);
+        return;
+      }
 
       replaceRange.deleteContents();
       const selection = window.getSelection();
@@ -2142,7 +2256,7 @@ export function ChatInputAdvanced({
       setMentionQuery(null);
       editor.focus();
     },
-    [onAddContext, persistDraft]
+    [insertPostChip, onAddContext, persistDraft]
   );
 
   const insertSlashSkill = useCallback(
@@ -2625,6 +2739,7 @@ export function ChatInputAdvanced({
         {mentionQuery === null ? null : (
           <ChatMentionMenu
             contextOptionsCount={contextOptions.length}
+            hasPostMentions={postMentionOptions.length > 0}
             filteredMentionItems={filteredMentionItems}
             insertMention={insertMention}
             isInContext={isInContext}
