@@ -240,9 +240,9 @@ export function publicKeyTxtRecords(publicKey: KeyObject): string[] {
   return records;
 }
 
-function hmac(payload: string): Buffer {
+function hmac(payload: string, label: string): Buffer {
   return createHmac("sha256", getSitesPreviewSecret())
-    .update(`${CALLBACK_TOKEN_LABEL}${payload}`)
+    .update(`${label}${payload}`)
     .digest();
 }
 
@@ -252,23 +252,25 @@ function hmac(payload: string): Buffer {
  */
 export function signDomainConnectCallback(
   claims: Omit<DomainConnectCallbackClaims, "exp">,
-  nowSeconds: number = Math.floor(Date.now() / 1000)
+  nowSeconds: number = Math.floor(Date.now() / 1000),
+  label: string = CALLBACK_TOKEN_LABEL
 ): string {
   const payload = Buffer.from(
     JSON.stringify({ ...claims, exp: nowSeconds + CALLBACK_TOKEN_SECONDS })
   ).toString("base64url");
-  return `${payload}.${hmac(payload).toString("base64url")}`;
+  return `${payload}.${hmac(payload, label).toString("base64url")}`;
 }
 
 export function verifyDomainConnectCallback(
   token: string,
-  nowSeconds: number = Math.floor(Date.now() / 1000)
+  nowSeconds: number = Math.floor(Date.now() / 1000),
+  label: string = CALLBACK_TOKEN_LABEL
 ): DomainConnectCallbackClaims | null {
   const [payload, signature, extra] = token.split(".");
   if (!(payload && signature) || extra !== undefined) {
     return null;
   }
-  const expected = hmac(payload);
+  const expected = hmac(payload, label);
   const given = Buffer.from(signature, "base64url");
   if (given.length !== expected.length || !timingSafeEqual(given, expected)) {
     return null;
@@ -303,10 +305,6 @@ export function verifyDomainConnectCallback(
 export async function domainConnectForDomain(
   params: DomainConnectForDomainParams
 ): Promise<DomainConnectResult> {
-  const config = getDomainConnectConfig();
-  if (!config) {
-    return { status: "unavailable", reason: "not_configured" };
-  }
   const [domain] = await db
     .select()
     .from(siteDomains)
@@ -326,28 +324,31 @@ export async function domainConnectForDomain(
   if (domain.status === "active") {
     return { status: "unavailable", reason: "already_active" };
   }
-  if (siteCnameTarget() !== DOMAIN_CONNECT_CNAME_TARGET) {
-    return { status: "unavailable", reason: "target_mismatch" };
-  }
+
+  // The provider is worth naming even when one-click setup can't run: the
+  // records still go there, and some providers deep-link to their DNS page.
+  const deps = params.deps ?? defaultDeps();
+  const settings = await discoverDomainConnect(domain.hostname, deps);
+  const manual: DomainConnectResult = {
+    status: "unsupported",
+    providerName: settingsName(settings),
+    zone: settings?.domain,
+  };
+  const config = getDomainConnectConfig();
   const ownership = domain.verificationRecords.find(
     (record) =>
       record.purpose === "ownership" &&
       record.type === "TXT" &&
       record.name === `${OWNERSHIP_RECORD_PREFIX}${domain.hostname}`
   );
-  if (!ownership) {
-    return { status: "unavailable", reason: "missing_records" };
-  }
-
-  const deps = params.deps ?? defaultDeps();
-  const settings = await discoverDomainConnect(domain.hostname, deps);
-  if (!settings?.urlSyncUX) {
-    return { status: "unsupported", providerName: settingsName(settings) };
+  if (
+    !(config && ownership && settings?.urlSyncUX) ||
+    siteCnameTarget() !== DOMAIN_CONNECT_CNAME_TARGET ||
+    !(await isTemplateSupported(settings, config, deps))
+  ) {
+    return manual;
   }
   const providerName = settingsName(settings) ?? settings.providerId;
-  if (!(await isTemplateSupported(settings, config, deps))) {
-    return { status: "unsupported", providerName };
-  }
   const token = signDomainConnectCallback({
     siteId: params.site.id,
     domainId: domain.id,

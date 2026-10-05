@@ -48,3 +48,19 @@ export interface PublishSiteDraftsResult {
   commitSha: string;
   pullRequestUrl: string | null;
 }
+
+export interface RepositoryCommitInput {
+  branch: string;
+  headline: string;
+  expectedHeadOid: string;
+  /** Paths from the repository root, with UTF-8 contents. */
+  additions: Array<{ path: string; content: string }>;
+  deletions: string[];
+}
+
+export interface RepositoryPullRequestInput {
+  title: string;
+  head: string;
+  base: string;
+  body: string;
+}

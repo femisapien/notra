@@ -17,6 +17,8 @@ import { SiteInputError } from "./sites";
 import type {
   PublishSiteDraftsInput,
   PublishSiteDraftsResult,
+  RepositoryCommitInput,
+  RepositoryPullRequestInput,
   SaveSiteDraftInput,
   SiteDraft,
   SiteRepositoryReadAccess,
@@ -132,6 +134,18 @@ export async function readSiteSourceFile(
 ): Promise<SiteSourceFileContent | null> {
   assertEditablePath(path);
   const { repository, token } = await readToken(site);
+  return await readRepositoryFile(repository, token, {
+    path: repoPath(site, path),
+    ref: site.productionBranch,
+  });
+}
+
+/** One file of a repository at `ref`, by its path from the repository root; null when missing. */
+export async function readRepositoryFile(
+  repository: SiteRepository,
+  token: string,
+  file: { path: string; ref: string }
+): Promise<SiteSourceFileContent | null> {
   const octokit = createOctokit(token);
   try {
     const { data } = await octokit.request(
@@ -139,8 +153,8 @@ export async function readSiteSourceFile(
       {
         owner: repository.owner,
         repo: repository.repo,
-        path: repoPath(site, path),
-        ref: site.productionBranch,
+        path: file.path,
+        ref: file.ref,
         headers: GITHUB_API_VERSION_HEADER,
       }
     );
@@ -157,6 +171,72 @@ export async function readSiteSourceFile(
     }
     throw error;
   }
+}
+
+/** A new branch at `sha`, for changes that go through a pull request. */
+export async function createRepositoryBranch(
+  repository: SiteRepository,
+  token: string,
+  branch: { name: string; sha: string }
+): Promise<void> {
+  await createOctokit(token).request("POST /repos/{owner}/{repo}/git/refs", {
+    owner: repository.owner,
+    repo: repository.repo,
+    ref: `refs/heads/${branch.name}`,
+    sha: branch.sha,
+    headers: GITHUB_API_VERSION_HEADER,
+  });
+}
+
+/**
+ * One signed commit on `branch` through the GraphQL API, so no git objects
+ * are built by hand. Fails when the branch moved past `expectedHeadOid`.
+ */
+export async function commitRepositoryFiles(
+  repository: SiteRepository,
+  token: string,
+  commit: RepositoryCommitInput
+): Promise<string> {
+  const result = await createOctokit(token).graphql<{
+    createCommitOnBranch: { commit: { oid: string } };
+  }>(GITHUB_CREATE_COMMIT_ON_BRANCH_MUTATION, {
+    input: {
+      branch: {
+        repositoryNameWithOwner: `${repository.owner}/${repository.repo}`,
+        branchName: commit.branch,
+      },
+      message: { headline: commit.headline },
+      expectedHeadOid: commit.expectedHeadOid,
+      fileChanges: {
+        additions: commit.additions.map((file) => ({
+          path: file.path,
+          contents: Buffer.from(file.content).toString("base64"),
+        })),
+        deletions: commit.deletions.map((path) => ({ path })),
+      },
+    },
+  });
+  return result.createCommitOnBranch.commit.oid;
+}
+
+export async function openRepositoryPullRequest(
+  repository: SiteRepository,
+  token: string,
+  pullRequest: RepositoryPullRequestInput
+): Promise<string> {
+  const { data } = await createOctokit(token).request(
+    "POST /repos/{owner}/{repo}/pulls",
+    {
+      owner: repository.owner,
+      repo: repository.repo,
+      title: pullRequest.title,
+      head: pullRequest.head,
+      base: pullRequest.base,
+      body: pullRequest.body,
+      headers: GITHUB_API_VERSION_HEADER,
+    }
+  );
+  return data.html_url;
 }
 
 export async function listSiteDrafts(siteId: string): Promise<SiteDraft[]> {
@@ -342,7 +422,6 @@ export async function publishSiteDrafts(
     contents: "write",
     pull_requests: "write",
   });
-  const octokit = createOctokit(token);
   const { commitSha: headSha, files } = await listSiteSourceFiles(site);
   const current = new Map(files.map((file) => [file.path, file.sha]));
   const conflicts = drafts
@@ -378,43 +457,28 @@ export async function publishSiteDrafts(
   let branch = site.productionBranch;
   if (mode === "pull_request") {
     branch = `notra/site-edit-${new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14)}`;
-    await octokit.request("POST /repos/{owner}/{repo}/git/refs", {
-      owner: repository.owner,
-      repo: repository.repo,
-      ref: `refs/heads/${branch}`,
+    await createRepositoryBranch(repository, token, {
+      name: branch,
       sha: headSha,
-      headers: GITHUB_API_VERSION_HEADER,
     });
   }
 
   let commitSha: string;
   try {
-    const result = await octokit.graphql<{
-      createCommitOnBranch: { commit: { oid: string } };
-    }>(GITHUB_CREATE_COMMIT_ON_BRANCH_MUTATION, {
-      input: {
-        branch: {
-          repositoryNameWithOwner: `${repository.owner}/${repository.repo}`,
-          branchName: branch,
-        },
-        message: {
-          headline: input.message.trim().slice(0, 200) || "Update site content",
-        },
-        expectedHeadOid: headSha,
-        fileChanges: {
-          additions: drafts
-            .filter((draft) => !draft.deleted)
-            .map((draft) => ({
-              path: repoPath(site, draft.path),
-              contents: Buffer.from(draft.content).toString("base64"),
-            })),
-          deletions: drafts
-            .filter((draft) => draft.deleted)
-            .map((draft) => ({ path: repoPath(site, draft.path) })),
-        },
-      },
+    commitSha = await commitRepositoryFiles(repository, token, {
+      branch,
+      headline: input.message.trim().slice(0, 200) || "Update site content",
+      expectedHeadOid: headSha,
+      additions: drafts
+        .filter((draft) => !draft.deleted)
+        .map((draft) => ({
+          path: repoPath(site, draft.path),
+          content: draft.content,
+        })),
+      deletions: drafts
+        .filter((draft) => draft.deleted)
+        .map((draft) => repoPath(site, draft.path)),
     });
-    commitSha = result.createCommitOnBranch.commit.oid;
   } catch (error) {
     const message = (error as Error).message;
     if (/expected|head|oid/i.test(message)) {
@@ -428,19 +492,12 @@ export async function publishSiteDrafts(
 
   let pullRequestUrl: string | null = null;
   if (mode === "pull_request") {
-    const { data: pullRequest } = await octokit.request(
-      "POST /repos/{owner}/{repo}/pulls",
-      {
-        owner: repository.owner,
-        repo: repository.repo,
-        title: input.message.trim().slice(0, 200) || "Update site content",
-        head: branch,
-        base: site.productionBranch,
-        body: `Edited in Notra.\n\n${drafts.map((draft) => `- ${draft.deleted ? "Delete" : "Update"} \`${draft.path}\``).join("\n")}`,
-        headers: GITHUB_API_VERSION_HEADER,
-      }
-    );
-    pullRequestUrl = pullRequest.html_url;
+    pullRequestUrl = await openRepositoryPullRequest(repository, token, {
+      title: input.message.trim().slice(0, 200) || "Update site content",
+      head: branch,
+      base: site.productionBranch,
+      body: `Edited in Notra.\n\n${drafts.map((draft) => `- ${draft.deleted ? "Delete" : "Update"} \`${draft.path}\``).join("\n")}`,
+    });
   }
   // Only drafts whose content is exactly what was committed. The upsert keeps the row id,
   // so an autosave that landed while publishing changed the content and must stay.

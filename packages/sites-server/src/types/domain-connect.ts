@@ -22,16 +22,9 @@ export interface DomainConnectSettings {
 }
 
 export type DomainConnectResult =
-  | {
-      status: "unavailable";
-      reason:
-        | "not_configured"
-        | "not_subdomain"
-        | "already_active"
-        | "missing_records"
-        | "target_mismatch";
-    }
-  | { status: "unsupported"; providerName?: string }
+  | { status: "unavailable"; reason: "not_subdomain" | "already_active" }
+  /** No one-click setup; the provider and zone, when found, still help with the records. */
+  | { status: "unsupported"; providerName?: string; zone?: string }
   | { status: "ready"; providerName: string; applyUrl: string };
 
 export interface DomainConnectCallbackClaims {

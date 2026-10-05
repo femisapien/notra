@@ -9,6 +9,7 @@ import {
   SITE_PROTECTED_SLUG_WORDS,
   SITE_RESERVED_BRAND_SLUGS,
 } from "./constants/moderation";
+import type { SiteNameRejection } from "./types/sites";
 
 /**
  * A reserved address belongs to whoever controls its company's mailboxes: a
@@ -34,7 +35,8 @@ async function ownsReservedDomain(
  * name and address are screened before they go live: offensive names and
  * names posing as another organization are refused, and popular companies'
  * addresses are kept for the companies themselves. Returns why a name is
- * refused, or null when it may be used.
+ * refused (and whether the name or the address has to change), or null when
+ * it may be used.
  */
 export async function siteNameRejection(params: {
   organizationId: string;
@@ -42,11 +44,14 @@ export async function siteNameRejection(params: {
   name: string;
   address: string;
   slug?: string;
-}): Promise<string | null> {
+}): Promise<SiteNameRejection | null> {
   if (
     params.slug?.split("-").some((word) => SITE_PROTECTED_SLUG_WORDS.has(word))
   ) {
-    return SITE_NAME_REJECTION_MESSAGES.impersonation;
+    return {
+      message: SITE_NAME_REJECTION_MESSAGES.impersonation,
+      field: "slug",
+    };
   }
   // A hand-granted address belongs to one organization, reserved or not.
   const grant = params.slug
@@ -58,7 +63,7 @@ export async function siteNameRejection(params: {
   if (grant) {
     return grant.organizationId === params.organizationId
       ? null
-      : SITE_NAME_REJECTION_MESSAGES.granted;
+      : { message: SITE_NAME_REJECTION_MESSAGES.granted, field: "slug" };
   }
   const reservedFor = params.slug
     ? SITE_RESERVED_BRAND_SLUGS[params.slug]
@@ -67,7 +72,10 @@ export async function siteNameRejection(params: {
     // The company's own people pass; nobody else gets its address.
     return (await ownsReservedDomain(params.userId, reservedFor))
       ? null
-      : reservedSlugMessage(params.slug ?? "", reservedFor);
+      : {
+          message: reservedSlugMessage(params.slug ?? "", reservedFor),
+          field: "slug",
+        };
   }
   const organization = await db.query.organizations.findFirst({
     columns: { name: true },
@@ -79,5 +87,7 @@ export async function siteNameRejection(params: {
     name: params.name,
     address: params.address,
   });
-  return verdict ? SITE_NAME_REJECTION_MESSAGES[verdict] : null;
+  return verdict
+    ? { message: SITE_NAME_REJECTION_MESSAGES[verdict], field: "name" }
+    : null;
 }

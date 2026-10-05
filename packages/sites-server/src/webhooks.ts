@@ -160,7 +160,7 @@ async function handlePullRequest(
     if (!(PREVIEW_PR_ACTIONS.has(payload.action) && site.previewsEnabled)) {
       continue;
     }
-    // Like Mintlify: previews for pull requests into the deployment branch, from this repository only.
+    // Previews only for pull requests into the deployment branch, from this repository only.
     const fromSameRepository =
       payload.pull_request.head.repo?.id === payload.repository.id;
     if (

@@ -3,6 +3,20 @@ import type { SiteMounts } from "@notra/sites-core/types/deployment";
 
 export type Site = typeof sites.$inferSelect;
 
+/** The form field a rejected create or update belongs to, so the dashboard can point at it. */
+export type SiteInputField =
+  | "repository"
+  | "name"
+  | "slug"
+  | "rootDirectory"
+  | "sections";
+
+/** Why a site name or address is refused, and which of the two to fix. */
+export interface SiteNameRejection {
+  message: string;
+  field: "name" | "slug";
+}
+
 export interface CreateSiteInput {
   organizationId: string;
   userId: string;

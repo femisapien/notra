@@ -56,6 +56,7 @@ import type {
   DeployBranchHeadOptions,
   Site,
   SiteCleanupResult,
+  SiteInputField,
   SiteSettingsPatch,
   UpdateSiteSettingsResult,
 } from "./types/sites";
@@ -64,6 +65,12 @@ import { isSafeRootDirectory } from "./utils/root-directory";
 
 export class SiteInputError extends Error {
   readonly name = "SiteInputError";
+  readonly field: SiteInputField | null;
+
+  constructor(message: string, options?: { field?: SiteInputField }) {
+    super(message);
+    this.field = options?.field ?? null;
+  }
 }
 
 async function uniqueSlug(base: string): Promise<string> {
@@ -88,7 +95,8 @@ async function uniqueSlug(base: string): Promise<string> {
     }
   }
   throw new SiteInputError(
-    "Could not find a free site address; pick a different name"
+    "Could not find a free site address; pick a different name",
+    { field: "name" }
   );
 }
 
@@ -97,7 +105,7 @@ async function uniqueSlug(base: string): Promise<string> {
  * through the GitHub App, claims its alias host and queues the first build.
  */
 /** A repository connected through the GitHub App, only if it belongs to the organization. */
-async function findOrganizationRepository(
+export async function findOrganizationRepository(
   organizationId: string,
   repositoryId: string
 ) {
@@ -159,7 +167,8 @@ export async function createSite(
     )
   ) {
     throw new SiteInputError(
-      "Connect the repository through the Notra GitHub App first"
+      "Connect the repository through the Notra GitHub App first",
+      { field: "repository" }
     );
   }
   const rootDirectory = (input.rootDirectory ?? "")
@@ -167,7 +176,8 @@ export async function createSite(
     .replace(/^\/+|\/+$/g, "");
   if (!isSafeRootDirectory(rootDirectory)) {
     throw new SiteInputError(
-      "The root directory may only contain letters, digits, dots, dashes and slashes"
+      "The root directory may only contain letters, digits, dots, dashes and slashes",
+      { field: "rootDirectory" }
     );
   }
   let mounts: SiteMounts;
@@ -176,12 +186,13 @@ export async function createSite(
       input.mounts ?? { blog: "/blog", changelog: "/changelog" }
     );
   } catch (error) {
-    throw new SiteInputError((error as Error).message);
+    throw new SiteInputError((error as Error).message, { field: "sections" });
   }
   const requestedSlug = input.slug?.trim().toLowerCase();
   if (requestedSlug && !isValidSiteSlug(requestedSlug)) {
     throw new SiteInputError(
-      "Use 3-40 lowercase letters, digits and single dashes for the address"
+      "Use 3-40 lowercase letters, digits and single dashes for the address",
+      { field: "slug" }
     );
   }
   const slug =
@@ -196,7 +207,7 @@ export async function createSite(
     slug,
   });
   if (rejection) {
-    throw new SiteInputError(rejection);
+    throw new SiteInputError(rejection.message, { field: rejection.field });
   }
 
   // Claim the hostname first: R2's create-only write is the global uniqueness check for hosts.
@@ -404,7 +415,7 @@ export async function updateSiteSettings(
       address: siteAliasHost(site.slug, getSitesHostingDomain()),
     });
     if (rejection) {
-      throw new SiteInputError(rejection);
+      throw new SiteInputError(rejection.message, { field: rejection.field });
     }
     values.name = patch.name.trim();
   }

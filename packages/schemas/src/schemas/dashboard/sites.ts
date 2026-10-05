@@ -1,3 +1,4 @@
+import { SITE_INTEGRATION_NAMES } from "@notra/sites-core/constants/integrations";
 import z from "zod";
 
 const organizationId = z.string().min(1);
@@ -108,4 +109,24 @@ export const saveSiteDraftInputSchema = siteFilePathInputSchema.extend({
 export const publishSiteDraftsInputSchema = siteScopeInputSchema.extend({
   message: z.string().trim().min(1).max(200),
   mode: z.enum(["direct", "pull_request"]),
+});
+
+export const saveSiteIntegrationInputSchema = siteScopeInputSchema.extend({
+  provider: z.enum(SITE_INTEGRATION_NAMES),
+  /** Checked against the notra.json schema on the server; null removes the provider. */
+  settings: z.record(z.string(), z.unknown()).nullable(),
+});
+
+export const connectSiteRepositoryInputSchema = z.object({
+  organizationId,
+  /** GitHub's numeric repository id, as the GitHub App lists it. */
+  githubRepositoryId: z.string().trim().min(1).max(40),
+});
+
+/** The repository, branch and root directory picked in the new-site form, for the starter files. */
+export const siteStarterInputSchema = z.object({
+  organizationId,
+  repositoryId: z.string().min(1),
+  branch: z.string().trim().max(250).default(""),
+  rootDirectory: z.string().trim().max(250).default(""),
 });
