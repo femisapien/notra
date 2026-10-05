@@ -1,8 +1,14 @@
+import {
+  SITE_CHROME_FILES,
+  SITE_SLOTS_DIR,
+} from "@notra/sites-core/constants/site-layout";
 import type { SiteDeploymentStatus } from "@notra/sites-core/types/sites";
 
 export const SITE_AREAS = ["blog", "changelog"] as const;
 
 export const SITE_CONFIG_FILENAME = "notra.json";
+/** Public JSON Schema of `notra.json`, generated from `siteConfigSchema` (see scripts/generate-json-schema.ts). */
+export const SITE_CONFIG_SCHEMA_URL = "https://usenotra.com/schemas/notra.json";
 
 /** Every built area keeps its own assets below its mount, so a customer proxy only has to forward the mount path. */
 export const SITE_ASSETS_DIR = "_notra/assets";
@@ -83,12 +89,15 @@ export const SITE_SOURCE_ROOT_ENTRIES = [
   "changelog",
   "snippets",
   "public",
-  // Custom CSS, loaded on every page after the theme (like Mintlify's style.css).
+  // Custom CSS, loaded on every page after the theme so it can override it.
   "style.css",
   "styles",
-  // Custom JavaScript, loaded on every page with `defer` (like Mintlify's script.js).
+  // Custom JavaScript, loaded on every page with `defer`.
   "script.js",
   "scripts",
+  // `header.mdx` / `footer.mdx` replace the theme's chrome; `slots/*.mdx` fill fixed places on its pages.
+  ...SITE_CHROME_FILES,
+  SITE_SLOTS_DIR,
 ] as const;
 
 /** `script.js` and every `.js` file below `scripts/`; copied as-is, never executed by the build. */
@@ -118,7 +127,7 @@ export const SITE_SOURCE_EXTENSIONS = [
   ".css",
 ] as const;
 
-/** Mintlify pre-injects these hooks into inline and snippet components. */
+/** Hooks available in inline and snippet components without an import; the compiler adds it. */
 export const SITE_INJECTED_REACT_HOOKS = [
   "useState",
   "useEffect",

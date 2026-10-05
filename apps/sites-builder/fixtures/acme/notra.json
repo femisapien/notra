@@ -2,6 +2,16 @@
   "$schema": "https://usenotra.com/schemas/notra.json",
   "name": "Acme",
   "description": "Notes from the Acme team on building calm software.",
+  "markdown": {
+    "instructions": [
+      "Call the product Acme Cloud, never just Acme.",
+      "Pricing changes often; link to https://acme.example.com/pricing instead of quoting prices."
+    ]
+  },
+  "variables": {
+    "product": "Acme Cloud",
+    "supportEmail": "help@acme.example.com"
+  },
   "logo": "/images/logo.svg",
   "favicon": "/images/logo.svg",
   "navbar": {
@@ -45,5 +55,21 @@
       "source": "/blog/old-launch",
       "destination": "/blog/2026/launch"
     }
-  ]
+  ],
+  "authors": {
+    "jan": {
+      "name": "Jan Burzinski",
+      "title": "Engineer",
+      "avatar": "https://github.com/janburzinski.png",
+      "bio": "Builds Notra Sites.",
+      "x": "https://x.com/janburzinski",
+      "github": "https://github.com/janburzinski"
+    },
+    "dominik": {
+      "name": "Dominik Koch",
+      "title": "Founder",
+      "avatar": "https://github.com/dominikkoch.png",
+      "url": "https://usenotra.com"
+    }
+  }
 }

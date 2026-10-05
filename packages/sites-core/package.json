@@ -11,7 +11,8 @@
   },
   "scripts": {
     "check-types": "tsc --noEmit --incremental --tsBuildInfoFile .cache/typecheck.tsbuildinfo",
-    "test": "bun test tests"
+    "test": "bun test tests",
+    "generate:json-schema": "bun scripts/generate-json-schema.ts"
   },
   "dependencies": {
     "zod": "^4.6.5"

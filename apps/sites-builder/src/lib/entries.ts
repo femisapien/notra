@@ -21,11 +21,3 @@ export async function getChangelogEntries(): Promise<ChangelogEntry[]> {
   );
   return entries.sort(byDateDesc);
 }
-
-export function authorsOf(entry: BlogEntry): string[] {
-  const author = entry.data.author;
-  if (!author) {
-    return [];
-  }
-  return Array.isArray(author) ? author : [author];
-}

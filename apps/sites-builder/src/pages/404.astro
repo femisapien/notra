@@ -1,13 +1,29 @@
 ---
 import Base from "../layouts/Base.astro";
 import { areaTitle, config, href, params } from "../lib/params";
+
+const notFound = config.errors[404];
+const title = notFound.title ?? "This page doesn’t exist";
+const description = notFound.description ?? "It may have moved, or the link is wrong.";
+const target = href();
 ---
 
-<Base title={`Page not found · ${config.name}`} noindex>
-  <section class="mx-auto max-w-2xl py-16">
+<Base title={`${notFound.title ?? "Page not found"} · ${config.name}`} noindex>
+  {
+    notFound.redirect && (
+      <Fragment slot="head">
+        <meta http-equiv="refresh" content={`0; url=${target}`} />
+        <script is:inline define:vars={{ target }}>
+          // Faster than the refresh, and keeps the broken URL out of the history.
+          location.replace(target);
+        </script>
+      </Fragment>
+    )
+  }
+  <section class="mx-auto max-w-2xl pt-16 pb-8 sm:pt-24">
     <p class="text-sm text-muted-foreground">404</p>
-    <h1 class="mt-2 text-2xl font-semibold tracking-[-0.02em]">This page doesn’t exist</h1>
-    <p class="mt-2 text-muted-foreground">It may have moved, or the link is wrong.</p>
-    <a href={href()} class="mt-6 inline-block text-sm font-medium underline underline-offset-4">Back to {areaTitle(params.area)}</a>
+    <h1 class="mt-2 text-2xl font-semibold tracking-[-0.02em]">{title}</h1>
+    <p class="mt-2 text-muted-foreground">{description}</p>
+    <a href={target} class="mt-6 inline-block text-sm font-medium underline underline-offset-4">Back to {areaTitle(params.area)}</a>
   </section>
 </Base>

@@ -16,8 +16,9 @@ import {
   pathCollidesWithOtherMount,
 } from "@notra/sites-core/utils/mounts";
 
-import { writeAgentFiles } from "./agent-files";
-import { AREA_PAGES_FILE } from "./constants/build";
+import { normalizeAgentInstructions, writeAgentFiles } from "./agent-files";
+import { AREA_PAGES_FILE, ASTRO_LOG_NOISE } from "./constants/build";
+import { writeOgImages } from "./og-images";
 import { prepareSite } from "./prepare";
 import type { AreaPages } from "./types/agent-files";
 import type { AstroPackageJson, BuildSiteOptions } from "./types/build";
@@ -59,8 +60,22 @@ export function runAstro(
         stdio: ["ignore", "pipe", "pipe"],
       }
     );
-    child.stdout.on("data", (chunk: Buffer) => onOutput(chunk.toString()));
-    child.stderr.on("data", (chunk: Buffer) => onOutput(chunk.toString()));
+    // A blog without a changelog (or none yet) is normal; Astro's warnings
+    // about the empty collection would only confuse the customer's build log.
+    const forward = (chunk: Buffer) => {
+      const text = chunk
+        .toString()
+        .split("\n")
+        .filter(
+          (line) => !ASTRO_LOG_NOISE.some((pattern) => pattern.test(line))
+        )
+        .join("\n");
+      if (text.trim()) {
+        onOutput(text);
+      }
+    };
+    child.stdout.on("data", forward);
+    child.stderr.on("data", forward);
     child.on("error", reject);
     child.on("close", (code) => resolvePromise(code ?? 1));
   });
@@ -94,6 +109,25 @@ export async function buildSite(
     };
   }
 
+  // Share images go into the public dir, so they must exist before Astro copies it.
+  const ogImages = await writeOgImages({
+    workDir,
+    config,
+    entries: prepared.entries,
+    publicFiles: prepared.publicFiles,
+    includeDrafts: options.target.includeDrafts,
+  });
+  diagnostics.push(...ogImages.diagnostics);
+  const ogImagePaths = Object.values(ogImages.manifest);
+  if (ogImagePaths.length > 0) {
+    process.stderr.write(
+      `Drew ${ogImagePaths.length} share images in ${ogImages.durationMs} ms\n`
+    );
+  }
+  // Listed like the customer's public files, so the theme's assetUrl() and the
+  // HTML rewrite below put the mount in front of them.
+  const publicFileList = [...prepared.publicFiles, ...ogImagePaths];
+
   await rm(join(workDir, "out"), { recursive: true, force: true });
   // Astro's content layer caches rendered entries by content, not by config (theme, code
   // block styling), so a stale cache would render with old settings.
@@ -101,7 +135,7 @@ export async function buildSite(
   await rm(options.outDir, { recursive: true, force: true });
   await mkdir(options.outDir, { recursive: true });
 
-  const publicFiles = new Set(prepared.publicFiles);
+  const publicFiles = new Set(publicFileList);
   const areas: SiteBuildResult["areas"] = [];
   const areaPages: AreaPages[] = [];
   /** Built HTML by URL path, the source for each page's Markdown twin. */
@@ -120,7 +154,7 @@ export async function buildSite(
         includeDrafts: options.target.includeDrafts,
         branding: options.target.branding,
         workDir,
-        publicFiles: prepared.publicFiles,
+        publicFiles: publicFileList,
         mounts,
         config,
         headScripts: siteHeadScripts(config, mount, prepared.customScripts),
@@ -205,6 +239,7 @@ export async function buildSite(
     siteDescription: config.description,
     areas: areaPages,
     pageHtml,
+    instructions: normalizeAgentInstructions(config.markdown.instructions),
   });
 
   // One policy for every page: the theme's inline scripts are the same everywhere, so the

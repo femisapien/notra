@@ -1,18 +1,21 @@
 ---
-import { areaHref, config, href, params } from "../lib/params";
+import { navbarCta, navbarLinks, navbarPrimary } from "../lib/navigation";
+import { config, href, params } from "../lib/params";
 import { logoFor } from "../lib/theme";
 import Icon from "./Icon.astro";
+import LinkIcon from "./LinkIcon.astro";
+import SiteAreas from "./SiteAreas.astro";
 import ThemeToggle from "./ThemeToggle.astro";
 
 const lightLogo = logoFor("light");
 const darkLogo = logoFor("dark");
 const logoHref = typeof config.logo === "object" && config.logo.href ? config.logo.href : href();
-const sections = (["blog", "changelog"] as const)
-  .map((area) => ({ area, label: area === "blog" ? "Blog" : "Changelog", href: areaHref(area), active: area === params.area }))
-  .filter((section) => section.href !== null);
-const { links, cta } = config.navbar;
-// Below `md` the external links and the CTA move into a menu; the sections always stay visible.
-const hasMenu = links.length > 0 || Boolean(cta);
+const hasSections = Boolean(params.mounts.blog && params.mounts.changelog);
+const links = navbarLinks();
+const cta = navbarCta();
+const primary = navbarPrimary();
+// Below `md` the external links and the buttons move into a menu; the sections always stay visible.
+const hasMenu = links.length > 0 || Boolean(cta) || Boolean(primary);
 ---
 
 <header
@@ -33,23 +36,12 @@ const hasMenu = links.length > 0 || Boolean(cta);
     </a>
 
     {
-      sections.length > 1 && (
+      hasSections && (
         <>
           <span aria-hidden="true" class="h-4 w-px shrink-0 bg-border" />
-          <nav aria-label="Sections" class="-ml-1 flex shrink-0 items-center gap-0.5 text-sm">
-            {sections.map((section) => (
-              <a
-                href={section.href}
-                aria-current={section.active ? "page" : undefined}
-                class:list={[
-                  "flex h-7 items-center rounded-full px-2.5 transition-colors duration-150 ease-out",
-                  section.active ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-                ]}
-              >
-                {section.label}
-              </a>
-            ))}
-          </nav>
+          <div class="-ml-1">
+            <SiteAreas />
+          </div>
         </>
       )
     }
@@ -59,14 +51,28 @@ const hasMenu = links.length > 0 || Boolean(cta);
         links.length > 0 && (
           <nav aria-label="Main" class="mr-2 hidden items-center gap-5 text-sm md:flex">
             {links.map((link) => (
-              <a href={link.href} class="text-muted-foreground transition-colors duration-150 ease-out hover:text-foreground">
-                {link.label}
+              <a
+                href={link.href}
+                aria-label={link.iconOnly ? link.label : undefined}
+                title={link.iconOnly ? link.label : undefined}
+                class="inline-flex items-center gap-1.5 text-muted-foreground transition-colors duration-150 ease-out hover:text-foreground"
+              >
+                <LinkIcon icon={link.icon} size={15} class="shrink-0" />
+                {!link.iconOnly && link.label}
               </a>
             ))}
           </nav>
         )
       }
       <ThemeToggle />
+      {
+        primary && (
+          <a href={primary.href} class="btn btn-secondary btn-sm ml-2 hidden md:inline-flex">
+            <LinkIcon icon={primary.icon} size={14} />
+            {primary.label}
+          </a>
+        )
+      }
       {
         cta && (
           <a href={cta.href} class="btn btn-primary btn-sm ml-2 hidden md:inline-flex">
@@ -90,17 +96,26 @@ const hasMenu = links.length > 0 || Boolean(cta);
       <div id="site-menu" popover class="site-menu md:hidden">
         <nav aria-label="Main" class="flex flex-col px-5 py-2 sm:px-6">
           {links.map((link) => (
-            <a href={link.href} class="flex h-11 items-center border-b border-border text-[0.9375rem] last:border-b-0">
+            <a href={link.href} class="flex h-11 items-center gap-2.5 border-b border-border text-[0.9375rem] last:border-b-0">
+              <LinkIcon icon={link.icon} size={16} class="shrink-0 text-muted-foreground" />
               {link.label}
             </a>
           ))}
         </nav>
         {
-          cta && (
-            <div class="px-5 pt-1 pb-4 sm:px-6">
-              <a href={cta.href} class="btn btn-primary w-full justify-center">
-                {cta.label}
-              </a>
+          (cta || primary) && (
+            <div class="flex flex-col gap-2 px-5 pt-1 pb-4 sm:px-6">
+              {primary && (
+                <a href={primary.href} class="btn btn-secondary w-full justify-center">
+                  <LinkIcon icon={primary.icon} size={14} />
+                  {primary.label}
+                </a>
+              )}
+              {cta && (
+                <a href={cta.href} class="btn btn-primary w-full justify-center">
+                  {cta.label}
+                </a>
+              )}
             </div>
           )
         }

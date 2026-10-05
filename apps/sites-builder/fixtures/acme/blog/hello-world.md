@@ -2,7 +2,7 @@
 title: Hello world
 description: The first post, plain Markdown.
 date: 2026-08-01
-author: Jan
+author: jan
 tags: [meta]
 ---
 

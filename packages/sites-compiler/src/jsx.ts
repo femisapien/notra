@@ -22,7 +22,7 @@ export function parseJsxModule(source: string): Program {
   }) as unknown as Program;
 }
 
-/** Hooks the code uses but neither imports nor declares; these get injected like on Mintlify. */
+/** Hooks the code uses but neither imports nor declares; the compiler injects their import. */
 export function missingHookImports(
   program: Program,
   ownNames: ReadonlySet<string>

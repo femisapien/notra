@@ -19,7 +19,10 @@ export async function exists(path: string): Promise<boolean> {
 }
 
 /** Writes `content` to `path`, creating parent directories first. */
-export async function writeFileEnsured(path: string, content: string) {
+export async function writeFileEnsured(
+  path: string,
+  content: string | Uint8Array
+) {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, content);
 }

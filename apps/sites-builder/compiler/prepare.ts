@@ -53,6 +53,13 @@ export async function prepareSite(
 
   await rm(join(params.workDir, "site"), { recursive: true, force: true });
   await rm(join(params.workDir, "entries"), { recursive: true, force: true });
+  // Both collections always exist, so a site without posts in one area
+  // doesn't fill the build log with "collection does not exist" warnings.
+  await Promise.all(
+    ["blog", "changelog"].map((area) =>
+      mkdir(join(params.workDir, "entries", area), { recursive: true })
+    )
+  );
 
   await Promise.all(
     collected.files.map(async (file) => {
@@ -74,7 +81,7 @@ export async function prepareSite(
       )
   );
 
-  // Customer CSS (Mintlify's style.css), imported after the theme so it can override it.
+  // Customer CSS (`style.css`, `styles/*.css`), imported after the theme so it can override it.
   const customCss = collected.files
     .filter(
       (file) =>
@@ -88,7 +95,7 @@ export async function prepareSite(
     .join("\n");
   await writeFileEnsured(join(params.workDir, "custom.css"), `${customCss}\n`);
 
-  // Customer JavaScript (Mintlify's script.js): copied byte for byte, never run here. Placed in
+  // Customer JavaScript (`script.js`, `scripts/*.js`): copied byte for byte, never run here. Placed in
   // the public dir so every area build and the dev server serve it below the mount; the content
   // hash in the name lets it be cached like the theme's own assets.
   await mkdir(join(params.workDir, "site", "public", SITE_ASSETS_DIR), {

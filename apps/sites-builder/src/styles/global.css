@@ -2,7 +2,7 @@
 @import "@fontsource-variable/inter";
 @plugin "@tailwindcss/typography";
 
-/* Customer snippets use Tailwind classes (like on Mintlify), so scan the prepared site too. */
+/* Customer snippets use Tailwind classes, so scan the prepared site too. */
 @source "../../.notra/work/site";
 @source "../../.notra/work/entries";
 
@@ -37,6 +37,10 @@
     "Segoe UI", sans-serif;
   --font-heading: var(--font-body);
   --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* notra.json `layout.width` scales these (src/lib/theme.ts); the values are the base width's. */
+  --layout-index: 55rem;
+  --layout-post: 80rem;
+  --layout-reading: 48rem;
   color-scheme: light;
 }
 
@@ -104,6 +108,62 @@
   }
 }
 
+/* notra.json `background.image`: one picture behind every page, fixed so long pages don't stretch it. */
+body {
+  background-image: var(--page-image, none);
+  background-position: center top;
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+/* Hidden until focused, then the first thing keyboard users reach. */
+.skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 50;
+  border-radius: 0.5rem;
+  background: var(--foreground);
+  padding: 0.5rem 0.75rem;
+  color: var(--background);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus-visible {
+  transform: none;
+}
+
+/* notra.json `banner`. */
+.site-banner {
+  background: var(--banner-light);
+  color: var(--banner-foreground);
+}
+
+.dark .site-banner {
+  background: var(--banner-dark);
+}
+
+[data-banner-dismissed] [data-site-banner] {
+  display: none;
+}
+
+.banner-content a {
+  font-weight: 500;
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.banner-content code {
+  border-radius: 0.25rem;
+  background: rgb(255 255 255 / 0.18);
+  padding: 0.0625rem 0.3rem;
+  font-family: var(--font-code);
+  font-size: 0.8125rem;
+}
+
 /* Page background decorations (notra.json `background.decoration`). */
 .decoration-grid {
   background-image:
@@ -138,6 +198,58 @@
 }
 
 @layer components {
+  /*
+   * For customer header.mdx / footer.mdx / slots: the same width and side
+   * padding as the theme's post pages (and `layout.width`), so custom chrome
+   * lines up with the content below it.
+   */
+  .site-container {
+    box-sizing: content-box;
+    max-width: var(--layout-post);
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 40rem) {
+    .site-container {
+      padding-inline: 1.5rem;
+    }
+  }
+
+  /*
+   * The blog's look, after usenotra.com/blog: a wash behind the area title
+   * and tinted cards, both following the site's primary color.
+   */
+  .hero-wash {
+    background: color-mix(in oklab, var(--accent) 22%, var(--background));
+  }
+  .dark .hero-wash {
+    background: color-mix(in oklab, var(--accent) 16%, var(--background));
+  }
+  /* `hero.style: image`: the picture with a scrim so the title stays readable. */
+  .hero-image {
+    background-color: hsl(240 6% 10%);
+    background-image:
+      linear-gradient(to bottom, rgb(0 0 0 / 0.4), rgb(0 0 0 / 0.65)),
+      var(--hero-image);
+    background-position: center;
+    background-size: cover;
+    color: white;
+  }
+  .post-card {
+    border-color: color-mix(in oklab, var(--foreground) 10%, transparent);
+    background: color-mix(in oklab, var(--accent) 7%, var(--background));
+  }
+  .post-card:hover {
+    border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+    background: color-mix(in oklab, var(--accent) 11%, var(--background));
+  }
+  .dark .post-card {
+    background: color-mix(in oklab, var(--foreground) 2%, var(--background));
+  }
+  .dark .post-card:hover {
+    background: color-mix(in oklab, var(--foreground) 4%, var(--background));
+  }
+
   /* The dashboard's raised primary and secondary buttons. */
   .btn {
     display: inline-flex;
@@ -483,4 +595,12 @@
 
 .prose-notra > :first-child {
   margin-top: 0;
+}
+
+/* Menus drop in from their trigger. */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
 }

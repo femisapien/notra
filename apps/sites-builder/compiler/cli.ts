@@ -14,6 +14,7 @@ import {
 
 import { buildSite, readBuildTarget, runAstro } from "./build";
 import { USAGE } from "./constants/cli";
+import { writeOgImages } from "./og-images";
 import { prepareSite, readSiteFiles } from "./prepare";
 import { siteHeadScripts } from "./utils/head-scripts";
 
@@ -103,11 +104,30 @@ async function main() {
         workDir,
         stableAssetNames: true,
       });
+      const config = prepared.validation.config;
+      // Drafts are previewed in dev, so they get share images too.
+      const ogImages =
+        prepared.validation.ok && config
+          ? await writeOgImages({
+              workDir,
+              config,
+              entries: prepared.entries,
+              publicFiles: prepared.publicFiles,
+              includeDrafts: true,
+            })
+          : null;
       printDiagnostics([
         ...prepared.collectDiagnostics,
         ...prepared.validation.diagnostics,
+        ...(ogImages?.diagnostics ?? []),
       ]);
-      return prepared;
+      return {
+        ...prepared,
+        publicFiles: [
+          ...prepared.publicFiles,
+          ...Object.values(ogImages?.manifest ?? {}),
+        ],
+      };
     };
     const prepared = await prepare();
     if (!(prepared.validation.ok && prepared.validation.config)) {

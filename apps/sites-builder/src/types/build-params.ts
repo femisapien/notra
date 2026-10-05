@@ -1,37 +1,10 @@
-export interface SiteLink {
-  label: string;
-  href: string;
-}
+import type { SiteConfig } from "@notra/sites-core/types/site-config";
 
-export interface FontSpec {
-  family?: string;
-  weight?: number;
-  source?: string;
-  format?: "woff" | "woff2";
-}
-
-/** notra.json after validation (see @notra/sites-core site-config schema). */
-export interface SiteThemeConfig {
-  theme: "notra";
-  name: string;
-  description?: string;
-  logo?: string | { light: string; dark: string; href?: string };
-  favicon?: string | { light: string; dark: string };
-  colors: { primary: string; light?: string; dark?: string };
-  appearance: { default: "light" | "dark" | "system"; strict: boolean };
-  fonts?: FontSpec & { heading?: FontSpec; body?: FontSpec };
-  background: {
-    decoration: "none" | "grid" | "dots" | "gradient";
-    color?: { light?: string; dark?: string };
-  };
-  styling: {
-    codeblocks: "system" | "dark" | string | { light: string; dark: string };
-  };
-  navbar: { links: SiteLink[]; cta?: SiteLink };
-  footer: { links: SiteLink[]; socials: Record<string, string> };
-  blog?: { title?: string; description?: string };
-  changelog?: { title?: string; description?: string };
-}
+/**
+ * notra.json after validation: the schema's output type, so every default the
+ * schema fills in (layout, contextual, seo…) is guaranteed here and can't drift.
+ */
+export type SiteThemeConfig = SiteConfig;
 
 /** A `<head>` script from integrations or the customer's `script.js` / `scripts/*.js` (see @notra/sites-core). */
 export type HeadScript =

@@ -16,6 +16,9 @@ export { default as Step } from "./Step.astro";
 export { default as Steps } from "./Steps.astro";
 export { default as Tab } from "./Tab.astro";
 export { default as Tabs } from "./Tabs.astro";
+// For a custom header.mdx / footer.mdx: the theme's light/dark switch and Blog/Changelog pills.
+export { default as SiteAreas } from "../components/SiteAreas.astro";
+export { default as ThemeToggle } from "../components/ThemeToggle.astro";
 export { default as Tip } from "./Tip.astro";
 export { default as Update } from "./Update.astro";
 export { default as Video } from "./Video.astro";

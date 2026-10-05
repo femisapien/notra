@@ -1,6 +1,6 @@
 import { SITE_INJECTED_REACT_HOOKS } from "@notra/sites-core/constants/sites";
 
-/** Components every MDX file can use without importing them (Mintlify-style globals). */
+/** Components every MDX file can use without importing them (globals). */
 export const BUILTIN_COMPONENTS = [
   "Note",
   "Tip",
@@ -24,6 +24,8 @@ export const BUILTIN_COMPONENTS = [
   "Update",
   "Video",
   "YouTube",
+  "ThemeToggle",
+  "SiteAreas",
 ] as const;
 
 export const BUILTIN_COMPONENT_NAMES = new Set<string>(BUILTIN_COMPONENTS);

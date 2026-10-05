@@ -1,0 +1,24 @@
+---
+import { slotComponent } from "../lib/site-files";
+import type { SlotName } from "../types/site-files";
+
+interface Props {
+  name: SlotName;
+  /** Passed to the customer's MDX as props (`{post.title}`). */
+  data?: Record<string, unknown>;
+  class?: string;
+}
+
+const { name, data = {}, class: className } = Astro.props;
+const Component = slotComponent(name);
+---
+
+{
+  Component ? (
+    <div data-slot={name} class={className}>
+      <Component {...data} />
+    </div>
+  ) : (
+    <slot />
+  )
+}

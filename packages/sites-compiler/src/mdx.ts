@@ -18,6 +18,7 @@ import {
   KNOWN_GLOBALS,
   SITE_IMPORT_ALIAS,
 } from "./constants/builtins";
+import { BLOCKED_HTML_ELEMENTS } from "./constants/elements";
 import { missingHookImports, parseJsxModule } from "./jsx";
 import type {
   BlankedFrontmatter,
@@ -336,7 +337,7 @@ function expressionPrograms(node: Nodes): Program[] {
 }
 
 /**
- * Snippets take props like Mintlify's: `{word}` in a snippet means the prop
+ * Snippets take props by bare name: `{word}` in a snippet means the prop
  * `word`. Rewrites free identifiers to `props.word`.
  */
 function snippetPropOffsets(
@@ -381,10 +382,21 @@ function walkContent(pass: MdxPass, tree: Root, scan: ModuleScan): Set<string> {
     }
     const name = node.name;
     const root = name?.split(".")[0] ?? "";
+    const start = node.position?.start.offset ?? 0;
+    // Inline scripts would slip past the review of script.js and, being part of
+    // the page, get hashed into the Content-Security-Policy like ours.
+    if (name && BLOCKED_HTML_ELEMENTS.has(name.toLowerCase())) {
+      report(
+        pass,
+        "blocked_element",
+        `<${name}> is not allowed in content. Put JavaScript in script.js or scripts/*.js.`,
+        start
+      );
+      return;
+    }
     if (!(name && /^[A-Z]/.test(root))) {
       return;
     }
-    const start = node.position?.start.offset ?? 0;
     if (scan.hydrated.has(root)) {
       if (!hasClientDirective(node.attributes as never)) {
         const at = start + 1 + name.length;

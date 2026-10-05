@@ -1,8 +1,10 @@
 import type { APIRoute } from "astro";
 
-import { authorsOf, getBlogEntries, getChangelogEntries } from "../lib/entries";
+import { authorsOf } from "../lib/authors";
+import { getBlogEntries, getChangelogEntries } from "../lib/entries";
 import { areaDescription, areaTitle, href, params } from "../lib/params";
 import { isoDate } from "../utils/dates";
+import { excerpt } from "../utils/excerpt";
 
 /**
  * Build-time page list for the notra-sites CLI, which turns every page into
@@ -20,9 +22,10 @@ export const GET: APIRoute = async () => {
           path: href(entry.id),
           title: entry.data.title,
           description: entry.data.description,
+          summary: excerpt(entry.body),
           date: isoDate(entry.data.date),
           updated: entry.data.updated ? isoDate(entry.data.updated) : undefined,
-          authors: authorsOf(entry),
+          authors: authorsOf(entry).map((author) => author.name),
           tags: entry.data.tags,
           indexable: !(entry.data.draft || entry.data.noindex),
         }))
@@ -30,6 +33,7 @@ export const GET: APIRoute = async () => {
           path: href(entry.id),
           title: entry.data.title,
           description: entry.data.description,
+          summary: excerpt(entry.body),
           date: isoDate(entry.data.date),
           version: entry.data.version,
           tags: entry.data.tags,

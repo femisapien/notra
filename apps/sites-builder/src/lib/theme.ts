@@ -1,4 +1,8 @@
-import { GOOGLE_FONTS } from "../constants/theme";
+import {
+  BASE_LAYOUT_WIDTH_REM,
+  GOOGLE_FONTS,
+  LAYOUT_CONTAINERS_REM,
+} from "../constants/theme";
 import type { FontFace } from "../types/theme";
 import { readableOn } from "../utils/color";
 import { assetUrl, config } from "./params";
@@ -18,6 +22,16 @@ export function themeStyle(): string {
     `--primary-foreground: ${readableOn(button)}`,
   ];
   const dark: string[] = [];
+  root.push(...layoutWidths());
+  const image = background.image;
+  const lightImage = assetUrl(typeof image === "string" ? image : image?.light);
+  const darkImage = assetUrl(typeof image === "string" ? image : image?.dark);
+  if (lightImage) {
+    root.push(`--page-image: url(${JSON.stringify(lightImage)})`);
+  }
+  if (darkImage && darkImage !== lightImage) {
+    dark.push(`--page-image: url(${JSON.stringify(darkImage)})`);
+  }
   if (background.color?.light) {
     root.push(`--page-background: ${background.color.light}`);
   }
@@ -35,7 +49,26 @@ export function themeStyle(): string {
     root.push(`--font-heading: ${fontStack(heading, "var(--font-body)")}`);
   }
   // `html:root` / `html.dark` outrank the theme stylesheet's `:root` / `.dark`, which loads later.
-  return `html:root{${root.join(";")}}${dark.length ? `html.dark{${dark.join(";")}}` : ""}`;
+  const css = `html:root{${root.join(";")}}${dark.length ? `html.dark{${dark.join(";")}}` : ""}`;
+  // Paths and font names come from notra.json; `<` must never close the inline <style>.
+  return css.replaceAll("<", "\\3c ");
+}
+
+/** Container widths from `layout.width`; the stylesheet's defaults match the base width, so nothing is emitted there. */
+function layoutWidths(): string[] {
+  const width = config.layout.width;
+  if (width === BASE_LAYOUT_WIDTH_REM) {
+    return [];
+  }
+  if (width === "full") {
+    // Reading columns keep their measure; only the wide containers go edge to edge.
+    return ["--layout-index: 100%", "--layout-post: 100%"];
+  }
+  const scale = width / BASE_LAYOUT_WIDTH_REM;
+  return Object.entries(LAYOUT_CONTAINERS_REM).map(
+    ([name, rem]) =>
+      `--layout-${name}: ${Math.round(rem * scale * 100) / 100}rem`
+  );
 }
 
 function declaredFonts(): FontFace[] {

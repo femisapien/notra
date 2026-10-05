@@ -1,66 +1,50 @@
 ---
-import { authorsOf, getBlogEntries } from "../lib/entries";
-import { areaDescription, areaTitle, assetUrl, href } from "../lib/params";
-import { formatDate, isoDate } from "../utils/dates";
-import { readingMinutes } from "../utils/reading-time";
-import PageHeader from "./PageHeader.astro";
+import { getBlogEntries } from "../lib/entries";
+import { splitFeatured } from "../lib/featured";
+import { blogOptions } from "../lib/options";
+import { areaDescription, areaTitle } from "../lib/params";
+import { slotArea, slotSite } from "../lib/slot-data";
+import AreaHero from "./AreaHero.astro";
 import PostCard from "./PostCard.astro";
-import PostCover from "./PostCover.astro";
+import SiteSlot from "./SiteSlot.astro";
 
 const entries = await getBlogEntries();
-// Covers carry the page; a blog without any images reads better as a plain list.
-const withCovers = entries.some((entry) => entry.data.image);
-const [featured, ...rest] = entries;
+const { layout, featured: featuredSetting } = blogOptions();
+const split = splitFeatured(entries, featuredSetting);
+// Magazine leads with a large card even when nothing is pinned: the newest post.
+const lead = layout === "magazine" && split.featured.length === 0 ? splitFeatured(entries, "latest") : split;
+const { featured, rest } = lead;
 ---
 
-<div class="mx-auto max-w-5xl">
-  <PageHeader title={areaTitle("blog")} description={areaDescription("blog")} />
-
-  {entries.length === 0 && <p class="mt-12 text-sm text-muted-foreground">No posts yet. Add an .mdx file to blog/ and push.</p>}
-
-  {
-    withCovers && featured && (
-      <>
-        <a href={href(featured.id)} class="group mt-12 grid items-center gap-x-10 gap-y-6 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-          <PostCover image={assetUrl(featured.data.image)} class="aspect-[16/10] rounded-2xl" eager />
-          <div>
-            <p class="text-[0.8125rem] text-muted-foreground tabular-nums">
-              <time datetime={isoDate(featured.data.date)}>{formatDate(featured.data.date)}</time> · {readingMinutes(featured.body)} min read
-            </p>
-            <h2 class="mt-2 text-2xl leading-tight font-semibold tracking-[-0.02em] text-balance decoration-muted-foreground/40 underline-offset-4 group-hover:underline sm:text-[1.75rem]">
-              {featured.data.title}
-            </h2>
-            {featured.data.description && <p class="mt-3 text-pretty text-muted-foreground">{featured.data.description}</p>}
-            {authorsOf(featured).length > 0 && <p class="mt-5 text-sm">{authorsOf(featured).join(", ")}</p>}
-          </div>
-        </a>
-        {
-          rest.length > 0 && (
-            <ul class="mt-16 grid gap-x-8 gap-y-12 border-t border-border pt-12 sm:grid-cols-2 lg:grid-cols-3">
-              {rest.map((entry) => (
-                <li>
-                  <PostCard entry={entry} />
-                </li>
-              ))}
-            </ul>
-          )
-        }
-      </>
-    )
-  }
+<div class="flex flex-col items-center gap-12 md:gap-16">
+  <SiteSlot name="blog-hero" data={{ site: slotSite(), area: slotArea() }} class="w-full">
+    <AreaHero title={areaTitle("blog")} description={areaDescription("blog")} />
+  </SiteSlot>
 
   {
-    !withCovers && entries.length > 0 && (
-      <ul class="mt-12 max-w-3xl border-t border-border">
-        {entries.map((entry) => (
-          <li class="border-b border-border">
-            <a href={href(entry.id)} class="group grid gap-1 py-6 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-8">
-              <time datetime={isoDate(entry.data.date)} class="pt-0.5 text-sm text-muted-foreground tabular-nums">{formatDate(entry.data.date)}</time>
-              <div class="min-w-0">
-                <h2 class="font-medium text-balance decoration-muted-foreground/40 underline-offset-4 group-hover:underline">{entry.data.title}</h2>
-                {entry.data.description && <p class="mt-1 text-sm leading-6 text-pretty text-muted-foreground">{entry.data.description}</p>}
-              </div>
-            </a>
+    entries.length === 0 ? (
+      <div class="post-card w-full max-w-(--layout-index) rounded-3xl border px-6 py-16 text-center">
+        <h2 class="font-heading text-xl font-medium tracking-[-0.015em]">No posts yet</h2>
+        <p class="mt-2 text-sm leading-6 text-muted-foreground">Add a Markdown file to blog/ and push.</p>
+      </div>
+    ) : layout === "list" ? (
+      <ul class="w-full max-w-(--layout-index) divide-y divide-border border-y border-border">
+        {[...featured, ...rest].map((entry) => (
+          <li>
+            <PostCard entry={entry} variant="row" featured={featured.includes(entry)} />
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <ul class="grid w-full max-w-(--layout-index) grid-cols-1 gap-6 sm:grid-cols-2">
+        {featured.map((entry) => (
+          <li class="h-full sm:col-span-2">
+            <PostCard entry={entry} variant="feature" featured={layout === "grid" || split.featured.length > 0} />
+          </li>
+        ))}
+        {rest.map((entry) => (
+          <li class="h-full">
+            <PostCard entry={entry} />
           </li>
         ))}
       </ul>

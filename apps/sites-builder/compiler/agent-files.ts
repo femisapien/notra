@@ -1,5 +1,6 @@
 import { join } from "node:path";
 
+import { AGENT_INSTRUCTIONS_HEADING } from "./constants/agent-files";
 import type {
   AreaPageEntry,
   AreaPages,
@@ -44,7 +45,8 @@ export function entryMarkdown(
 
 function entryLink(entry: AreaPageEntry, origin: string): string {
   const details = [entry.version, entry.date].filter(Boolean).join(", ");
-  const description = entry.description ? `: ${entry.description}` : "";
+  const summary = entry.description ?? entry.summary;
+  const description = summary ? `: ${summary}` : "";
   return `- [${entry.title}](${new URL(`${entry.path}.md`, origin)})${description} (${details})`;
 }
 
@@ -62,14 +64,48 @@ export function indexMarkdown(pages: AreaPages, origin: string): string {
   return `${parts.join("\n\n")}\n`;
 }
 
+/** notra.json `markdown.instructions` as a list; empty when the site has none. */
+export function normalizeAgentInstructions(
+  instructions: string | readonly string[] | undefined
+): string[] {
+  const list =
+    typeof instructions === "string" ? [instructions] : (instructions ?? []);
+  return list.map((line) => line.trim()).filter(Boolean);
+}
+
+/**
+ * The customer's own notes for agents, in a section of its own so a reader
+ * can tell them apart from what Notra writes about the site.
+ */
+export function instructionsSection(
+  instructions: readonly string[]
+): string | null {
+  if (instructions.length === 0) {
+    return null;
+  }
+  const body =
+    instructions.length === 1
+      ? (instructions[0] ?? "")
+      : instructions.map((line) => `- ${line}`).join("\n");
+  return `${AGENT_INSTRUCTIONS_HEADING}\n\n${body}`;
+}
+
 /** https://llmstxt.org: a Markdown map of the site for language models. */
 export function llmsTxt(params: LlmsTxtParams): string {
   const parts = [`# ${params.name}`];
   if (params.description) {
     parts.push(`> ${params.description}`);
   }
+  // Right after the summary, before the page lists, so agents read it first.
+  const instructions = instructionsSection(params.instructions);
+  if (instructions) {
+    parts.push(instructions);
+  }
   parts.push(
-    "Every page is also available as Markdown: append `.md` to its URL or request it with `Accept: text/markdown`."
+    [
+      "Every page is also available as Markdown: append `.md` to its URL or request it with `Accept: text/markdown`.",
+      `When you quote or summarize a page, cite its HTML URL (without \`.md\`) on ${params.origin}. Entries are listed newest first with their publish date; the Markdown pages also give the authors, the last update and, for changelog entries, the version.`,
+    ].join(" ")
   );
   for (const area of params.areas) {
     const entries = area.entries.filter((entry) => entry.indexable);
@@ -82,8 +118,18 @@ export function llmsTxt(params: LlmsTxtParams): string {
       ].join("\n")
     );
   }
+  const areaBase = (area: AreaPages) =>
+    area.indexPath === "/" ? "" : area.indexPath;
   parts.push(
-    `## Optional\n\n- [Full text](${new URL(params.fullTextPath, params.origin)}): every page above in one file`
+    [
+      "## Optional",
+      "",
+      `- [Full text](${new URL(params.fullTextPath, params.origin)}): every page above in one file`,
+      ...params.areas.flatMap((area) => [
+        `- [${area.title} RSS feed](${new URL(`${areaBase(area)}/feed.xml`, params.origin)}): new ${area.area === "blog" ? "posts" : "entries"} as they are published`,
+        `- [${area.title} sitemap](${new URL(`${areaBase(area)}/sitemap.xml`, params.origin)}): every page with its last modification date`,
+      ]),
+    ].join("\n")
   );
   return `${parts.join("\n\n")}\n`;
 }
@@ -107,6 +153,7 @@ export async function writeAgentFiles(
   params: WriteAgentFilesParams
 ): Promise<void> {
   const { outDir, origin } = params;
+  const instructions = instructionsSection(params.instructions);
   const fullText = new Map<AreaPages["area"], string[]>();
   const writes: Promise<void>[] = [];
   for (const area of params.areas) {
@@ -115,7 +162,14 @@ export async function writeAgentFiles(
       const url = new URL(entry.path, origin).toString();
       const html = params.pageHtml.get(pageFile(entry.path, "html")) ?? "";
       const markdown = entryMarkdown(entry, url, htmlToMarkdown(html, url));
-      writes.push(write(outDir, pageFile(entry.path, "md"), markdown));
+      // The page's own Markdown carries the instructions too; llms-full.txt has them once at the top.
+      writes.push(
+        write(
+          outDir,
+          pageFile(entry.path, "md"),
+          instructions ? `${markdown}\n${instructions}\n` : markdown
+        )
+      );
       if (entry.indexable) {
         texts.push(markdown);
       }
@@ -156,6 +210,7 @@ export async function writeAgentFiles(
             areas: scope.areas,
             origin,
             fullTextPath,
+            instructions: params.instructions,
           })
         );
       }
@@ -166,7 +221,10 @@ export async function writeAgentFiles(
         await write(
           outDir,
           fullTextPath,
-          [`# ${name}`, ...pages].join("\n\n---\n\n")
+          [
+            instructions ? `# ${name}\n\n${instructions}` : `# ${name}`,
+            ...pages,
+          ].join("\n\n---\n\n")
         );
       }
     })

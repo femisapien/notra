@@ -1,22 +1,41 @@
 ---
 import { getChangelogEntries } from "../lib/entries";
+import { changelogOptions } from "../lib/options";
 import { areaDescription, areaTitle } from "../lib/params";
+import { slotArea, slotChangelogEntry, slotSite } from "../lib/slot-data";
+import AreaHero from "./AreaHero.astro";
 import ChangelogEntry from "./ChangelogEntry.astro";
-import PageHeader from "./PageHeader.astro";
+import SiteSlot from "./SiteSlot.astro";
 
 const entries = await getChangelogEntries();
+const { layout } = changelogOptions();
+// The slot lines up with the entry's content column, not its date column.
+const slotSpacing = { timeline: "mt-8 sm:pl-[10rem]", cards: "", compact: "pb-4 sm:pl-[10rem]" }[layout];
 ---
 
-<div class="mx-auto max-w-3xl">
-<PageHeader title={areaTitle("changelog")} description={areaDescription("changelog")} />
+<SiteSlot name="changelog-hero" data={{ site: slotSite(), area: slotArea() }}>
+  <AreaHero title={areaTitle("changelog")} description={areaDescription("changelog")} />
+</SiteSlot>
 
-{
-  entries.length === 0 ? (
-    <p class="mt-12 text-sm text-muted-foreground">Nothing shipped yet. Add an .mdx file to changelog/ and push.</p>
-  ) : (
-    <div class="mt-10 divide-y divide-border border-t border-border [&>article]:py-10">
-      {entries.map((entry) => <ChangelogEntry entry={entry} />)}
-    </div>
-  )
-}
+<div class="mx-auto mt-12 max-w-(--layout-reading) md:mt-16">
+  {
+    entries.length === 0 ? (
+      <p class="mt-12 text-sm text-muted-foreground">Nothing shipped yet. Add an .mdx file to changelog/ and push.</p>
+    ) : (
+      <div
+        class:list={[
+          layout === "timeline" && "divide-y divide-border [&>section]:py-10 [&>section:first-child]:pt-0",
+          layout === "cards" && "flex flex-col gap-6",
+          layout === "compact" && "divide-y divide-border border-y border-border",
+        ]}
+      >
+        {entries.map((entry) => (
+          <section>
+            <ChangelogEntry entry={entry} layout={layout} />
+            <SiteSlot name="after-changelog-entry" data={{ entry: slotChangelogEntry(entry) }} class={slotSpacing} />
+          </section>
+        ))}
+      </div>
+    )
+  }
 </div>

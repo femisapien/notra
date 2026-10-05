@@ -1,36 +1,63 @@
 ---
 import "../styles/global.css";
 import "@notra/custom-css";
+import Banner from "../components/Banner.astro";
 import CodeBlocks from "../components/CodeBlocks.astro";
+import CustomChrome from "../components/CustomChrome.astro";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
-import { absoluteUrl, areaTitle, assetUrl, config, href, llmsHref, params } from "../lib/params";
+import { siteBanner } from "../lib/banner";
+import { absoluteUrl, areaTitle, config, llmsHref, params } from "../lib/params";
+import { extraMetaTags, socialImage, structuredData, themeColors, touchIcon, twitterHandle } from "../lib/seo";
+import { chromeComponent } from "../lib/site-files";
 import { decorationClass, faviconFor, fontFaces, googleFontsUrl, themeStyle } from "../lib/theme";
+import type { JsonLdNode } from "../types/seo";
 
 interface Props {
   title: string;
   description?: string;
   image?: string;
+  /** Generated share image (thumbnails), used when the page has no `image`. */
+  generatedImage?: string;
   type?: "website" | "article";
   noindex?: boolean;
   publishedTime?: Date;
+  modifiedTime?: Date;
+  tags?: string[];
   /** Path of the page's Markdown twin, advertised to agents. */
   markdown?: string;
-  /** schema.org structured data for the page. */
-  jsonLd?: Record<string, unknown>;
+  /** schema.org nodes for the page; the publisher and website are added to every page that has any. */
+  jsonLd?: JsonLdNode[];
 }
 
-const { title, description, image, type = "website", noindex = false, publishedTime, markdown, jsonLd } = Astro.props;
+const { title, description, image, generatedImage, type = "website", noindex = false, publishedTime, modifiedTime, tags = [], markdown, jsonLd } = Astro.props;
 // Same URL form as the sitemap and feed: no trailing slash (except the bare root).
 const canonicalPath = Astro.url.pathname.length > 1 ? Astro.url.pathname.replace(/\/+$/, "") : Astro.url.pathname;
 const canonical = absoluteUrl(canonicalPath);
-const ogImage = image ? absoluteUrl(assetUrl(image) ?? image) : undefined;
-const robots = params.noindex || noindex ? "noindex, nofollow" : undefined;
+const ogImage = socialImage(image, generatedImage);
+const robots = params.noindex || noindex ? "noindex, nofollow" : "index, follow, max-image-preview:large";
+const twitterSite = twitterHandle();
+const colors = themeColors();
+const appleTouchIcon = touchIcon();
+// Every area's feed, so a reader on the blog also finds the changelog's.
+const feeds = (["blog", "changelog"] as const).flatMap((area) => {
+  const mount = params.mounts[area];
+  if (!mount) {
+    return [];
+  }
+  const label = areaTitle(area);
+  return [{ title: label.startsWith(config.name) ? label : `${config.name} ${label}`, href: `${mount === "/" ? "" : mount}/feed.xml` }];
+});
 const fontsUrl = googleFontsUrl();
 const appearance = config.appearance;
 const codeDark = config.styling.codeblocks === "dark";
 const lightFavicon = faviconFor("light");
 const darkFavicon = faviconFor("dark");
+const metaTags = extraMetaTags();
+const banner = siteBanner();
+const dismissKey = banner?.dismissible ? banner.storageKey : null;
+const customHeader = Boolean(chromeComponent("header"));
+const customFooter = Boolean(chromeComponent("footer"));
 ---
 
 <!doctype html>
@@ -41,22 +68,32 @@ const darkFavicon = faviconFor("dark");
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     <link rel="canonical" href={canonical} />
-    {robots && <meta name="robots" content={robots} />}
+    <meta name="robots" content={robots} />
     {lightFavicon && <link rel="icon" href={lightFavicon} media={darkFavicon !== lightFavicon ? "(prefers-color-scheme: light)" : undefined} />}
     {darkFavicon && darkFavicon !== lightFavicon && <link rel="icon" href={darkFavicon} media="(prefers-color-scheme: dark)" />}
+    {appleTouchIcon && <link rel="apple-touch-icon" href={appleTouchIcon} />}
+    <meta name="theme-color" content={colors.light} media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content={colors.dark} media="(prefers-color-scheme: dark)" />
     {markdown && <link rel="alternate" type="text/markdown" href={markdown} />}
     <link rel="alternate" type="text/plain" title="llms.txt" href={llmsHref()} />
-    <link rel="alternate" type="application/rss+xml" title={areaTitle(params.area).startsWith(config.name) ? areaTitle(params.area) : `${config.name} ${areaTitle(params.area)}`} href={href("feed.xml")} />
+    {feeds.map((feed) => <link rel="alternate" type="application/rss+xml" title={feed.title} href={feed.href} />)}
     <meta property="og:type" content={type} />
     <meta property="og:title" content={title} />
     <meta property="og:url" content={canonical} />
     <meta property="og:site_name" content={config.name} />
     {description && <meta property="og:description" content={description} />}
-    {ogImage && <meta property="og:image" content={ogImage} />}
+    <meta property="og:locale" content="en_US" />
+    {ogImage && <meta property="og:image" content={ogImage.url} />}
+    {ogImage && <meta property="og:image:alt" content={ogImage.large ? title : config.name} />}
     {publishedTime && <meta property="article:published_time" content={publishedTime.toISOString()} />}
-    <meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
+    {type === "article" && modifiedTime && <meta property="article:modified_time" content={modifiedTime.toISOString()} />}
+    {type === "article" && <meta property="article:section" content={areaTitle(params.area)} />}
+    {type === "article" && tags.map((tag) => <meta property="article:tag" content={tag} />)}
+    <meta name="twitter:card" content={ogImage?.large ? "summary_large_image" : "summary"} />
+    {twitterSite && <meta name="twitter:site" content={twitterSite} />}
     <meta name="generator" content="Notra Sites" />
-    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify({ "@context": "https://schema.org", ...jsonLd }).replaceAll("<", "\\u003c")} />}
+    {metaTags.map((tag) => (tag.key === "property" ? <meta property={tag.value} content={tag.content} /> : <meta name={tag.value} content={tag.content} />))}
+    {jsonLd && <script type="application/ld+json" set:html={structuredData(jsonLd)} />}
     {fontsUrl && <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />}
     {fontsUrl && <link rel="stylesheet" href={fontsUrl} />}
     <style is:inline set:html={`${fontFaces()}${themeStyle()}`}></style>
@@ -68,17 +105,30 @@ const darkFavicon = faviconFor("dark");
       document.documentElement.classList.toggle("dark", dark);
     </script>
     {
+      dismissKey && (
+        <script is:inline define:vars={{ dismissKey }}>
+          // A dismissed banner must not flash in before the page script runs.
+          if (localStorage.getItem(dismissKey)) {
+            document.documentElement.setAttribute("data-banner-dismissed", "");
+          }
+        </script>
+      )
+    }
+    <slot name="head" />
+    {
       params.headScripts.map((script) =>
         script.kind === "external" ? <script is:inline src={script.src} {...script.attributes} /> : <script is:inline set:html={script.code} />
       )
     }
   </head>
   <body class="flex min-h-dvh flex-col font-sans text-foreground">
-    <Header />
-    <main class="w-full flex-1 px-5 pt-14 pb-24 sm:px-6 sm:pt-20">
+    <a href="#content" class="skip-link">Skip to content</a>
+    {banner && <Banner banner={banner} />}
+    {customHeader ? <CustomChrome part="header" /> : <Header />}
+    <main id="content" tabindex="-1" class="w-full flex-1 px-4 pt-4 pb-24 outline-none sm:px-6 sm:pt-6">
       <slot />
     </main>
-    <Footer />
+    {customFooter ? <CustomChrome part="footer" /> : <Footer />}
     <CodeBlocks />
   </body>
 </html>

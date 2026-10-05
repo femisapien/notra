@@ -1,0 +1,35 @@
+---
+import { chromeComponent } from "../lib/site-files";
+import { params } from "../lib/params";
+import PoweredByNotra from "./PoweredByNotra.astro";
+
+interface Props {
+  part: "header" | "footer";
+}
+
+const { part } = Astro.props;
+const Component = chromeComponent(part);
+const showBranding = part === "footer" && params.branding !== false;
+---
+
+{
+  Component && part === "header" && (
+    // The customer's file brings its own <header>/<footer> element; this wrapper only marks the spot.
+    <div data-custom-chrome="header">
+      <Component />
+    </div>
+  )
+}
+{
+  Component && part === "footer" && (
+    <div data-custom-chrome="footer">
+      <Component />
+      {/* The badge is part of the plan, not the theme: a custom footer keeps it as a slim row. */}
+      {showBranding && (
+        <div class="flex justify-end border-t border-border px-5 py-3 sm:px-6">
+          <PoweredByNotra />
+        </div>
+      )}
+    </div>
+  )
+}
