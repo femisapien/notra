@@ -167,8 +167,9 @@ export const SITE_DEPLOYMENT_TRANSITIONS: Record<
   readonly SiteDeploymentStatus[]
 > = {
   queued: [],
-  // A retried job (expired lease) re-enters the step it crashed in.
-  building: ["queued", "building"],
+  // A retried job (expired lease, failed upload) re-enters the build; an
+  // upload that failed halfway is redone from a fresh build.
+  building: ["queued", "building", "uploading"],
   uploading: ["building", "uploading"],
   ready: ["uploading"],
   superseded: ["queued"],
