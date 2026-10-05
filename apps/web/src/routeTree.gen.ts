@@ -55,7 +55,6 @@ import { Route as ApiOssProgramRouteImport } from './routes/api/oss-program'
 import { Route as ApiStatusRouteImport } from './routes/api/status'
 import { Route as ApiV1RouteImport } from './routes/api/v1'
 import { Route as DevelopersLlmsDottxtRouteImport } from './routes/developers/llms[.]txt'
-import { Route as DocsLlmsDottxtRouteImport } from './routes/docs/llms[.]txt'
 import { Route as MarketingChatRouteImport } from './routes/marketing/chat'
 import { Route as MdSplatRouteImport } from './routes/md/$'
 import { Route as SchemaNotraDotjsonlRouteImport } from './routes/schema/notra[.]jsonl'
@@ -69,6 +68,9 @@ import { Route as SiteLegalTermsRouteImport } from './routes/_site/_legal/terms'
 import { Route as SiteContributorsIndexRouteImport } from './routes/_site/contributors/index'
 import { Route as SiteContributorsOpengraphImageRouteImport } from './routes/_site/contributors/opengraph-image'
 import { Route as SiteFeaturesIndexRouteImport } from './routes/_site/features/index'
+import { Route as SiteFeaturesAiCrawlerLogsRouteImport } from './routes/_site/features/ai-crawler-logs'
+import { Route as SiteFeaturesConversationsRouteImport } from './routes/_site/features/conversations'
+import { Route as SiteFeaturesPersonasRouteImport } from './routes/_site/features/personas'
 import { Route as SiteIntegrationsIndexRouteImport } from './routes/_site/integrations/index'
 import { Route as SiteIntegrationsIdRouteImport } from './routes/_site/integrations/$id'
 import { Route as SiteIntegrationsSlackRouteImport } from './routes/_site/integrations/slack'
@@ -328,11 +330,6 @@ const DevelopersLlmsDottxtRoute = DevelopersLlmsDottxtRouteImport.update({
   path: '/developers/llms.txt',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DocsLlmsDottxtRoute = DocsLlmsDottxtRouteImport.update({
-  id: '/docs/llms.txt',
-  path: '/docs/llms.txt',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MarketingChatRoute = MarketingChatRouteImport.update({
   id: '/marketing/chat',
   path: '/marketing/chat',
@@ -398,6 +395,23 @@ const SiteContributorsOpengraphImageRoute =
 const SiteFeaturesIndexRoute = SiteFeaturesIndexRouteImport.update({
   id: '/features/',
   path: '/features/',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteFeaturesAiCrawlerLogsRoute =
+  SiteFeaturesAiCrawlerLogsRouteImport.update({
+    id: '/features/ai-crawler-logs',
+    path: '/features/ai-crawler-logs',
+    getParentRoute: () => SiteRoute,
+  } as any)
+const SiteFeaturesConversationsRoute =
+  SiteFeaturesConversationsRouteImport.update({
+    id: '/features/conversations',
+    path: '/features/conversations',
+    getParentRoute: () => SiteRoute,
+  } as any)
+const SiteFeaturesPersonasRoute = SiteFeaturesPersonasRouteImport.update({
+  id: '/features/personas',
+  path: '/features/personas',
   getParentRoute: () => SiteRoute,
 } as any)
 const SiteIntegrationsIndexRoute = SiteIntegrationsIndexRouteImport.update({
@@ -588,7 +602,6 @@ export interface FileRoutesByFullPath {
   '/api/status': typeof ApiStatusRoute
   '/api/v1': typeof ApiV1Route
   '/developers/llms.txt': typeof DevelopersLlmsDottxtRoute
-  '/docs/llms.txt': typeof DocsLlmsDottxtRoute
   '/marketing/chat': typeof MarketingChatRoute
   '/md/$': typeof MdSplatRoute
   '/schema/notra.jsonl': typeof SchemaNotraDotjsonlRoute
@@ -600,6 +613,9 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof SiteLegalPrivacyRoute
   '/terms': typeof SiteLegalTermsRoute
   '/contributors/opengraph-image': typeof SiteContributorsOpengraphImageRoute
+  '/features/ai-crawler-logs': typeof SiteFeaturesAiCrawlerLogsRoute
+  '/features/conversations': typeof SiteFeaturesConversationsRoute
+  '/features/personas': typeof SiteFeaturesPersonasRoute
   '/integrations/$id': typeof SiteIntegrationsIdRoute
   '/integrations/slack': typeof SiteIntegrationsSlackRoute
   '/agent/auth/authorize': typeof AgentAuthAuthorizeRoute
@@ -672,7 +688,6 @@ export interface FileRoutesByTo {
   '/api/status': typeof ApiStatusRoute
   '/api/v1': typeof ApiV1Route
   '/developers/llms.txt': typeof DevelopersLlmsDottxtRoute
-  '/docs/llms.txt': typeof DocsLlmsDottxtRoute
   '/marketing/chat': typeof MarketingChatRoute
   '/md/$': typeof MdSplatRoute
   '/schema/notra.jsonl': typeof SchemaNotraDotjsonlRoute
@@ -684,6 +699,9 @@ export interface FileRoutesByTo {
   '/privacy': typeof SiteLegalPrivacyRoute
   '/terms': typeof SiteLegalTermsRoute
   '/contributors/opengraph-image': typeof SiteContributorsOpengraphImageRoute
+  '/features/ai-crawler-logs': typeof SiteFeaturesAiCrawlerLogsRoute
+  '/features/conversations': typeof SiteFeaturesConversationsRoute
+  '/features/personas': typeof SiteFeaturesPersonasRoute
   '/integrations/$id': typeof SiteIntegrationsIdRoute
   '/integrations/slack': typeof SiteIntegrationsSlackRoute
   '/agent/auth/authorize': typeof AgentAuthAuthorizeRoute
@@ -761,7 +779,6 @@ export interface FileRoutesById {
   '/api/status': typeof ApiStatusRoute
   '/api/v1': typeof ApiV1Route
   '/developers/llms.txt': typeof DevelopersLlmsDottxtRoute
-  '/docs/llms.txt': typeof DocsLlmsDottxtRoute
   '/marketing/chat': typeof MarketingChatRoute
   '/md/$': typeof MdSplatRoute
   '/schema/notra.jsonl': typeof SchemaNotraDotjsonlRoute
@@ -774,6 +791,9 @@ export interface FileRoutesById {
   '/_site/_legal/privacy': typeof SiteLegalPrivacyRoute
   '/_site/_legal/terms': typeof SiteLegalTermsRoute
   '/_site/contributors/opengraph-image': typeof SiteContributorsOpengraphImageRoute
+  '/_site/features/ai-crawler-logs': typeof SiteFeaturesAiCrawlerLogsRoute
+  '/_site/features/conversations': typeof SiteFeaturesConversationsRoute
+  '/_site/features/personas': typeof SiteFeaturesPersonasRoute
   '/_site/integrations/$id': typeof SiteIntegrationsIdRoute
   '/_site/integrations/slack': typeof SiteIntegrationsSlackRoute
   '/agent/auth/authorize': typeof AgentAuthAuthorizeRoute
@@ -848,7 +868,6 @@ export interface FileRouteTypes {
     | '/api/status'
     | '/api/v1'
     | '/developers/llms.txt'
-    | '/docs/llms.txt'
     | '/marketing/chat'
     | '/md/$'
     | '/schema/notra.jsonl'
@@ -860,6 +879,9 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/contributors/opengraph-image'
+    | '/features/ai-crawler-logs'
+    | '/features/conversations'
+    | '/features/personas'
     | '/integrations/$id'
     | '/integrations/slack'
     | '/agent/auth/authorize'
@@ -932,7 +954,6 @@ export interface FileRouteTypes {
     | '/api/status'
     | '/api/v1'
     | '/developers/llms.txt'
-    | '/docs/llms.txt'
     | '/marketing/chat'
     | '/md/$'
     | '/schema/notra.jsonl'
@@ -944,6 +965,9 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/contributors/opengraph-image'
+    | '/features/ai-crawler-logs'
+    | '/features/conversations'
+    | '/features/personas'
     | '/integrations/$id'
     | '/integrations/slack'
     | '/agent/auth/authorize'
@@ -1020,7 +1044,6 @@ export interface FileRouteTypes {
     | '/api/status'
     | '/api/v1'
     | '/developers/llms.txt'
-    | '/docs/llms.txt'
     | '/marketing/chat'
     | '/md/$'
     | '/schema/notra.jsonl'
@@ -1033,6 +1056,9 @@ export interface FileRouteTypes {
     | '/_site/_legal/privacy'
     | '/_site/_legal/terms'
     | '/_site/contributors/opengraph-image'
+    | '/_site/features/ai-crawler-logs'
+    | '/_site/features/conversations'
+    | '/_site/features/personas'
     | '/_site/integrations/$id'
     | '/_site/integrations/slack'
     | '/agent/auth/authorize'
@@ -1092,7 +1118,6 @@ export interface RootRouteChildren {
   ApiStatusRoute: typeof ApiStatusRoute
   ApiV1Route: typeof ApiV1Route
   DevelopersLlmsDottxtRoute: typeof DevelopersLlmsDottxtRoute
-  DocsLlmsDottxtRoute: typeof DocsLlmsDottxtRoute
   MarketingChatRoute: typeof MarketingChatRoute
   MdSplatRoute: typeof MdSplatRoute
   SchemaNotraDotjsonlRoute: typeof SchemaNotraDotjsonlRoute
@@ -1437,13 +1462,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DevelopersLlmsDottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/docs/llms.txt': {
-      id: '/docs/llms.txt'
-      path: '/docs/llms.txt'
-      fullPath: '/docs/llms.txt'
-      preLoaderRoute: typeof DocsLlmsDottxtRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/marketing/chat': {
       id: '/marketing/chat'
       path: '/marketing/chat'
@@ -1533,6 +1551,27 @@ declare module '@tanstack/react-router' {
       path: '/features'
       fullPath: '/features/'
       preLoaderRoute: typeof SiteFeaturesIndexRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/features/ai-crawler-logs': {
+      id: '/_site/features/ai-crawler-logs'
+      path: '/features/ai-crawler-logs'
+      fullPath: '/features/ai-crawler-logs'
+      preLoaderRoute: typeof SiteFeaturesAiCrawlerLogsRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/features/conversations': {
+      id: '/_site/features/conversations'
+      path: '/features/conversations'
+      fullPath: '/features/conversations'
+      preLoaderRoute: typeof SiteFeaturesConversationsRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/features/personas': {
+      id: '/_site/features/personas'
+      path: '/features/personas'
+      fullPath: '/features/personas'
+      preLoaderRoute: typeof SiteFeaturesPersonasRouteImport
       parentRoute: typeof SiteRoute
     }
     '/_site/integrations/': {
@@ -1817,6 +1856,9 @@ interface SiteRouteChildren {
   SiteRepoStarVideoRoute: typeof SiteRepoStarVideoRoute
   SiteTwitterThreadCreatorRoute: typeof SiteTwitterThreadCreatorRoute
   SiteContributorsOpengraphImageRoute: typeof SiteContributorsOpengraphImageRoute
+  SiteFeaturesAiCrawlerLogsRoute: typeof SiteFeaturesAiCrawlerLogsRoute
+  SiteFeaturesConversationsRoute: typeof SiteFeaturesConversationsRoute
+  SiteFeaturesPersonasRoute: typeof SiteFeaturesPersonasRoute
   SiteIntegrationsIdRoute: typeof SiteIntegrationsIdRoute
   SiteIntegrationsSlackRoute: typeof SiteIntegrationsSlackRoute
   SiteContributorsIndexRoute: typeof SiteContributorsIndexRoute
@@ -1846,6 +1888,9 @@ const SiteRouteChildren: SiteRouteChildren = {
   SiteRepoStarVideoRoute: SiteRepoStarVideoRoute,
   SiteTwitterThreadCreatorRoute: SiteTwitterThreadCreatorRoute,
   SiteContributorsOpengraphImageRoute: SiteContributorsOpengraphImageRoute,
+  SiteFeaturesAiCrawlerLogsRoute: SiteFeaturesAiCrawlerLogsRoute,
+  SiteFeaturesConversationsRoute: SiteFeaturesConversationsRoute,
+  SiteFeaturesPersonasRoute: SiteFeaturesPersonasRoute,
   SiteIntegrationsIdRoute: SiteIntegrationsIdRoute,
   SiteIntegrationsSlackRoute: SiteIntegrationsSlackRoute,
   SiteContributorsIndexRoute: SiteContributorsIndexRoute,
@@ -1888,7 +1933,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiStatusRoute: ApiStatusRoute,
   ApiV1Route: ApiV1Route,
   DevelopersLlmsDottxtRoute: DevelopersLlmsDottxtRoute,
-  DocsLlmsDottxtRoute: DocsLlmsDottxtRoute,
   MarketingChatRoute: MarketingChatRoute,
   MdSplatRoute: MdSplatRoute,
   SchemaNotraDotjsonlRoute: SchemaNotraDotjsonlRoute,

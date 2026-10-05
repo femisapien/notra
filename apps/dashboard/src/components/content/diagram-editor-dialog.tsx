@@ -13,19 +13,25 @@ import {
 } from "@notra/ui/components/ui/dialog";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
-import dynamic from "next/dynamic";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import type {
   DiagramEditorDialogProps,
   DiagramEditorScene,
 } from "@/types/components/diagram-editor";
+import lazyComponent from "@/utils/lazy-component";
 
-const DiagramEditorCanvas = dynamic(
-  () => import("@/components/content/diagram-editor-canvas"),
+// Excalidraw touches `window` at module load. Keeping it out of the server
+// graph also stops the bundler from merging it into lib chunks that SSR pages
+// share (DOMPurify ended up next to it and crashed every server render).
+const DiagramEditorCanvas = lazyComponent(
+  () =>
+    import.meta.env.SSR
+      ? new Promise<never>(() => undefined)
+      : import("@/components/content/diagram-editor-canvas"),
   {
     loading: () => <Skeleton className="size-full rounded-lg" />,
     ssr: false,

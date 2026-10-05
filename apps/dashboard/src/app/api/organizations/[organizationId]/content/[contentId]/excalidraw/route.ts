@@ -5,8 +5,6 @@ import {
 import { db } from "@notra/db/drizzle";
 import { posts } from "@notra/db/schema";
 import { and, eq } from "drizzle-orm";
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
 
 import { withOrganizationAuth } from "@/lib/auth/organization";
 import { saveDiagramSceneSchema } from "@/schemas/diagram-editor";
@@ -29,7 +27,7 @@ function readExcalidrawUrl(metadata: unknown): string | null {
 // Serves the diagram's Excalidraw scene same-origin, so the clipboard export
 // does not depend on the asset bucket's CORS rules.
 export async function GET(
-  request: NextRequest,
+  request: Request,
   { params }: RouteContext<{ organizationId: string; contentId: string }>
 ) {
   const { organizationId, contentId } = await params;
@@ -55,7 +53,7 @@ export async function GET(
   if (
     !(excalidrawUrl && publicUrl && excalidrawUrl.startsWith(`${publicUrl}/`))
   ) {
-    return NextResponse.json(
+    return Response.json(
       { error: "This image has no Excalidraw scene" },
       { status: 404 }
     );
@@ -63,13 +61,13 @@ export async function GET(
 
   const response = await fetch(excalidrawUrl);
   if (!response.ok) {
-    return NextResponse.json(
+    return Response.json(
       { error: "Failed to load the Excalidraw scene" },
       { status: 502 }
     );
   }
 
-  return new NextResponse(await response.text(), {
+  return new Response(await response.text(), {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
@@ -80,7 +78,7 @@ export async function GET(
 // Saves a diagram edited by hand in the embedded Excalidraw editor: the scene
 // becomes the post's spec again, so chat edits continue from the hand edits.
 export async function PUT(
-  request: NextRequest,
+  request: Request,
   { params }: RouteContext<{ organizationId: string; contentId: string }>
 ) {
   const { organizationId, contentId } = await params;
@@ -93,10 +91,7 @@ export async function PUT(
     await request.json().catch(() => null)
   );
   if (!body.success) {
-    return NextResponse.json(
-      { error: "Invalid diagram scene" },
-      { status: 400 }
-    );
+    return Response.json({ error: "Invalid diagram scene" }, { status: 400 });
   }
 
   const post = await db.query.posts.findFirst({
@@ -108,14 +103,14 @@ export async function PUT(
     ),
   });
   if (!post) {
-    return NextResponse.json({ error: "Diagram not found" }, { status: 404 });
+    return Response.json({ error: "Diagram not found" }, { status: 404 });
   }
 
   let converted: ReturnType<typeof sceneToDiagramSpec>;
   try {
     converted = sceneToDiagramSpec(body.data.scene);
   } catch {
-    return NextResponse.json(
+    return Response.json(
       { error: "The diagram has no shapes Notra can render" },
       { status: 422 }
     );
@@ -128,7 +123,7 @@ export async function PUT(
     edit: { kind: "manual" },
   });
 
-  return NextResponse.json({
+  return Response.json({
     imageUrl,
     droppedTypes: converted.droppedTypes,
   });

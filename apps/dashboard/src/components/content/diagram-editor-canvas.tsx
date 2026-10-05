@@ -7,7 +7,7 @@ import { useTheme } from "next-themes";
 
 import type { DiagramEditorCanvasProps } from "@/types/components/diagram-editor";
 
-// Loaded only through next/dynamic: Excalidraw is client-only and large.
+// Loaded only through lazyComponent: Excalidraw is client-only and large.
 export default function DiagramEditorCanvas({
   scene,
   onReady,

@@ -25,7 +25,9 @@ import type {
 import { buildExcalidrawScene } from "@notra/ai/utils/excalidraw-diagram";
 import { loadGoogleFont } from "@notra/ai/utils/repo-image-render";
 import { Resvg } from "@resvg/resvg-js";
-import { type Font, type PathCommand, parse as parseFont } from "opentype.js";
+// biome-ignore lint/performance/noNamespaceImport: opentype.js is UMD; see parseFont
+import * as opentype from "opentype.js";
+import type { Font, PathCommand } from "opentype.js";
 import rough from "roughjs";
 import type { Options as RoughOptions } from "roughjs/bin/core";
 
@@ -36,6 +38,12 @@ type Drawable = ReturnType<RoughGenerator["line"]>;
 // Excalidraw caps how far a small diagram is blown up; we do the same so a
 // three-box diagram does not render with 60px labels.
 const MAX_RENDER_SCALE = 1.6;
+
+// Bundlers expose opentype.js's named exports, but Node's CommonJS interop
+// (Vite SSR, externalized server deps) only sees its UMD default export.
+const parseFont: typeof opentype.parse =
+  opentype.parse ??
+  (opentype as unknown as { default: typeof opentype }).default.parse;
 
 let fontPromise: Promise<Font> | null = null;
 
