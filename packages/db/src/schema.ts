@@ -4300,6 +4300,8 @@ export const siteWebhookDeliveries = pgTable("site_webhook_deliveries", {
   deliveryId: text("delivery_id").primaryKey(),
   event: text("event").notNull(),
   receivedAt: timestamp("received_at").defaultNow().notNull(),
+  /** Set once the delivery's work is stored; a claim without it can be retried after a crash. */
+  processedAt: timestamp("processed_at"),
 });
 
 /** Saved editor drafts. They never touch the live site until published as a commit or PR. */

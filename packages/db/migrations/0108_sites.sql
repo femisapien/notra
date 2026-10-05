@@ -85,7 +85,8 @@ CREATE TABLE "site_slug_grants" (
 CREATE TABLE "site_webhook_deliveries" (
 	"delivery_id" text PRIMARY KEY NOT NULL,
 	"event" text NOT NULL,
-	"received_at" timestamp DEFAULT now() NOT NULL
+	"received_at" timestamp DEFAULT now() NOT NULL,
+	"processed_at" timestamp
 );
 --> statement-breakpoint
 CREATE TABLE "sites" (

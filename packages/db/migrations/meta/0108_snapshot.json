@@ -12709,6 +12709,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},

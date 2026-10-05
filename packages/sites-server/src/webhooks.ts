@@ -10,10 +10,14 @@ import {
   branchPreviewKey,
   pullRequestPreviewKey,
 } from "@notra/sites-core/utils/hosts";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { readLiveDeployments } from "./activation";
-import { PREVIEW_PR_ACTIONS, SITES_WEBHOOK_EVENTS } from "./constants/webhooks";
+import {
+  PREVIEW_PR_ACTIONS,
+  SITES_WEBHOOK_EVENTS,
+  WEBHOOK_CLAIM_LEASE_SECONDS,
+} from "./constants/webhooks";
 import {
   enqueuePreviewRemoval,
   enqueueSiteDeployment,
@@ -250,10 +254,22 @@ export async function handleSitesWebhook(
       jobIds: [],
     };
   }
+  // A claim is taken over when it was never finished and has gone stale, so a
+  // process that crashed mid-delivery doesn't turn every redelivery into a duplicate.
   const claimed = await db
     .insert(siteWebhookDeliveries)
     .values({ deliveryId: params.deliveryId, event: params.event })
-    .onConflictDoNothing()
+    .onConflictDoUpdate({
+      target: siteWebhookDeliveries.deliveryId,
+      set: { receivedAt: sql`now()` },
+      setWhere: and(
+        isNull(siteWebhookDeliveries.processedAt),
+        lt(
+          siteWebhookDeliveries.receivedAt,
+          sql`now() - make_interval(secs => ${WEBHOOK_CLAIM_LEASE_SECONDS})`
+        )
+      ),
+    })
     .returning({ deliveryId: siteWebhookDeliveries.deliveryId });
   if (claimed.length === 0) {
     return {
@@ -272,6 +288,10 @@ export async function handleSitesWebhook(
     } else if (params.event === "check_run") {
       jobIds = await handleCheckRun(payload as CheckRunPayload);
     }
+    await db
+      .update(siteWebhookDeliveries)
+      .set({ processedAt: new Date() })
+      .where(eq(siteWebhookDeliveries.deliveryId, params.deliveryId));
     return {
       httpStatus: 200,
       body: { message: "ok", queued: jobIds.length },
