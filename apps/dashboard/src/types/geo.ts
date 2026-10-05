@@ -1305,6 +1305,41 @@ export interface CompetitorShareCardProps {
   organizationId?: string;
 }
 
+export interface EngineMatrixColumn {
+  family: string;
+  /** Engine id with the most checks, used for the column icon. */
+  engine: string;
+  label: string;
+  checks: number;
+}
+
+export interface EngineMatrixRow {
+  brand: string;
+  own: boolean;
+  /** Mention rate per column, `null` where the engine has no checks. */
+  rates: (number | null)[];
+  /** Answers mentioning the brand, per column. */
+  mentions: number[];
+}
+
+export interface EngineMatrix {
+  columns: EngineMatrixColumn[];
+  rows: EngineMatrixRow[];
+  minRate: number;
+  maxRate: number;
+}
+
+export interface CompetitorEngineMatrixCardProps {
+  organizationId: string;
+  range: GeoRangeQuery;
+  companyName: string | null;
+  aliases?: readonly string[];
+  competitors?: GeoCompetitor[];
+  trackedEngines?: readonly string[];
+  isScanning?: boolean;
+  organizationSlug?: string;
+}
+
 export interface CompetitorEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
