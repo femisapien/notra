@@ -21,6 +21,11 @@ export async function activateDeployment(
   site: Site,
   deployment: SiteDeployment
 ): Promise<"live" | "not_live"> {
+  // Cleanup may have removed the files of a build that sat ready for long;
+  // pointing the state at them would serve errors.
+  if (!(await r2GetText(SITE_R2_KEYS.manifest(site.id, deployment.id)))) {
+    return "not_live";
+  }
   if (deployment.kind === "production") {
     const outcome = await activateProductionDeployment(site, {
       deploymentId: deployment.id,

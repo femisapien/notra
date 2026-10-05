@@ -6,10 +6,7 @@ import {
   siteDomains,
   sites,
 } from "@notra/db/schema";
-import {
-  SITE_BUILD_LIMITS,
-  SITE_DEPLOYMENT_IN_PROGRESS_STATUSES,
-} from "@notra/sites-core/constants/sites";
+import { SITE_DEPLOYMENT_IN_PROGRESS_STATUSES } from "@notra/sites-core/constants/sites";
 import type { SiteMounts } from "@notra/sites-core/types/deployment";
 import { hashBuildTarget } from "@notra/sites-core/utils/build-target";
 import {
@@ -19,11 +16,14 @@ import {
   slugifySiteName,
 } from "@notra/sites-core/utils/hosts";
 import { normalizeSiteMounts } from "@notra/sites-core/utils/mounts";
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, or } from "drizzle-orm";
 
 import { readLiveDeployments, restoreProductionDeployment } from "./activation";
 import { deleteCustomHostnameQuietly } from "./cloudflare-saas";
-import { ROLLBACK_HISTORY } from "./constants/deployments";
+import {
+  DEPLOYMENT_SETTLE_MS,
+  ROLLBACK_HISTORY,
+} from "./constants/deployments";
 import {
   enqueuePreviewRemoval,
   enqueueSiteDeployment,
@@ -524,8 +524,11 @@ export async function deleteSite(site: Site): Promise<void> {
 
 /**
  * Deletes stored deployments nobody can reach anymore. Kept: everything the
- * serving state references (live + open previews), anything still building,
- * and the latest production deployments as rollback history.
+ * serving state references (live + open previews), anything still building or
+ * finished within the settle window (a build is marked ready before it is
+ * activated), and the latest production deployments as rollback history.
+ * The serving state is read last, so a build activated while the database
+ * was queried is still seen as live.
  */
 export async function cleanupSiteDeployments(
   siteId: string
@@ -534,27 +537,43 @@ export async function cleanupSiteDeployments(
   if (!site) {
     return { deleted: [] };
   }
-  const { ids: protectedIds } = await readLiveDeployments(site.id);
-  const keep = await db
-    .select({ id: siteDeployments.id })
-    .from(siteDeployments)
-    .where(
-      and(
-        eq(siteDeployments.siteId, site.id),
-        or(
-          inArray(siteDeployments.status, [
-            ...SITE_DEPLOYMENT_IN_PROGRESS_STATUSES,
-          ]),
-          and(
-            eq(siteDeployments.kind, "production"),
-            eq(siteDeployments.status, "ready")
+  const settledBefore = new Date(Date.now() - DEPLOYMENT_SETTLE_MS);
+  const [unsettled, history] = await Promise.all([
+    db
+      .select({ id: siteDeployments.id })
+      .from(siteDeployments)
+      .where(
+        and(
+          eq(siteDeployments.siteId, site.id),
+          or(
+            inArray(siteDeployments.status, [
+              ...SITE_DEPLOYMENT_IN_PROGRESS_STATUSES,
+            ]),
+            and(
+              eq(siteDeployments.status, "ready"),
+              or(
+                isNull(siteDeployments.finishedAt),
+                gt(siteDeployments.finishedAt, settledBefore)
+              )
+            )
           )
         )
+      ),
+    db
+      .select({ id: siteDeployments.id })
+      .from(siteDeployments)
+      .where(
+        and(
+          eq(siteDeployments.siteId, site.id),
+          eq(siteDeployments.kind, "production"),
+          eq(siteDeployments.status, "ready")
+        )
       )
-    )
-    .orderBy(desc(siteDeployments.generation))
-    .limit(ROLLBACK_HISTORY + SITE_BUILD_LIMITS.maxConcurrentBuildsPerSite);
-  for (const row of keep) {
+      .orderBy(desc(siteDeployments.generation))
+      .limit(ROLLBACK_HISTORY),
+  ]);
+  const { ids: protectedIds } = await readLiveDeployments(site.id);
+  for (const row of [...unsettled, ...history]) {
     protectedIds.add(row.id);
   }
   const deleted: string[] = [];
