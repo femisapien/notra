@@ -17,6 +17,7 @@ import { AiTrafficCard } from "@/components/geo/ai-traffic-card";
 import { AiTrafficLogCard } from "@/components/geo/ai-traffic-log-card";
 import { GeoRangePicker } from "@/components/geo/geo-range-picker";
 import { GeoSetupButton } from "@/components/geo/geo-setup-button";
+import { TrafficDomainNotice } from "@/components/geo/traffic-domain-notice";
 import { TrafficEmpty } from "@/components/geo/traffic-empty";
 import { TrafficPagesCard } from "@/components/geo/traffic-pages-card";
 import { InstrumentReveal } from "@/components/instrument/instrument-reveal";
@@ -97,6 +98,7 @@ function TrafficPageView({
       <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
         <div className="flex w-full min-w-0 flex-col gap-6 px-4 lg:px-6">
           {header}
+          <TrafficDomainNotice organizationId={organizationId} />
           <InstrumentReveal active={revealActive} order={0}>
             <TrafficEmpty setup={ingestSetup} />
           </InstrumentReveal>
@@ -109,6 +111,7 @@ function TrafficPageView({
     <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
       <div className="w-full space-y-6 px-4 lg:px-6">
         {header}
+        <TrafficDomainNotice organizationId={organizationId} />
         <div className="flex flex-col gap-6">
           <InstrumentReveal active={revealActive} order={0}>
             <AiTrafficCard

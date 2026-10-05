@@ -3836,7 +3836,17 @@
         "metaTitle": "GEO-Traffic",
         "title": "KI-Traffic",
         "description": "KI-Crawler und Verweise, die deine Website besuchen",
-        "setupDescription": "Richte zuerst das GEO-Tracking ein und beobachte dann KI-Crawler und Verweise, sobald sie eintreffen."
+        "setupDescription": "Richte zuerst das GEO-Tracking ein und beobachte dann KI-Crawler und Verweise, sobald sie eintreffen.",
+        "domains": {
+          "title": "KI-Traffic auf nicht freigegebenen Domains erkannt",
+          "description": "Diese Domains haben KI-Traffic an dieses Projekt gesendet, sind aber noch nicht freigegeben. Füge nur eigene Domains hinzu, um künftige Besuche zu erfassen, oder ignoriere sie, um den Vorschlag für alle im Projekt auszublenden.",
+          "ignore": "Ignorieren",
+          "add": "Domain hinzufügen",
+          "ignoreLabel": "{domain} ignorieren",
+          "addLabel": "{domain} hinzufügen",
+          "loadFailed": "Domain-Vorschläge konnten nicht geladen werden",
+          "actionFailed": "Diese Domain konnte nicht aktualisiert werden"
+        }
       },
       "write": {
         "metaTitle": "GEO Writer",

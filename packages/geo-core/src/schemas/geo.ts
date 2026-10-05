@@ -164,6 +164,12 @@ export const geoProjectDomainSchema = string()
     message: "Enter a domain like example.com",
   });
 
+export const geoIngestDomainActionInputSchema =
+  geoOrganizationInputSchema.extend({
+    domain: geoProjectDomainSchema,
+    action: enumType(["add", "ignore"]),
+  });
+
 export const geoSettingsUpsertInputSchema = geoOrganizationInputSchema.extend({
   companyName: string().min(1),
   aliases: array(string().min(1)).max(GEO_MAX_ALIASES),

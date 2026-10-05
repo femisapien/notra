@@ -16,6 +16,7 @@ import type {
 } from "../types/ingest";
 import { trackGeoIngestAnalytics } from "./analytics";
 import { classifyVisitor } from "./classify-visitor";
+import { recordPendingIngestDomain } from "./domains";
 import {
   GeoIngestFailedError,
   GeoIngestInvalidPayloadError,
@@ -206,6 +207,13 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
     );
   }
   if (!acceptsIngestHost(url.hostname, allowedHosts)) {
+    yield* Effect.sync(() =>
+      defer(async () => {
+        await recordPendingIngestDomain(identity, url.hostname).catch(
+          () => undefined
+        );
+      })
+    );
     return {
       outcome: "dropped",
       reason: "host",

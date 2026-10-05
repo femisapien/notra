@@ -45,6 +45,10 @@ import {
   issueGeoIngestSetupResponse,
   rotateGeoIngestSetupResponse,
 } from "@notra/geo-core/geo/ingest";
+import {
+  actOnPendingIngestDomain,
+  listPendingIngestDomains,
+} from "@notra/geo-core/geo/ingest-domains";
 import { loadGeoModelCatalog } from "@notra/geo-core/geo/model-catalog";
 import {
   saveGeoOnboardingBrand,
@@ -158,6 +162,7 @@ import {
   AgentReadinessTargetMissingError,
 } from "@notra/geo-core/schemas/agent-readiness-errors";
 import {
+  geoIngestDomainActionInputSchema,
   aiTrafficInputSchema,
   geoBrandSearchInputSchema,
   geoCompetitorDeleteInputSchema,
@@ -1211,6 +1216,12 @@ export const geoRouter = {
         )
       )
     ),
+  ingestDomains: authorizedProcedure
+    .input(geoOrganizationInputSchema)
+    .handler(geoOpenHandler((input) => listPendingIngestDomains(input))),
+  ingestDomainAction: authorizedProcedure
+    .input(geoIngestDomainActionInputSchema)
+    .handler(geoHandler((input) => actOnPendingIngestDomain(input))),
   ingestSetup: authorizedProcedure
     .input(geoOrganizationInputSchema)
     .handler(async ({ context, input }): Promise<GeoIngestSetupResponse> => {
