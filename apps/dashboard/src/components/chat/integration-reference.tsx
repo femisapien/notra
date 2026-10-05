@@ -203,6 +203,33 @@ export function createPostReferenceElement(post: {
   return chip;
 }
 
+/**
+ * Fills the composer from serialized text, turning `@post/<id>` tokens back
+ * into chips. Unknown posts keep the generic label.
+ */
+export function setEditorTextWithPostReferences(
+  editor: HTMLElement,
+  text: string,
+  postTitlesById: ReadonlyMap<string, string>,
+  fallbackTitle: string
+) {
+  editor.replaceChildren();
+  for (const segment of text.split(CHAT_REFERENCE_TOKEN_SPLIT_REGEX)) {
+    if (!segment) {
+      continue;
+    }
+    const postId = parsePostReferenceValue(segment);
+    editor.append(
+      postId
+        ? createPostReferenceElement({
+            postId,
+            title: postTitlesById.get(postId) ?? fallbackTitle,
+          })
+        : document.createTextNode(segment)
+    );
+  }
+}
+
 export function serializeEditorWithReferences(editor: HTMLElement): string {
   return serializeNodesWithReferences(Array.from(editor.childNodes));
 }

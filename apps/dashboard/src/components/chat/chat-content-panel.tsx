@@ -9,6 +9,13 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { MessageResponse } from "@notra/ui/components/ai-elements/message";
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from "@notra/ui/components/shared/responsive-dialog";
 import { Button } from "@notra/ui/components/ui/button";
 import {
   DropdownMenu,
@@ -30,6 +37,7 @@ import { RightPanel } from "@/components/dashboard/right-panel";
 import { useRightPanel } from "@/components/dashboard/right-panel-context";
 import Link from "@/components/framework/link";
 import { useContent } from "@/lib/hooks/use-content";
+import { useDesktopBreakpoint } from "@/lib/hooks/use-desktop-breakpoint";
 import { useOutputTypeLabel } from "@/lib/hooks/use-output-type-label";
 import type { ChatPostEntry } from "@/types/chat-posts";
 import type {
@@ -194,15 +202,15 @@ export function ChatContentPanel({
   const t = useTranslations("chat.contentPanel");
   const tCommon = useTranslations("common");
   const getOutputTypeLabel = useOutputTypeLabel();
-  const { closePanel, expanded, toggleExpanded } = useRightPanel();
+  const { active, closePanel, expanded, toggleExpanded } = useRightPanel();
+  const isDesktop = useDesktopBreakpoint();
   const postsById = new Map(posts.map((post) => [post.toolCallId, post]));
   const openPosts = openToolCallIds.flatMap((id) => {
     const post = postsById.get(id);
     return post ? [post] : [];
   });
-  const closedPosts = posts.filter(
-    (post) => !openToolCallIds.includes(post.toolCallId)
-  );
+  const openIds = new Set(openToolCallIds);
+  const closedPosts = posts.filter((post) => !openIds.has(post.toolCallId));
   const activePost = openPosts.find(
     (post) => post.toolCallId === activeToolCallId
   );
@@ -211,8 +219,8 @@ export function ChatContentPanel({
   const closeOnLeave = useEffectEvent(() => closePanel("preview"));
   useEffect(() => () => closeOnLeave(), []);
 
-  return (
-    <RightPanel id="preview" size="wide">
+  const content = (
+    <>
       <header className="flex h-12 shrink-0 items-center gap-1 pr-2 pl-2">
         <div
           aria-label={t("title")}
@@ -271,30 +279,32 @@ export function ChatContentPanel({
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="ml-auto flex shrink-0 items-center gap-0.5">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    aria-pressed={expanded}
-                    onClick={toggleExpanded}
-                    size="icon-sm"
-                    variant="ghost"
+            {isDesktop ? (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      aria-pressed={expanded}
+                      onClick={toggleExpanded}
+                      size="icon-sm"
+                      variant="ghost"
+                    />
+                  }
+                >
+                  <span className="sr-only">
+                    {expanded ? t("collapse") : t("expand")}
+                  </span>
+                  <HugeiconsIcon
+                    className="size-4"
+                    icon={expanded ? ArrowShrink01Icon : FullScreenIcon}
+                    strokeWidth={1.8}
                   />
-                }
-              >
-                <span className="sr-only">
+                </TooltipTrigger>
+                <TooltipContent>
                   {expanded ? t("collapse") : t("expand")}
-                </span>
-                <HugeiconsIcon
-                  className="size-4"
-                  icon={expanded ? ArrowShrink01Icon : FullScreenIcon}
-                  strokeWidth={1.8}
-                />
-              </TooltipTrigger>
-              <TooltipContent>
-                {expanded ? t("collapse") : t("expand")}
-              </TooltipContent>
-            </Tooltip>
+                </TooltipContent>
+              </Tooltip>
+            ) : null}
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -328,6 +338,40 @@ export function ChatContentPanel({
       ) : (
         <p className="text-muted-foreground px-4 text-sm">{t("empty")}</p>
       )}
-    </RightPanel>
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <RightPanel id="preview" size="wide">
+        {content}
+      </RightPanel>
+    );
+  }
+
+  // Below lg the dock is hidden, so the same tabs open in a drawer.
+  return (
+    <ResponsiveDialog
+      onOpenChange={(open) => {
+        if (!open) {
+          closePanel("preview");
+        }
+      }}
+      open={active === "preview"}
+    >
+      <ResponsiveDialogContent
+        className="flex h-[85svh] max-h-[85svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        drawerClassName="h-[85svh] max-h-[85svh]"
+        showCloseButton={false}
+      >
+        <ResponsiveDialogHeader className="sr-only">
+          <ResponsiveDialogTitle>{t("title")}</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
+            {t("empty")}
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
+        {content}
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   );
 }

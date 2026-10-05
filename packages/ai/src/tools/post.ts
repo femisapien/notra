@@ -317,11 +317,22 @@ export function createEditPostTool(config: PostToolsConfig): Tool {
         return { postId, status: "edit_failed" as const, error: applied.error };
       }
 
+      // Save only if nobody changed the body since it was read, so a
+      // concurrent edit is never overwritten with this stale copy.
       const { status } = await updatePostRecord({
         organizationId: config.organizationId,
         postId,
         markdown: applied.markdown,
+        expectedMarkdown: post.markdown,
       });
+      if (status === "not_found") {
+        return {
+          postId,
+          status: "edit_failed" as const,
+          error:
+            "The post changed while editing. Call viewPost again and redo the edits on the current text.",
+        };
+      }
       return { postId, status, editCount: edits.length };
     },
   });

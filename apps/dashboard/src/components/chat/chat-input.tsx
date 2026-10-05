@@ -141,6 +141,7 @@ import { ChatSkillTagChips } from "./chat-skill-tag-chips";
 import {
   createPostReferenceElement,
   serializeEditorWithReferences,
+  setEditorTextWithPostReferences,
   serializeFragmentWithReferences,
 } from "./integration-reference";
 
@@ -2163,7 +2164,12 @@ export function ChatInputAdvanced({
       }
     }
     const restoredText = restoredSkills.text.trim();
-    editor.textContent = restoredText;
+    setEditorTextWithPostReferences(
+      editor,
+      restoredText,
+      new Map(postMentions.map((post) => [post.postId, post.title])),
+      tCommon2("labels.untitled")
+    );
     setIsEmpty(restoredText.length === 0);
     persistDraft(restoredDraft.items);
   }, [
@@ -2172,8 +2178,10 @@ export function ChatInputAdvanced({
     isSkillsReady,
     onAddContext,
     persistDraft,
+    postMentions,
     readEditorText,
     skills,
+    tCommon2,
     tagSkill,
   ]);
 

@@ -46,6 +46,16 @@ function TodoStatusIcon({
   );
 }
 
+// Items have no ids; the content is the identity, numbered when repeated.
+function withTodoKeys(todos: ChatTodoItem[]) {
+  const seen = new Map<string, number>();
+  return todos.map((todo) => {
+    const count = seen.get(todo.content) ?? 0;
+    seen.set(todo.content, count + 1);
+    return { key: count ? `${todo.content}#${count}` : todo.content, todo };
+  });
+}
+
 export function ChatTodoList({ todos, isActive }: ChatTodoListProps) {
   const t = useTranslations("chat.todos");
   const completed = todos.filter((todo) => todo.status === "completed").length;
@@ -62,12 +72,8 @@ export function ChatTodoList({ todos, isActive }: ChatTodoListProps) {
         </span>
       </h3>
       <ol className="flex flex-col gap-1.5">
-        {todos.map((todo, index) => (
-          <li
-            className="flex items-start gap-2 text-sm leading-5"
-            // Items have no ids; a plan rewrite replaces the whole list.
-            key={`${index}-${todo.content}`}
-          >
+        {withTodoKeys(todos).map(({ key, todo }) => (
+          <li className="flex items-start gap-2 text-sm leading-5" key={key}>
             <span className="flex h-5 items-center">
               <TodoStatusIcon isActive={isActive} status={todo.status} />
             </span>

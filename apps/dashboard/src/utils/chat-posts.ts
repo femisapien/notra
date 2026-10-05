@@ -26,6 +26,7 @@ export function getCreateToolContentType(
 export function getChatPosts(messages: readonly ChatUIMessage[]) {
   const entries: ChatPostEntry[] = [];
   const seenPostIds = new Set<string>();
+  const entriesByPostId = new Map<string, ChatPostEntry>();
 
   for (const message of messages) {
     if (message.role !== "assistant") {
@@ -33,6 +34,10 @@ export function getChatPosts(messages: readonly ChatUIMessage[]) {
     }
     for (const part of message.parts) {
       if (!isToolUIPart(part) || part.type === "dynamic-tool") {
+        continue;
+      }
+      if (part.type === "tool-updatePost") {
+        applyPostUpdate(entriesByPostId, part);
         continue;
       }
       const contentType = getCreateToolContentType(part.type);
@@ -54,18 +59,46 @@ export function getChatPosts(messages: readonly ChatUIMessage[]) {
       const input = part.input as
         | { title?: string; markdown?: string }
         | undefined;
-      entries.push({
+      const entry: ChatPostEntry = {
         toolCallId: part.toolCallId,
         postId,
         title: input?.title ?? "",
         markdown: input?.markdown ?? "",
         contentType,
         state: postId ? "saved" : state,
-      });
+      };
+      entries.push(entry);
+      if (postId) {
+        entriesByPostId.set(postId, entry);
+      }
     }
   }
 
   return entries;
+}
+
+// A later updatePost renames or rewrites the post; tabs and the @ menu follow.
+function applyPostUpdate(
+  entriesByPostId: Map<string, ChatPostEntry>,
+  part: Extract<ChatUIMessage["parts"][number], { toolCallId: string }>
+) {
+  if (part.state !== "output-available") {
+    return;
+  }
+  const output = part.output as
+    | { postId?: string; status?: string }
+    | undefined;
+  const entry = output?.postId ? entriesByPostId.get(output.postId) : undefined;
+  if (!entry || output?.status !== "updated") {
+    return;
+  }
+  const input = part.input as { title?: string; markdown?: string } | undefined;
+  if (input?.title) {
+    entry.title = input.title;
+  }
+  if (input?.markdown) {
+    entry.markdown = input.markdown;
+  }
 }
 
 function getChatPostState(
