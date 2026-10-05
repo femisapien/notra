@@ -6221,6 +6221,7 @@
         "failedTrigger": "Veröffentlichung fehlgeschlagen",
         "scheduledTrigger": "Geplant · {date}",
         "saveFirst": "Speichere zuerst deine Änderungen. Geplante Beiträge gehen so raus, wie sie gespeichert sind.",
+        "saveFirstHint": "Speichere zuerst deine Änderungen",
         "title": "Beitrag planen",
         "editTitle": "Planung bearbeiten",
         "when": "Wann",

@@ -33,11 +33,26 @@ import {
 } from "@/lib/hooks/use-content-calendar";
 import { useLocalDateFormat } from "@/lib/hooks/use-local-date-format";
 import { cn } from "@/lib/utils";
-import type { ContentPublishButtonProps } from "@/types/content/schedule";
+import type {
+  ContentPublishButtonProps,
+  ScheduleMenuItemLabelProps,
+} from "@/types/content/schedule";
 import {
   getScheduleDialogMode,
   summarizePostSchedule,
 } from "@/utils/content-calendar";
+
+/** A menu item's label, with the reason underneath while it is disabled. */
+function MenuItemLabel({ label, hint }: ScheduleMenuItemLabelProps) {
+  return (
+    <span className="flex flex-col">
+      <span>{label}</span>
+      {hint ? (
+        <span className="text-muted-foreground text-xs">{hint}</span>
+      ) : null}
+    </span>
+  );
+}
 
 /**
  * Publish, with scheduling in its menu. Once a schedule is live it takes the
@@ -110,15 +125,23 @@ export function ContentPublishButton({
             size="sm"
             variant="outline"
           />
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-56">
             {mode.canPublishNow ? (
               // A schedule sends the saved post, so unsaved edits wait.
               <DropdownMenuItem
+                className={cn(hasUnsavedChanges && "items-start")}
                 disabled={hasUnsavedChanges}
                 onClick={() => publishNow.mutate(contentId)}
               >
-                <HugeiconsIcon aria-hidden="true" icon={SentIcon} />
-                {t("publishNow")}
+                <HugeiconsIcon
+                  aria-hidden="true"
+                  className={cn(hasUnsavedChanges && "mt-0.5")}
+                  icon={SentIcon}
+                />
+                <MenuItemLabel
+                  hint={hasUnsavedChanges ? t("saveFirstHint") : null}
+                  label={t("publishNow")}
+                />
               </DropdownMenuItem>
             ) : null}
             <DropdownMenuItem
@@ -147,16 +170,23 @@ export function ContentPublishButton({
       <SplitButton>
         {publishButton}
         <DropdownMenu>
-          {/* Unsaved edits would not be part of what goes out. */}
-          <SplitButtonTrigger
-            disabled={hasUnsavedChanges}
-            label={t("moreActions")}
-            size="sm"
-          />
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onClick={() => setOpen(true)}>
-              <HugeiconsIcon aria-hidden="true" icon={Calendar03Icon} />
-              {t("trigger")}
+          <SplitButtonTrigger label={t("moreActions")} size="sm" />
+          <DropdownMenuContent align="end" className="w-56">
+            {/* Unsaved edits would not be part of what goes out. */}
+            <DropdownMenuItem
+              className={cn(hasUnsavedChanges && "items-start")}
+              disabled={hasUnsavedChanges}
+              onClick={() => setOpen(true)}
+            >
+              <HugeiconsIcon
+                aria-hidden="true"
+                className={cn(hasUnsavedChanges && "mt-0.5")}
+                icon={Calendar03Icon}
+              />
+              <MenuItemLabel
+                hint={hasUnsavedChanges ? t("saveFirstHint") : null}
+                label={t("trigger")}
+              />
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

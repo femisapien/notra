@@ -6221,6 +6221,7 @@
         "failedTrigger": "Publishing failed",
         "scheduledTrigger": "Scheduled · {date}",
         "saveFirst": "Save your changes first. Scheduled posts go out as saved.",
+        "saveFirstHint": "Save your changes first",
         "title": "Schedule post",
         "editTitle": "Edit schedule",
         "when": "When",

@@ -575,11 +575,16 @@ function claimFence(
   );
 }
 
-function dueCondition(now: Date) {
+/**
+ * `dueBy` lets a slightly early wake claim the rows it was sent for. It only
+ * moves the scheduled side: a running attempt's lease still expires on the
+ * real clock.
+ */
+function dueCondition(now: Date, dueBy = now) {
   return or(
     and(
       eq(scheduledPublications.status, "scheduled"),
-      lte(scheduledPublications.nextAttemptAt, now)
+      lte(scheduledPublications.nextAttemptAt, dueBy)
     ),
     // A run that died (deploy, crash, lost hand-off) left its lease to expire.
     and(
@@ -603,10 +608,12 @@ function dueCondition(now: Date) {
  */
 export async function claimDueScheduledPublications(params?: {
   now?: Date;
+  dueBy?: Date;
   limit?: number;
   postId?: string;
 }): Promise<ClaimedScheduledPublication[]> {
   const now = params?.now ?? new Date();
+  const dueBy = params?.dueBy ?? now;
   const claimToken = crypto.randomUUID();
   // A locking CTE is evaluated exactly once. The same select as an `IN`
   // subquery may be re-run by the planner, and with SKIP LOCKED each run can
@@ -617,7 +624,7 @@ export async function claimDueScheduledPublications(params?: {
       .from(scheduledPublications)
       .where(
         and(
-          dueCondition(now),
+          dueCondition(now, dueBy),
           params?.postId
             ? eq(scheduledPublications.postId, params.postId)
             : undefined
@@ -637,7 +644,9 @@ export async function claimDueScheduledPublications(params?: {
       attempts: sql`${scheduledPublications.attempts} + 1`,
     })
     .from(due)
-    .where(and(eq(scheduledPublications.id, due.dueId), dueCondition(now)))
+    .where(
+      and(eq(scheduledPublications.id, due.dueId), dueCondition(now, dueBy))
+    )
     .returning({
       id: scheduledPublications.id,
       organizationId: scheduledPublications.organizationId,

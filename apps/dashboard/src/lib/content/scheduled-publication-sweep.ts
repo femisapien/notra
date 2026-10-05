@@ -18,11 +18,11 @@ import type { ScheduledPublicationSweepResult } from "@/types/content/scheduled-
  */
 export async function runScheduledPublicationSweep(options?: {
   postId?: string;
-  now?: Date;
+  dueBy?: Date;
 }): Promise<ScheduledPublicationSweepResult> {
   const claims = await claimDueScheduledPublications({
     postId: options?.postId,
-    now: options?.now,
+    dueBy: options?.dueBy,
   });
   const results = await Promise.allSettled(
     claims.map((claim) =>

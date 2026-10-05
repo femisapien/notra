@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
   const result = await runScheduledPublicationSweep({
     postId: parsed.data.postId,
-    now: new Date(landedEarly ? dueAtMs : nowMs),
+    dueBy: new Date(landedEarly ? dueAtMs : nowMs),
   });
   if (result.claimed > 0) {
     console.info("[ScheduledPublication] Wake", {

@@ -187,3 +187,9 @@ export interface ScheduleDialogFooterProps {
   onSecondaryAction: () => void;
   onPublishNow: () => void;
 }
+
+export interface ScheduleMenuItemLabelProps {
+  label: string;
+  /** Why the item is disabled, shown under the label. */
+  hint: string | null;
+}
