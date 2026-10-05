@@ -24,7 +24,7 @@ export const DIAGRAM_BINDING_GAP = 8;
 export const DIAGRAM_CANVAS_PADDING = 48;
 // Arrows may graze a shape's outline; only count crossings this far inside.
 export const DIAGRAM_LAYOUT_TOLERANCE = 6;
-// Hand edits below these are noise; above them they are reported as lost.
+// Hand-edited angles and arrow focus below these are noise and not kept.
 export const DIAGRAM_ANGLE_TOLERANCE = 0.001;
 export const DIAGRAM_ATTACHMENT_FOCUS_TOLERANCE = 0.05;
 export const DIAGRAM_ROUNDED_CORNER_RADIUS = 32;

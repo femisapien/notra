@@ -96,26 +96,67 @@ function readStyle(element: SceneRecord) {
   return style;
 }
 
-function readBindingId(element: SceneRecord, key: string) {
-  const binding = element[key];
-  return isRecord(binding) ? readString(binding, "elementId") : undefined;
+function readAngle(element: SceneRecord) {
+  const angle = readNumber(element, "angle") ?? 0;
+  return Math.abs(angle) > DIAGRAM_ANGLE_TOLERANCE
+    ? Math.round(angle * 1000) / 1000
+    : undefined;
 }
 
-// Bound arrows are rebuilt to meet the shape edge on the line toward the
-// other end; Excalidraw stores a moved attachment point as a non-zero focus.
-function hasCustomAttachment(element: SceneRecord) {
-  return ["startBinding", "endBinding"].some((key) => {
-    const binding = element[key];
-    const focus = isRecord(binding) ? readNumber(binding, "focus") : undefined;
-    return Math.abs(focus ?? 0) > DIAGRAM_ATTACHMENT_FOCUS_TOLERANCE;
-  });
+/**
+ * A bound arrow end as a spec endpoint. Without an anchor the arrow is rebuilt
+ * to meet the edge facing the other end; Excalidraw marks an attachment the
+ * user moved elsewhere with a non-zero focus, so that one keeps its position
+ * as a fraction of the shape's unrotated box.
+ */
+function boundEndpoint(
+  element: SceneRecord,
+  key: "startBinding" | "endBinding",
+  point: [number, number],
+  shapes: Map<string, SceneRecord>
+) {
+  const binding = element[key];
+  const shapeId = isRecord(binding)
+    ? readString(binding, "elementId")
+    : undefined;
+  const shape = shapeId ? shapes.get(shapeId) : undefined;
+  if (!(shapeId && shape && isRecord(binding))) {
+    return undefined;
+  }
+  const focus = readNumber(binding, "focus") ?? 0;
+  const width = readNumber(shape, "width") ?? 0;
+  const height = readNumber(shape, "height") ?? 0;
+  if (
+    Math.abs(focus) <= DIAGRAM_ATTACHMENT_FOCUS_TOLERANCE ||
+    !(width && height)
+  ) {
+    return { id: shapeId };
+  }
+  const x = readNumber(shape, "x") ?? 0;
+  const y = readNumber(shape, "y") ?? 0;
+  const angle = readNumber(shape, "angle") ?? 0;
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  // Undo the shape's rotation so the anchor is in its own frame.
+  const cos = Math.cos(-angle);
+  const sin = Math.sin(-angle);
+  const dx = point[0] - cx;
+  const dy = point[1] - cy;
+  const localX = cx + dx * cos - dy * sin;
+  const localY = cy + dx * sin + dy * cos;
+  const fraction = (value: number) =>
+    Math.min(2, Math.max(-1, Math.round(value * 1000) / 1000));
+  return {
+    id: shapeId,
+    anchor: [fraction((localX - x) / width), fraction((localY - y) / height)],
+    focus: Math.round(focus * 1000) / 1000,
+  };
 }
 
 /**
  * Converts an Excalidraw scene edited by hand back into the compact spec, so
- * later AI edits start from what the user drew. Freedraw, images, frames,
- * rotation, and moved arrow attachment points have no spec equivalent and are
- * reported as dropped.
+ * later AI edits start from what the user drew. Freedraw, images, and frames
+ * have no spec equivalent and are reported as dropped.
  */
 export function sceneToDiagramSpec(scene: unknown): {
   spec: DiagramSpec;
@@ -164,20 +205,19 @@ export function sceneToDiagramSpec(scene: unknown): {
     };
   };
 
-  const shapeIds = new Set(
-    elements
-      .filter((element) => isShapeType(readString(element, "type")))
-      .map((element) => readString(element, "id"))
-  );
+  const shapes = new Map<string, SceneRecord>();
+  for (const element of elements) {
+    const id = readString(element, "id");
+    if (id && isShapeType(readString(element, "type"))) {
+      shapes.set(id, element);
+    }
+  }
   const droppedTypes = new Set<string>();
   const specElements: unknown[] = [];
 
   for (const element of elements) {
     const type = readString(element, "type");
     const id = readString(element, "id");
-    if (Math.abs(readNumber(element, "angle") ?? 0) > DIAGRAM_ANGLE_TOLERANCE) {
-      droppedTypes.add("rotation");
-    }
     const x = readNumber(element, "x") ?? 0;
     const y = readNumber(element, "y") ?? 0;
 
@@ -193,6 +233,7 @@ export function sceneToDiagramSpec(scene: unknown): {
         height: round(readNumber(element, "height")),
         // Rectangles default to rounded corners; other shapes to sharp ones.
         rounded: rounded === (type === "rectangle") ? undefined : rounded,
+        angle: readAngle(element),
         label: labelFor(id),
         ...readStyle(element),
       });
@@ -210,6 +251,7 @@ export function sceneToDiagramSpec(scene: unknown): {
           readString(element, "originalText") ?? readString(element, "text"),
         fontSize: readNumber(element, "fontSize"),
         textAlign: textAlign === "left" ? undefined : textAlign,
+        angle: readAngle(element),
         ...readStyle(element),
       });
     } else if (type === "arrow" || type === "line") {
@@ -227,11 +269,6 @@ export function sceneToDiagramSpec(scene: unknown): {
       );
       const first = absolute[0] ?? [x, y];
       const last = absolute.at(-1) ?? first;
-      if (hasCustomAttachment(element)) {
-        droppedTypes.add("arrow attachment points");
-      }
-      const startId = readBindingId(element, "startBinding");
-      const endId = readBindingId(element, "endBinding");
       const defaultEnd = type === "arrow" ? "arrow" : null;
       const arrowhead = (key: string, fallback: string | null) => {
         const value = element[key] ?? null;
@@ -243,14 +280,14 @@ export function sceneToDiagramSpec(scene: unknown): {
       specElements.push({
         type,
         id,
-        start:
-          startId && shapeIds.has(startId)
-            ? { id: startId }
-            : { x: first[0], y: first[1] },
-        end:
-          endId && shapeIds.has(endId)
-            ? { id: endId }
-            : { x: last[0], y: last[1] },
+        start: boundEndpoint(element, "startBinding", first, shapes) ?? {
+          x: first[0],
+          y: first[1],
+        },
+        end: boundEndpoint(element, "endBinding", last, shapes) ?? {
+          x: last[0],
+          y: last[1],
+        },
         via: absolute.length > 2 ? absolute.slice(1, -1) : undefined,
         label: labelFor(id),
         startArrowhead: arrowhead("startArrowhead", null),

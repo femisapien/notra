@@ -99,7 +99,7 @@ function baseElement(
   return {
     id,
     ...geometry,
-    angle: 0,
+    angle: ("angle" in spec ? spec.angle : undefined) ?? 0,
     strokeColor: spec.strokeColor ?? DIAGRAM_DEFAULT_STROKE,
     backgroundColor: spec.backgroundColor ?? "transparent",
     fillStyle: spec.fillStyle ?? "solid",
@@ -212,12 +212,44 @@ function buildShape(
     measurer,
     centerOnPoint: true,
   });
+  // Excalidraw rotates a container's text together with it.
+  label.angle = shape.angle;
   shape.boundElements = [{ id: label.id, type: "text" }];
   return { shape, label };
 }
 
 function shapeCenter(shape: ExcalidrawShapeElement): Point {
   return [shape.x + shape.width / 2, shape.y + shape.height / 2];
+}
+
+function rotatePoint([px, py]: Point, [cx, cy]: Point, angle: number): Point {
+  if (angle === 0) {
+    return [px, py];
+  }
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const dx = px - cx;
+  const dy = py - cy;
+  return [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos];
+}
+
+/** Where an arrow bound to `shape` starts or ends: its anchor, or the edge facing `toward`. */
+function boundPoint(
+  shape: ExcalidrawShapeElement,
+  anchor: [number, number] | undefined,
+  toward: Point
+): Point {
+  const center = shapeCenter(shape);
+  if (anchor) {
+    return rotatePoint(
+      [shape.x + anchor[0] * shape.width, shape.y + anchor[1] * shape.height],
+      center,
+      shape.angle
+    );
+  }
+  // Intersect in the shape's own frame, then rotate back.
+  const local = edgePoint(shape, rotatePoint(toward, center, -shape.angle));
+  return rotatePoint(local, center, shape.angle);
 }
 
 /** Point where the ray from the shape center toward `toward` leaves the outline, plus a gap. */
@@ -270,6 +302,16 @@ function polylineMidpoint(points: Point[]): Point {
   return points[0] ?? [0, 0];
 }
 
+function readAnchor(
+  endpoint: DiagramLinearSpec["start"]
+): [number, number] | undefined {
+  return "anchor" in endpoint ? endpoint.anchor : undefined;
+}
+
+function readFocus(endpoint: DiagramLinearSpec["start"]) {
+  return "anchor" in endpoint && endpoint.anchor ? (endpoint.focus ?? 0) : 0;
+}
+
 function toArrowhead(
   value: DiagramLinearSpec["startArrowhead"],
   fallback: ExcalidrawArrowhead
@@ -306,8 +348,12 @@ function buildLinear(
   const rawEnd: Point = endShape
     ? shapeCenter(endShape)
     : [(spec.end as { x: number }).x, (spec.end as { y: number }).y];
-  const start = startShape ? edgePoint(startShape, via[0] ?? rawEnd) : rawStart;
-  const end = endShape ? edgePoint(endShape, via.at(-1) ?? rawStart) : rawEnd;
+  const start = startShape
+    ? boundPoint(startShape, readAnchor(spec.start), via[0] ?? rawEnd)
+    : rawStart;
+  const end = endShape
+    ? boundPoint(endShape, readAnchor(spec.end), via.at(-1) ?? rawStart)
+    : rawEnd;
   const absolute: Point[] = [start, ...via, end];
 
   const [originX, originY] = start;
@@ -330,10 +376,18 @@ function buildLinear(
     roundness: null,
     points,
     startBinding: startShape
-      ? { elementId: startShape.id, focus: 0, gap: DIAGRAM_BINDING_GAP }
+      ? {
+          elementId: startShape.id,
+          focus: readFocus(spec.start),
+          gap: DIAGRAM_BINDING_GAP,
+        }
       : null,
     endBinding: endShape
-      ? { elementId: endShape.id, focus: 0, gap: DIAGRAM_BINDING_GAP }
+      ? {
+          elementId: endShape.id,
+          focus: readFocus(spec.end),
+          gap: DIAGRAM_BINDING_GAP,
+        }
       : null,
     startArrowhead: toArrowhead(spec.startArrowhead, null),
     endArrowhead: toArrowhead(
@@ -380,7 +434,7 @@ function buildFreeText(
   spec: DiagramTextSpec,
   measurer: DiagramTextMeasurer
 ): ExcalidrawTextElement {
-  return buildTextElement({
+  const text = buildTextElement({
     id,
     text: spec.text,
     fontSize: spec.fontSize ?? DIAGRAM_DEFAULT_FONT_SIZE,
@@ -392,6 +446,8 @@ function buildFreeText(
     containerId: null,
     measurer,
   });
+  text.angle = spec.angle ?? 0;
+  return text;
 }
 
 /**

@@ -151,6 +151,58 @@ describe("sceneToDiagramSpec", () => {
     expect(yes?.type === "arrow" && "x" in yes.end).toBe(true);
     expect(spec.elements.some((element) => element.id === "retry")).toBe(false);
   });
+
+  test("keeps rotation and a moved arrow attachment through a save", () => {
+    const scene = sceneOf(flow);
+    const send = scene.elements.find((element) => element.id === "send");
+    if (!(send && "points" in send)) {
+      throw new Error("missing arrow");
+    }
+    // The user rotates the event box and drags the arrow's start to its corner.
+    const startPoint: [number, number] = [send.x - 30, send.y + 25];
+    const edited = {
+      ...scene,
+      elements: scene.elements.map((element) => {
+        if (element.id === "event" || element.id === "event-label") {
+          return { ...element, angle: 0.3 };
+        }
+        if (element.id === "send") {
+          return {
+            ...send,
+            x: startPoint[0],
+            y: startPoint[1],
+            points: send.points.map(([px, py], index) =>
+              index === 0
+                ? ([0, 0] as [number, number])
+                : ([
+                    px + send.x - startPoint[0],
+                    py + send.y - startPoint[1],
+                  ] as [number, number])
+            ),
+            startBinding: { elementId: "event", focus: 0.5, gap: 8 },
+          };
+        }
+        return element;
+      }),
+    };
+
+    const { spec, droppedTypes } = sceneToDiagramSpec(edited);
+    const rebuilt = buildExcalidrawScene(spec, measurer);
+    const event = rebuilt.elements.find((element) => element.id === "event");
+    const label = rebuilt.elements.find((e) => e.id === "event-label");
+    const arrow = rebuilt.elements.find((element) => element.id === "send");
+
+    expect(droppedTypes).toEqual([]);
+    expect(event?.angle).toBeCloseTo(0.3, 3);
+    expect(label?.angle).toBeCloseTo(0.3, 3);
+    expect(arrow?.x).toBeCloseTo(startPoint[0], 0);
+    expect(arrow?.y).toBeCloseTo(startPoint[1], 0);
+    expect(arrow && "startBinding" in arrow && arrow.startBinding).toEqual({
+      elementId: "event",
+      focus: 0.5,
+      gap: 8,
+    });
+  });
 });
 
 describe("findDiagramLayoutIssues", () => {

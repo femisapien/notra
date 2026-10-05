@@ -422,6 +422,12 @@ export function renderExcalidrawSceneToSvg(
       } else {
         markup = renderShape(generator, element);
       }
+      if (!isLinearElement(element) && element.angle !== 0) {
+        const cx = element.x + element.width / 2;
+        const cy = element.y + element.height / 2;
+        const degrees = (element.angle * 180) / Math.PI;
+        markup = `<g transform="rotate(${degrees.toFixed(3)} ${cx.toFixed(2)} ${cy.toFixed(2)})">${markup}</g>`;
+      }
       return element.opacity < 100
         ? `<g opacity="${element.opacity / 100}">${markup}</g>`
         : markup;
