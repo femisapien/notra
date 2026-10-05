@@ -11,6 +11,13 @@ export const CHECK_RUN_NAME = "Notra Sites";
 export const BRANCH_SUGGESTION_LIMIT = 300;
 export const GITHUB_PAGE_SIZE = 100;
 /** Dependency folders never hold a site's notra.json. */
+/**
+ * A post or changelog entry: `[<folder>/]blog/…/x.md(x)`. The greedy folder
+ * picks the innermost blog/ or changelog/, so `apps/site/blog/a.md` counts for
+ * `apps/site`.
+ */
+export const CONTENT_FILE = /^(?:(.*)\/)?(blog|changelog)\/.+\.mdx?$/;
+
 export const CONFIG_SEARCH_SKIPPED_SEGMENTS: ReadonlySet<string> = new Set([
   "node_modules",
   ".git",

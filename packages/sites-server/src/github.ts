@@ -4,6 +4,7 @@ import { createOctokit } from "@notra/ai/utils/octokit";
 import {
   BRANCH_SUGGESTION_LIMIT,
   CONFIG_SEARCH_SKIPPED_SEGMENTS,
+  CONTENT_FILE,
   GITHUB_API_VERSION_HEADER,
   GITHUB_PAGE_SIZE,
   MAX_TARBALL_BYTES,
@@ -13,7 +14,9 @@ import type {
   BranchHead,
   CompleteCheckRunParams,
   CreateCheckRunParams,
+  RepositoryContentCount,
   RepositorySuggestions,
+  RepositoryTreeScan,
   SiteRepository,
   SiteRepositoryColumns,
   SiteRepositoryPermissions,
@@ -206,12 +209,15 @@ async function listBranches(
   return branches.slice(0, BRANCH_SUGGESTION_LIMIT);
 }
 
-/** Every folder on `ref` that holds a notra.json, read from one recursive tree call. */
+/**
+ * Every folder on `ref` that holds a notra.json, and the posts under each
+ * folder's blog/ and changelog/, read from one recursive tree call.
+ */
 async function listConfigDirectories(
   repository: SiteRepository,
   token: string,
   ref: string
-): Promise<{ directories: string[]; truncated: boolean }> {
+): Promise<RepositoryTreeScan> {
   const octokit = createOctokit(token);
   const { data } = await octokit.request(
     "GET /repos/{owner}/{repo}/git/trees/{tree_sha}",
@@ -224,8 +230,23 @@ async function listConfigDirectories(
     }
   );
   const directories: string[] = [];
+  const contentCounts: Record<string, RepositoryContentCount> = {};
   for (const entry of data.tree) {
     const path = entry.path ?? "";
+    const content = entry.type === "blob" ? CONTENT_FILE.exec(path) : null;
+    if (content) {
+      const [, directory = "", section] = content;
+      if (
+        !directory
+          .split("/")
+          .some((segment) => CONFIG_SEARCH_SKIPPED_SEGMENTS.has(segment))
+      ) {
+        const count = contentCounts[directory] ?? { blog: 0, changelog: 0 };
+        count[section as keyof RepositoryContentCount] += 1;
+        contentCounts[directory] = count;
+      }
+      continue;
+    }
     if (
       entry.type !== "blob" ||
       !(path === "notra.json" || path.endsWith("/notra.json"))
@@ -243,7 +264,7 @@ async function listConfigDirectories(
     directories.push(directory);
   }
   directories.sort((a, b) => a.length - b.length || a.localeCompare(b));
-  return { directories, truncated: data.truncated };
+  return { directories, contentCounts, truncated: data.truncated };
 }
 
 /**
@@ -264,7 +285,11 @@ export async function getRepositorySuggestions(
   const [branches, config] = await Promise.all([
     listBranches(repository, token),
     listConfigDirectories(repository, token, ref || repo.default_branch).catch(
-      () => ({ directories: [], truncated: false })
+      (): RepositoryTreeScan => ({
+        directories: [],
+        contentCounts: {},
+        truncated: false,
+      })
     ),
   ]);
   // The default branch leads; it is almost always the production branch.
@@ -276,6 +301,7 @@ export async function getRepositorySuggestions(
     branches: branches.includes(repo.default_branch) ? ordered : branches,
     defaultBranch: repo.default_branch,
     configDirectories: config.directories,
+    contentCounts: config.contentCounts,
     truncated: config.truncated,
   };
 }

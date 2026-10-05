@@ -64,6 +64,19 @@ export interface RepositorySuggestions {
   defaultBranch: string | null;
   /** Folders with a notra.json, `""` for the repository root. */
   configDirectories: string[];
+  /** Posts per folder (`""` for the root), so a new site turns on the sections that have content. */
+  contentCounts: Record<string, RepositoryContentCount>;
   /** GitHub cut the file tree short; some folders may be missing. */
+  truncated: boolean;
+}
+
+export interface RepositoryContentCount {
+  blog: number;
+  changelog: number;
+}
+
+export interface RepositoryTreeScan {
+  directories: string[];
+  contentCounts: Record<string, RepositoryContentCount>;
   truncated: boolean;
 }
