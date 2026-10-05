@@ -325,8 +325,9 @@ function buildLinear(
       height: Math.max(...ys) - Math.min(...ys),
     }),
     type: spec.type,
-    roundness:
-      via.length > 0 ? { type: EXCALIDRAW_ROUNDNESS_PROPORTIONAL } : null,
+    // Sharp elbows: the layout check and label placement follow the straight
+    // segments, so a curve through \`via\` points could leave the checked route.
+    roundness: null,
     points,
     startBinding: startShape
       ? { elementId: startShape.id, focus: 0, gap: DIAGRAM_BINDING_GAP }

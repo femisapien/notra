@@ -57,18 +57,7 @@ export function createReviseImageTool() {
         throw new Error("Source image post not found");
       }
 
-      if (!useRepository && canEditDiagramWithoutSandbox(post.sourceMetadata)) {
-        return await reviseDiagramPost({
-          organizationId,
-          postId,
-          prompt,
-          title,
-          useMarkup,
-          chargeAiCredits,
-        });
-      }
-
-      const revisionKey = `agent:revise-image:${ctx.session.id}:${ctx.session.turn.id}:${postId}:${deriveOperationHash(`${prompt} ${title ?? ""}`)}`;
+      const revisionKey = `agent:revise-image:${ctx.session.id}:${ctx.session.turn.id}:${postId}:${deriveOperationHash(`${prompt} ${title ?? ""} ${useRepository ? "repository" : ""}`)}`;
       if (redis) {
         const claimed = await redis.set(revisionKey, "1", {
           nx: true,
@@ -87,6 +76,20 @@ export function createReviseImageTool() {
         }
       }
       try {
+        if (
+          !useRepository &&
+          canEditDiagramWithoutSandbox(post.sourceMetadata)
+        ) {
+          return await reviseDiagramPost({
+            organizationId,
+            postId,
+            prompt,
+            title,
+            useMarkup,
+            chargeAiCredits,
+          });
+        }
+
         const metadata =
           post.sourceMetadata && typeof post.sourceMetadata === "object"
             ? post.sourceMetadata

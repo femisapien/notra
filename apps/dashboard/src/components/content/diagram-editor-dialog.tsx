@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@notra/ui/components/ui/dialog";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "use-intl";
@@ -48,8 +48,11 @@ export function DiagramEditorDialog({
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const sceneUrl = `/api/organizations/${organizationId}/content/${contentId}/excalidraw`;
 
+  const queryClient = useQueryClient();
+  const sceneQueryKey = ["diagram-editor-scene", organizationId, contentId];
+
   const sceneQuery = useQuery({
-    queryKey: ["diagram-editor-scene", organizationId, contentId],
+    queryKey: sceneQueryKey,
     queryFn: async (): Promise<DiagramEditorScene> => {
       const response = await fetch(sceneUrl, { cache: "no-store" });
       if (!response.ok) {
@@ -60,7 +63,16 @@ export function DiagramEditorDialog({
     enabled: open,
     gcTime: 0,
     staleTime: 0,
+    // The canvas only reads the scene on mount; a refetch mid-edit is wasted.
+    refetchOnWindowFocus: false,
   });
+
+  // Every session starts from the stored scene: a cached one would bring back
+  // the drawing from before the last save or chat edit.
+  const openEditor = () => {
+    queryClient.resetQueries({ queryKey: sceneQueryKey, exact: true });
+    setOpen(true);
+  };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -104,7 +116,7 @@ export function DiagramEditorDialog({
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} size="sm" variant="outline">
+      <Button onClick={openEditor} size="sm" variant="outline">
         <HugeiconsIcon className="size-4" icon={PencilEdit02Icon} />
         {t("open")}
       </Button>

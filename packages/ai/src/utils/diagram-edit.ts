@@ -3,6 +3,8 @@ import {
   DIAGRAM_DEFAULT_ROUGHNESS,
   DIAGRAM_DEFAULT_STROKE,
   DIAGRAM_DEFAULT_STROKE_WIDTH,
+  DIAGRAM_ANGLE_TOLERANCE,
+  DIAGRAM_ATTACHMENT_FOCUS_TOLERANCE,
   DIAGRAM_EDIT_ATTEMPTS,
   DIAGRAM_EDIT_MAX_OUTPUT_TOKENS,
   DIAGRAM_EDIT_MODEL_ID,
@@ -99,10 +101,21 @@ function readBindingId(element: SceneRecord, key: string) {
   return isRecord(binding) ? readString(binding, "elementId") : undefined;
 }
 
+// Bound arrows are rebuilt to meet the shape edge on the line toward the
+// other end; Excalidraw stores a moved attachment point as a non-zero focus.
+function hasCustomAttachment(element: SceneRecord) {
+  return ["startBinding", "endBinding"].some((key) => {
+    const binding = element[key];
+    const focus = isRecord(binding) ? readNumber(binding, "focus") : undefined;
+    return Math.abs(focus ?? 0) > DIAGRAM_ATTACHMENT_FOCUS_TOLERANCE;
+  });
+}
+
 /**
  * Converts an Excalidraw scene edited by hand back into the compact spec, so
- * later AI edits start from what the user drew. Freedraw, images, and frames
- * have no spec equivalent and are reported as dropped.
+ * later AI edits start from what the user drew. Freedraw, images, frames,
+ * rotation, and moved arrow attachment points have no spec equivalent and are
+ * reported as dropped.
  */
 export function sceneToDiagramSpec(scene: unknown): {
   spec: DiagramSpec;
@@ -162,6 +175,9 @@ export function sceneToDiagramSpec(scene: unknown): {
   for (const element of elements) {
     const type = readString(element, "type");
     const id = readString(element, "id");
+    if (Math.abs(readNumber(element, "angle") ?? 0) > DIAGRAM_ANGLE_TOLERANCE) {
+      droppedTypes.add("rotation");
+    }
     const x = readNumber(element, "x") ?? 0;
     const y = readNumber(element, "y") ?? 0;
 
@@ -211,6 +227,9 @@ export function sceneToDiagramSpec(scene: unknown): {
       );
       const first = absolute[0] ?? [x, y];
       const last = absolute.at(-1) ?? first;
+      if (hasCustomAttachment(element)) {
+        droppedTypes.add("arrow attachment points");
+      }
       const startId = readBindingId(element, "startBinding");
       const endId = readBindingId(element, "endBinding");
       const defaultEnd = type === "arrow" ? "arrow" : null;

@@ -162,7 +162,7 @@ describe("buildExcalidrawScene", () => {
     const label = byId<ExcalidrawTextElement>(scene, "loop-label");
 
     expect(arrow.points).toHaveLength(4);
-    expect(arrow.roundness).not.toBeNull();
+    expect(arrow.roundness).toBeNull();
     // Leaves a's right edge toward the first waypoint, not toward b's center.
     expect(arrow.x).toBe(160 + DIAGRAM_BINDING_GAP);
     expect(label.containerId).toBe("loop");
