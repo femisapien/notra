@@ -56,15 +56,27 @@ function samePreviewPassword(
   );
 }
 
-async function readPreviewPasswordFromDb(
-  siteId: string
-): Promise<SitePreviewPassword | null> {
+/**
+ * The site's preview access as the database has it now. Read on every state
+ * write attempt, so a build that started before an access change never
+ * writes the old value back.
+ */
+async function readPreviewAccessFromDb(siteId: string): Promise<{
+  previewPassword: SitePreviewPassword | null;
+  previewVisibility: SitePreviewPointer["visibility"] | null;
+}> {
   const [row] = await db
-    .select({ previewPassword: sites.previewPassword })
+    .select({
+      previewPassword: sites.previewPassword,
+      previewVisibility: sites.previewVisibility,
+    })
     .from(sites)
     .where(eq(sites.id, siteId))
     .limit(1);
-  return row?.previewPassword ?? null;
+  return {
+    previewPassword: row?.previewPassword ?? null,
+    previewVisibility: row?.previewVisibility ?? null,
+  };
 }
 
 export async function readServingState(
@@ -87,7 +99,10 @@ export async function readServingState(
  */
 export async function mutateServingState<T>(
   site: ServingSiteRef,
-  mutate: (state: SiteServingState) => ServingStateMutation<T>
+  mutate: (
+    state: SiteServingState,
+    access: { previewVisibility: SitePreviewPointer["visibility"] | null }
+  ) => ServingStateMutation<T>
 ): Promise<T> {
   for (let attempt = 0; attempt < CAS_ATTEMPTS; attempt += 1) {
     const current = await readServingState(site.id);
@@ -98,10 +113,13 @@ export async function mutateServingState<T>(
         slug: site.slug,
         now: new Date(),
       });
-    const outcome = mutate(state);
+    // Preview access is read before mutating: if it changes after this read,
+    // the change's own state write moves the ETag and this attempt retries.
+    const { previewPassword, previewVisibility } =
+      await readPreviewAccessFromDb(site.id);
+    const outcome = mutate(state, { previewVisibility });
     // The preview password and the traffic token are derived on every write,
     // so a lost or stale state.json gets them back with the next state write.
-    const previewPassword = await readPreviewPasswordFromDb(site.id);
     const trafficToken = buildGeoIngestSiteToken(site.id);
     const derivedInSync =
       samePreviewPassword(state.previewPassword, previewPassword) &&
@@ -148,23 +166,33 @@ export async function activateProductionDeployment(
   });
 }
 
+/**
+ * Points a preview at a finished build. Its visibility is the site's current
+ * one from the database; `pointer.visibility` only covers a missing site row.
+ */
 export async function activatePreviewDeployment(
   site: ServingSiteRef,
   previewKey: string,
   pointer: Omit<SitePreviewPointer, "activatedAt">
 ) {
-  return await mutateServingState<PreviewActivationResult>(site, (state) => {
-    const outcome = activatePreviewInState(
-      state,
-      previewKey,
-      pointer,
-      new Date()
-    );
-    if (outcome.outcome === "activated") {
-      return { write: outcome.state, result: outcome };
+  return await mutateServingState<PreviewActivationResult>(
+    site,
+    (state, access) => {
+      const outcome = activatePreviewInState(
+        state,
+        previewKey,
+        {
+          ...pointer,
+          visibility: access.previewVisibility ?? pointer.visibility,
+        },
+        new Date()
+      );
+      if (outcome.outcome === "activated") {
+        return { write: outcome.state, result: outcome };
+      }
+      return { skip: true, result: outcome };
     }
-    return { skip: true, result: outcome };
-  });
+  );
 }
 
 export async function removePreviewDeployment(
