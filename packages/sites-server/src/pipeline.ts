@@ -32,39 +32,33 @@ async function writeBuildLog(
   });
 }
 
-/**
- * Webhooks arrive late, out of order or redelivered. A push/PR build whose
- * commit is no longer its branch head would publish older content under a
- * newer generation; the push that moved the branch has its own deployment.
- */
-async function branchMovedOn(
+/** The commit `branch` points at now; null when the branch is gone. */
+async function currentBranchHead(
   site: Site,
-  deployment: SiteDeployment,
+  branch: string,
   token: string
 ): Promise<string | null> {
-  if (
-    !(deployment.trigger === "push" || deployment.trigger === "pull_request")
-  ) {
-    return null;
-  }
   const head = await getBranchHead(
     requireSiteRepository(site),
     token,
-    deployment.branch
+    branch
   ).catch((error: unknown) => {
     if ((error as { status?: number }).status === 404) {
       return null;
     }
     throw error;
   });
-  if (head?.sha === deployment.commitSha) {
-    return null;
-  }
-  return head
-    ? `${deployment.branch} moved on to ${head.sha.slice(0, 7)}.`
-    : `${deployment.branch} no longer exists.`;
+  return head?.sha ?? null;
 }
 
+/**
+ * Webhooks arrive late, out of order or redelivered. A push/PR build whose
+ * commit is no longer its branch head would publish older content under a
+ * newer generation; the push that moved the branch has its own deployment.
+ * The head is checked first, so a late webhook for an older commit (which
+ * gets a higher generation) skips itself instead of displacing the build of
+ * the current head.
+ */
 async function whyNotBuild(
   site: Site,
   deployment: SiteDeployment,
@@ -73,10 +67,18 @@ async function whyNotBuild(
   if (deployment.status !== "queued") {
     return null;
   }
-  if (await hasNewerDeployment(deployment)) {
+  const head = await currentBranchHead(site, deployment.branch, token);
+  const fromWebhook =
+    deployment.trigger === "push" || deployment.trigger === "pull_request";
+  if (fromWebhook && head !== deployment.commitSha) {
+    return head
+      ? `${deployment.branch} moved on to ${head.slice(0, 7)}.`
+      : `${deployment.branch} no longer exists.`;
+  }
+  if (await hasNewerDeployment(deployment, head)) {
     return "A newer deployment replaces this one.";
   }
-  return await branchMovedOn(site, deployment, token);
+  return null;
 }
 
 /**

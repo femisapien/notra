@@ -6,7 +6,7 @@ import {
   SITE_DEPLOYMENT_TRANSITIONS,
 } from "@notra/sites-core/constants/sites";
 import { hashBuildTarget } from "@notra/sites-core/utils/build-target";
-import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, notInArray, or, sql } from "drizzle-orm";
 
 import type {
   DeploymentExecutor,
@@ -171,11 +171,14 @@ export async function enqueuePreviewRemoval(
 }
 
 /**
- * True when a newer deployment for the same slot (production, or the same
- * preview key) exists and has not failed. Building this one would be wasted.
+ * Whether a later deployment for the same slot (production, or this preview)
+ * will build instead. With `branchHead`, a later push or pull request build
+ * of another commit doesn't count: its webhook arrived late and it gets
+ * skipped itself because the branch moved on, so it must not displace this one.
  */
 export async function hasNewerDeployment(
-  deployment: SiteDeployment
+  deployment: SiteDeployment,
+  branchHead: string | null = null
 ): Promise<boolean> {
   const slot =
     deployment.kind === "production"
@@ -195,7 +198,13 @@ export async function hasNewerDeployment(
         inArray(siteDeployments.status, [
           ...SITE_DEPLOYMENT_IN_PROGRESS_STATUSES,
           "ready",
-        ])
+        ]),
+        branchHead
+          ? or(
+              notInArray(siteDeployments.trigger, ["push", "pull_request"]),
+              eq(siteDeployments.commitSha, branchHead)
+            )
+          : undefined
       )
     )
     .limit(1);
