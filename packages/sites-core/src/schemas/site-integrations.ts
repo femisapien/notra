@@ -1,3 +1,8 @@
+import {
+  AMPLITUDE_SERVER_ZONES,
+  INTERCOM_REGIONS,
+  MIXPANEL_REGIONS,
+} from "@notra/sites-core/constants/integrations";
 import { SITE_CSP_MAX_ALLOWED_ORIGINS } from "@notra/sites-core/constants/security";
 import { z } from "zod";
 
@@ -28,6 +33,11 @@ const databuddySchema = z.strictObject({
     .regex(/^[A-Za-z0-9_-]{8,64}$/, "Copy the Client ID from Databuddy"),
   trackWebVitals: z.boolean().default(false),
   trackErrors: z.boolean().default(false),
+  trackPerformance: z.boolean().default(false),
+  trackOutgoingLinks: z.boolean().default(false),
+  trackInteractions: z.boolean().default(false),
+  /** `data-track` attributes on elements become custom events. */
+  trackAttributes: z.boolean().default(false),
 });
 
 const plausibleSchema = z.strictObject({
@@ -88,6 +98,80 @@ const fathomSchema = z.strictObject({
     .regex(/^[A-Z0-9]{4,16}$/, "Use the site ID from Fathom"),
 });
 
+const mixpanelSchema = z.strictObject({
+  projectToken: z
+    .string()
+    .trim()
+    .regex(
+      /^[0-9a-f]{32}$/,
+      "Use the project token from Mixpanel's project settings"
+    ),
+  /** The project's data residency; events sent to the wrong region are dropped. */
+  region: z.enum(MIXPANEL_REGIONS, "Use us, eu or in").default("us"),
+});
+
+const amplitudeSchema = z.strictObject({
+  apiKey: z
+    .string()
+    .trim()
+    .regex(
+      /^[0-9a-f]{32}$/,
+      "Use the API key from Amplitude's project settings"
+    ),
+  /** `eu` only works for organizations that signed up in the EU data region. */
+  serverZone: z.enum(AMPLITUDE_SERVER_ZONES, "Use us or eu").default("us"),
+});
+
+const segmentSchema = z.strictObject({
+  writeKey: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9]{20,64}$/, "Use the write key of a JavaScript source"),
+});
+
+/**
+ * Hotjar's ids are numbers in its snippet. A hand-written notra.json may use a
+ * number, the dashboard writes a string; both end up as a number.
+ */
+const hotjarNumber = (pattern: RegExp, message: string) =>
+  z.coerce.string().trim().regex(pattern, message).transform(Number);
+
+const hotjarSchema = z.strictObject({
+  siteId: hotjarNumber(/^[1-9]\d{0,9}$/, "Use the numeric Site ID from Hotjar"),
+  /** The tracking code's `hjsv`; defaults to the current version. */
+  version: hotjarNumber(
+    /^[1-9]\d?$/,
+    "Use the hjsv number from the tracking code, e.g. 6"
+  ).optional(),
+});
+
+const claritySchema = z.strictObject({
+  projectId: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]{6,20}$/, "Use the project ID from Clarity's settings"),
+});
+
+const intercomSchema = z.strictObject({
+  /** The workspace ID, also called app ID. */
+  appId: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]{6,16}$/, "Use the workspace ID from Intercom"),
+  /** The workspace's hosting region; sets the Messenger's `api_base`. */
+  region: z.enum(INTERCOM_REGIONS, "Use us, eu or au").default("us"),
+});
+
+const crispSchema = z.strictObject({
+  websiteId: z
+    .string()
+    .trim()
+    .regex(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      "Use the Website ID from Crisp's setup instructions"
+    ),
+});
+
 /** Analytics presets; unknown keys are rejected so a typo never silently disables tracking. */
 export const siteIntegrationsSchema = z
   .strictObject({
@@ -98,6 +182,13 @@ export const siteIntegrationsSchema = z
     gtm: gtmSchema.optional(),
     umami: umamiSchema.optional(),
     fathom: fathomSchema.optional(),
+    mixpanel: mixpanelSchema.optional(),
+    amplitude: amplitudeSchema.optional(),
+    segment: segmentSchema.optional(),
+    hotjar: hotjarSchema.optional(),
+    clarity: claritySchema.optional(),
+    intercom: intercomSchema.optional(),
+    crisp: crispSchema.optional(),
   })
   .default({});
 

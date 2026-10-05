@@ -19,6 +19,8 @@ export type SiteHeadScript =
 export interface SiteCspSources {
   scriptSrc: string[];
   connectSrc: string[];
+  /** Only set when a widget runs Web Workers from somewhere script-src doesn't cover. */
+  workerSrc: string[];
 }
 
 export interface SiteContentSecurityPolicyParams {
