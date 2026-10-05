@@ -25,6 +25,7 @@ import type { AstroPackageJson, BuildSiteOptions } from "./types/build";
 import { listFiles } from "./utils/fs";
 import { siteHeadScripts } from "./utils/head-scripts";
 import { inlineScriptHashes } from "./utils/inline-scripts";
+import { unnestLinks } from "./utils/nested-links";
 import { rewritePublicAssetUrls } from "./utils/public-assets";
 
 function astroBin(toolchainRoot: string): string {
@@ -212,7 +213,7 @@ export async function buildSite(
       await mkdir(dirname(target), { recursive: true });
       if (file.endsWith(".html")) {
         const html = rewritePublicAssetUrls(
-          await readFile(file, "utf8"),
+          unnestLinks(await readFile(file, "utf8")),
           mount,
           publicFiles
         );
