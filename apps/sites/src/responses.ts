@@ -7,7 +7,7 @@ import {
 
 import { AI_USER_AGENTS, ASSET_SEGMENT } from "./constants/responses";
 import { serviceErrorPage } from "./pages";
-import type { ServeFileParams } from "./types/serving";
+import type { MarkdownNotFoundParams, ServeFileParams } from "./types/serving";
 
 export function html(
   body: string,
@@ -127,12 +127,27 @@ export async function serveFile(params: ServeFileParams): Promise<Response> {
   });
 }
 
-export function markdownNotFound(): Response {
-  return new Response("# Not found\n\nThis page does not exist.\n", {
+/**
+ * A 404 an agent can act on: what was missing and where the page list is.
+ * Links are relative so they stay right behind a customer proxy.
+ */
+export function markdownNotFound(params: MarkdownNotFoundParams): Response {
+  const lines = [
+    "# Not found",
+    "",
+    `There is no page at \`${params.path.replaceAll("`", "")}\`. It may have moved, or the link is wrong.`,
+    "",
+  ];
+  if (params.indexPath) {
+    lines.push(`- [Index](${params.indexPath}): every entry, newest first`);
+  }
+  lines.push(`- [llms.txt](${params.llmsPath}): a Markdown map of this site`);
+  return new Response(`${lines.join("\n")}\n`, {
     status: 404,
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
       "Cache-Control": "no-store",
+      "X-Robots-Tag": "noindex",
       Vary: "Accept",
     },
   });

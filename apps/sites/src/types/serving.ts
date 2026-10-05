@@ -42,3 +42,11 @@ export interface RedirectMatch {
   location: string;
   status: number;
 }
+
+/** Where an agent that hit a missing page should look instead. */
+export interface MarkdownNotFoundParams {
+  path: string;
+  /** The area's Markdown index, when the path is inside an area. */
+  indexPath: string | null;
+  llmsPath: string;
+}

@@ -2,6 +2,10 @@
 export const NOTRA_MARK_SVG =
   '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 800 800" fill="none"><path d="M572.881 462.223c-12.712 43.22-290.678 105.932-394.068 83.898l-48.305-10.169 48.305-78.814 68.644-104.237 73.729-106.78 251.695-127.119 78.814-22.881 17.796 17.796h10.17c17.796 35.593 3.945 147.458-12.712 195.763-25.424 73.729-124.576 96.61-177.966 114.407-4.064 1.355 96.61-5.085 83.898 38.136Z" fill="#c8b2ee" stroke="currentColor" stroke-width="35" stroke-linecap="round"/><path d="M700 96.111c-162.712-4.237-510.508 111.356-600 607.627" stroke="currentColor" stroke-width="75" stroke-linecap="round"/></svg>';
 
+/** Hugeicons-style globe, 1.5 stroke. */
+export const GLOBE_ICON_SVG =
+  '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12c0 6 4 10 4 10s4-4 4-10-4-10-4-10-4 4-4 10Z"/><path d="M21 15H3M21 9H3"/></svg>';
+
 /** Hugeicons-style lock, 1.5 stroke. */
 export const LOCK_ICON_SVG =
   '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.268 18.845c.225 1.67 1.608 2.979 3.292 3.056 1.416.065 2.855.099 4.44.099s3.024-.034 4.44-.1c1.684-.076 3.067-1.385 3.292-3.055.147-1.09.268-2.207.268-3.345s-.121-2.255-.268-3.345c-.225-1.67-1.608-2.979-3.292-3.056A95 95 0 0 0 12 9c-1.585 0-3.024.034-4.44.1-1.684.076-3.067 1.385-3.292 3.055C4.12 13.245 4 14.362 4 15.5s.121 2.255.268 3.345Z"/><path d="M7.5 9V6.5a4.5 4.5 0 0 1 9 0V9"/><path d="M11.996 15.5h.008"/></svg>';
@@ -42,6 +46,15 @@ input[aria-invalid=true]{border-color:var(--error)}
 form{display:grid;gap:10px}
 .error{margin:0;color:var(--error);font-size:13px}
 .notice{margin-top:20px;padding:10px 12px;border-radius:10px;background:var(--tile);color:var(--fg);font-size:13px;text-align:left}
+.frame{margin-top:28px;padding:2px;border-radius:14px;background:var(--tile);box-shadow:inset 0 0 0 1px var(--border);text-align:left}
+.rows{border-radius:12px;background:var(--bg);box-shadow:0 0 0 1px var(--border),0 1px 2px rgba(0,0,0,.04)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;font-size:13px}
+.row+.row{border-top:1px solid var(--border)}
+.row span{color:var(--muted)}
+.row a{font-weight:500;text-decoration:none}
+.row a:hover{text-decoration:underline}
+.frame-foot{padding:10px 12px 8px;color:var(--muted);font-size:12px}
+.panel a{color:var(--fg);text-underline-offset:3px;text-decoration-color:color-mix(in oklch,var(--fg) 35%,transparent)}.panel a:hover{text-decoration-color:currentColor}
 a:focus-visible,.button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .foot{padding:20px 24px;color:var(--muted);font-size:12px;text-align:center}
 @media (max-width:480px){header{padding:16px 20px}main{padding:16px 20px 12vh}}
@@ -51,3 +64,9 @@ a:focus-visible,.button:focus-visible{outline:2px solid var(--primary);outline-o
   .trim();
 
 export const NOTRA_HOME_URL = "https://usenotra.com";
+
+/** Where anyone reports a site on the hosting domain; the PSL requires it on the apex. */
+export const SITES_ABUSE_EMAIL = "abuse@usenotra.com";
+export const SITES_SECURITY_EMAIL = "security@usenotra.com";
+/** security.txt must expire; renewed with every worker deploy. */
+export const SECURITY_TXT_LIFETIME_DAYS = 180;

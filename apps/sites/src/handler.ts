@@ -17,9 +17,11 @@ import {
   StateUnavailableError,
 } from "./loaders";
 import {
+  hostingApexPage,
   notDeployedPage,
   notFoundPage,
   previewClosedPage,
+  securityTxt,
   serviceErrorPage,
   unavailablePage,
 } from "./pages";
@@ -39,6 +41,7 @@ import {
   prefersMarkdown,
   resolveFile,
   resolveMarkdownFile,
+  twinPagePath,
 } from "./utils/routing";
 
 export { resetCachesForTests } from "./loaders";
@@ -189,6 +192,33 @@ async function serveDeployment(
   return response;
 }
 
+/** The bare hosting domain: who runs it and where to report abuse, as the PSL asks. */
+function hostingApexResponse(deps: SitesDeps, url: URL): Response {
+  if (url.pathname === "/.well-known/security.txt") {
+    return new Response(securityTxt(url.origin, deps.now()), {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "public, max-age=86400",
+      },
+    });
+  }
+  return html(hostingApexPage(deps.hostingDomain), 200);
+}
+
+/**
+ * Points search engines from a Markdown twin to its HTML page on the public
+ * origin, so the twin never competes with the page in results.
+ */
+function canonicalPageLink(
+  publicOrigin: string,
+  twinPath: string
+): Record<string, string> | undefined {
+  const pagePath = twinPagePath(twinPath);
+  return pagePath
+    ? { Link: `<${new URL(pagePath, publicOrigin).href}>; rel="canonical"` }
+    : undefined;
+}
+
 /** Robots, redirects, the file itself, or the area's own 404 page. */
 async function serveFromManifest(
   deps: SitesDeps,
@@ -232,9 +262,15 @@ async function serveFromManifest(
     isPreview,
     contentSecurityPolicy: loaded.manifest.contentSecurityPolicy,
   };
+  const { publicOrigin } = loaded.manifest.target;
   const markdownFile = resolveMarkdownFile(loaded.files, path);
   if (markdownFile) {
-    return await serveFile({ ...fileParams, file: markdownFile, status: 200 });
+    return await serveFile({
+      ...fileParams,
+      file: markdownFile,
+      status: 200,
+      extraHeaders: canonicalPageLink(publicOrigin, markdownFile.path),
+    });
   }
   const wantsMarkdown = prefersMarkdown(request.headers.get("accept"));
   const file = resolveFile(loaded.files, path);
@@ -246,7 +282,11 @@ async function serveFromManifest(
         ...fileParams,
         file: twin,
         status: 200,
-        extraHeaders: { Vary: "Accept", "Content-Location": twin.path },
+        extraHeaders: {
+          Vary: "Accept",
+          "Content-Location": twin.path,
+          ...canonicalPageLink(publicOrigin, twin.path),
+        },
       });
     }
     return await serveFile({
@@ -261,18 +301,27 @@ async function serveFromManifest(
         : undefined,
     });
   }
-  if (wantsMarkdown || path.endsWith(".md")) {
-    return markdownNotFound();
-  }
   const area = resolveAreaForPath(
     loaded.manifest.target.mounts,
     path.endsWith("/") ? path.slice(0, -1) || "/" : path
   );
+  if (wantsMarkdown || path.endsWith(".md")) {
+    return markdownNotFound({
+      path,
+      indexPath: area ? joinMountPath(area.mount, "index.md") : null,
+      llmsPath: joinMountPath(area?.mount ?? "/", "llms.txt"),
+    });
+  }
   const notFound = area
     ? loaded.files.get(joinMountPath(area.mount, "404.html"))
     : undefined;
   if (notFound) {
-    return await serveFile({ ...fileParams, file: notFound, status: 404 });
+    return await serveFile({
+      ...fileParams,
+      file: notFound,
+      status: 404,
+      extraHeaders: { Vary: "Accept" },
+    });
   }
   return html(notFoundPage(), 404);
 }
@@ -295,6 +344,9 @@ export async function handleSiteRequest(
     });
   }
   const host = requestHost(deps, request, url);
+  if (host === deps.hostingDomain || host === `www.${deps.hostingDomain}`) {
+    return hostingApexResponse(deps, url);
+  }
   const parsedHost = parseSiteHost(host, deps.hostingDomain);
   if (!parsedHost) {
     return html(notFoundPage(), 404);

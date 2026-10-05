@@ -1,9 +1,13 @@
 import { SITE_PREVIEW_AUTH_PATH } from "@notra/sites-core/constants/sites";
 
 import {
+  GLOBE_ICON_SVG,
   LOCK_ICON_SVG,
   NOTRA_HOME_URL,
   NOTRA_MARK_SVG,
+  SECURITY_TXT_LIFETIME_DAYS,
+  SITES_ABUSE_EMAIL,
+  SITES_SECURITY_EMAIL,
   SYSTEM_PAGE_CSS,
 } from "./constants/pages";
 import type {
@@ -101,4 +105,31 @@ export function previewLockedPage(params: PreviewGatePage): string {
     title: "Private preview",
     body: `<div class="icon">${LOCK_ICON_SVG}</div><h1>This preview is private</h1><p>${lead}</p>${notice}<div class="actions"><a class="button primary" href="${escapeHtml(signInUrl)}"><span class="chip">${NOTRA_MARK_SVG.replace('width="22" height="22"', 'width="14" height="14"')}</span>Continue with Notra</a>${form}</div>`,
   });
+}
+
+/**
+ * The hosting domain itself (`notra.site`): what it is and where to report a
+ * site on it. Every customer site lives on a subdomain.
+ */
+export function hostingApexPage(hostingDomain: string): string {
+  const domain = escapeHtml(hostingDomain);
+  return page({
+    title: `${hostingDomain} · Notra Sites`,
+    body: `<div class="icon">${GLOBE_ICON_SVG}</div><h1>${domain}</h1><p>Blogs and changelogs published with <a href="${NOTRA_HOME_URL}">Notra</a>. Every subdomain belongs to a Notra customer.</p><div class="frame"><div class="rows"><div class="row"><span>Abuse, phishing or malware</span><a href="mailto:${SITES_ABUSE_EMAIL}">${SITES_ABUSE_EMAIL}</a></div><div class="row"><span>Security issues</span><a href="mailto:${SITES_SECURITY_EMAIL}">${SITES_SECURITY_EMAIL}</a></div></div><p class="frame-foot">Include the full address of the site you are reporting.</p></div>`,
+  });
+}
+
+/** RFC 9116 security.txt for the hosting domain. */
+export function securityTxt(origin: string, now: Date): string {
+  const expires = new Date(
+    now.getTime() + SECURITY_TXT_LIFETIME_DAYS * 24 * 60 * 60 * 1000
+  );
+  return [
+    `Contact: mailto:${SITES_SECURITY_EMAIL}`,
+    `Contact: mailto:${SITES_ABUSE_EMAIL}`,
+    `Expires: ${expires.toISOString()}`,
+    `Canonical: ${origin}/.well-known/security.txt`,
+    "Preferred-Languages: en, de",
+    "",
+  ].join("\n");
 }

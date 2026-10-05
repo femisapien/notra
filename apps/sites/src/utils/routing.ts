@@ -98,6 +98,14 @@ export function markdownTwin(
     : null;
 }
 
+/** `/blog/post/index.md` → `/blog/post`: the HTML page a Markdown twin stands for. */
+export function twinPagePath(twinPath: string): string | null {
+  if (!twinPath.endsWith("/index.md")) {
+    return null;
+  }
+  return twinPath.slice(0, -"/index.md".length) || "/";
+}
+
 /** True when the client asks for Markdown at least as much as for HTML (agents do; browsers never). */
 export function prefersMarkdown(accept: string | null): boolean {
   if (!accept) {

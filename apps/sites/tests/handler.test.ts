@@ -210,6 +210,37 @@ describe("production serving", () => {
     ]);
   });
 
+  test("Markdown twins name their HTML page as canonical", async () => {
+    const { request } = setup();
+    const direct = await request("https://acme.notra.site/blog/post.md");
+    expect(direct.headers.get("Link")).toBe(
+      '<https://acme.com/blog/post>; rel="canonical"'
+    );
+    const negotiated = await request("https://acme.notra.site/blog/post", {
+      Accept: "text/markdown",
+    });
+    expect(negotiated.headers.get("Link")).toBe(
+      '<https://acme.com/blog/post>; rel="canonical"'
+    );
+  });
+
+  test("a missing page tells agents where to look, in Markdown", async () => {
+    const { request } = setup();
+    const missing = await request("https://acme.notra.site/blog/nope", {
+      Accept: "text/markdown",
+    });
+    expect(missing.status).toBe(404);
+    expect(missing.headers.get("X-Robots-Tag")).toBe("noindex");
+    const body = await missing.text();
+    expect(body).toContain("There is no page at `/blog/nope`");
+    expect(body).toContain("(/blog/index.md)");
+    expect(body).toContain("(/blog/llms.txt)");
+
+    const page = await request("https://acme.notra.site/blog/nope");
+    expect([page.status, page.headers.get("Vary")]).toEqual([404, "Accept"]);
+    expect(await page.text()).toBe("dep_live:/blog/404.html");
+  });
+
   test("redirects from notra.json, including wildcards", async () => {
     const { request } = setup();
     const exact = await request("https://acme.notra.site/blog/old/");
@@ -297,6 +328,19 @@ describe("production serving", () => {
     await request("https://blog.acme.com/blog/");
     await settle();
     expect(reports).toHaveLength(0);
+  });
+
+  test("the bare hosting domain names an abuse contact", async () => {
+    const { request } = setup();
+    const home = await request("https://notra.site/");
+    expect(home.status).toBe(200);
+    expect(await home.text()).toContain("mailto:abuse@usenotra.com");
+    const security = await request(
+      "https://notra.site/.well-known/security.txt"
+    );
+    expect(await security.text()).toContain(
+      "Contact: mailto:security@usenotra.com"
+    );
   });
 
   test("takedown wins over everything and the state is re-read", async () => {
