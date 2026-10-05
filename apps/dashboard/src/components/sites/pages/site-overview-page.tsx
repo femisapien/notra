@@ -3,18 +3,9 @@
 import {
   ArrowRight01Icon,
   ArrowUpRight01Icon,
-  GitPullRequestIcon,
   Rocket01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@notra/ui/components/ui/empty";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 
@@ -83,7 +74,6 @@ export function SiteOverviewPage() {
   const suspended = site.status === "suspended";
   const deployLatest = useDeployLatest({ organizationId, siteId });
   const previews = sitePreviewRows(detail);
-  const previewsHref = siteHref(organizationSlug, siteId, "previews");
   const latestProduction =
     detail.deployments.find((deployment) => deployment.kind === "production") ??
     null;
@@ -166,56 +156,26 @@ export function SiteOverviewPage() {
         />
       </InstrumentSection>
 
-      <InstrumentSection
-        action={
-          previews.length > 0 ? (
-            <ViewAllLink href={previewsHref} label={t("viewAll")} />
-          ) : null
-        }
-        eyebrow={t("previews")}
-      >
-        <SitePreviewsTable
-          compact
-          emptyState={
-            <div className="text-foreground w-full">
-              <Empty>
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <HugeiconsIcon
-                      icon={GitPullRequestIcon}
-                      strokeWidth={1.5}
-                    />
-                  </EmptyMedia>
-                  <EmptyTitle>{t("previewsEmptyTitle")}</EmptyTitle>
-                  <EmptyDescription>
-                    {site.previewsEnabled
-                      ? t("previewsEmptyDescription")
-                      : t("previewsOff")}
-                  </EmptyDescription>
-                </EmptyHeader>
-                {site.previewsEnabled ? null : (
-                  <EmptyContent>
-                    <Link
-                      className={buttonVariants({
-                        size: "sm",
-                        variant: "outline",
-                      })}
-                      href={siteHref(organizationSlug, siteId, "settings")}
-                    >
-                      {t("turnOnPreviews")}
-                    </Link>
-                  </EmptyContent>
-                )}
-              </Empty>
-            </div>
+      {previews.length > 0 ? (
+        <InstrumentSection
+          action={
+            <ViewAllLink
+              href={siteHref(organizationSlug, siteId, "previews")}
+              label={t("viewAll")}
+            />
           }
-          organizationId={organizationId}
-          organizationSlug={organizationSlug}
-          repository={site.repository}
-          rows={previews.slice(0, SITE_OVERVIEW_PREVIEWS_LIMIT)}
-          siteId={siteId}
-        />
-      </InstrumentSection>
+          eyebrow={t("previews")}
+        >
+          <SitePreviewsTable
+            compact
+            organizationId={organizationId}
+            organizationSlug={organizationSlug}
+            repository={site.repository}
+            rows={previews.slice(0, SITE_OVERVIEW_PREVIEWS_LIMIT)}
+            siteId={siteId}
+          />
+        </InstrumentSection>
+      ) : null}
     </div>
   );
 }

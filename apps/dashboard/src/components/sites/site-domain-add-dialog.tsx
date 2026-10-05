@@ -1,6 +1,11 @@
 "use client";
 
-import { InformationCircleIcon } from "@hugeicons/core-free-icons";
+import {
+  Globe02Icon,
+  Link04Icon,
+  Route01Icon,
+  ServerStack01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ResponsiveDialog,
@@ -15,22 +20,26 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@notra/ui/components/ui/input-group";
-import { Label } from "@notra/ui/components/ui/label";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/button";
-import { SiteChoiceGroup } from "@/components/sites/site-form-fields";
 import { SITE_DOMAIN_URL_SCHEME_PATTERN } from "@/constants/sites";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SiteDomainAddDialogProps } from "@/types/components/sites";
 import type { SiteDomainKind } from "@/types/sites";
 import { toErrorMessage } from "@/utils/error-message";
+import { detectSiteDomainKind } from "@/utils/site-domains";
 import { mountedPaths } from "@/utils/site-proxy-recipes";
 
+/**
+ * One field for any domain. blog.acme.com connects with a DNS record,
+ * acme.com or acme.com/blog through rewrites on the customer's own site;
+ * the line under the field says which, with a way to pick the other.
+ */
 export function SiteDomainAddDialog({
   organizationId,
   siteId,
@@ -42,22 +51,30 @@ export function SiteDomainAddDialog({
   const tCommon = useTranslations("common");
   const id = useId();
   const invalidateSites = useInvalidateSites();
-  const [kind, setKind] = useState<SiteDomainKind>("subdomain");
   const [value, setValue] = useState("");
+  // Set when the reader switches away from what the address suggests.
+  const [override, setOverride] = useState<SiteDomainKind | null>(null);
   const trimmed = value.trim();
-  const paths = mountedPaths(mounts).join(", ");
+  const detected = detectSiteDomainKind(trimmed);
+  const kind = detected ? (override ?? detected) : null;
+  const hostname = trimmed.split("/")[0] ?? "";
+  // Where the site will answer: the same paths on every host it serves.
+  const urls = mountedPaths(mounts).map((path) =>
+    path === "/" ? hostname : `${hostname}${path}`
+  );
 
   const addMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (domainKind: SiteDomainKind) =>
       dashboardOrpc.sites.domains.add.call({
         organizationId,
         siteId,
-        kind,
+        kind: domainKind,
         value: trimmed,
       }),
     onSuccess: async () => {
       toast.success(t("added"));
       setValue("");
+      setOverride(null);
       onOpenChange(false);
       await invalidateSites();
     },
@@ -76,77 +93,115 @@ export function SiteDomainAddDialog({
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
         <form
-          className="space-y-5"
+          className="space-y-3"
           id={`${id}-form`}
           onSubmit={(event) => {
             event.preventDefault();
-            if (trimmed && !addMutation.isPending) {
-              addMutation.mutate();
+            if (kind && !addMutation.isPending) {
+              addMutation.mutate(kind);
             }
           }}
         >
-          <SiteChoiceGroup
-            label={t("kindLabel")}
-            onValueChange={setKind}
-            options={[
-              {
-                value: "subdomain",
-                title: t("subdomainTitle"),
-                description: t("subdomainDescription"),
-              },
-              {
-                value: "proxy",
-                title: t("proxyTitle"),
-                description: t("proxyDescription", { paths }),
-              },
-            ]}
-            value={kind}
-          />
-          <div className="space-y-2">
-            <Label htmlFor={`${id}-domain`}>
-              {kind === "subdomain" ? t("subdomainLabel") : t("proxyLabel")}
-            </Label>
-            <InputGroup>
-              <InputGroupAddon>https://</InputGroupAddon>
-              <InputGroupInput
-                aria-describedby={`${id}-hint`}
-                autoCapitalize="none"
-                autoComplete="off"
-                autoFocus
-                id={`${id}-domain`}
-                inputMode="url"
-                onChange={(event) =>
-                  setValue(
-                    event.target.value.replace(
-                      SITE_DOMAIN_URL_SCHEME_PATTERN,
-                      ""
-                    )
-                  )
-                }
-                placeholder={
-                  kind === "subdomain" ? "blog.acme.com" : "acme.com"
-                }
-                spellCheck={false}
-                value={value}
-              />
-            </InputGroup>
-            <p
-              className="text-muted-foreground flex items-start gap-1.5 text-xs text-pretty"
-              id={`${id}-hint`}
-            >
+          <InputGroup className="h-10">
+            <InputGroupAddon>
               <HugeiconsIcon
                 aria-hidden="true"
-                className="mt-px size-3.5 shrink-0"
-                icon={InformationCircleIcon}
+                icon={Globe02Icon}
+                size={15}
                 strokeWidth={1.5}
               />
-              {kind === "subdomain"
-                ? t("subdomainHint")
-                : t("proxyHint", { paths })}
-            </p>
+            </InputGroupAddon>
+            <InputGroupInput
+              aria-describedby={`${id}-connection`}
+              aria-label={t("label")}
+              autoCapitalize="none"
+              autoComplete="off"
+              autoFocus
+              inputMode="url"
+              onChange={(event) => {
+                const next = event.target.value.replace(
+                  SITE_DOMAIN_URL_SCHEME_PATTERN,
+                  ""
+                );
+                // A different kind of address drops the earlier switch.
+                if (detectSiteDomainKind(next) !== detected) {
+                  setOverride(null);
+                }
+                setValue(next);
+              }}
+              placeholder={t("placeholder")}
+              spellCheck={false}
+              value={value}
+            />
+          </InputGroup>
+          <div
+            aria-live="polite"
+            className="rounded-lg border p-3"
+            id={`${id}-connection`}
+          >
+            {kind ? (
+              <div
+                className="animate-in fade-in duration-normal ease-emphasized space-y-3"
+                key={kind}
+              >
+                <div className="space-y-1.5">
+                  <p className="text-muted-foreground text-xs">{t("liveAt")}</p>
+                  <ul className="space-y-1">
+                    {urls.map((url) => (
+                      <li
+                        className="animate-in fade-in motion-safe:slide-in-from-left-1 duration-normal ease-emphasized flex items-center gap-2 font-mono text-sm"
+                        key={url}
+                      >
+                        <HugeiconsIcon
+                          aria-hidden="true"
+                          className="text-muted-foreground shrink-0"
+                          icon={Link04Icon}
+                          size={13}
+                          strokeWidth={1.5}
+                        />
+                        <span className="truncate">{url}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="border-border/60 flex items-start gap-2.5 border-t pt-3">
+                  <HugeiconsIcon
+                    aria-hidden="true"
+                    className="text-muted-foreground mt-0.5 shrink-0"
+                    icon={
+                      kind === "subdomain" ? ServerStack01Icon : Route01Icon
+                    }
+                    size={15}
+                    strokeWidth={1.5}
+                  />
+                  <div className="min-w-0 flex-1 space-y-1 text-sm">
+                    <p className="text-muted-foreground text-pretty">
+                      {kind === "subdomain"
+                        ? t("subdomainExplain", { hostname })
+                        : t("proxyExplain", { hostname })}
+                    </p>
+                    <button
+                      className="text-foreground focus-visible:ring-ring/50 rounded-sm font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-[3px]"
+                      onClick={() =>
+                        setOverride(
+                          kind === "subdomain" ? "proxy" : "subdomain"
+                        )
+                      }
+                      type="button"
+                    >
+                      {kind === "subdomain" ? t("useProxy") : t("useDns")}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm text-pretty">
+                {t("hint")}
+              </p>
+            )}
           </div>
         </form>
-        <ResponsiveDialogFooter>
+        <ResponsiveDialogFooter className="sm:justify-between">
           <Button
             disabled={addMutation.isPending}
             onClick={() => onOpenChange(false)}
@@ -156,7 +211,7 @@ export function SiteDomainAddDialog({
             {tCommon("actions.cancel")}
           </Button>
           <Button
-            disabled={!trimmed}
+            disabled={!kind}
             form={`${id}-form`}
             loading={addMutation.isPending}
             type="submit"

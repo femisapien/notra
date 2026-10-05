@@ -21,6 +21,8 @@ export function SiteSuggestInput({
   icon,
   placeholder,
   emptyLabel,
+  invalid = false,
+  describedBy,
 }: SiteSuggestInputProps) {
   return (
     <Autocomplete
@@ -30,6 +32,8 @@ export function SiteSuggestInput({
       value={value}
     >
       <AutocompleteInput
+        aria-describedby={describedBy}
+        aria-invalid={invalid || undefined}
         autoComplete="off"
         id={id}
         placeholder={placeholder}

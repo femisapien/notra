@@ -1,0 +1,282 @@
+import { SITE_CONFIG_FILENAME } from "@notra/sites-core/constants/sites";
+import { slugify } from "@notra/utils/slugify";
+import { fromMarkdown } from "mdast-util-from-markdown";
+
+import {
+  SITE_ENTRY_DESCRIPTION_MAX_LENGTH,
+  SITE_ENTRY_DIRECTORIES,
+  SITE_ENTRY_FALLBACK_SLUG,
+  SITE_IMAGE_DIRECTORY,
+  SITE_PUBLIC_DIRECTORY,
+} from "@/constants/site-github-publish";
+import { siteConfigAuthorsSchema } from "@/schemas/site-github-publish";
+import type { GitHubPublishContentType } from "@/types/integrations/github";
+import type {
+  BuildSiteEntryMarkdownParams,
+  SiteConfigAuthorNames,
+  SiteMarkdownNode,
+} from "@/types/integrations/site-github-publish";
+
+/** Same block the Sites compiler reads; it must be the very start of the file. */
+const FRONTMATTER_BLOCK = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
+const FRONTMATTER_TITLE_KEY = /^title[ \t]*:/m;
+const FRONTMATTER_DATE_KEY = /^date[ \t]*:/m;
+const FRONTMATTER_AUTHOR_LINE = /^author[ \t]*:[ \t]*(.*)$/m;
+const UNQUOTED_YAML_COMMENT = /\s+#.*$/;
+const LEADING_BLANK_LINES = /^(?:[ \t]*\r?\n)+/;
+const LEADING_ATX_HEADING =
+  /^[ \t]{0,3}#[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*(?:\r?\n|$)/;
+const WHITESPACE_RUN = /\s+/g;
+const TRAILING_PUNCTUATION = /[\s,;:.\-–—]+$/;
+const SURROUNDING_SLASHES = /^\/+|\/+$/g;
+const SITE_IMAGE_URL = /^(?:https:\/\/|\/(?!\/))/;
+const ELLIPSIS = "…";
+
+function joinRepositoryPath(...segments: string[]): string {
+  return segments
+    .map((segment) => segment.replace(SURROUNDING_SLASHES, ""))
+    .filter(Boolean)
+    .join("/");
+}
+
+/** Root directory as stored on the site, without surrounding slashes. */
+export function normalizeSiteRootDirectory(rootDirectory: string): string {
+  return rootDirectory.replace(SURROUNDING_SLASHES, "");
+}
+
+/** `docs/notra.json`, or `notra.json` at the repository root. */
+export function resolveSiteConfigPath(rootDirectory: string): string {
+  return joinRepositoryPath(rootDirectory, SITE_CONFIG_FILENAME);
+}
+
+/** `docs` + blog post → `docs/blog`; the repo root gives `blog`. */
+export function resolveSiteEntryDirectory(
+  rootDirectory: string,
+  contentType: GitHubPublishContentType
+): string {
+  return joinRepositoryPath(rootDirectory, SITE_ENTRY_DIRECTORIES[contentType]);
+}
+
+/** The folder the site serves from `/`, e.g. `docs/public`. */
+export function resolveSitePublicDirectory(rootDirectory: string): string {
+  return joinRepositoryPath(rootDirectory, SITE_PUBLIC_DIRECTORY);
+}
+
+/** `docs/public/images/blog/:slug/image`, referenced as `/images/blog/<slug>/…`. */
+export function resolveSiteImagePathTemplate(
+  rootDirectory: string,
+  contentType: GitHubPublishContentType
+): string {
+  return joinRepositoryPath(
+    resolveSitePublicDirectory(rootDirectory),
+    SITE_IMAGE_DIRECTORY,
+    SITE_ENTRY_DIRECTORIES[contentType],
+    ":slug/image"
+  );
+}
+
+/** File name = URL slug: lowercase letters, digits and dashes. */
+export function resolveSiteEntrySlug(params: {
+  contentId: string;
+  slug: string | null;
+  title: string;
+}): string {
+  return (
+    slugify(params.slug ?? "") ||
+    slugify(params.title) ||
+    slugify(params.contentId) ||
+    SITE_ENTRY_FALLBACK_SLUG
+  );
+}
+
+/** Matches a notra.json author by name; anything else stays a plain name. */
+export function resolveSiteAuthor(
+  authors: SiteConfigAuthorNames,
+  name: string | null | undefined
+): string | null {
+  const trimmed = name?.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const wanted = trimmed.toLowerCase();
+  const match = Object.entries(authors).find(
+    ([, authorName]) => authorName.trim().toLowerCase() === wanted
+  );
+  return match ? match[0] : trimmed;
+}
+
+/** Author ids and names from a raw notra.json; empty when it can't be read. */
+export function parseSiteConfigAuthors(raw: string): SiteConfigAuthorNames {
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    return {};
+  }
+  const parsed = siteConfigAuthorsSchema.safeParse(json);
+  if (!(parsed.success && parsed.data.authors)) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(parsed.data.authors).map(([id, author]) => [id, author.name])
+  );
+}
+
+function parseYamlScalar(value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed.startsWith('"')) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      return typeof parsed === "string" ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  if (trimmed.startsWith("'")) {
+    return trimmed.endsWith("'") && trimmed.length > 1
+      ? trimmed.slice(1, -1).replaceAll("''", "'")
+      : null;
+  }
+  // Lists, maps and block scalars are kept out; only a single name carries over.
+  if (!trimmed || "[{|>&*!".includes(trimmed[0] ?? "")) {
+    return null;
+  }
+  return trimmed.replace(UNQUOTED_YAML_COMMENT, "") || null;
+}
+
+/** The single `author:` value of an existing entry, if it has one. */
+export function readSiteEntryAuthor(markdown: string): string | null {
+  const block = FRONTMATTER_BLOCK.exec(markdown)?.[1];
+  const line = block ? FRONTMATTER_AUTHOR_LINE.exec(block)?.[1] : undefined;
+  return line === undefined ? null : parseYamlScalar(line);
+}
+
+function normalizeHeadingText(value: string): string {
+  return value.replace(WHITESPACE_RUN, " ").trim().toLowerCase();
+}
+
+/** Sites renders the title itself, so a leading `# Title` would show it twice. */
+export function stripLeadingTitleHeading(body: string, title: string): string {
+  const withoutBlankLines = body.replace(LEADING_BLANK_LINES, "");
+  const heading = LEADING_ATX_HEADING.exec(withoutBlankLines);
+  if (
+    !(
+      heading?.[1] &&
+      normalizeHeadingText(heading[1]) === normalizeHeadingText(title)
+    )
+  ) {
+    return body;
+  }
+  return withoutBlankLines
+    .slice(heading[0].length)
+    .replace(LEADING_BLANK_LINES, "");
+}
+
+function collectText(node: SiteMarkdownNode): string {
+  if (node.type === "text" || node.type === "inlineCode") {
+    return node.value ?? "";
+  }
+  if (node.type === "break") {
+    return " ";
+  }
+  if (node.type === "image" || node.type === "html") {
+    return "";
+  }
+  return (node.children ?? []).map(collectText).join("");
+}
+
+function truncateOnWordBoundary(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  const room = text.slice(0, maxLength - ELLIPSIS.length + 1);
+  const lastSpace = room.lastIndexOf(" ");
+  const cut = lastSpace > 0 ? room.slice(0, lastSpace) : room.slice(0, -1);
+  return `${cut.replace(TRAILING_PUNCTUATION, "")}${ELLIPSIS}`;
+}
+
+/** Plain text of the first paragraph with words in it, at most `maxLength` characters. */
+export function extractMarkdownExcerpt(
+  markdown: string,
+  maxLength: number = SITE_ENTRY_DESCRIPTION_MAX_LENGTH
+): string {
+  const tree = fromMarkdown(markdown) as SiteMarkdownNode;
+  for (const node of tree.children ?? []) {
+    if (node.type !== "paragraph") {
+      continue;
+    }
+    const text = collectText(node).replace(WHITESPACE_RUN, " ").trim();
+    if (text) {
+      return truncateOnWordBoundary(text, maxLength);
+    }
+  }
+  return "";
+}
+
+function findFirstImageUrl(node: SiteMarkdownNode): string | null {
+  if (node.type === "image") {
+    return node.url ?? null;
+  }
+  for (const child of node.children ?? []) {
+    const url = findFirstImageUrl(child);
+    if (url !== null) {
+      return url;
+    }
+  }
+  return null;
+}
+
+/** The first inline image when Sites can load it (a site path or an https URL). */
+export function findSiteEntryImage(markdown: string): string | null {
+  const url = findFirstImageUrl(fromMarkdown(markdown) as SiteMarkdownNode);
+  return url && SITE_IMAGE_URL.test(url) ? url : null;
+}
+
+function formatSiteEntryDate(date: Date): string {
+  return date.toISOString().slice(0, "YYYY-MM-DD".length);
+}
+
+/** JSON strings are valid YAML double-quoted scalars, escapes included. */
+function yamlString(value: string): string {
+  return JSON.stringify(value);
+}
+
+/**
+ * Turns saved markdown into a Notra Sites entry: YAML frontmatter on top and
+ * no duplicate title heading. Markdown that already brings frontmatter keeps
+ * it; only a missing title or date is added.
+ */
+export function buildSiteEntryMarkdown(
+  params: BuildSiteEntryMarkdownParams
+): string {
+  const date = formatSiteEntryDate(params.date);
+  const existing = FRONTMATTER_BLOCK.exec(params.markdown);
+  if (existing) {
+    const block = existing[1] ?? "";
+    const missing = [
+      FRONTMATTER_TITLE_KEY.test(block)
+        ? null
+        : `title: ${yamlString(params.title)}`,
+      FRONTMATTER_DATE_KEY.test(block) ? null : `date: ${date}`,
+    ].filter((line): line is string => line !== null);
+    if (missing.length === 0) {
+      return params.markdown;
+    }
+    const rest = params.markdown.slice(existing[0].length);
+    return `---\n${[...missing, block].filter(Boolean).join("\n")}\n---\n${rest}`;
+  }
+
+  const body = stripLeadingTitleHeading(params.markdown, params.title);
+  const description = extractMarkdownExcerpt(body);
+  const image = findSiteEntryImage(body);
+  const author =
+    params.contentType === "blog_post" ? params.author?.trim() : undefined;
+  const lines = [
+    `title: ${yamlString(params.title)}`,
+    description ? `description: ${yamlString(description)}` : null,
+    `date: ${date}`,
+    author ? `author: ${yamlString(author)}` : null,
+    image ? `image: ${yamlString(image)}` : null,
+  ].filter((line): line is string => line !== null);
+  return `---\n${lines.join("\n")}\n---\n\n${body}`;
+}

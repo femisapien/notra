@@ -7,6 +7,7 @@ import { CONTENT_IMAGE_MIME_EXTENSIONS } from "@/constants/content-image";
 import { CONTENT_VIDEO_MIME_EXTENSIONS } from "@/constants/content-video";
 import {
   GITHUB_CONTENT_MAX_ASSET_BYTES,
+  GITHUB_DEFAULT_PUBLIC_DIRECTORY,
   GITHUB_CONTENT_MAX_ASSET_COUNT,
   GITHUB_CONTENT_MAX_SINGLE_ASSET_BYTES,
 } from "@/constants/github";
@@ -260,9 +261,14 @@ function resolveStoredImageKey(
   return r2Key ?? getAppContentImageKey(imageUrl, appOrigin);
 }
 
-function resolveMarkdownImagePath(contentPath: string, imagePath: string) {
-  if (imagePath.startsWith("public/")) {
-    return `/${encodeMarkdownPath(imagePath.slice("public/".length))}`;
+function resolveMarkdownImagePath(
+  contentPath: string,
+  imagePath: string,
+  publicDirectory: string
+) {
+  const publicPrefix = `${publicDirectory}/`;
+  if (imagePath.startsWith(publicPrefix)) {
+    return `/${encodeMarkdownPath(imagePath.slice(publicPrefix.length))}`;
   }
 
   const relativePath = posix.relative(posix.dirname(contentPath), imagePath);
@@ -330,7 +336,8 @@ export async function prepareGitHubContentAssets(
     assets.push({ contents: image.asset.contents, path: imagePath });
     const markdownImagePath = resolveMarkdownImagePath(
       params.contentPath,
-      imagePath
+      imagePath,
+      params.publicDirectory ?? GITHUB_DEFAULT_PUBLIC_DIRECTORY
     );
     for (const imageUrl of image.imageUrls) {
       replacements.set(
@@ -356,6 +363,7 @@ export async function prepareR2GitHubContentAssets(params: {
   imagePathTemplate: string;
   markdown: string;
   organizationId: string;
+  publicDirectory?: string;
   slug: string;
 }) {
   const publicUrl = getOptionalR2PublicUrl();

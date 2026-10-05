@@ -2,14 +2,6 @@
 
 import { PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  ResponsiveDialog,
-  ResponsiveDialogContent,
-  ResponsiveDialogDescription,
-  ResponsiveDialogFooter,
-  ResponsiveDialogHeader,
-  ResponsiveDialogTitle,
-} from "@notra/ui/components/shared/responsive-dialog";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -18,6 +10,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/button";
 import { PageHeader } from "@/components/layout/page-header";
+import { SiteConfirmDialog } from "@/components/sites/site-confirm-dialog";
 import { useSite } from "@/components/sites/site-context";
 import { SiteDomainAddDialog } from "@/components/sites/site-domain-add-dialog";
 import { SiteDomainsTable } from "@/components/sites/site-domains-table";
@@ -73,7 +66,6 @@ function RemoveDomainDialog({
   onOpenChange,
 }: SiteDomainRemoveDialogProps) {
   const t = useTranslations("sites.domainsPage");
-  const tCommon = useTranslations("common");
   const invalidateSites = useInvalidateSites();
 
   const removeMutation = useMutation({
@@ -94,41 +86,27 @@ function RemoveDomainDialog({
   });
 
   return (
-    <ResponsiveDialog onOpenChange={onOpenChange} open={domain !== null}>
-      <ResponsiveDialogContent>
-        <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle>{t("removeTitle")}</ResponsiveDialogTitle>
-          <ResponsiveDialogDescription>
-            {domain?.isPrimary
-              ? t("removePrimaryDescription", {
-                  hostname: domain.hostname,
-                  alias: displayUrl(aliasOrigin),
-                })
-              : t("removeDescription", { hostname: domain?.hostname ?? "" })}
-          </ResponsiveDialogDescription>
-        </ResponsiveDialogHeader>
-        <ResponsiveDialogFooter>
-          <Button
-            disabled={removeMutation.isPending}
-            onClick={() => onOpenChange(false)}
-            variant="outline"
-          >
-            {tCommon("actions.cancel")}
-          </Button>
-          <Button
-            loading={removeMutation.isPending}
-            onClick={() => {
-              if (domain) {
-                removeMutation.mutate(domain.id);
-              }
-            }}
-            variant="destructive"
-          >
-            {t("removeConfirm")}
-          </Button>
-        </ResponsiveDialogFooter>
-      </ResponsiveDialogContent>
-    </ResponsiveDialog>
+    <SiteConfirmDialog
+      confirmLabel={t("removeConfirm")}
+      description={
+        domain?.isPrimary
+          ? t("removePrimaryDescription", {
+              hostname: domain.hostname,
+              alias: displayUrl(aliasOrigin),
+            })
+          : t("removeDescription", { hostname: domain?.hostname ?? "" })
+      }
+      destructive
+      onConfirm={() => {
+        if (domain) {
+          removeMutation.mutate(domain.id);
+        }
+      }}
+      onOpenChange={onOpenChange}
+      open={domain !== null}
+      pending={removeMutation.isPending}
+      title={t("removeTitle")}
+    />
   );
 }
 
@@ -157,12 +135,6 @@ export function SiteDomainsPage() {
         organizationId={organizationId}
         siteId={siteId}
       />
-
-      {domains.length === 0 ? (
-        <p className="text-muted-foreground max-w-xl text-sm text-pretty">
-          {t("empty.description")}
-        </p>
-      ) : null}
 
       <SiteDomainAddDialog
         mounts={site.mounts}

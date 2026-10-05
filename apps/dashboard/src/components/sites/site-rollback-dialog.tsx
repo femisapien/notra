@@ -1,18 +1,10 @@
 "use client";
 
-import {
-  ResponsiveDialog,
-  ResponsiveDialogContent,
-  ResponsiveDialogDescription,
-  ResponsiveDialogFooter,
-  ResponsiveDialogHeader,
-  ResponsiveDialogTitle,
-} from "@notra/ui/components/shared/responsive-dialog";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
-import { Button } from "@/components/button";
+import { SiteConfirmDialog } from "@/components/sites/site-confirm-dialog";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SiteRollbackDialogProps } from "@/types/components/sites";
@@ -26,7 +18,6 @@ export function SiteRollbackDialog({
   onOpenChange,
 }: SiteRollbackDialogProps) {
   const t = useTranslations("sites.rollback");
-  const tCommon = useTranslations("common");
   const invalidateSites = useInvalidateSites();
   const rollbackMutation = useMutation({
     mutationFn: (deploymentId: string) =>
@@ -48,44 +39,29 @@ export function SiteRollbackDialog({
   const title = deployment ? commitTitle(deployment.commitMessage) : null;
 
   return (
-    <ResponsiveDialog onOpenChange={onOpenChange} open={deployment !== null}>
-      <ResponsiveDialogContent>
-        <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle>{t("title")}</ResponsiveDialogTitle>
-          <ResponsiveDialogDescription>
-            {t("description")}
-          </ResponsiveDialogDescription>
-        </ResponsiveDialogHeader>
-        {deployment ? (
-          <div className="bg-muted/50 rounded-lg border px-3 py-2 text-sm">
-            <p className="truncate font-medium">
-              {title ?? t("noCommitMessage")}
-            </p>
-            <p className="text-muted-foreground font-mono text-xs">
-              {shortSha(deployment.commitSha)} · {deployment.branch}
-            </p>
-          </div>
-        ) : null}
-        <ResponsiveDialogFooter>
-          <Button
-            disabled={rollbackMutation.isPending}
-            onClick={() => onOpenChange(false)}
-            variant="outline"
-          >
-            {tCommon("actions.cancel")}
-          </Button>
-          <Button
-            loading={rollbackMutation.isPending}
-            onClick={() => {
-              if (deployment) {
-                rollbackMutation.mutate(deployment.id);
-              }
-            }}
-          >
-            {t("confirm")}
-          </Button>
-        </ResponsiveDialogFooter>
-      </ResponsiveDialogContent>
-    </ResponsiveDialog>
+    <SiteConfirmDialog
+      confirmLabel={t("confirm")}
+      description={t("description")}
+      onConfirm={() => {
+        if (deployment) {
+          rollbackMutation.mutate(deployment.id);
+        }
+      }}
+      onOpenChange={onOpenChange}
+      open={deployment !== null}
+      pending={rollbackMutation.isPending}
+      title={t("title")}
+    >
+      {deployment ? (
+        <div className="bg-muted/50 rounded-lg border px-3 py-2 text-sm">
+          <p className="truncate font-medium">
+            {title ?? t("noCommitMessage")}
+          </p>
+          <p className="text-muted-foreground font-mono text-xs">
+            {shortSha(deployment.commitSha)} · {deployment.branch}
+          </p>
+        </div>
+      ) : null}
+    </SiteConfirmDialog>
   );
 }

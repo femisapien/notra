@@ -190,11 +190,8 @@ export function SiteEditorPage() {
         <SiteEditorHeaderActions
           canCreateFile={canCreateFile}
           draftCount={draftCount}
-          filesLoaded={data !== null}
-          isValidating={validateMutation.isPending}
           onNewFile={() => setNewFileOpen(true)}
           onPublish={() => setPublishOpen(true)}
-          onValidate={() => validateMutation.mutate()}
           unsaved={unsaved}
         />
       </PageHeader>

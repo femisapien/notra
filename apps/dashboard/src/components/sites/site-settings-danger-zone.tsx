@@ -1,13 +1,5 @@
 "use client";
 
-import {
-  ResponsiveDialog,
-  ResponsiveDialogContent,
-  ResponsiveDialogDescription,
-  ResponsiveDialogFooter,
-  ResponsiveDialogHeader,
-  ResponsiveDialogTitle,
-} from "@notra/ui/components/shared/responsive-dialog";
 import { TitleCard } from "@notra/ui/components/ui/title-card";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
@@ -15,6 +7,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/button";
+import { SiteConfirmDialog } from "@/components/sites/site-confirm-dialog";
 import { SiteDeleteDialog } from "@/components/sites/site-delete-dialog";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
@@ -29,7 +22,6 @@ export function SiteSettingsDangerZone({
   site,
 }: SiteSettingsDangerZoneProps) {
   const t = useTranslations("sites.settings");
-  const tCommon = useTranslations("common");
   const invalidateSites = useInvalidateSites();
   const [offlineOpen, setOfflineOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -109,36 +101,16 @@ export function SiteSettingsDangerZone({
         </div>
       </TitleCard>
 
-      <ResponsiveDialog onOpenChange={setOfflineOpen} open={offlineOpen}>
-        <ResponsiveDialogContent>
-          <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>
-              {t("offline.confirmTitle")}
-            </ResponsiveDialogTitle>
-            <ResponsiveDialogDescription>
-              {t("offline.confirmDescription")}
-            </ResponsiveDialogDescription>
-          </ResponsiveDialogHeader>
-          <ResponsiveDialogFooter>
-            <Button
-              disabled={suspendMutation.isPending}
-              onClick={() => setOfflineOpen(false)}
-              type="button"
-              variant="outline"
-            >
-              {tCommon("actions.cancel")}
-            </Button>
-            <Button
-              loading={suspendMutation.isPending}
-              onClick={() => suspendMutation.mutate(true)}
-              type="button"
-              variant="destructive"
-            >
-              {t("offline.action")}
-            </Button>
-          </ResponsiveDialogFooter>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
+      <SiteConfirmDialog
+        confirmLabel={t("offline.action")}
+        description={t("offline.confirmDescription")}
+        destructive
+        onConfirm={() => suspendMutation.mutate(true)}
+        onOpenChange={setOfflineOpen}
+        open={offlineOpen}
+        pending={suspendMutation.isPending}
+        title={t("offline.confirmTitle")}
+      />
       <SiteDeleteDialog
         onOpenChange={setDeleteOpen}
         open={deleteOpen}

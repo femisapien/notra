@@ -1,18 +1,10 @@
 "use client";
 
-import {
-  ResponsiveDialog,
-  ResponsiveDialogContent,
-  ResponsiveDialogDescription,
-  ResponsiveDialogFooter,
-  ResponsiveDialogHeader,
-  ResponsiveDialogTitle,
-} from "@notra/ui/components/shared/responsive-dialog";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
-import { Button } from "@/components/button";
+import { SiteConfirmDialog } from "@/components/sites/site-confirm-dialog";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SitePreviewDeleteDialogProps } from "@/types/components/sites";
@@ -26,7 +18,6 @@ export function SitePreviewDeleteDialog({
   onOpenChange,
 }: SitePreviewDeleteDialogProps) {
   const t = useTranslations("sites.previewsPage");
-  const tCommon = useTranslations("common");
   const invalidateSites = useInvalidateSites();
 
   const deleteMutation = useMutation({
@@ -47,37 +38,21 @@ export function SitePreviewDeleteDialog({
   });
 
   return (
-    <ResponsiveDialog onOpenChange={onOpenChange} open={preview !== null}>
-      <ResponsiveDialogContent>
-        <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle>{t("deleteTitle")}</ResponsiveDialogTitle>
-          <ResponsiveDialogDescription>
-            {t("deleteDescription", {
-              name: preview?.branch ?? preview?.previewKey ?? "",
-            })}
-          </ResponsiveDialogDescription>
-        </ResponsiveDialogHeader>
-        <ResponsiveDialogFooter>
-          <Button
-            disabled={deleteMutation.isPending}
-            onClick={() => onOpenChange(false)}
-            variant="outline"
-          >
-            {tCommon("actions.cancel")}
-          </Button>
-          <Button
-            loading={deleteMutation.isPending}
-            onClick={() => {
-              if (preview) {
-                deleteMutation.mutate(preview.previewKey);
-              }
-            }}
-            variant="destructive"
-          >
-            {t("delete")}
-          </Button>
-        </ResponsiveDialogFooter>
-      </ResponsiveDialogContent>
-    </ResponsiveDialog>
+    <SiteConfirmDialog
+      confirmLabel={t("delete")}
+      description={t("deleteDescription", {
+        name: preview?.branch ?? preview?.previewKey ?? "",
+      })}
+      destructive
+      onConfirm={() => {
+        if (preview) {
+          deleteMutation.mutate(preview.previewKey);
+        }
+      }}
+      onOpenChange={onOpenChange}
+      open={preview !== null}
+      pending={deleteMutation.isPending}
+      title={t("deleteTitle")}
+    />
   );
 }

@@ -1,0 +1,157 @@
+import {
+  createOctokit,
+  GITHUB_INTERACTIVE_READ_TIMEOUT_MS,
+} from "@notra/ai/utils/octokit";
+import { db } from "@notra/db/drizzle";
+import { sites, users } from "@notra/db/schema";
+import { and, asc, eq, or, sql } from "drizzle-orm";
+
+import { GITHUB_API_VERSION_HEADERS } from "@/constants/github";
+import { SITE_ENTRY_DIRECTORIES } from "@/constants/site-github-publish";
+import type { GitHubPublishContentType } from "@/types/integrations/github";
+import type { SiteGitHubPublishTarget } from "@/types/integrations/site-github-publish";
+import {
+  normalizeSiteRootDirectory,
+  parseSiteConfigAuthors,
+  readSiteEntryAuthor,
+  resolveSiteAuthor,
+  resolveSiteConfigPath,
+} from "@/utils/site-github-publish";
+
+/**
+ * The Notra Site that builds from this repository, if any. Sites link the
+ * same GitHub integration row; the GitHub id and owner/name catch a site
+ * whose link was reset when the integration was reconnected.
+ */
+export async function findSiteGitHubPublishTarget(params: {
+  organizationId: string;
+  contentType: GitHubPublishContentType;
+  repository: {
+    id: string;
+    githubRepositoryId: string | null;
+    owner: string;
+    repo: string;
+  };
+}): Promise<SiteGitHubPublishTarget | null> {
+  const { repository } = params;
+  const candidates = await db
+    .select({
+      id: sites.id,
+      rootDirectory: sites.rootDirectory,
+      productionBranch: sites.productionBranch,
+      mounts: sites.mounts,
+    })
+    .from(sites)
+    .where(
+      and(
+        eq(sites.organizationId, params.organizationId),
+        or(
+          eq(sites.repositoryId, repository.id),
+          repository.githubRepositoryId
+            ? eq(sites.githubRepositoryId, repository.githubRepositoryId)
+            : undefined,
+          and(
+            sql`lower(${sites.repositoryOwner}) = ${repository.owner.toLowerCase()}`,
+            sql`lower(${sites.repositoryName}) = ${repository.repo.toLowerCase()}`
+          )
+        )
+      )
+    )
+    .orderBy(asc(sites.createdAt));
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const section = SITE_ENTRY_DIRECTORIES[params.contentType];
+  // One repository can hold several sites; prefer one that serves the section.
+  const site =
+    candidates.find((candidate) => Boolean(candidate.mounts[section])) ??
+    candidates[0];
+  if (!site) {
+    return null;
+  }
+  return {
+    siteId: site.id,
+    rootDirectory: normalizeSiteRootDirectory(site.rootDirectory),
+    productionBranch: site.productionBranch,
+    sectionMounted: Boolean(site.mounts[section]),
+  };
+}
+
+async function readRepositoryTextFile(
+  token: string,
+  params: { owner: string; repo: string; path: string; ref: string }
+): Promise<string | null> {
+  try {
+    const { data } = await createOctokit(token, {
+      requestTimeoutMs: GITHUB_INTERACTIVE_READ_TIMEOUT_MS,
+    }).request("GET /repos/{owner}/{repo}/contents/{path}", {
+      ...params,
+      headers: GITHUB_API_VERSION_HEADERS,
+    });
+    if (
+      Array.isArray(data) ||
+      data.type !== "file" ||
+      typeof data.content !== "string"
+    ) {
+      return null;
+    }
+    return Buffer.from(data.content, "base64").toString("utf8");
+  } catch {
+    // Missing files and failed reads only cost the author line.
+    return null;
+  }
+}
+
+async function readPublisherName(userId: string | undefined) {
+  if (!userId) {
+    return null;
+  }
+  const user = await db.query.users.findFirst({
+    columns: { name: true },
+    where: eq(users.id, userId),
+  });
+  return user?.name ?? null;
+}
+
+/**
+ * The `author:` value for a blog post. A republish keeps the author already
+ * on the pull request branch; otherwise the publisher is matched against
+ * `authors` in notra.json and falls back to their display name.
+ */
+export async function resolveSiteEntryAuthor(params: {
+  token: string;
+  owner: string;
+  repo: string;
+  target: SiteGitHubPublishTarget;
+  publisherUserId: string | undefined;
+  existingEntry: { branchName: string; path: string } | undefined;
+}): Promise<string | null> {
+  const [existingMarkdown, publisherName, siteConfig] = await Promise.all([
+    params.existingEntry
+      ? readRepositoryTextFile(params.token, {
+          owner: params.owner,
+          repo: params.repo,
+          path: params.existingEntry.path,
+          ref: params.existingEntry.branchName,
+        })
+      : null,
+    readPublisherName(params.publisherUserId),
+    readRepositoryTextFile(params.token, {
+      owner: params.owner,
+      repo: params.repo,
+      path: resolveSiteConfigPath(params.target.rootDirectory),
+      ref: params.target.productionBranch,
+    }),
+  ]);
+  const existingAuthor = existingMarkdown
+    ? readSiteEntryAuthor(existingMarkdown)
+    : null;
+  if (existingAuthor) {
+    return existingAuthor;
+  }
+  return resolveSiteAuthor(
+    siteConfig ? parseSiteConfigAuthors(siteConfig) : {},
+    publisherName
+  );
+}

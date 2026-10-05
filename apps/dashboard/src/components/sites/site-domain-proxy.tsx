@@ -19,11 +19,7 @@ import { displayUrl } from "@/utils/site-links";
 import { buildProxyRecipes, mountedPaths } from "@/utils/site-proxy-recipes";
 
 /** Ready-to-paste rewrites for the customer's platform, picked from a select in the code header. */
-export function SiteProxySetup({
-  aliasOrigin,
-  mounts,
-  showHeading = true,
-}: SiteProxySetupProps) {
+export function SiteProxySetup({ aliasOrigin, mounts }: SiteProxySetupProps) {
   const t = useTranslations("sites.domainsPage.proxy");
   const recipes = buildProxyRecipes(aliasOrigin, mounts);
   const [activeId, setActiveId] = useState<SiteProxyRecipeId>("vercel");
@@ -33,9 +29,7 @@ export function SiteProxySetup({
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        {showHeading ? (
-          <h3 className="text-sm font-medium">{t("title")}</h3>
-        ) : null}
+        <h3 className="text-sm font-medium">{t("title")}</h3>
         <p className="text-muted-foreground text-sm text-pretty">
           {t.rich("description", {
             paths: paths.join(", "),

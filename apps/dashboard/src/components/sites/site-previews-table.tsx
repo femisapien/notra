@@ -210,25 +210,11 @@ export function SitePreviewsTable({
     ),
   };
 
-  const compactActionsColumn: TableColumn<SitePreviewRow> = {
-    key: "actions",
-    header: <span className="sr-only">{tCommon("labels.actions")}</span>,
-    width: "3.25rem",
-    align: "right",
-    cell: (row) => (
-      <OpenPreviewButton
-        disabled={!row.served}
-        label={t("openLabel", { name: row.branch ?? row.previewKey })}
-        onOpen={() => openPreview(row)}
-        tooltip={t("open")}
-      />
-    ),
-  };
-
   const actionsColumn: TableColumn<SitePreviewRow> = {
     key: "actions",
     header: <span className="sr-only">{tCommon("labels.actions")}</span>,
-    width: "4.75rem",
+    // The overview's compact table only opens previews; the menu lives on the Previews page.
+    width: compact ? "3.25rem" : "4.75rem",
     align: "right",
     cell: (row) => (
       <span className="flex items-center justify-end gap-1">
@@ -238,24 +224,20 @@ export function SitePreviewsTable({
           onOpen={() => openPreview(row)}
           tooltip={t("open")}
         />
-        <SitePreviewRowMenu
-          onCopyShareLink={() => copyShareLink(row)}
-          onDelete={() => setDeleteTarget(row)}
-          onViewDeployment={() => router.push(rowHref(row))}
-          row={row}
-        />
+        {compact ? null : (
+          <SitePreviewRowMenu
+            onCopyShareLink={() => copyShareLink(row)}
+            onDelete={() => setDeleteTarget(row)}
+            onViewDeployment={() => router.push(rowHref(row))}
+            row={row}
+          />
+        )}
       </span>
     ),
   };
 
   const columns = compact
-    ? [
-        previewColumn,
-        commitColumn,
-        accessColumn,
-        updatedColumn,
-        compactActionsColumn,
-      ]
+    ? [previewColumn, commitColumn, accessColumn, updatedColumn, actionsColumn]
     : [
         previewColumn,
         statusColumn,

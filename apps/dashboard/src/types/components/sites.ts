@@ -1,11 +1,13 @@
 import type { IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
 
+import type { SiteIntegrationProvider } from "@/types/site-integrations";
 import type {
   SiteBuildLogEntry,
   SiteBuildLogFold,
   SiteBuildLogLine,
   SiteChoiceOption,
+  SiteCreateFieldErrors,
   SiteCreateFormValues,
   SiteDeployment,
   SiteDeploymentRecord,
@@ -16,11 +18,14 @@ import type {
   SiteDomain,
   SiteDomainChipStatus,
   SiteDomainRecord,
+  SiteImportableRepository,
   SiteEditorDraft,
   SiteListItem,
   SiteMounts,
   SiteNewFileFolder,
   SitePreviewRow,
+  SitePreviewVisibility,
+  SitePublishMode,
   SiteRecord,
   SiteRepository,
   SiteScope,
@@ -60,14 +65,26 @@ export interface SiteCreateSourceFieldsProps {
   /** The picked repository; null until one is. */
   repository: SiteRepository | null;
   slugInvalid: boolean;
+  /** Messages from a rejected create call, shown under their fields. */
+  errors: SiteCreateFieldErrors;
+  starterPullRequestUrl: string | null;
+  onStarterPullRequestOpened: (url: string) => void;
 }
 
-export interface SiteRepositorySelectProps {
-  id: string;
-  repositories: SiteRepository[];
-  isLoading: boolean;
-  value: string | null;
-  onSelect: (repository: SiteRepository) => void;
+export interface SiteCreateSection {
+  key: string;
+  title: string;
+  enabled: boolean;
+  path: string;
+  onEnabledChange: (value: boolean) => void;
+  onPathChange: (value: string) => void;
+}
+
+export interface SiteCreateSectionsProps {
+  idPrefix: string;
+  sections: SiteCreateSection[];
+  /** A rejected create call's message about the sections. */
+  error?: string;
 }
 
 export interface SiteAddressInputProps {
@@ -78,14 +95,7 @@ export interface SiteAddressInputProps {
   placeholder: string;
   /** Shown after the input, e.g. `notra.site`; hidden when unknown. */
   hostingDomain: string | null;
-}
-
-export interface SiteCreateBarProps {
-  organizationSlug: string;
-  /** The branch the first build will use; null before a repository is picked. */
-  productionBranch: string | null;
-  canSubmit: boolean;
-  isCreating: boolean;
+  describedBy?: string;
 }
 
 export interface SiteSectionsFieldsProps {
@@ -98,8 +108,6 @@ export interface SiteSectionsFieldsProps {
   onChangelogEnabledChange: (value: boolean) => void;
   onBlogPathChange: (value: string) => void;
   onChangelogPathChange: (value: string) => void;
-  /** Hides the "Sections" heading when a surrounding row already labels the fields. */
-  hideTitle?: boolean;
 }
 
 export interface SiteSectionRowProps {
@@ -141,7 +149,19 @@ export interface SiteCopyButtonProps {
   value: string;
   /** What is copied, for the accessible name: "Copy {label}". */
   label: string;
-  className?: string;
+}
+
+export interface SiteConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: ReactNode;
+  confirmLabel: string;
+  destructive?: boolean;
+  pending: boolean;
+  onConfirm: () => void;
+  /** Shown between the description and the buttons, e.g. what is affected. */
+  children?: ReactNode;
 }
 
 export interface SiteMetaProps {
@@ -510,8 +530,6 @@ export interface SiteNewFileNameFieldProps {
 export interface SiteProxySetupProps {
   aliasOrigin: string;
   mounts: SiteMounts;
-  /** Off where a surrounding toggle already names the section. */
-  showHeading?: boolean;
 }
 
 export interface SiteDnsSetupProps extends SiteScope {
@@ -527,9 +545,18 @@ export interface SiteDnsRecordsTableProps {
   records: SiteDomainRecord[];
 }
 
-export interface SiteDnsConnectRowProps {
+export interface SiteDomainSetupStepProps {
+  number: number;
+  /** The last step draws no line to a next one. */
+  isLast?: boolean;
+  children: ReactNode;
+}
+
+export interface SiteDnsProviderButtonProps {
   providerName: string;
-  applyUrl: string;
+  href: string;
+  /** Domain Connect: applies the records at the provider, then comes back. */
+  oneClick?: boolean;
 }
 
 export interface SiteDomainSetupProps extends SiteScope {
@@ -582,4 +609,89 @@ export interface SiteSuggestInputProps {
   placeholder?: string;
   /** Shown when the typed text matches no suggestion. */
   emptyLabel: string;
+  invalid?: boolean;
+  describedBy?: string;
+}
+
+export interface SiteIntegrationLogoProps {
+  provider: SiteIntegrationProvider;
+  className?: string;
+}
+
+export interface SiteIntegrationRowProps {
+  provider: SiteIntegrationProvider;
+  /** The site already has this provider in notra.json. */
+  isSetUp: boolean;
+  onOpen: () => void;
+  onRemove: () => void;
+}
+
+export interface SiteIntegrationDialogProps {
+  scope: SiteScope;
+  provider: SiteIntegrationProvider;
+  settings: Record<string, unknown> | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export interface SiteImportListProps {
+  organizationId: string;
+  organizationSlug: string;
+  repositories: SiteImportableRepository[];
+  /** The GitHub App is installed for the organization. */
+  installed: boolean;
+  isLoading: boolean;
+  /** GitHub id of the repository being connected right now. */
+  importingId: string | null;
+  onImport: (repository: SiteImportableRepository) => void;
+}
+
+export type SiteCreateStepState = "active" | "done" | "locked";
+
+export interface SiteCreateStepProps {
+  title: string;
+  description?: string;
+  state: SiteCreateStepState;
+  /** The action band under the card. */
+  footer?: ReactNode;
+  /** Makes a done step the active one again. */
+  onActivate?: () => void;
+  children: ReactNode;
+}
+
+export interface SiteCreateStepListProps {
+  steps: { id: string; label: string; state: SiteCreateStepState }[];
+  onSelect: (id: string) => void;
+}
+
+export interface SiteCreateStageProps {
+  /** Index of the card to centre. */
+  activeIndex: number;
+  /** Beside the active card on the left: its title and description. */
+  left: ReactNode;
+  /** Beside the active card on the right: the step list. */
+  right: ReactNode;
+  children: ReactNode;
+}
+
+export interface SiteCreateDeployProps {
+  organizationId: string;
+  organizationSlug: string;
+  /** The site the create call returned. */
+  site: { id: string; liveUrl: string };
+  /** False when creating the site couldn't start its first build. */
+  deploymentQueued: boolean;
+  /** A starter pull request opened before creating the site; a missing notra.json points there. */
+  starterPullRequestUrl?: string | null;
+}
+
+export interface SiteCreateStarterProps {
+  organizationId: string;
+  repositoryId: string;
+  /** As typed; empty means the default branch. */
+  branch: string;
+  rootDirectory: string;
+  /** The starter pull request opened from this page, if any. */
+  pullRequestUrl: string | null;
+  onPullRequestOpened: (url: string) => void;
 }

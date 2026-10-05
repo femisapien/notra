@@ -933,7 +933,9 @@ export const contentRouter = {
         }
       }
 
-      return publishSavedContentToGitHub(input);
+      return publishSavedContentToGitHub(input, {
+        publisherUserId: auth.user.id,
+      });
     }),
   delete: baseProcedure
     .input(contentInputSchema)

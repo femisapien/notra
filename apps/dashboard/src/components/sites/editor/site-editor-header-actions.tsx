@@ -1,25 +1,18 @@
 "use client";
 
-import {
-  CheckmarkCircle02Icon,
-  PlusSignIcon,
-  Rocket01Icon,
-} from "@hugeicons/core-free-icons";
+import { PlusSignIcon, Rocket01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/button";
 import type { SiteEditorHeaderActionsProps } from "@/types/components/site-editor";
 
-/** New file, validate and publish, next to the editor page's title. */
+/** New file and publish (checking runs from the status bar), next to the editor page's title. */
 export function SiteEditorHeaderActions({
-  filesLoaded,
   canCreateFile,
   unsaved,
   draftCount,
-  isValidating,
   onNewFile,
-  onValidate,
   onPublish,
 }: SiteEditorHeaderActionsProps) {
   const t = useTranslations("sites.editorPage");
@@ -28,19 +21,6 @@ export function SiteEditorHeaderActions({
       <Button disabled={!canCreateFile} onClick={onNewFile} variant="outline">
         <HugeiconsIcon icon={PlusSignIcon} size={15} strokeWidth={1.5} />
         {t("newFile")}
-      </Button>
-      <Button
-        disabled={!filesLoaded || unsaved}
-        loading={isValidating}
-        onClick={onValidate}
-        variant="outline"
-      >
-        <HugeiconsIcon
-          icon={CheckmarkCircle02Icon}
-          size={15}
-          strokeWidth={1.5}
-        />
-        {t("validate")}
       </Button>
       <Button
         aria-label={t("publishLabel", { count: draftCount })}

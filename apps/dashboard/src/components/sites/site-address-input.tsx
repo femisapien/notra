@@ -17,10 +17,12 @@ export function SiteAddressInput({
   invalid,
   placeholder,
   hostingDomain,
+  describedBy,
 }: SiteAddressInputProps) {
   return (
     <InputGroup>
       <InputGroupInput
+        aria-describedby={describedBy}
         aria-invalid={invalid || undefined}
         autoCapitalize="none"
         autoComplete="off"

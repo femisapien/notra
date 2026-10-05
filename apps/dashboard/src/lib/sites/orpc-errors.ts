@@ -13,8 +13,14 @@ import {
 
 /** Maps Notra Sites domain errors to what the dashboard shows; anything else stays a 500. */
 export function toSitesOrpcError(error: unknown): unknown {
+  if (error instanceof SiteInputError) {
+    // The field lets forms show the message next to the input it is about.
+    return badRequest(
+      error.message,
+      error.field ? { field: error.field } : undefined
+    );
+  }
   if (
-    error instanceof SiteInputError ||
     error instanceof SitePermanentBuildError ||
     error instanceof SiteNotBuildableError
   ) {

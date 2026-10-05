@@ -1,6 +1,10 @@
+import {
+  listGitHubAppInstallationsByOrganization,
+  listGitHubAppRepositoriesEffect,
+  setSelectedGitHubAppRepositoriesEffect,
+} from "@notra/ai/integrations/github";
 import { db } from "@notra/db/drizzle";
 import {
-  githubAppInstallations,
   githubIntegrations,
   projects,
   siteDomains,
@@ -10,6 +14,7 @@ import { isGeoIngestConfigured } from "@notra/geo-core/geo/ingest";
 import { organizationIdInputSchema } from "@notra/schemas/dashboard/auth/organization";
 import {
   addSiteDomainInputSchema,
+  connectSiteRepositoryInputSchema,
   createSiteInputSchema,
   repositorySuggestionsInputSchema,
   siteRepositorySuggestionsInputSchema,
@@ -20,11 +25,13 @@ import {
   siteBranchPreviewInputSchema,
   siteDeploymentInputSchema,
   siteDomainInputSchema,
+  saveSiteIntegrationInputSchema,
   siteFilePathInputSchema,
   sitePreviewAccessInputSchema,
   sitePreviewInputSchema,
   siteScopeInputSchema,
   siteSetPreviewPasswordInputSchema,
+  siteStarterInputSchema,
   updateSiteInputSchema,
 } from "@notra/schemas/dashboard/sites";
 import { SITE_R2_KEYS } from "@notra/sites-core/constants/sites";
@@ -34,7 +41,7 @@ import {
   getSite,
   listSiteDeployments,
 } from "@notra/sites-server/deployments";
-import { domainConnectForDomain } from "@notra/sites-server/domain-connect";
+import { dnsSetupForDomain } from "@notra/sites-server/dns-setup";
 import {
   addSiteDomain,
   refreshSiteDomain,
@@ -61,6 +68,10 @@ import {
   requireSiteRepository,
 } from "@notra/sites-server/github";
 import {
+  readSiteIntegrations,
+  saveSiteIntegration,
+} from "@notra/sites-server/integrations";
+import {
   previewAccessUrl,
   setSitePreviewPassword,
 } from "@notra/sites-server/preview-access";
@@ -78,6 +89,10 @@ import {
   updateSiteSettings,
 } from "@notra/sites-server/sites";
 import {
+  createSiteStarter,
+  siteStarterStatus,
+} from "@notra/sites-server/starter";
+import {
   readServingState,
   syncServingPreviewAccess,
 } from "@notra/sites-server/state";
@@ -94,6 +109,7 @@ import { after } from "next/server";
 import { SITE_ADMIN_ROLES } from "@/constants/sites";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
 import { authorizedProcedure } from "@/lib/orpc/base";
+import { runOrpcEffect } from "@/lib/orpc/effect";
 import {
   assertNotDemo,
   forbidden,
@@ -115,6 +131,7 @@ import type {
   SiteAccessOptions,
   SiteRequestContext,
 } from "@/types/sites-server";
+import { toGitHubOperationOrpcError } from "@/utils/github-operation-error";
 
 /** Every site procedure: Sites must be configured, and domain errors become UI errors. */
 const sitesProcedure = authorizedProcedure.use(async ({ next }) => {
@@ -233,15 +250,77 @@ export const sitesRouter = {
       };
     }),
 
-  /** Repositories the org connected through the GitHub App; a site needs one of them. */
-  repositories: authorizedProcedure
+  /**
+   * Every repository the GitHub App can see, connected to Notra or not, so the
+   * new-site page can import any of them without a detour to Integrations.
+   */
+  importableRepositories: authorizedProcedure
     .input(organizationIdInputSchema)
     .handler(async ({ context, input }) => {
       await assertOrganizationAccess({
         headers: context.headers,
         organizationId: input.organizationId,
       });
-      return await db
+      const installations = await listGitHubAppInstallationsByOrganization(
+        input.organizationId
+      );
+      if (installations.length === 0) {
+        return { installed: false, repositories: [] };
+      }
+      const [available, connected] = await Promise.all([
+        runOrpcEffect(
+          listGitHubAppRepositoriesEffect(input.organizationId, installations),
+          toGitHubOperationOrpcError
+        ),
+        db
+          .select({
+            id: githubIntegrations.id,
+            githubRepositoryId: githubIntegrations.githubRepositoryId,
+          })
+          .from(githubIntegrations)
+          .where(
+            and(
+              eq(githubIntegrations.organizationId, input.organizationId),
+              isNotNull(githubIntegrations.githubRepositoryId)
+            )
+          ),
+      ]);
+      const integrationByRepository = new Map(
+        connected.map((row) => [row.githubRepositoryId, row.id])
+      );
+      return {
+        installed: true,
+        repositories: available.map((repository) => ({
+          githubRepositoryId: repository.id,
+          owner: repository.owner,
+          repo: repository.name,
+          private: repository.private,
+          defaultBranch: repository.defaultBranch,
+          description: repository.description,
+          integrationId: integrationByRepository.get(repository.id) ?? null,
+        })),
+      };
+    }),
+
+  /** Connects one more GitHub App repository (keeping the others) and returns it as a site source. */
+  connectRepository: authorizedProcedure
+    .input(connectSiteRepositoryInputSchema)
+    .handler(async ({ context, input }) => {
+      const auth = await assertOrganizationAccess({
+        headers: context.headers,
+        organizationId: input.organizationId,
+      });
+      assertNotDemo();
+      await runOrpcEffect(
+        setSelectedGitHubAppRepositoriesEffect({
+          organizationId: input.organizationId,
+          userId: auth.user.id,
+          repositoryIds: [input.githubRepositoryId],
+          preserveExisting: true,
+        }),
+        toGitHubOperationOrpcError
+      );
+      const [repository] = await db
         .select({
           id: githubIntegrations.id,
           owner: githubIntegrations.owner,
@@ -250,19 +329,17 @@ export const sitesRouter = {
           private: githubIntegrations.githubRepositoryPrivate,
         })
         .from(githubIntegrations)
-        .innerJoin(
-          githubAppInstallations,
-          eq(
-            githubIntegrations.githubAppInstallationId,
-            githubAppInstallations.id
-          )
-        )
         .where(
           and(
             eq(githubIntegrations.organizationId, input.organizationId),
-            isNotNull(githubIntegrations.githubRepositoryId)
+            eq(githubIntegrations.githubRepositoryId, input.githubRepositoryId)
           )
-        );
+        )
+        .limit(1);
+      if (!repository) {
+        throw notFound("Repository not found");
+      }
+      return repository;
     }),
 
   /** Branches and notra.json folders for the new-site form. */
@@ -278,6 +355,29 @@ export const sitesRouter = {
         repositoryId: input.repositoryId,
         ref: input.ref || null,
       });
+    }),
+
+  /** Whether the picked branch and folder already have a notra.json, for the starter offer. */
+  starterStatus: sitesProcedure
+    .input(siteStarterInputSchema)
+    .handler(async ({ context, input }) => {
+      await assertOrganizationAccess({
+        headers: context.headers,
+        organizationId: input.organizationId,
+      });
+      return await siteStarterStatus(input);
+    }),
+
+  /** Opens a pull request with starter files built from the brand identity and landing page. */
+  createStarter: sitesProcedure
+    .input(siteStarterInputSchema)
+    .handler(async ({ context, input }) => {
+      assertNotDemo();
+      await assertOrganizationAccess({
+        headers: context.headers,
+        organizationId: input.organizationId,
+      });
+      return await createSiteStarter(input);
     }),
 
   /** The same for an existing site's settings. */
@@ -550,7 +650,7 @@ export const sitesRouter = {
       .handler(async ({ context, input }) => {
         assertNotDemo();
         const { site } = await requireSite(context, input, { admin: true });
-        return await domainConnectForDomain({ site, domainId: input.domainId });
+        return await dnsSetupForDomain({ site, domainId: input.domainId });
       }),
 
     remove: sitesProcedure
@@ -663,6 +763,28 @@ export const sitesRouter = {
         return await publishSiteDrafts(site, {
           message: input.message,
           mode: input.mode,
+          userId,
+        });
+      }),
+  },
+
+  /** Analytics presets in notra.json, edited as a draft and published like any edit. */
+  integrations: {
+    get: sitesProcedure
+      .input(siteScopeInputSchema)
+      .handler(async ({ context, input }) => {
+        const { site } = await requireSite(context, input);
+        return await readSiteIntegrations(site);
+      }),
+
+    save: sitesProcedure
+      .input(saveSiteIntegrationInputSchema)
+      .handler(async ({ context, input }) => {
+        assertNotDemo();
+        const { site, userId } = await requireSite(context, input);
+        return await saveSiteIntegration(site, {
+          provider: input.provider,
+          settings: input.settings,
           userId,
         });
       }),

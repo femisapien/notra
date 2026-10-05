@@ -3,9 +3,11 @@ import type {
   SITE_DEPLOYMENT_STATUSES,
   SITE_DOMAIN_STATUSES,
 } from "@notra/sites-core/constants/sites";
+import type { SiteInputField } from "@notra/sites-server/types/sites";
 import type { InferRouterInputs, InferRouterOutputs } from "@orpc/server";
 import type { ReactNode } from "react";
 
+import type { SITE_CREATE_STEP_IDS } from "@/constants/site-create";
 import type {
   SITE_DETAIL_TABS,
   SITE_DOMAIN_CONNECT_OUTCOMES,
@@ -28,7 +30,11 @@ export type SiteDeploymentDetail = SitesOutputs["deployments"]["get"];
 export type SiteDeploymentRecord = SiteDeploymentDetail["deployment"];
 export type SitePreview = SiteDetail["previews"][number];
 export type SiteDomain = SiteDetail["domains"][number];
-export type SiteRepository = SitesOutputs["repositories"][number];
+export type SiteRepository = SitesOutputs["connectRepository"];
+/** A repository the GitHub App can see; `integrationId` is set once it is connected to Notra. */
+export type SiteCreateStepId = (typeof SITE_CREATE_STEP_IDS)[number];
+export type SiteImportableRepository =
+  SitesOutputs["importableRepositories"]["repositories"][number];
 export type SiteEditorFiles = SitesOutputs["editor"]["files"];
 export type SiteEditorFile = SiteEditorFiles["files"][number];
 export type SiteEditorDraft = SiteEditorFiles["drafts"][number];
@@ -127,8 +133,6 @@ export interface SiteSettingsForm {
   blogPath: string;
   changelogEnabled: boolean;
   changelogPath: string;
-  previewsEnabled: boolean;
-  previewVisibility: SitePreviewVisibility;
   publishMode: SitePublishMode;
   showBranding: boolean;
 }
@@ -149,6 +153,9 @@ export interface SiteCreateFormValues {
   publishMode: SitePublishMode;
 }
 
+/** Server messages for the new-site form, keyed by the field they are about. */
+export type SiteCreateFieldErrors = Partial<Record<SiteInputField, string>>;
+
 /** Where a new site goes: its organization, repository and (optionally) project. */
 export interface SiteCreateTarget {
   organizationId: string;
@@ -161,8 +168,6 @@ export interface SiteSettingsPatch {
   productionBranch?: string;
   rootDirectory?: string;
   mounts?: { blog?: string; changelog?: string };
-  previewsEnabled?: boolean;
-  previewVisibility?: SitePreviewVisibility;
   publishMode?: SitePublishMode;
   showBranding?: boolean;
 }
@@ -284,3 +289,11 @@ export type SiteDeploymentStepInput = Pick<
 export type RepositorySuggestionsScope =
   | { organizationId: string; repositoryId: string | null; branch: string }
   | { organizationId: string; siteId: string; branch: string };
+
+/** The repository, branch and folder the starter files are for. */
+export interface SiteStarterInput {
+  organizationId: string;
+  repositoryId: string;
+  branch: string;
+  rootDirectory: string;
+}

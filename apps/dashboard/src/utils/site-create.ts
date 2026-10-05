@@ -1,5 +1,8 @@
 import { isValidSiteSlug } from "@notra/sites-core/utils/hosts";
+import type { SiteInputField } from "@notra/sites-server/types/sites";
+import { ORPCError } from "@orpc/client";
 
+import { SITE_CREATE_INPUT_FIELDS } from "@/constants/site-create";
 import type {
   SiteCreateFormValues,
   SiteCreateInput,
@@ -74,4 +77,43 @@ export function siteCreateProductionBranch(
     return null;
   }
   return form.branch.trim() || repository.defaultBranch || null;
+}
+
+/** Everything the create call needs: a repository, a name, a valid address and a branch. */
+export function isSiteCreateReady(
+  form: SiteCreateFormValues,
+  repository: SiteRepository | null
+): boolean {
+  return (
+    repository !== null &&
+    isSiteCreateFormComplete(form) &&
+    !isSiteCreateSlugInvalid(form) &&
+    siteCreateProductionBranch(form, repository) !== null
+  );
+}
+
+function isSiteInputField(value: unknown): value is SiteInputField {
+  return (
+    typeof value === "string" &&
+    (SITE_CREATE_INPUT_FIELDS as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * The field a failed create call is about. Rejections carry it; a conflict on
+ * create can only be the address, which another site already claimed.
+ */
+export function siteCreateErrorField(error: unknown): SiteInputField | null {
+  if (!(error instanceof ORPCError)) {
+    return null;
+  }
+  const { data } = error;
+  const field =
+    typeof data === "object" && data !== null && "field" in data
+      ? data.field
+      : undefined;
+  if (isSiteInputField(field)) {
+    return field;
+  }
+  return error.code === "CONFLICT" ? "slug" : null;
 }

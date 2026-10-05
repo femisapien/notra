@@ -97,15 +97,6 @@ export function SiteDeploymentProperties({
       value: output ?? <span className="text-muted-foreground">-</span>,
     },
     {
-      key: "toolchain",
-      label: t("output.toolchain"),
-      value: deployment.toolchainVersion ? (
-        <span className="font-mono text-xs">{deployment.toolchainVersion}</span>
-      ) : (
-        <span className="text-muted-foreground">-</span>
-      ),
-    },
-    {
       key: "created",
       label: t("fields.created"),
       value: (

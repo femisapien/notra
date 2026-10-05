@@ -4,6 +4,7 @@ import {
   DashboardSquare01Icon,
   DashedLineCircleIcon,
   FileEditIcon,
+  AnalyticsUpIcon,
   GitPullRequestIcon,
   Globe02Icon,
   Loading03Icon,
@@ -36,15 +37,13 @@ export const SITE_IDLE_POLL_INTERVAL_MS = 15_000;
 export const SITE_DEPLOYMENT_IN_PROGRESS_STATUSES: ReadonlySet<SiteDeploymentStatus> =
   new Set(["queued", "building", "uploading"]);
 
-export const SITE_DEPLOYMENT_FINISHED_STATUSES: ReadonlySet<SiteDeploymentStatus> =
-  new Set(["ready", "superseded", "failed", "canceled", "expired"]);
-
 export const SITE_DETAIL_TABS = [
   "overview",
   "deployments",
   "previews",
   "domains",
   "editor",
+  "integrations",
   "settings",
 ] as const;
 
@@ -55,6 +54,7 @@ export const SITE_SECTIONS: readonly SiteSectionConfig[] = [
   { section: "previews", path: "/previews", icon: ViewIcon },
   { section: "domains", path: "/domains", icon: Globe02Icon },
   { section: "editor", path: "/editor", icon: FileEditIcon },
+  { section: "integrations", path: "/integrations", icon: AnalyticsUpIcon },
   { section: "settings", path: "/settings", icon: Settings01Icon },
 ];
 
@@ -63,8 +63,6 @@ export const SITE_OVERVIEW_PREVIEWS_LIMIT = 5;
 /** Content-sized site tables: this only sizes the empty state, which holds an icon, copy and a button. */
 export const SITE_TABLE_EMPTY_HEIGHT = 340;
 export const SITE_TABLE_COMPACT_EMPTY_HEIGHT = 300;
-export const SITE_DEPLOYMENTS_TABLE_ROW_HEIGHT = 56;
-export const SITE_DEPLOYMENTS_TABLE_VISIBLE_ROWS = 12;
 export const SITE_LIST_TABLE_ROW_HEIGHT = 60;
 /** Property lists (deployment details) use the compact house row. */
 export const SITE_PROPERTY_ROW_HEIGHT = 36;
@@ -83,14 +81,6 @@ export const SITE_NEW_FILE_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 /** Only text sources are editable in the dashboard; images and fonts stay in the repo. */
 export const SITE_EDITABLE_FILE_PATTERN = /\.(?:mdx?|jsx?|json|css)$/i;
-
-export const SITE_REPOSITORY_LAYOUT = [
-  { path: "notra.json", key: "config" },
-  { path: "blog/*.mdx", key: "blog" },
-  { path: "changelog/*.mdx", key: "changelog" },
-  { path: "snippets/*.jsx", key: "snippets" },
-  { path: "public/", key: "public" },
-] as const;
 
 export const SITE_PROXY_RECIPES = [
   "vercel",
@@ -266,6 +256,7 @@ export const SITE_DEPLOYMENT_NO_FILTERS: SiteDeploymentFilters = {
 export const SITE_DOMAIN_URL_SCHEME_PATTERN = /^https?:\/\//i;
 
 export const SITE_CLOUDFLARE_PROVIDER_PATTERN = /cloudflare/i;
+export const SITE_VERCEL_PROVIDER_PATTERN = /vercel/i;
 
 /** Sites cleaned up in parallel by the daily cleanup cron. */
 export const SITES_CLEANUP_CONCURRENCY = 4;

@@ -75,15 +75,11 @@ export interface SiteEditorPaneBodyProps {
 }
 
 export interface SiteEditorHeaderActionsProps {
-  /** The file list has loaded, so the site can be validated. */
-  filesLoaded: boolean;
   canCreateFile: boolean;
   /** Typed text is still on its way to the server. */
   unsaved: boolean;
   draftCount: number;
-  isValidating: boolean;
   onNewFile: () => void;
-  onValidate: () => void;
   onPublish: () => void;
 }
 

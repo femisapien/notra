@@ -4841,34 +4841,21 @@
       "redeploy": "Redeploy",
       "config": "Einstellungsänderung"
     },
-    "layout": {
-      "title": "Repository-Aufbau",
-      "description": "Notra baut diese Dateien aus dem Root-Verzeichnis.",
-      "config": "Name, Logo, Farben und Navigation",
-      "blog": "Eine Datei pro Beitrag",
-      "changelog": "Eine Datei pro Release",
-      "snippets": "Komponenten für dein MDX",
-      "public": "Bilder und andere statische Dateien"
-    },
     "sections": {
       "title": "Bereiche",
-      "pathHint": "Pfade auf deiner Website",
       "pathLabel": "Pfad für {section}",
       "blog": "Blog",
-      "blogDescription": "Beiträge aus blog/*.mdx",
+      "blogDescription": "Beiträge in blog/",
       "changelog": "Changelog",
-      "changelogDescription": "Releases aus changelog/*.mdx",
+      "changelogDescription": "Releases in changelog/",
       "atLeastOne": "Aktiviere den Blog, den Changelog oder beides."
     },
     "visibility": {
-      "recommended": "Empfohlen",
       "protected": {
-        "title": "Geschützt",
-        "description": "Dein Team und alle mit Freigabelink."
+        "title": "Geschützt"
       },
       "public": {
-        "title": "Öffentlich",
-        "description": "Alle mit dem Link. Nie indexiert."
+        "title": "Öffentlich"
       }
     },
     "publishModes": {
@@ -4884,37 +4871,69 @@
     },
     "new": {
       "title": "Neue Site",
-      "description": "Verbinde ein Repository. Jeder Push auf den Produktions-Branch geht live.",
-      "repositoryPlaceholder": "Repository auswählen",
-      "repositoryHint": "Über die GitHub-App verbundene Repositories.",
-      "repositoryRequired": "Wähle zuerst ein Repository aus",
-      "manageRepositories": "Weiteres Repository verbinden",
+      "description": "Importiere ein Repository. Jeder Push auf den Produktions-Branch geht live.",
       "private": "Privates Repository",
-      "noRepositories": {
-        "title": "Verbinde zuerst ein Repository",
-        "description": "Sites werden aus einem GitHub-Repository gebaut. Verbinde eins unter Integrationen und komm dann hierher zurück.",
-        "action": "GitHub verbinden"
-      },
       "name": "Name der Site",
       "namePlaceholder": "Acme-Blog",
       "address": "Adresse",
-      "addressHint": "Leer lassen, um den Namen der Site zu verwenden.",
       "addressInvalid": "Verwende 3–40 Kleinbuchstaben, Ziffern und einzelne Bindestriche.",
       "branch": "Produktions-Branch",
-      "branchHint": "Pushes auf diesen Branch gehen live.",
       "rootDirectory": "Root-Verzeichnis",
-      "rootDirectoryHint": "Für Monorepos: der Ordner mit notra.json.",
       "rootDirectoryPlaceholder": "apps/blog",
-      "previewVisibility": "Wer Vorschauen öffnen kann",
       "publishMode": "Veröffentlichen aus dem Editor",
       "create": "Site erstellen",
-      "created": "Site erstellt",
-      "createdDeploying": "Site erstellt. Das erste Deployment ist unterwegs.",
       "createFailed": "Site konnte nicht erstellt werden",
       "noBranchMatch": "Kein passender Branch",
       "noDirectoryMatch": "Kein Ordner mit notra.json passt",
-      "barHint": "Legt die Site an und deployt {branch}",
-      "barHintNoRepository": "Wähle ein Repository für die Site"
+      "optional": "Optional",
+      "publishing": "Vorschauen und Veröffentlichen",
+      "branchHint": "Pushes auf diesen Branch gehen live.",
+      "rootDirectoryHint": "Für Monorepos: der Ordner mit notra.json.",
+      "account": "GitHub-Konto",
+      "searchRepositories": "Repositories durchsuchen",
+      "import": "Importieren",
+      "importRepository": "{repository} importieren",
+      "importFailed": "Repository konnte nicht importiert werden",
+      "noRepositoryMatch": "Kein Repository passt.",
+      "adjustAccess": "Repository fehlt? GitHub-App-Zugriff anpassen",
+      "installTitle": "GitHub verbinden",
+      "installDescription": "Sites werden aus einem GitHub-Repository gebaut. Installiere die Notra-GitHub-App auf den Repositories, aus denen du veröffentlichen willst.",
+      "installGitHub": "GitHub-App installieren",
+      "installFailed": "GitHub-Installation konnte nicht gestartet werden",
+      "stepRepository": "Repository",
+      "stepConfigure": "Konfigurieren",
+      "stepsLabel": "Schritte",
+      "stepRepositoryDescription": "Importiere das GitHub-Repository, aus dem Notra die Site baut.",
+      "stepConfigureDescription": "Aus {repository}.",
+      "stepLabels": {
+        "repository": "Repository importieren",
+        "configure": "Konfigurieren",
+        "deploy": "Deploy"
+      },
+      "stepDeploy": "Deploy",
+      "stepDeployDescription": "Deine Site wird aus dem neuesten Commit gebaut. Sie geht live, sobald der Build fertig ist.",
+      "deploy": {
+        "waiting": "Warte auf einen Builder…",
+        "started": "Deployment vor {seconds} s gestartet…",
+        "ready": "Deine Site ist live. Gebaut in {duration}.",
+        "failed": "Der Build ist fehlgeschlagen. Der Log zeigt warum.",
+        "building": "Building",
+        "built": "Gebaut",
+        "visit": "Öffnen",
+        "openSite": "Zur Site",
+        "viewDeployment": "Deployment ansehen",
+        "mergeStarter": "Merge den Starter-Pull-Request und deploye dann erneut.",
+        "viewPullRequest": "Pull Request ansehen",
+        "notStarted": "Der erste Build konnte nicht starten. Starte ihn auf der Site."
+      },
+      "starter": {
+        "missing": "In diesem Repository gibt es noch keine notra.json.",
+        "create": "Starter aus deiner Marke erstellen",
+        "opened": "Pull Request geöffnet",
+        "view": "Ansehen",
+        "mergeFirst": "Merge ihn, bevor du die Site erstellst. Bis dahin schlägt der erste Build fehl, weil die notra.json fehlt.",
+        "failed": "Der Starter-Pull-Request konnte nicht geöffnet werden"
+      }
     },
     "detail": {
       "visit": "Öffnen",
@@ -4940,28 +4959,9 @@
         "previews": "Vorschauen",
         "domains": "Domains",
         "editor": "Editor",
-        "settings": "Einstellungen"
+        "settings": "Einstellungen",
+        "integrations": "Analytics"
       }
-    },
-    "overview": {
-      "live": "Live-Deployment",
-      "details": "Details",
-      "noCommitMessage": "Keine Commit-Nachricht",
-      "wentLive": "Live seit",
-      "builtIn": "Gebaut in {duration}",
-      "noLive": "Noch nichts live",
-      "noLiveDescription": "Das erste Deployment geht live, sobald der Build fertig ist.",
-      "manage": "Verwalten",
-      "openEditor": "Editor öffnen",
-      "previews": "Vorschauen",
-      "previewsCount": "{count, plural, =0 {Keine offenen Vorschauen} one {# offene Vorschau} other {# offene Vorschauen}}",
-      "domains": "Domains",
-      "domainsCount": "{count, plural, one {# eigene Domain} other {# eigene Domains}}",
-      "noDomains": "Nur Notra-Adresse",
-      "drafts": "Editor-Entwürfe",
-      "draftsCount": "{count, plural, =0 {Keine unveröffentlichten Änderungen} one {# unveröffentlichte Datei} other {# unveröffentlichte Dateien}}",
-      "recent": "Letzte Deployments",
-      "viewAll": "Alle anzeigen"
     },
     "deployments": {
       "title": "Deployments",
@@ -5003,16 +5003,10 @@
       "branch": "Branch",
       "pullRequest": "Pull Request #{number}",
       "finished": "Fertig",
-      "wentLive": "Live gegangen",
       "output": "Ausgabe",
-      "files": "{count, plural, one {# Datei} other {# Dateien}}",
       "errorTitle": "Build fehlgeschlagen",
       "diagnostics": "Diagnose",
-      "diagnosticsPending": "Diagnosen erscheinen, wenn der Build fertig ist.",
-      "noDiagnostics": "Keine Fehler oder Warnungen",
       "log": "Build-Log",
-      "logPending": "Warte auf den Start des Builds",
-      "logEmpty": "Kein Build-Log für dieses Deployment",
       "notFound": {
         "title": "Deployment nicht gefunden",
         "description": "Es gehört vielleicht zu einer anderen Site."
@@ -5024,120 +5018,17 @@
       "error": "Fehler",
       "warning": "Warnung"
     },
-    "previews": {
-      "title": "Vorschauen",
-      "descriptionProtected": "Jeder Pull Request bekommt eine eigene Vorschau. Nur Mitglieder können sie öffnen; Freigabelinks gelten {days} Tage.",
-      "descriptionPublic": "Jeder Pull Request bekommt eine eigene Vorschau. Alle mit dem Link können sie öffnen.",
-      "empty": "Noch keine Vorschauen. Öffne einen Pull Request oder erstelle unten eine Vorschau für einen Branch.",
-      "disabled": "Vorschauen sind für diese Site ausgeschaltet.",
-      "openSettings": "In den Einstellungen aktivieren",
-      "columns": {
-        "preview": "Vorschau",
-        "source": "Quelle",
-        "commit": "Commit",
-        "access": "Zugriff"
-      },
-      "pullRequest": "PR #{number}",
-      "actionsLabel": "Weitere Aktionen für {key}",
-      "copyShareLink": "Freigabelink kopieren",
-      "copyLink": "Link kopieren",
-      "shareCopied": "Freigabelink kopiert. Er gilt {days} Tage.",
-      "shareFailed": "Freigabelink konnte nicht erstellt werden",
-      "openFailed": "Vorschau konnte nicht geöffnet werden",
-      "deleteTitle": "Diese Vorschau löschen?",
-      "deleteDescription": "{key} funktioniert sofort nicht mehr. Ein neuer Push auf den Branch oder Pull Request erstellt sie wieder.",
-      "deleted": "Vorschau gelöscht",
-      "deleteFailed": "Vorschau konnte nicht gelöscht werden",
-      "branchTitle": "Vorschau für einen Branch",
-      "branchDescription": "Baue einen beliebigen Branch, ohne einen Pull Request zu öffnen.",
-      "branchLabel": "Branch-Name",
-      "branchPlaceholder": "feature/neuer-beitrag",
-      "createPreview": "Vorschau erstellen",
-      "created": "Vorschau {key} wird gebaut",
-      "createFailed": "Vorschau konnte nicht erstellt werden"
-    },
-    "domains": {
-      "title": "Domains",
-      "description": "Eine verifizierte Domain wird zur kanonischen URL und die Site wird neu gebaut. Die aktuelle Version bleibt live, bis der neue Build erfolgreich ist.",
-      "aliasHint": "Notra-Adresse. Funktioniert immer.",
-      "primary": "Primär",
-      "kinds": {
-        "subdomain": "Eigene Subdomain",
-        "proxy": "Pfad auf deiner Website"
-      },
-      "lastChecked": "Geprüft",
-      "check": "Prüfen",
-      "checkFailed": "Domain konnte nicht geprüft werden",
-      "verified": "Domain verifiziert",
-      "verifiedRebuilding": "Domain verifiziert. Wird für die neue Adresse neu gebaut…",
-      "notVerifiedYet": "Noch nicht verifiziert",
-      "removeLabel": "{hostname} entfernen",
-      "removeTitle": "Diese Domain entfernen?",
-      "removeDescription": "{hostname} liefert diese Site nicht mehr aus.",
-      "removePrimaryDescription": "{hostname} liefert diese Site nicht mehr aus. Sie wechselt zurück zu {alias} und wird neu gebaut.",
-      "removed": "Domain entfernt",
-      "removeFailed": "Domain konnte nicht entfernt werden",
-      "dnsSetup": "DNS-Einträge",
-      "dnsHint": "Lege diese Einträge bei deinem DNS-Anbieter an und klicke dann auf Prüfen. DNS-Änderungen können ein paar Minuten dauern.",
-      "proxySetup": "Proxy-Einrichtung",
-      "addTitle": "Domain hinzufügen",
-      "addDescription": "Liefere die Site unter deiner eigenen Domain aus.",
-      "kindLabel": "Art der Verbindung",
-      "subdomainDescription": "Leite eine Subdomain wie blog.acme.com per DNS-Eintrag zu Notra.",
-      "proxyDescription": "Behalte acme.com und leite /blog und /changelog von deiner bestehenden Website weiter.",
-      "subdomainLabel": "Subdomain",
-      "subdomainHint": "Im nächsten Schritt zeigen wir dir die DNS-Einträge.",
-      "proxyLabel": "Domain deiner Website",
-      "proxyHint": "Wir zeigen dir fertige Konfigurationen für Vercel, Next.js, TanStack Start, Cloudflare und nginx.",
-      "add": "Domain hinzufügen",
-      "added": "Domain hinzugefügt",
-      "addFailed": "Domain konnte nicht hinzugefügt werden",
-      "records": {
-        "type": "Typ",
-        "name": "Name",
-        "value": "Wert",
-        "purpose": "Zweck",
-        "empty": "Keine Einträge nötig",
-        "purposes": {
-          "routing": "Routing",
-          "ownership": "Inhaberschaft",
-          "certificate": "Zertifikat"
-        }
-      },
-      "proxy": {
-        "yourDomain": "deine-domain.de",
-        "forward": "Leite {paths} und alles darunter an {origin} weiter, der Pfad bleibt gleich.",
-        "noCookies": "Leite keine Cookies oder Authorization-Header weiter; die Site braucht sie nicht.",
-        "recipes": {
-          "vercel": "vercel.json",
-          "next": "Next.js",
-          "tanstack": "TanStack Start",
-          "cloudflare": "Cloudflare Worker",
-          "nginx": "nginx"
-        }
-      }
-    },
     "editor": {
       "intro": "Änderungen werden als Entwürfe gespeichert und berühren die Live-Site erst, wenn du veröffentlichst.",
-      "draftCount": "{count, plural, one {# Datei geändert.} other {# Dateien geändert.}}",
-      "newFileAction": "Neue Datei",
       "validate": "Prüfen",
-      "validateOk": "Keine Probleme gefunden",
       "validateFailed": "Site konnte nicht geprüft werden",
       "problems": "{count, plural, one {# Problem} other {# Probleme}}",
-      "publishAction": "Veröffentlichen",
       "dismiss": "Ausblenden",
-      "filesLabel": "Dateien der Site",
       "filesFailed": "Dateien konnten nicht von GitHub geladen werden",
       "noFiles": "Noch keine bearbeitbaren Dateien. Erstelle eine, um loszulegen.",
       "newFile": "Neue Datei",
-      "hasDraft": "Unveröffentlichte Änderungen",
-      "newBadge": "Neu",
-      "autosaveHint": "Entwürfe werden automatisch gespeichert. Mit ⌘S speicherst du sofort.",
       "loadFailed": "Diese Datei konnte nicht geladen werden",
-      "saveNow": "Jetzt speichern",
       "saveFailed": "Entwurf konnte nicht gespeichert werden",
-      "discardDraft": "Entwurf verwerfen",
       "discarded": "Entwurf verworfen",
       "discardFailed": "Entwurf konnte nicht verworfen werden",
       "createFailed": "Datei konnte nicht erstellt werden",
@@ -5187,9 +5078,7 @@
     "settings": {
       "general": "Allgemein",
       "content": "Inhalte",
-      "rebuildHint": "Geänderte Pfade bauen die Site neu. Die aktuelle Version bleibt live, bis der Build erfolgreich ist.",
       "previews": "Vorschauen",
-      "previewsEnabled": "Vorschauen bauen",
       "previewsEnabledHint": "Eine Vorschau für jeden Pull Request.",
       "publishing": "Veröffentlichen",
       "saved": "Einstellungen gespeichert",
@@ -5229,7 +5118,6 @@
       "updatedBy": "Aktualisiert <time></time> von {author}",
       "updatedVia": "Aktualisiert <time></time> · {trigger}",
       "notLiveYet": "Noch nichts live. Das erste Deployment geht live, sobald sein Build fertig ist.",
-      "newDeployment": "Neues Deployment",
       "followBuild": "Build ansehen",
       "viewLogs": "Logs ansehen",
       "previewBuilding": "Deine Seite wird gebaut…",
@@ -5249,21 +5137,14 @@
         "author": "Autor",
         "open": "Öffnen"
       },
-      "activityEmptyTitle": "Noch keine Deployments",
       "activityEmptyDescription": "Pushe auf {branch} oder deploye den neuesten Commit.",
       "previews": "Previews",
-      "previewsEmptyTitle": "Jeder Pull Request bekommt eine Preview",
-      "previewsEmptyDescription": "Öffne einen Pull Request auf GitHub, dann erscheint seine Preview hier.",
-      "previewsOff": "Previews sind für diese Seite ausgeschaltet.",
-      "goToPreviews": "Zu den Previews",
-      "turnOnPreviews": "In den Einstellungen einschalten",
       "production": "Produktion",
       "previewNothingLive": "Noch nichts live"
     },
     "deploymentsPage": {
       "description": "Alle Builds dieser Site, die neuesten zuerst.",
       "current": "Aktuell",
-      "by": "Deployt von {author}",
       "columns": {
         "deployment": "Deployment",
         "status": "Status",
@@ -5315,7 +5196,6 @@
       "title": "Deployment-Details",
       "copyUrl": "URL kopieren",
       "copied": "URL kopiert",
-      "buildLogs": "Build-Logs",
       "visit": "Öffnen",
       "more": "Weitere Aktionen",
       "current": "Aktuell",
@@ -5332,7 +5212,6 @@
         "value": "Wert"
       },
       "via": "über {trigger}",
-      "durationAgo": "{time}",
       "pullRequest": "#{number}",
       "preview": {
         "protected": "Diese Preview ist geschützt. Öffne sie, um dich anzumelden.",
@@ -5368,12 +5247,10 @@
         "lines": "{count, plural, one {# Zeile} other {# Zeilen}}",
         "copy": "Log kopieren",
         "copied": "Log kopiert",
-        "find": "In Logs suchen",
         "matches": "{current} von {total}",
         "noMatches": "Keine Treffer",
         "next": "Nächster Treffer",
         "previous": "Vorheriger Treffer",
-        "onlyMatches": "Nur passende Zeilen",
         "waiting": "Warte auf den Start des Builds…",
         "empty": "Kein Build-Log für dieses Deployment.",
         "jumpToLatest": "Zum Ende springen",
@@ -5395,8 +5272,6 @@
         "title": "Ausgabe",
         "files": "Dateien",
         "size": "Größe",
-        "buildTime": "Build-Zeit",
-        "toolchain": "Toolchain",
         "finished": "Fertig",
         "pending": "Erscheint, sobald der Build gespeichert ist.",
         "none": "Dieser Build hat keine Ausgabe erzeugt.",
@@ -5424,8 +5299,6 @@
     "previewsPage": {
       "title": "Previews",
       "description": "Jeder Pull Request bekommt seine eigene Preview.",
-      "accessProtected": "Geschützt: nur Mitglieder und Freigabelinks",
-      "accessPublic": "Öffentlich: alle mit dem Link",
       "branchTitle": "Branch-Preview erstellen",
       "branchDescription": "Bau einen beliebigen Branch, ohne einen Pull Request zu öffnen.",
       "branchLabel": "Branch-Name",
@@ -5485,8 +5358,8 @@
       "verifiedRebuilding": "Domain verifiziert. Die Site wird für die neue Adresse neu gebaut…",
       "notVerifiedYet": "Noch nicht verifiziert",
       "verifyNow": "Jetzt prüfen",
-      "verifyDnsHint": "Einträge angelegt? Prüfe die Domain. DNS-Änderungen können ein paar Minuten dauern.",
-      "verifyProxyHint": "Rewrites deployt? Prüfe die Domain. Wir rufen eine Testdatei über deine Website ab.",
+      "verifyDnsHint": "DNS-Änderungen können ein paar Minuten dauern.",
+      "verifyProxyHint": "Wir rufen eine Testdatei über deine Site ab.",
       "lastErrorTitle": "Letzte Prüfung fehlgeschlagen",
       "showDnsRecords": "DNS-Einträge",
       "showProxySetup": "Proxy-Einrichtung",
@@ -5504,24 +5377,20 @@
         "verifying": "Wird verifiziert",
         "failed": "Fehlgeschlagen"
       },
-      "empty": {
-        "title": "Noch keine eigene Domain",
-        "description": "Deine Site ist unter der Notra-Adresse live. Füge eine Domain hinzu, um sie als blog.acme.com oder acme.com/blog bereitzustellen."
-      },
       "dns": {
         "title": "DNS-Konfiguration",
         "description": "Lege diese Einträge dort an, wo du das DNS für {hostname} verwaltest.",
         "calloutTitle": "Lege diese Einträge bei deinem DNS-Anbieter an",
-        "manualTitle": "Oder lege die Einträge selbst an",
         "calloutDescription": "Kopiere Name und Wert jeweils genau.",
         "cloudflareHint": "Stell bei Cloudflare den Proxy-Status auf „Nur DNS“.",
         "type": "Typ",
         "name": "Name",
         "value": "Wert",
         "noRecords": "Keine Einträge nötig",
-        "connectTitle": "Einrichtung mit einem Klick",
         "connect": "Mit {provider} verbinden",
-        "connectDescription": "Wir legen die DNS-Einträge für dich an. Du bestätigst das bei {provider}."
+        "connectDescription": "Wir legen die DNS-Einträge für dich an. Du bestätigst das bei {provider}.",
+        "titleAt": "Diese Einträge bei {provider} anlegen",
+        "openProvider": "{provider}-DNS öffnen"
       },
       "proxy": {
         "title": "Proxy-Einrichtung",
@@ -5539,19 +5408,18 @@
       },
       "add": {
         "title": "Domain hinzufügen",
-        "description": "Stelle diese Site unter einer Domain bereit, die dir gehört.",
-        "kindLabel": "Wie willst du sie verbinden?",
-        "subdomainTitle": "Subdomain",
-        "subdomainDescription": "Zum Beispiel blog.acme.com. Du legst einen DNS-Eintrag an.",
-        "proxyTitle": "Pfade auf deiner Website",
-        "proxyDescription": "Zum Beispiel acme.com/blog. Deine Website leitet {paths} weiter.",
-        "subdomainLabel": "Subdomain",
-        "proxyLabel": "Domain deiner Website",
-        "subdomainHint": "Gib die vollständige Subdomain ein. Danach zeigen wir dir die DNS-Einträge.",
-        "proxyHint": "Gib nur die Domain ein. Danach zeigen wir dir die Rewrites für {paths}.",
+        "description": "Stell diese Site unter einer eigenen Domain bereit.",
         "submit": "Domain hinzufügen",
         "added": "Domain hinzugefügt",
-        "addFailed": "Domain konnte nicht hinzugefügt werden"
+        "addFailed": "Domain konnte nicht hinzugefügt werden",
+        "label": "Domain",
+        "placeholder": "blog.acme.com oder acme.com/blog",
+        "hint": "Gib eine Subdomain wie blog.acme.com ein oder deine eigene Site wie acme.com/blog.",
+        "useProxy": "Stattdessen meine Website behalten und Pfade weiterleiten",
+        "useDns": "Stattdessen die ganze Domain auf Notra zeigen lassen",
+        "liveAt": "Deine Site ist dann erreichbar unter",
+        "subdomainExplain": "{hostname} zeigt auf Notra. Du legst einen DNS-Eintrag (CNAME) dort an, wo du deine Domain verwaltest.",
+        "proxyExplain": "Deine Website auf {hostname} bleibt, wie sie ist. Sie leitet diese Pfade per Rewrite an Notra weiter."
       },
       "connectResult": {
         "success": "DNS-Einträge angelegt",
@@ -5567,13 +5435,13 @@
         "status": "Status",
         "checked": "Geprüft",
         "actions": "Aktionen"
-      }
+      },
+      "checkTitle": "Domain prüfen"
     },
     "editorPage": {
       "title": "Editor",
       "description": "Bearbeite deine Beiträge als Entwurf. Live geht erst, was du veröffentlichst.",
       "newFile": "Neue Datei",
-      "validate": "Prüfen",
       "publish": "Veröffentlichen",
       "publishLabel": "{count, plural, =0 {Veröffentlichen, keine Entwürfe} one {# Entwurf veröffentlichen} other {# Entwürfe veröffentlichen}}",
       "retry": "Erneut versuchen",
@@ -5633,15 +5501,16 @@
       "branding": "Branding",
       "brandingLabel": "Notra-Branding",
       "brandingHint": "Zeigt ein kleines „Powered by Notra“-Badge im Footer. Eine Änderung baut die Site neu.",
-      "sectionsHint": "Pfade auf deiner Site. Eine Änderung baut die Site neu; die aktuelle Version bleibt live, bis der Build fertig ist."
+      "sectionsHint": "Pfade auf deiner Site. Eine Änderung baut die Site neu; die aktuelle Version bleibt live, bis der Build fertig ist.",
+      "changeAccess": "Ändern"
     },
     "previewAccess": {
       "title": "Zugriff auf Vorschauen",
       "description": "Lege fest, ob Pull Requests Vorschauen bekommen und wer sie öffnen kann.",
       "trigger": {
-        "members": "Notra-Login",
-        "password": "Login oder Passwort",
-        "public": "Öffentliche Vorschauen",
+        "members": "Nur Team",
+        "password": "Team oder Passwort",
+        "public": "Alle mit dem Link",
         "off": "Vorschauen aus"
       },
       "turnOn": "Einschalten",
@@ -5652,11 +5521,11 @@
       "whoLabel": "Wer Vorschauen öffnen kann",
       "modes": {
         "members": {
-          "title": "Notra-Login",
+          "title": "Nur Team",
           "description": "Mitglieder deiner Organisation und alle mit einem Freigabelink."
         },
         "password": {
-          "title": "Notra-Login oder Passwort",
+          "title": "Team oder Passwort",
           "description": "Wer das Passwort kennt, kann Vorschauen auch öffnen."
         },
         "public": {
@@ -5675,6 +5544,106 @@
       "save": "Speichern",
       "saved": "Zugriff auf Vorschauen aktualisiert",
       "saveFailed": "Zugriff konnte nicht aktualisiert werden"
+    },
+    "integrationsPage": {
+      "title": "Analytics",
+      "description": "Analytics und Chat für diese Site. Die Einstellungen landen in notra.json und gehen beim Veröffentlichen live.",
+      "optional": "Optional",
+      "connect": "Verbinden",
+      "save": "Speichern",
+      "remove": "Entfernen",
+      "saved": "Integration gespeichert",
+      "removed": "Integration entfernt",
+      "savedDescription": "Bis du sie im Editor veröffentlichst, ist sie ein Entwurf von notra.json.",
+      "saveFailed": "Integration konnte nicht gespeichert werden",
+      "docs": "{provider}-Doku",
+      "draftDescription": "notra.json hat Änderungen, die noch nicht live sind",
+      "reviewAndPublish": "Prüfen und veröffentlichen",
+      "invalidTitle": "notra.json kann nicht gelesen werden",
+      "invalidDescription": "Die Datei ist kein gültiges JSON. Korrigiere sie im Editor und komm dann zurück.",
+      "providers": {
+        "databuddy": "Datenschutzfreundliche Analytics mit Web Vitals und Fehlertracking.",
+        "plausible": "Leichtgewichtige Analytics ohne Cookies.",
+        "posthog": "Product Analytics, Session Replay und Feature Flags.",
+        "ga4": "Die Web-Analytics von Google.",
+        "gtm": "Tags aus einem Container laden und verwalten.",
+        "umami": "Einfache Open-Source-Analytics, in der Cloud oder selbst gehostet.",
+        "fathom": "Einfache, datenschutzfreundliche Analytics.",
+        "mixpanel": "Product Analytics mit Autocapture und Funnels.",
+        "amplitude": "Product Analytics mit Autocapture.",
+        "segment": "Events einmal erfassen und an deine anderen Tools senden.",
+        "hotjar": "Heatmaps, Aufzeichnungen und Feedback.",
+        "clarity": "Kostenlose Heatmaps und Session-Aufzeichnungen von Microsoft.",
+        "intercom": "Live-Chat und Hilfe mit dem Intercom Messenger.",
+        "crisp": "Live-Chat mit der Crisp-Chatbox."
+      },
+      "fields": {
+        "databuddy": {
+          "clientId": "Client-ID",
+          "trackWebVitals": "Web Vitals erfassen",
+          "trackErrors": "Fehler erfassen",
+          "trackPerformance": "Seitenperformance erfassen",
+          "trackOutgoingLinks": "Ausgehende Links erfassen",
+          "trackInteractions": "Interaktionen erfassen",
+          "trackAttributes": "data-track-Attribute erfassen"
+        },
+        "plausible": {
+          "domain": "Domain",
+          "scriptUrl": "Skript-URL"
+        },
+        "posthog": {
+          "apiKey": "Projekt-API-Key",
+          "apiHost": "API-Host"
+        },
+        "ga4": {
+          "measurementId": "Mess-ID"
+        },
+        "gtm": {
+          "tagId": "Container-ID"
+        },
+        "umami": {
+          "websiteId": "Website-ID",
+          "scriptUrl": "Skript-URL"
+        },
+        "fathom": {
+          "siteId": "Site-ID"
+        },
+        "mixpanel": {
+          "projectToken": "Projekt-Token",
+          "region": "Datenstandort"
+        },
+        "amplitude": {
+          "apiKey": "API-Key",
+          "serverZone": "Datenregion"
+        },
+        "segment": {
+          "writeKey": "Write Key"
+        },
+        "hotjar": {
+          "siteId": "Site-ID",
+          "version": "Version des Tracking-Codes"
+        },
+        "clarity": {
+          "projectId": "Projekt-ID"
+        },
+        "intercom": {
+          "appId": "Workspace-ID",
+          "region": "Hosting-Region"
+        },
+        "crisp": {
+          "websiteId": "Website-ID"
+        }
+      },
+      "add": "{provider} hinzufügen",
+      "more": "{provider}-Optionen",
+      "edit": "Bearbeiten",
+      "tracking": "Tracking",
+      "options": {
+        "us": "USA",
+        "eu": "Europäische Union",
+        "in": "Indien",
+        "au": "Australien"
+      }
     }
   },
   "analytics": {

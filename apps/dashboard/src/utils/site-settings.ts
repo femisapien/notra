@@ -28,8 +28,6 @@ export function siteSettingsFormFromSite(site: SiteRecord): SiteSettingsForm {
     blogPath: site.mounts.blog ?? SITE_DEFAULT_BLOG_PATH,
     changelogEnabled: Boolean(site.mounts.changelog),
     changelogPath: site.mounts.changelog ?? SITE_DEFAULT_CHANGELOG_PATH,
-    previewsEnabled: site.previewsEnabled,
-    previewVisibility: site.previewVisibility,
     publishMode: site.publishMode,
     showBranding: site.showBranding,
   };
@@ -64,12 +62,6 @@ export function siteSettingsPatch(
     mounts.changelog !== site.mounts.changelog
   ) {
     patch.mounts = mounts;
-  }
-  if (form.previewsEnabled !== site.previewsEnabled) {
-    patch.previewsEnabled = form.previewsEnabled;
-  }
-  if (form.previewVisibility !== site.previewVisibility) {
-    patch.previewVisibility = form.previewVisibility;
   }
   if (form.publishMode !== site.publishMode) {
     patch.publishMode = form.publishMode;

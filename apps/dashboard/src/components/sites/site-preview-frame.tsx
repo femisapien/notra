@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import type { SitePreviewFrameProps } from "@/types/components/sites";
 
 /**
- * A live, non-interactive thumbnail of a deployed page (Vercel/Mintlify style).
+ * A live, non-interactive thumbnail of a deployed page.
  * The page renders at desktop width and is scaled to the frame with CSS.
  */
 export function SitePreviewFrame({

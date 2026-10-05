@@ -9,26 +9,26 @@ import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { useSite } from "@/components/sites/site-context";
 import {
   SiteChoiceGroup,
   SiteSectionsFields,
 } from "@/components/sites/site-form-fields";
+import { SitePreviewAccessDialog } from "@/components/sites/site-preview-access-dialog";
 import { SiteSettingsDangerZone } from "@/components/sites/site-settings-danger-zone";
 import { SiteSettingsRow } from "@/components/sites/site-settings-row";
 import { SiteSettingsSaveBar } from "@/components/sites/site-settings-save-bar";
 import { SiteSuggestInput } from "@/components/sites/site-suggest-input";
 import { useRepositorySuggestions } from "@/lib/hooks/use-repository-suggestions";
-import {
-  useSitePreviewVisibilityOptions,
-  useSitePublishModeOptions,
-} from "@/lib/hooks/use-site-choice-options";
+import { useSitePublishModeOptions } from "@/lib/hooks/use-site-choice-options";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SiteSettingsFormProps } from "@/types/components/sites";
 import type { SiteSettingsForm as SiteSettingsFormValues } from "@/types/sites";
 import { toErrorMessage } from "@/utils/error-message";
+import { sitePreviewAccessMode } from "@/utils/site-preview-access";
 import {
   siteSettingsFormFromSite,
   siteSettingsPatch,
@@ -59,7 +59,8 @@ function SiteSettingsForm({
   const tSections = useTranslations("sites.sections");
   const id = useId();
   const invalidateSites = useInvalidateSites();
-  const visibilityOptions = useSitePreviewVisibilityOptions();
+  const tAccess = useTranslations("sites.previewAccess");
+  const [accessOpen, setAccessOpen] = useState(false);
   const publishModeOptions = useSitePublishModeOptions();
   const { site } = detail;
   const [form, setForm] = useState<SiteSettingsFormValues>(() =>
@@ -164,7 +165,6 @@ function SiteSettingsForm({
                 blogPath={form.blogPath}
                 changelogEnabled={form.changelogEnabled}
                 changelogPath={form.changelogPath}
-                hideTitle
                 idPrefix={id}
                 onBlogEnabledChange={(value) => update("blogEnabled", value)}
                 onBlogPathChange={(value) => update("blogPath", value)}
@@ -180,31 +180,26 @@ function SiteSettingsForm({
         </TitleCard>
 
         <TitleCard as="section" heading={t("previews")} headingAs="h2">
-          <div className="divide-border divide-y">
-            <SiteSettingsRow
-              description={t("previewsEnabledHint")}
-              htmlFor={`${id}-previews`}
-              label={t("previewsEnabled")}
-            >
-              <div className="flex lg:pt-1.5">
-                <Switch
-                  checked={form.previewsEnabled}
-                  id={`${id}-previews`}
-                  onCheckedChange={(value) => update("previewsEnabled", value)}
-                />
-              </div>
-            </SiteSettingsRow>
-            <SiteSettingsRow label={tNew("previewVisibility")}>
-              <SiteChoiceGroup
-                disabled={!form.previewsEnabled}
-                hideLabel
-                label={tNew("previewVisibility")}
-                onValueChange={(value) => update("previewVisibility", value)}
-                options={visibilityOptions}
-                value={form.previewVisibility}
-              />
-            </SiteSettingsRow>
-          </div>
+          <SiteSettingsRow
+            description={t("previewsEnabledHint")}
+            label={tAccess("title")}
+          >
+            <div className="flex items-center gap-3 lg:pt-1">
+              <span className="text-sm">
+                {site.previewsEnabled
+                  ? tAccess(`trigger.${sitePreviewAccessMode(site)}`)
+                  : tAccess("trigger.off")}
+              </span>
+              <Button
+                onClick={() => setAccessOpen(true)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                {tPage("changeAccess")}
+              </Button>
+            </div>
+          </SiteSettingsRow>
         </TitleCard>
 
         <TitleCard as="section" heading={t("publishing")} headingAs="h2">
@@ -254,6 +249,7 @@ function SiteSettingsForm({
         site={site}
         siteId={siteId}
       />
+      <SitePreviewAccessDialog onOpenChange={setAccessOpen} open={accessOpen} />
     </div>
   );
 }

@@ -11,6 +11,11 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@notra/ui/components/ui/alert";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -23,7 +28,7 @@ import {
   TooltipTrigger,
 } from "@notra/ui/components/ui/tooltip";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { Button } from "@/components/button";
 import { Table, type TableColumn } from "@/components/motion/table";
@@ -40,6 +45,7 @@ import type {
   SiteDomainCheckButtonProps,
   SiteDomainRowMenuProps,
   SiteDomainSetupProps,
+  SiteDomainSetupStepProps,
   SiteDomainStatusDotProps,
   SiteDomainsTableProps,
 } from "@/types/components/sites";
@@ -182,46 +188,71 @@ function DomainSetup({
   return (
     <div className="space-y-5 px-4 py-5 sm:ps-6 sm:pe-5">
       {!isActive && domain.lastError ? (
-        <div className="flex items-start gap-2 text-sm" role="alert">
-          <HugeiconsIcon
-            aria-hidden="true"
-            className="text-destructive mt-0.5 size-4 shrink-0"
-            icon={Alert02Icon}
-            strokeWidth={1.5}
-          />
-          <div className="min-w-0 space-y-0.5">
-            <p className="font-medium">
-              {domain.lastCheckedAt
-                ? t("lastErrorTitle")
-                : t("setupErrorTitle")}
-            </p>
-            <p className="text-muted-foreground break-words">
-              {domain.lastError}
-            </p>
-          </div>
-        </div>
+        <Alert variant={domain.lastCheckedAt ? "destructive" : "warning"}>
+          <HugeiconsIcon icon={Alert02Icon} strokeWidth={1.5} />
+          <AlertTitle>
+            {domain.lastCheckedAt ? t("lastErrorTitle") : t("setupErrorTitle")}
+          </AlertTitle>
+          <AlertDescription className="break-words">
+            {domain.lastError}
+          </AlertDescription>
+        </Alert>
       ) : null}
-      {setup}
-      {isActive ? null : (
-        <div className="border-border/60 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-muted-foreground text-sm text-pretty">
-            {domain.kind === "proxy"
-              ? t("verifyProxyHint")
-              : t("verifyDnsHint")}
-          </p>
-          <Button
-            className="shrink-0"
-            loading={check.isPending}
-            onClick={() => check.mutate()}
-            size="sm"
-            variant="outline"
-          >
-            <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.5} />
-            {t("verifyNow")}
-          </Button>
-        </div>
+      {isActive ? (
+        setup
+      ) : (
+        <ol>
+          <DomainSetupStep number={1}>{setup}</DomainSetupStep>
+          <DomainSetupStep isLast number={2}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 space-y-0.5">
+                <p className="text-sm font-medium">{t("checkTitle")}</p>
+                <p className="text-muted-foreground text-sm text-pretty">
+                  {domain.kind === "proxy"
+                    ? t("verifyProxyHint")
+                    : t("verifyDnsHint")}
+                </p>
+              </div>
+              <Button
+                className="w-full shrink-0 sm:w-auto"
+                loading={check.isPending}
+                onClick={() => check.mutate()}
+                size="sm"
+                variant="outline"
+              >
+                <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.5} />
+                {t("verifyNow")}
+              </Button>
+            </div>
+          </DomainSetupStep>
+        </ol>
       )}
     </div>
+  );
+}
+
+/** One numbered setup step, joined to the next by a thin line. */
+function DomainSetupStep({
+  number,
+  isLast = false,
+  children,
+}: SiteDomainSetupStepProps) {
+  return (
+    <li className={cn("relative flex gap-3", !isLast && "pb-6")}>
+      {isLast ? null : (
+        <span
+          aria-hidden="true"
+          className="bg-border absolute top-7 bottom-1 left-3 w-px -translate-x-1/2"
+        />
+      )}
+      <span
+        aria-hidden="true"
+        className="text-muted-foreground flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium tabular-nums"
+      >
+        {number}
+      </span>
+      <div className="min-w-0 flex-1 pt-0.5">{children}</div>
+    </li>
   );
 }
 
@@ -319,7 +350,7 @@ export function SiteDomainsTable({
       width: "10rem",
       collapsePriority: 2,
       cell: (row) => (
-        <span className="flex h-5 items-center">
+        <span className="flex h-10 items-center">
           <StatusDot
             status={
               row.kind === "alias" ? "active" : siteDomainChipStatus(row.domain)
@@ -335,17 +366,21 @@ export function SiteDomainsTable({
       align: "right",
       collapsePriority: 1,
       cell: (row) => {
-        if (row.kind === "alias") {
-          return <span className="text-muted-foreground">-</span>;
+        let checked: ReactNode = null;
+        if (row.kind === "domain") {
+          checked = row.domain.lastCheckedAt ? (
+            <SiteRelativeTime
+              className="whitespace-nowrap"
+              date={row.domain.lastCheckedAt}
+            />
+          ) : (
+            <span className="whitespace-nowrap">{t("notChecked")}</span>
+          );
         }
-        return row.domain.lastCheckedAt ? (
-          <SiteRelativeTime
-            className="text-muted-foreground whitespace-nowrap"
-            date={row.domain.lastCheckedAt}
-          />
-        ) : (
-          <span className="text-muted-foreground whitespace-nowrap">
-            {t("notChecked")}
+        // Centred on the two-line domain cell, like the status beside it.
+        return (
+          <span className="text-muted-foreground flex h-10 items-center justify-end">
+            {checked}
           </span>
         );
       },
@@ -365,11 +400,12 @@ export function SiteDomainsTable({
         return (
           // Menu events bubble through the portal to the row; keep them here.
           <span
-            className="-my-1 flex items-center justify-end gap-0.5"
+            className="flex h-10 items-center justify-end gap-0.5"
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
           >
-            {row.kind === "domain" ? (
+            {/* An open setup has its own "Verify now". */}
+            {row.kind === "domain" && !isExpanded(row) ? (
               <CheckButton domain={row.domain} scope={scope} />
             ) : null}
             <RowMenu

@@ -22,7 +22,6 @@ export default function PageClient({ organizationSlug }: SitesPageClientProps) {
 
   return (
     <SitesPageShell>
-      <PageHeading description={t("description")} title={t("title")} />
       {statusQuery.data.configured ? (
         <SiteCreateForm
           hostingDomain={statusQuery.data.hostingDomain}
@@ -30,7 +29,10 @@ export default function PageClient({ organizationSlug }: SitesPageClientProps) {
           organizationSlug={organizationSlug}
         />
       ) : (
-        <SitesUnavailableState />
+        <>
+          <PageHeading description={t("description")} title={t("title")} />
+          <SitesUnavailableState />
+        </>
       )}
     </SitesPageShell>
   );

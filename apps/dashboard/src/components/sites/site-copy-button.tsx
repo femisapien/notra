@@ -13,15 +13,10 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/button";
 import { SITE_COPY_FEEDBACK_MS } from "@/constants/sites";
-import { cn } from "@/lib/utils";
 import type { SiteCopyButtonProps } from "@/types/components/sites";
 
 /** Icon button that copies a value and confirms with a check and a "Copied" tooltip. */
-export function SiteCopyButton({
-  value,
-  label,
-  className,
-}: SiteCopyButtonProps) {
+export function SiteCopyButton({ value, label }: SiteCopyButtonProps) {
   const tCommon = useTranslations("common");
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -66,7 +61,7 @@ export function SiteCopyButton({
                 ? tCommon("labels.labelCopied", { label })
                 : tCommon("labels.copyLabel", { label })
             }
-            className={cn("shrink-0", className)}
+            className="shrink-0"
             onClick={copy}
             size="icon-xs"
             type="button"
