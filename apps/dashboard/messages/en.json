@@ -3836,20 +3836,7 @@
         "metaTitle": "GEO Traffic",
         "title": "AI Traffic",
         "description": "AI crawlers and referrals visiting your site",
-        "setupDescription": "Set up GEO tracking first, then watch AI crawlers and referrals as they arrive.",
-        "domains": {
-          "title": "New domain detected",
-          "description": "AI traffic from <host>{domain}</host> isn't tracked yet.",
-          "remaining": "{count, plural, one {+1 more domain} other {+# more domains}}",
-          "ignore": "Ignore",
-          "add": "Add domain",
-          "ignoreHint": "Permanently hide this suggestion for everyone in this project.",
-          "addHint": "Only add domains you own. Tracking starts with future visits.",
-          "ignoreLabel": "Ignore {domain}",
-          "addLabel": "Add {domain}",
-          "loadFailed": "Could not load domain suggestions",
-          "actionFailed": "Could not update this domain"
-        }
+        "setupDescription": "Set up GEO tracking first, then watch AI crawlers and referrals as they arrive."
       },
       "write": {
         "metaTitle": "GEO Writer",
