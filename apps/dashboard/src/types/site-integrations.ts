@@ -6,11 +6,8 @@ export type { SiteIntegrationName };
 export interface SiteIntegrationField {
   /** The key in notra.json under `integrations.<provider>`. */
   key: string;
-  kind: "text" | "switch" | "select";
   placeholder?: string;
   optional?: boolean;
-  /** Select values; the first is the schema's default and stays out of notra.json. */
-  options?: readonly string[];
 }
 
 export interface SiteIntegrationProvider {
@@ -22,5 +19,5 @@ export interface SiteIntegrationProvider {
   fields: readonly SiteIntegrationField[];
 }
 
-/** One provider's form: text and select fields as strings, switches as booleans. */
-export type SiteIntegrationValues = Record<string, string | boolean>;
+/** One provider's form, field key to the typed text. */
+export type SiteIntegrationValues = Record<string, string>;

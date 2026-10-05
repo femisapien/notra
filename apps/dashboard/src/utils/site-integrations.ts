@@ -24,42 +24,21 @@ export function siteIntegrationFormValues(
   const values: SiteIntegrationValues = {};
   for (const field of provider.fields) {
     const value = settings?.[field.key];
-    if (field.kind === "switch") {
-      values[field.key] = value === true;
-    } else if (typeof value === "string") {
-      values[field.key] = value;
-    } else if (typeof value === "number") {
-      // Hand-written notra.json may hold numeric ids (Hotjar).
-      values[field.key] = String(value);
-    } else {
-      values[field.key] = field.options?.[0] ?? "";
-    }
+    values[field.key] = typeof value === "string" ? value : "";
   }
   return values;
 }
 
-/**
- * What goes into notra.json: trimmed text, blank optional fields,
- * switched-off options and default selections left out so the file only
- * holds what was chosen.
- */
+/** What goes into notra.json: trimmed text, blank optional fields left out. */
 export function siteIntegrationSettingsFromValues(
   provider: SiteIntegrationProvider,
   values: SiteIntegrationValues
 ): Record<string, unknown> {
   const settings: Record<string, unknown> = {};
   for (const field of provider.fields) {
-    const value = values[field.key];
-    if (field.kind === "switch") {
-      if (value === true) {
-        settings[field.key] = true;
-      }
-    } else if (field.kind === "select") {
-      if (typeof value === "string" && value !== field.options?.[0]) {
-        settings[field.key] = value;
-      }
-    } else if (typeof value === "string" && value.trim()) {
-      settings[field.key] = value.trim();
+    const value = values[field.key]?.trim();
+    if (value) {
+      settings[field.key] = value;
     }
   }
   return settings;

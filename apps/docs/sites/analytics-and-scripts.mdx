@@ -5,13 +5,13 @@ description: "Add an analytics provider, run your own JavaScript, and control wh
 
 ## Analytics integrations
 
-Add an analytics provider or a chat widget under `integrations` in `notra.json`. Notra adds the provider's script tag to the `<head>` of every page and allows its hosts in the [Content-Security-Policy](#content-security-policy).
+Add an analytics provider under `integrations` in `notra.json`. Notra adds the provider's script tag to the `<head>` of every page and allows its hosts in the [Content-Security-Policy](#content-security-policy).
 
 ```json notra.json
 {
   "name": "Acme",
   "integrations": {
-    "databuddy": { "clientId": "your-client-id", "trackWebVitals": true },
+    "databuddy": { "clientId": "your-client-id" },
     "plausible": { "domain": "acme.com" }
   }
 }
@@ -21,33 +21,12 @@ You can turn on several providers at once. Notra checks every ID against the pro
 
 | Integration | Settings | Notes |
 | --- | --- | --- |
-| `databuddy` | `clientId`, `trackWebVitals`, `trackErrors`, `trackPerformance`, `trackOutgoingLinks`, `trackInteractions`, `trackAttributes` | `trackErrors` needs a paid Databuddy plan. |
-| `plausible` | `domain`, `scriptUrl` | `domain` is the site's domain as you added it in Plausible. Use `scriptUrl` for self-hosted Plausible, a proxy, or a script extension such as `https://plausible.io/js/script.outbound-links.js`. |
+| `databuddy` | `clientId` | The client ID from Databuddy. |
+| `plausible` | `domain` | The site's domain as you added it in Plausible. |
 | `posthog` | `apiKey`, `apiHost` | `apiKey` is the project API key (`phc_…`). `apiHost` defaults to `https://us.i.posthog.com`. Set it to `https://eu.i.posthog.com` for EU Cloud, or to your reverse proxy. |
 | `ga4` | `measurementId` | Google Analytics 4, for example `G-ABC123XYZ9`. |
-| `gtm` | `tagId` | Google Tag Manager container, for example `GTM-ABCD123`. |
-| `umami` | `websiteId`, `scriptUrl` | `scriptUrl` defaults to Umami Cloud. Set it for a self-hosted Umami. |
-| `fathom` | `siteId` | The site ID from Fathom's embed code. |
-| `mixpanel` | `projectToken`, `region` | `region` is `us` (default), `eu` or `in`. It must match your project's data residency, or Mixpanel drops the events. Page views and autocapture are on. |
-| `amplitude` | `apiKey`, `serverZone` | `serverZone` is `us` (default) or `eu`. Use `eu` only if your organization stores its data in the EU. |
-| `segment` | `writeKey` | The write key of a JavaScript source. Device-mode destinations load their own scripts, so add their hosts to `allowedOrigins`. |
-| `hotjar` | `siteId`, `version` | `siteId` is the number from your Hotjar tracking code (`hjid`), as a string such as `"1234567"`. `version` is the code's `hjsv` and defaults to `6`. |
-| `clarity` | `projectId` | Microsoft Clarity's project ID, for example `abcd1234ef`. |
-| `intercom` | `appId`, `region` | Adds the Intercom Messenger. `appId` is your workspace ID. `region` is `us` (default), `eu` or `au`, the region your workspace is hosted in. |
-| `crisp` | `websiteId` | Adds the Crisp chatbox. The website ID is the UUID from Crisp's setup instructions. |
 
-```json notra.json
-{
-  "integrations": {
-    "posthog": { "apiKey": "phc_…", "apiHost": "https://eu.i.posthog.com" },
-    "ga4": { "measurementId": "G-ABC123XYZ9" },
-    "umami": { "websiteId": "94db1cb1-74f4-4a40-ad6c-962362670409" },
-    "fathom": { "siteId": "ABCDEFG" },
-    "mixpanel": { "projectToken": "0123456789abcdef0123456789abcdef", "region": "eu" },
-    "intercom": { "appId": "abc12345" }
-  }
-}
-```
+Another tool, such as a chat widget or a tag manager, goes in a [custom script](#custom-scripts).
 
 <Note>
 Previews use the same integrations as your live site. To keep previews out of your numbers, filter by hostname in your analytics tool. Preview hosts look like `pr-7--acme.notra.site`.
@@ -86,7 +65,6 @@ Every page comes with a `Content-Security-Policy` header that says where scripts
 - **Scripts** can come from your site, the analytics integrations you turned on, and your `allowedOrigins`. Inline scripts are allowed only if they were on the page at build time: Notra hashes every one of them, so nobody can inject a new one later.
 - **Connections** (`fetch`, beacons, WebSockets) are allowed to your site, your integrations and your `allowedOrigins`.
 - **Images, styles, fonts, videos and embeds** are not limited, so posts can still show images and videos from anywhere.
-- **Web Workers** follow the script rules. With `crisp` turned on, they may also come from `blob:` URLs and Crisp's hosts, because the chatbox runs its workers that way.
 
 If your custom scripts or components load code from another host or call an API, add that origin:
 
@@ -103,10 +81,6 @@ If your custom scripts or components load code from another host or call an API,
 ```
 
 Origins must start with `https://` or `wss://` and have no path. `https://*.example.com` covers every subdomain. A `wss://` origin only allows connections, not scripts. You can list up to 32 origins.
-
-<Warning>
-Google Tag Manager loads whatever tags you set up in the container. If a tag loads code from another host, add that host to `allowedOrigins`. Custom HTML tags add inline scripts that weren't on the page at build time, so the policy blocks them. If you rely on them, turn the policy off.
-</Warning>
 
 To turn the policy off entirely:
 

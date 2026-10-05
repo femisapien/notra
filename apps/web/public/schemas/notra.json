@@ -1011,6 +1011,7 @@
       }
     },
     "integrations": {
+      "default": {},
       "type": "object",
       "properties": {
         "databuddy": {
@@ -1019,30 +1020,6 @@
             "clientId": {
               "type": "string",
               "pattern": "^[A-Za-z0-9_-]{8,64}$"
-            },
-            "trackWebVitals": {
-              "default": false,
-              "type": "boolean"
-            },
-            "trackErrors": {
-              "default": false,
-              "type": "boolean"
-            },
-            "trackPerformance": {
-              "default": false,
-              "type": "boolean"
-            },
-            "trackOutgoingLinks": {
-              "default": false,
-              "type": "boolean"
-            },
-            "trackInteractions": {
-              "default": false,
-              "type": "boolean"
-            },
-            "trackAttributes": {
-              "default": false,
-              "type": "boolean"
             }
           },
           "required": ["clientId"],
@@ -1054,10 +1031,6 @@
             "domain": {
               "type": "string",
               "pattern": "^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$"
-            },
-            "scriptUrl": {
-              "type": "string",
-              "pattern": "^https:\\/\\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}(?::\\d{1,5})?\\/[A-Za-z0-9._~\\/-]*\\.js$"
             }
           },
           "required": ["domain"],
@@ -1087,139 +1060,6 @@
             }
           },
           "required": ["measurementId"],
-          "additionalProperties": false
-        },
-        "gtm": {
-          "type": "object",
-          "properties": {
-            "tagId": {
-              "type": "string",
-              "pattern": "^GTM-[A-Z0-9]{4,12}$"
-            }
-          },
-          "required": ["tagId"],
-          "additionalProperties": false
-        },
-        "umami": {
-          "type": "object",
-          "properties": {
-            "websiteId": {
-              "type": "string",
-              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-            },
-            "scriptUrl": {
-              "type": "string",
-              "pattern": "^https:\\/\\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}(?::\\d{1,5})?\\/[A-Za-z0-9._~\\/-]*\\.js$"
-            }
-          },
-          "required": ["websiteId"],
-          "additionalProperties": false
-        },
-        "fathom": {
-          "type": "object",
-          "properties": {
-            "siteId": {
-              "type": "string",
-              "pattern": "^[A-Z0-9]{4,16}$"
-            }
-          },
-          "required": ["siteId"],
-          "additionalProperties": false
-        },
-        "mixpanel": {
-          "type": "object",
-          "properties": {
-            "projectToken": {
-              "type": "string",
-              "pattern": "^[0-9a-f]{32}$"
-            },
-            "region": {
-              "default": "us",
-              "type": "string",
-              "enum": ["us", "eu", "in"]
-            }
-          },
-          "required": ["projectToken"],
-          "additionalProperties": false
-        },
-        "amplitude": {
-          "type": "object",
-          "properties": {
-            "apiKey": {
-              "type": "string",
-              "pattern": "^[0-9a-f]{32}$"
-            },
-            "serverZone": {
-              "default": "us",
-              "type": "string",
-              "enum": ["us", "eu"]
-            }
-          },
-          "required": ["apiKey"],
-          "additionalProperties": false
-        },
-        "segment": {
-          "type": "object",
-          "properties": {
-            "writeKey": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9]{20,64}$"
-            }
-          },
-          "required": ["writeKey"],
-          "additionalProperties": false
-        },
-        "hotjar": {
-          "type": "object",
-          "properties": {
-            "siteId": {
-              "type": "string",
-              "pattern": "^[1-9]\\d{0,9}$"
-            },
-            "version": {
-              "type": "string",
-              "pattern": "^[1-9]\\d?$"
-            }
-          },
-          "required": ["siteId"],
-          "additionalProperties": false
-        },
-        "clarity": {
-          "type": "object",
-          "properties": {
-            "projectId": {
-              "type": "string",
-              "pattern": "^[a-z0-9]{6,20}$"
-            }
-          },
-          "required": ["projectId"],
-          "additionalProperties": false
-        },
-        "intercom": {
-          "type": "object",
-          "properties": {
-            "appId": {
-              "type": "string",
-              "pattern": "^[a-z0-9]{6,16}$"
-            },
-            "region": {
-              "default": "us",
-              "type": "string",
-              "enum": ["us", "eu", "au"]
-            }
-          },
-          "required": ["appId"],
-          "additionalProperties": false
-        },
-        "crisp": {
-          "type": "object",
-          "properties": {
-            "websiteId": {
-              "type": "string",
-              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-            }
-          },
-          "required": ["websiteId"],
           "additionalProperties": false
         }
       },
