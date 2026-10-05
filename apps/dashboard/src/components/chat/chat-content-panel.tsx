@@ -151,10 +151,10 @@ function ChatContentPanelTab({
   return (
     <div
       className={cn(
-        "group/tab flex h-8 max-w-48 min-w-24 items-center rounded-md text-sm transition-colors",
+        "group/tab flex h-7 w-36 shrink-0 items-center rounded-md text-xs transition-colors",
         isActive
-          ? "bg-background text-foreground shadow-xs"
-          : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+          ? "bg-foreground/[0.07] text-foreground ring-border shadow-[inset_0_1px_3px_rgb(0_0_0/0.16)] ring-1 ring-inset"
+          : "text-muted-foreground hover:bg-foreground/[0.03] hover:text-foreground"
       )}
     >
       <button
