@@ -1,10 +1,12 @@
 import { changelog } from "@/../.source/server";
+import { COMPARE_COMPETITORS } from "@/constants/compare/competitors";
 import { NOTRA_CAPABILITIES } from "@/utils/agent-metadata";
 import { listNotraBlogPosts } from "@/utils/blog";
 import {
   getChangelogPostHref,
   listNotraChangelogPosts,
 } from "@/utils/changelog";
+import { getCompareHref, getCompareTitle } from "@/utils/compare";
 import { stripFrontmatter } from "@/utils/markdown";
 import { readAppMarkdownSource } from "@/utils/markdown-source";
 import { SITE_DESCRIPTION } from "@/utils/metadata";
@@ -107,6 +109,11 @@ export async function buildLlmsText() {
       "/pricing.md",
       "Plans, feature comparison and a step-by-step guide for estimating AI answers and linking a prefilled calculator"
     ),
+    formatLink(
+      "Compare",
+      "/compare.md",
+      "Honest comparisons of Notra with Profound, Peec AI, AthenaHQ, Scrunch and other GEO tools"
+    ),
     formatLink("Blog", "/blog.md", "Index of Notra blog posts"),
     formatLink(
       "Changelog",
@@ -151,6 +158,16 @@ export async function buildLlmsText() {
     "## Capabilities",
     "",
     ...NOTRA_CAPABILITIES.map((capability) => `- ${capability}`),
+    "",
+    "## Comparisons",
+    "",
+    ...COMPARE_COMPETITORS.map((competitor) =>
+      formatLink(
+        getCompareTitle(competitor),
+        `${getCompareHref(competitor)}.md`,
+        competitor.summary
+      )
+    ),
     "",
     "## Blog Posts",
     "",
