@@ -29,7 +29,6 @@ export function siteSettingsFormFromSite(site: SiteRecord): SiteSettingsForm {
     changelogEnabled: Boolean(site.mounts.changelog),
     changelogPath: site.mounts.changelog ?? SITE_DEFAULT_CHANGELOG_PATH,
     publishMode: site.publishMode,
-    showBranding: site.showBranding,
   };
 }
 
@@ -65,9 +64,6 @@ export function siteSettingsPatch(
   }
   if (form.publishMode !== site.publishMode) {
     patch.publishMode = form.publishMode;
-  }
-  if (form.showBranding !== site.showBranding) {
-    patch.showBranding = form.showBranding;
   }
   return patch;
 }

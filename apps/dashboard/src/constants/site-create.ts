@@ -2,23 +2,17 @@ import type { SiteInputField } from "@notra/sites-server/types/sites";
 import { TRANSITION } from "@notra/ui/lib/motion";
 import type { Variants } from "motion/react";
 
-import {
-  SITE_DEFAULT_BLOG_PATH,
-  SITE_DEFAULT_CHANGELOG_PATH,
-} from "@/constants/sites";
 import type { SiteCreateFormValues } from "@/types/sites";
 
-/** A new site starts with both sections on and protected previews. */
+/** A new site starts with protected previews; its sections come from the repository. */
 export const SITE_CREATE_FORM_DEFAULTS: SiteCreateFormValues = {
   repositoryId: null,
   name: "",
   slug: "",
   branch: "",
   rootDirectory: "",
-  blogEnabled: true,
-  blogPath: SITE_DEFAULT_BLOG_PATH,
-  changelogEnabled: true,
-  changelogPath: SITE_DEFAULT_CHANGELOG_PATH,
+  blogPath: null,
+  changelogPath: null,
   previewVisibility: "protected",
   publishMode: "pull_request",
 };
@@ -49,9 +43,7 @@ export const SITE_CREATE_VALUE_FIELDS: Partial<
   name: "name",
   slug: "slug",
   rootDirectory: "rootDirectory",
-  blogEnabled: "sections",
   blogPath: "sections",
-  changelogEnabled: "sections",
   changelogPath: "sections",
 };
 

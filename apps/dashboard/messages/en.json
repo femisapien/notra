@@ -4917,8 +4917,6 @@
         "started": "Deployment started {seconds}s ago…",
         "ready": "Your site is live. Built in {duration}.",
         "failed": "The build failed. The log shows why.",
-        "building": "Building",
-        "built": "Built",
         "visit": "Visit",
         "openSite": "Go to site",
         "viewDeployment": "View deployment",
@@ -4996,17 +4994,6 @@
       "title": "Deployment {sha}",
       "back": "Back to deployments",
       "statusAnnouncement": "Deployment status: {status}",
-      "summary": "Summary",
-      "field": "Field",
-      "value": "Value",
-      "environment": "Environment",
-      "branch": "Branch",
-      "pullRequest": "Pull request #{number}",
-      "finished": "Finished",
-      "output": "Output",
-      "errorTitle": "Build failed",
-      "diagnostics": "Diagnostics",
-      "log": "Build log",
       "notFound": {
         "title": "Deployment not found",
         "description": "It may belong to another site."
@@ -5130,7 +5117,7 @@
       "productionBranch": "Production branch",
       "drafts": "Editor drafts",
       "draftsHint": "{count, plural, one {# unpublished change} other {# unpublished changes}} in the editor",
-      "activity": "Activity",
+      "activity": "Deployments",
       "viewAll": "View all",
       "noCommitMessage": "No commit message",
       "columns": {
@@ -5194,24 +5181,15 @@
     },
     "deploymentPage": {
       "title": "Deployment details",
-      "copyUrl": "Copy URL",
-      "copied": "URL copied",
       "visit": "Visit",
-      "more": "More actions",
-      "current": "Current",
-      "live": "Live",
       "notLive": "Not live",
       "fields": {
         "created": "Created",
         "status": "Status",
-        "duration": "Duration",
         "environment": "Environment",
         "domains": "Domains",
-        "source": "Source",
-        "property": "Property",
-        "value": "Value"
+        "source": "Source"
       },
-      "via": "via {trigger}",
       "pullRequest": "#{number}",
       "preview": {
         "protected": "This preview is protected. Open it to sign in.",
@@ -5219,22 +5197,6 @@
         "building": "The preview appears once this build is live.",
         "failed": "Nothing to show. This build didn't finish.",
         "expired": "This deployment's files were cleaned up."
-      },
-      "steps": {
-        "label": "Progress",
-        "queued": "Queued",
-        "building": "Building",
-        "uploading": "Uploading",
-        "ready": "Ready",
-        "live": "Live",
-        "failed": "Failed",
-        "canceled": "Canceled",
-        "superseded": "Skipped",
-        "waiting": "Waiting for a builder",
-        "publishing": "Publishing",
-        "showLog": "Build log",
-        "notLiveNote": "No longer live",
-        "expiredNote": "Files cleaned up"
       },
       "notice": {
         "failed": "Build failed",
@@ -5264,22 +5226,13 @@
         "folded": "{count, plural, one {Show # more line} other {Show # more lines}}"
       },
       "diagnostics": {
-        "title": "Diagnostics",
-        "none": "No errors or warnings.",
-        "pending": "Diagnostics show up when the build finishes."
+        "title": "Diagnostics"
       },
       "output": {
         "title": "Output",
-        "files": "Files",
-        "size": "Size",
-        "finished": "Finished",
         "pending": "Shows up once the build is stored.",
         "none": "This build didn't produce any output.",
         "fileCount": "{count, plural, one {# file} other {# files}}"
-      },
-      "sections": {
-        "build": "Build",
-        "details": "Details"
       },
       "byline": {
         "push": "Pushed by {author}",
@@ -5496,13 +5449,14 @@
     },
     "settingsPage": {
       "title": "Settings",
-      "description": "Repository, sections, previews, publishing and branding for this site.",
+      "description": "Repository, sections, previews and publishing for this site.",
       "unsaved": "You have unsaved changes",
-      "branding": "Branding",
       "brandingLabel": "Notra branding",
       "brandingHint": "Shows a small “Powered by Notra” badge in the footer. Changing it rebuilds the site.",
       "sectionsHint": "Paths on your site. Changing them rebuilds the site; the current version stays live until the build succeeds.",
-      "changeAccess": "Change"
+      "changeAccess": "Change",
+      "brandingRemove": "Remove branding",
+      "brandingShow": "Show branding"
     },
     "previewAccess": {
       "title": "Preview access",
@@ -5515,27 +5469,23 @@
       },
       "turnOn": "Turn on",
       "buildLabel": "Build previews",
-      "buildDescription": "Every pull request into <branch></branch> gets its own preview.",
       "buildOffWarning": "{count, plural, one {The open preview closes} other {All # open previews close}} when you save. Turn previews back on and the next push builds them again.",
       "buildOffHint": "New pull requests won't build a preview.",
       "whoLabel": "Who can open previews",
       "modes": {
         "members": {
-          "title": "Team only",
-          "description": "Members of your organization and people with a share link."
+          "title": "Team only"
         },
         "password": {
-          "title": "Team or password",
-          "description": "Anyone with the password can open previews too."
+          "title": "Team or password"
         },
         "public": {
-          "title": "Anyone with the link",
-          "description": "No sign-in. Previews are never indexed."
+          "title": "Anyone with the link"
         }
       },
       "passwordLabel": "Preview password",
       "newPasswordLabel": "New password",
-      "passwordHint": "At least {min} characters. Share it with the people who should see previews.",
+      "passwordHint": "At least {min} characters.",
       "changeHint": "At least {min} characters. Everyone who used the old password has to enter the new one.",
       "passwordSet": "Password set <time></time>",
       "changePassword": "Change",
@@ -5547,7 +5497,7 @@
     },
     "integrationsPage": {
       "title": "Analytics",
-      "description": "Analytics and chat for this site. Settings are saved in notra.json and go live when you publish.",
+      "description": "Analytics for this site. Settings are saved in notra.json and go live when you publish.",
       "optional": "Optional",
       "connect": "Connect",
       "save": "Save",
@@ -5562,34 +5512,17 @@
       "invalidTitle": "notra.json can't be read",
       "invalidDescription": "It isn't valid JSON. Fix it in the editor, then come back.",
       "providers": {
-        "databuddy": "Privacy-first analytics with web vitals and error tracking.",
+        "databuddy": "Privacy-first web analytics.",
         "plausible": "Lightweight, cookie-free analytics.",
         "posthog": "Product analytics, session replay and feature flags.",
-        "ga4": "Google's web analytics.",
-        "gtm": "Load and manage tags from one container.",
-        "umami": "Simple, open-source analytics, cloud or self-hosted.",
-        "fathom": "Simple, privacy-focused analytics.",
-        "mixpanel": "Product analytics with autocapture and funnels.",
-        "amplitude": "Product analytics with autocapture.",
-        "segment": "Collect events once and send them to your other tools.",
-        "hotjar": "Heatmaps, recordings and feedback.",
-        "clarity": "Free heatmaps and session recordings from Microsoft.",
-        "intercom": "Live chat and help with the Intercom Messenger.",
-        "crisp": "Live chat with the Crisp chatbox."
+        "ga4": "Google's web analytics."
       },
       "fields": {
         "databuddy": {
-          "clientId": "Client ID",
-          "trackWebVitals": "Track web vitals",
-          "trackErrors": "Track errors",
-          "trackPerformance": "Track page performance",
-          "trackOutgoingLinks": "Track outgoing links",
-          "trackInteractions": "Track interactions",
-          "trackAttributes": "Track data-track attributes"
+          "clientId": "Client ID"
         },
         "plausible": {
-          "domain": "Domain",
-          "scriptUrl": "Script URL"
+          "domain": "Domain"
         },
         "posthog": {
           "apiKey": "Project API key",
@@ -5597,53 +5530,11 @@
         },
         "ga4": {
           "measurementId": "Measurement ID"
-        },
-        "gtm": {
-          "tagId": "Container ID"
-        },
-        "umami": {
-          "websiteId": "Website ID",
-          "scriptUrl": "Script URL"
-        },
-        "fathom": {
-          "siteId": "Site ID"
-        },
-        "mixpanel": {
-          "projectToken": "Project token",
-          "region": "Data residency"
-        },
-        "amplitude": {
-          "apiKey": "API key",
-          "serverZone": "Data region"
-        },
-        "segment": {
-          "writeKey": "Write key"
-        },
-        "hotjar": {
-          "siteId": "Site ID",
-          "version": "Tracking code version"
-        },
-        "clarity": {
-          "projectId": "Project ID"
-        },
-        "intercom": {
-          "appId": "Workspace ID",
-          "region": "Hosting region"
-        },
-        "crisp": {
-          "websiteId": "Website ID"
         }
       },
       "add": "Add {provider}",
       "more": "{provider} options",
-      "edit": "Edit",
-      "tracking": "Tracking",
-      "options": {
-        "us": "United States",
-        "eu": "European Union",
-        "in": "India",
-        "au": "Australia"
-      }
+      "edit": "Edit"
     }
   },
   "analytics": {

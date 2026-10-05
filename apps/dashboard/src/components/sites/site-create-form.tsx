@@ -33,6 +33,7 @@ import {
   useConnectSiteRepository,
   useImportableRepositories,
 } from "@/lib/hooks/use-importable-repositories";
+import { useRepositorySuggestions } from "@/lib/hooks/use-repository-suggestions";
 import type {
   SiteCreateFormProps,
   SiteCreateStepState,
@@ -46,10 +47,12 @@ import type {
 } from "@/types/sites";
 import { toErrorMessage } from "@/utils/error-message";
 import {
+  hasSiteCreateSection,
   isSiteCreateReady,
   isSiteCreateSlugInvalid,
   siteCreateErrorField,
   siteCreateInput,
+  siteCreateSectionPlan,
   withSiteRepository,
 } from "@/utils/site-create";
 
@@ -87,7 +90,17 @@ export function SiteCreateForm({
   const createMutation = useCreateSite();
   const isCreating = createMutation.isPending;
   const created = createMutation.data?.site ?? null;
-  const isReady = isSiteCreateReady(form, repository);
+  const suggestions = useRepositorySuggestions({
+    organizationId,
+    repositoryId: form.repositoryId,
+    branch: form.branch.trim(),
+  });
+  const sections = siteCreateSectionPlan(form, suggestions.contentCounts);
+  // Untyped section paths come from the repository scan, so creating waits for it.
+  const isReady =
+    isSiteCreateReady(form, repository) &&
+    hasSiteCreateSection(sections) &&
+    !suggestions.isLoading;
 
   const stepIds = SITE_CREATE_STEP_IDS;
   const activeIndex = stepIds.indexOf(activeStep);
@@ -168,7 +181,7 @@ export function SiteCreateForm({
       return;
     }
     createMutation.mutate(
-      siteCreateInput(form, {
+      siteCreateInput(form, sections, {
         organizationId,
         repositoryId: repository.id,
         projectId,
@@ -311,8 +324,10 @@ export function SiteCreateForm({
                     onStarterPullRequestOpened={setStarterPullRequestUrl}
                     organizationId={organizationId}
                     repository={repository}
+                    sections={sections}
                     slugInvalid={isSiteCreateSlugInvalid(form)}
                     starterPullRequestUrl={starterPullRequestUrl}
+                    suggestions={suggestions}
                   />
                 </m.div>
               </LazyMotion>

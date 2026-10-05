@@ -3,17 +3,17 @@ import type { ReactNode } from "react";
 
 import type { SiteIntegrationProvider } from "@/types/site-integrations";
 import type {
+  RepositorySuggestionsResult,
   SiteBuildLogEntry,
   SiteBuildLogFold,
   SiteBuildLogLine,
   SiteChoiceOption,
   SiteCreateFieldErrors,
   SiteCreateFormValues,
+  SiteCreateSectionPlan,
   SiteDeployment,
   SiteDeploymentRecord,
   SiteDeploymentStatus,
-  SiteDeploymentStep,
-  SiteDeploymentStepState,
   SiteDetail,
   SiteDomain,
   SiteDomainChipStatus,
@@ -69,20 +69,15 @@ export interface SiteCreateSourceFieldsProps {
   errors: SiteCreateFieldErrors;
   starterPullRequestUrl: string | null;
   onStarterPullRequestOpened: (url: string) => void;
+  suggestions: RepositorySuggestionsResult;
+  sections: SiteCreateSectionPlan;
 }
 
-export interface SiteCreateSection {
-  key: string;
-  title: string;
-  enabled: boolean;
-  path: string;
-  onEnabledChange: (value: boolean) => void;
-  onPathChange: (value: string) => void;
-}
-
-export interface SiteCreateSectionsProps {
+export interface SiteCreateSectionFieldsProps {
   idPrefix: string;
-  sections: SiteCreateSection[];
+  plan: SiteCreateSectionPlan;
+  onBlogPathChange: (value: string) => void;
+  onChangelogPathChange: (value: string) => void;
   /** A rejected create call's message about the sections. */
   error?: string;
 }
@@ -334,34 +329,6 @@ export interface SiteDeploymentMenuProps {
   className?: string;
 }
 
-export interface SiteDeploymentUrlValueProps {
-  url: string;
-  live: boolean;
-}
-
-export interface SiteDeploymentPropertiesProps {
-  deployment: SiteDeploymentRecord;
-  live: boolean;
-  urls: string[];
-}
-
-export interface SiteDeploymentTimelineProps {
-  label: string;
-  children: ReactNode;
-}
-
-export interface SiteDeploymentTimelineStepProps {
-  state: SiteDeploymentStepState;
-  label: string;
-  /** Muted text after the label, e.g. "Waiting for a builder". */
-  note?: ReactNode;
-  /** How long the step took, or when it happened. */
-  time?: ReactNode;
-  last?: boolean;
-  collapsible?: { open: boolean; onOpenChange: (open: boolean) => void };
-  children?: ReactNode;
-}
-
 export interface SiteDeploymentsTableProps {
   organizationId: string;
   organizationSlug: string;
@@ -396,36 +363,24 @@ export interface SiteDeploymentActionsProps extends SiteScope {
   onRollback: () => void;
 }
 
-export interface SiteDeploymentBuildStepProps {
-  step: SiteDeploymentStep;
-  last: boolean;
-  deployment: SiteDeploymentRecord;
-  log: string | null;
-  live: boolean;
-  /** Shown as a small preview on the final step; null for protected or not-live builds. */
-  liveUrl: string | null;
-  logOpen: boolean;
-  onLogOpenChange: (open: boolean) => void;
-}
-
-export interface SiteDeploymentMetaProps {
-  deployment: SiteDeploymentRecord;
-  detail: SiteDetail;
-}
-
-export interface SiteDeploymentMetaLinkProps {
-  href: string | null;
-  title?: string;
-  children: ReactNode;
-}
-
 /** Parts of the deployment page that only read the deployment (note, failure summary). */
+export interface SiteEnvironmentBadgeProps {
+  kind: SiteDeployment["kind"];
+  previewKey: string | null;
+  live: boolean;
+  className?: string;
+}
+
+export interface SiteDeploymentSummaryProps {
+  detail: SiteDetail;
+  deployment: SiteDeploymentRecord;
+  live: boolean;
+  urls: string[];
+  primaryUrl: string;
+}
+
 export interface SiteDeploymentRecordProps {
   deployment: SiteDeploymentRecord;
-}
-
-export interface SiteLiveSiteProps {
-  url: string;
 }
 
 export interface SiteRollbackDialogProps extends SiteScope {

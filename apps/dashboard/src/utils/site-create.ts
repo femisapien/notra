@@ -1,11 +1,17 @@
 import { isValidSiteSlug } from "@notra/sites-core/utils/hosts";
+import type { RepositoryContentCount } from "@notra/sites-server/types/github";
 import type { SiteInputField } from "@notra/sites-server/types/sites";
 import { ORPCError } from "@orpc/client";
 
 import { SITE_CREATE_INPUT_FIELDS } from "@/constants/site-create";
+import {
+  SITE_DEFAULT_BLOG_PATH,
+  SITE_DEFAULT_CHANGELOG_PATH,
+} from "@/constants/sites";
 import type {
   SiteCreateFormValues,
   SiteCreateInput,
+  SiteCreateSectionPlan,
   SiteCreateTarget,
   SiteRepository,
 } from "@/types/sites";
@@ -23,6 +29,7 @@ export function siteCreateSlug(form: SiteCreateFormValues): string {
 /** The create call for a filled-in form; blank optional fields fall back to server defaults. */
 export function siteCreateInput(
   form: SiteCreateFormValues,
+  sections: SiteCreateSectionPlan,
   { organizationId, repositoryId, projectId }: SiteCreateTarget
 ): SiteCreateInput {
   return {
@@ -33,8 +40,8 @@ export function siteCreateInput(
     productionBranch: form.branch.trim() || undefined,
     rootDirectory: form.rootDirectory.trim() || undefined,
     mounts: {
-      blog: form.blogEnabled ? form.blogPath : undefined,
-      changelog: form.changelogEnabled ? form.changelogPath : undefined,
+      blog: sections.blogPath.trim() || undefined,
+      changelog: sections.changelogPath.trim() || undefined,
     },
     previewVisibility: form.previewVisibility,
     publishMode: form.publishMode,
@@ -48,11 +55,41 @@ export function isSiteCreateSlugInvalid(form: SiteCreateFormValues): boolean {
   return slug.length > 0 && !isValidSiteSlug(slug);
 }
 
-/** Named, with at least one section on. */
+/** Named; sections are checked against the repository plan. */
 export function isSiteCreateFormComplete(form: SiteCreateFormValues): boolean {
-  return (
-    form.name.trim().length > 0 && (form.blogEnabled || form.changelogEnabled)
+  return form.name.trim().length > 0;
+}
+
+/**
+ * The section paths a new site starts with. A typed path wins; otherwise a
+ * section is suggested when it has posts under the root directory, and both
+ * are while the repository has none yet (a fresh starter).
+ */
+export function siteCreateSectionPlan(
+  form: SiteCreateFormValues,
+  contentCounts: Record<string, RepositoryContentCount> | undefined
+): SiteCreateSectionPlan {
+  const root = form.rootDirectory.trim().replace(/^\/+|\/+$/g, "");
+  const counts = contentCounts
+    ? (contentCounts[root] ?? { blog: 0, changelog: 0 })
+    : null;
+  const hasContent = Boolean(
+    counts && (counts.blog > 0 || counts.changelog > 0)
   );
+  const suggested = (posts: number | undefined, path: string) =>
+    !hasContent || (posts ?? 0) > 0 ? path : "";
+  return {
+    blogPath: form.blogPath ?? suggested(counts?.blog, SITE_DEFAULT_BLOG_PATH),
+    changelogPath:
+      form.changelogPath ??
+      suggested(counts?.changelog, SITE_DEFAULT_CHANGELOG_PATH),
+    counts,
+  };
+}
+
+/** At least one section has a path. */
+export function hasSiteCreateSection(plan: SiteCreateSectionPlan): boolean {
+  return Boolean(plan.blogPath.trim() || plan.changelogPath.trim());
 }
 
 /** Picking a repository starts on its default branch and names the site after it. */
@@ -65,6 +102,9 @@ export function withSiteRepository(
     repositoryId: repository.id,
     branch: repository.defaultBranch ?? "",
     name: form.name.trim() ? form.name : (repository.repo ?? ""),
+    // A new repository suggests its own sections again.
+    blogPath: null,
+    changelogPath: null,
   };
 }
 

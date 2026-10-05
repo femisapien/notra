@@ -14,7 +14,10 @@ import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SiteSettingsDangerZoneProps } from "@/types/components/sites";
 import { toErrorMessage } from "@/utils/error-message";
 
-/** Take the site offline (or bring it back) and delete it, each behind a confirmation. */
+/**
+ * Notra branding on or off, take the site offline (or bring it back) and
+ * delete it; offline and delete ask first.
+ */
 export function SiteSettingsDangerZone({
   organizationId,
   organizationSlug,
@@ -22,6 +25,7 @@ export function SiteSettingsDangerZone({
   site,
 }: SiteSettingsDangerZoneProps) {
   const t = useTranslations("sites.settings");
+  const tPage = useTranslations("sites.settingsPage");
   const invalidateSites = useInvalidateSites();
   const [offlineOpen, setOfflineOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -44,6 +48,18 @@ export function SiteSettingsDangerZone({
     },
   });
 
+  const brandingMutation = useMutation({
+    mutationFn: (showBranding: boolean) =>
+      dashboardOrpc.sites.update.call({ organizationId, siteId, showBranding }),
+    onSuccess: async () => {
+      toast.success(t("savedRebuilding"));
+      await invalidateSites();
+    },
+    onError: (error) => {
+      toast.error(toErrorMessage(error, t("saveFailed")));
+    },
+  });
+
   return (
     <>
       <TitleCard
@@ -54,6 +70,24 @@ export function SiteSettingsDangerZone({
       >
         <div className="divide-border divide-y">
           <div className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-1">
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-sm font-medium">{tPage("brandingLabel")}</p>
+              <p className="text-muted-foreground text-xs">
+                {tPage("brandingHint")}
+              </p>
+            </div>
+            <Button
+              loading={brandingMutation.isPending}
+              onClick={() => brandingMutation.mutate(!site.showBranding)}
+              type="button"
+              variant="outline"
+            >
+              {site.showBranding
+                ? tPage("brandingRemove")
+                : tPage("brandingShow")}
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 py-3">
             <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-medium">
                 {suspended ? t("offline.restoreTitle") : t("offline.title")}

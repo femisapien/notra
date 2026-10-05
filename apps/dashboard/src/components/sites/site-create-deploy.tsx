@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ArrowDown01Icon,
   ArrowUpRight01Icon,
   CheckmarkCircle02Icon,
   Loading03Icon,
@@ -11,7 +10,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useState } from "react";
 
 import { buttonVariants } from "@/components/button";
 import { SiteBuildLogs } from "@/components/sites/site-build-logs";
@@ -74,7 +72,6 @@ export function SiteCreateDeploy({
       (diagnostic) => diagnostic.code === SITE_CONFIG_MISSING_DIAGNOSTIC
     );
   const now = useNow(inProgress);
-  const [open, setOpen] = useState(true);
   const elapsed = record
     ? formatBuildDuration(deploymentElapsedMs(record, now))
     : null;
@@ -151,36 +148,13 @@ export function SiteCreateDeploy({
           !deploymentQueued && "hidden"
         )}
       >
-        <button
-          aria-expanded={open}
-          className="hover:bg-muted/40 flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm font-medium transition-colors"
-          onClick={() => setOpen((current) => !current)}
-          type="button"
-        >
-          <HugeiconsIcon
-            aria-hidden="true"
-            className={cn(
-              "text-muted-foreground size-4 transition-transform duration-200",
-              !open && "-rotate-90"
-            )}
-            icon={ArrowDown01Icon}
+        <div className="h-80">
+          <SiteBuildLogs
+            inProgress={inProgress}
+            log={deployment.data?.log ?? null}
+            queued={!record || status === "queued"}
           />
-          <span className="flex-1">{t(ready ? "built" : "building")}</span>
-          {elapsed ? (
-            <span className="text-muted-foreground font-mono text-xs tabular-nums">
-              {elapsed}
-            </span>
-          ) : null}
-        </button>
-        {open ? (
-          <div className="h-72 border-t">
-            <SiteBuildLogs
-              inProgress={inProgress}
-              log={deployment.data?.log ?? null}
-              queued={!record || status === "queued"}
-            />
-          </div>
-        ) : null}
+        </div>
       </div>
 
       {ready || failed ? (

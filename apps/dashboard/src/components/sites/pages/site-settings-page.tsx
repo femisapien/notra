@@ -2,7 +2,6 @@
 
 import { Folder01Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
 import { Input } from "@notra/ui/components/ui/input";
-import { Switch } from "@notra/ui/components/ui/switch";
 import { TitleCard } from "@notra/ui/components/ui/title-card";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
@@ -212,24 +211,6 @@ function SiteSettingsForm({
                 options={publishModeOptions}
                 value={form.publishMode}
               />
-            </SiteSettingsRow>
-          </div>
-        </TitleCard>
-
-        <TitleCard as="section" heading={tPage("branding")} headingAs="h2">
-          <div className="divide-border divide-y">
-            <SiteSettingsRow
-              description={tPage("brandingHint")}
-              htmlFor={`${id}-branding`}
-              label={tPage("brandingLabel")}
-            >
-              <div className="flex lg:pt-1.5">
-                <Switch
-                  checked={form.showBranding}
-                  id={`${id}-branding`}
-                  onCheckedChange={(value) => update("showBranding", value)}
-                />
-              </div>
             </SiteSettingsRow>
           </div>
         </TitleCard>

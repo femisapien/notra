@@ -4917,8 +4917,6 @@
         "started": "Deployment vor {seconds} s gestartet…",
         "ready": "Deine Site ist live. Gebaut in {duration}.",
         "failed": "Der Build ist fehlgeschlagen. Der Log zeigt warum.",
-        "building": "Building",
-        "built": "Gebaut",
         "visit": "Öffnen",
         "openSite": "Zur Site",
         "viewDeployment": "Deployment ansehen",
@@ -4996,17 +4994,6 @@
       "title": "Deployment {sha}",
       "back": "Zurück zu den Deployments",
       "statusAnnouncement": "Deployment-Status: {status}",
-      "summary": "Zusammenfassung",
-      "field": "Feld",
-      "value": "Wert",
-      "environment": "Umgebung",
-      "branch": "Branch",
-      "pullRequest": "Pull Request #{number}",
-      "finished": "Fertig",
-      "output": "Ausgabe",
-      "errorTitle": "Build fehlgeschlagen",
-      "diagnostics": "Diagnose",
-      "log": "Build-Log",
       "notFound": {
         "title": "Deployment nicht gefunden",
         "description": "Es gehört vielleicht zu einer anderen Site."
@@ -5130,7 +5117,7 @@
       "productionBranch": "Produktions-Branch",
       "drafts": "Entwürfe im Editor",
       "draftsHint": "{count, plural, one {# unveröffentlichte Änderung} other {# unveröffentlichte Änderungen}} im Editor",
-      "activity": "Aktivität",
+      "activity": "Deployments",
       "viewAll": "Alle ansehen",
       "noCommitMessage": "Keine Commit-Nachricht",
       "columns": {
@@ -5194,24 +5181,15 @@
     },
     "deploymentPage": {
       "title": "Deployment-Details",
-      "copyUrl": "URL kopieren",
-      "copied": "URL kopiert",
       "visit": "Öffnen",
-      "more": "Weitere Aktionen",
-      "current": "Aktuell",
-      "live": "Live",
       "notLive": "Nicht live",
       "fields": {
         "created": "Erstellt",
         "status": "Status",
-        "duration": "Dauer",
         "environment": "Umgebung",
         "domains": "Domains",
-        "source": "Quelle",
-        "property": "Eigenschaft",
-        "value": "Wert"
+        "source": "Quelle"
       },
-      "via": "über {trigger}",
       "pullRequest": "#{number}",
       "preview": {
         "protected": "Diese Preview ist geschützt. Öffne sie, um dich anzumelden.",
@@ -5219,22 +5197,6 @@
         "building": "Die Vorschau erscheint, sobald dieser Build live ist.",
         "failed": "Nichts zu sehen. Dieser Build wurde nicht fertig.",
         "expired": "Die Dateien dieses Deployments wurden aufgeräumt."
-      },
-      "steps": {
-        "label": "Fortschritt",
-        "queued": "Warteschlange",
-        "building": "Build",
-        "uploading": "Upload",
-        "ready": "Bereit",
-        "live": "Live",
-        "failed": "Fehlgeschlagen",
-        "canceled": "Abgebrochen",
-        "superseded": "Übersprungen",
-        "waiting": "Wartet auf einen Builder",
-        "publishing": "Veröffentlichen",
-        "showLog": "Build-Log",
-        "notLiveNote": "Nicht mehr live",
-        "expiredNote": "Dateien entfernt"
       },
       "notice": {
         "failed": "Build fehlgeschlagen",
@@ -5264,22 +5226,13 @@
         "folded": "{count, plural, one {# weitere Zeile zeigen} other {# weitere Zeilen zeigen}}"
       },
       "diagnostics": {
-        "title": "Diagnose",
-        "none": "Keine Fehler oder Warnungen.",
-        "pending": "Die Diagnose erscheint, wenn der Build fertig ist."
+        "title": "Diagnose"
       },
       "output": {
         "title": "Ausgabe",
-        "files": "Dateien",
-        "size": "Größe",
-        "finished": "Fertig",
         "pending": "Erscheint, sobald der Build gespeichert ist.",
         "none": "Dieser Build hat keine Ausgabe erzeugt.",
         "fileCount": "{count, plural, one {# Datei} other {# Dateien}}"
-      },
-      "sections": {
-        "build": "Build",
-        "details": "Details"
       },
       "byline": {
         "push": "Gepusht von {author}",
@@ -5496,13 +5449,14 @@
     },
     "settingsPage": {
       "title": "Einstellungen",
-      "description": "Repository, Bereiche, Previews, Veröffentlichen und Branding für diese Site.",
+      "description": "Repository, Bereiche, Previews und Veröffentlichen für diese Site.",
       "unsaved": "Du hast ungespeicherte Änderungen",
-      "branding": "Branding",
       "brandingLabel": "Notra-Branding",
       "brandingHint": "Zeigt ein kleines „Powered by Notra“-Badge im Footer. Eine Änderung baut die Site neu.",
       "sectionsHint": "Pfade auf deiner Site. Eine Änderung baut die Site neu; die aktuelle Version bleibt live, bis der Build fertig ist.",
-      "changeAccess": "Ändern"
+      "changeAccess": "Ändern",
+      "brandingRemove": "Branding entfernen",
+      "brandingShow": "Branding anzeigen"
     },
     "previewAccess": {
       "title": "Zugriff auf Vorschauen",
@@ -5515,27 +5469,23 @@
       },
       "turnOn": "Einschalten",
       "buildLabel": "Vorschauen bauen",
-      "buildDescription": "Jeder Pull Request in <branch></branch> bekommt eine eigene Vorschau.",
       "buildOffWarning": "{count, plural, one {Die offene Vorschau wird} other {Alle # offenen Vorschauen werden}} beim Speichern geschlossen. Schaltest du Vorschauen wieder ein, baut der nächste Push sie neu.",
       "buildOffHint": "Neue Pull Requests bekommen keine Vorschau.",
       "whoLabel": "Wer Vorschauen öffnen kann",
       "modes": {
         "members": {
-          "title": "Nur Team",
-          "description": "Mitglieder deiner Organisation und alle mit einem Freigabelink."
+          "title": "Nur Team"
         },
         "password": {
-          "title": "Team oder Passwort",
-          "description": "Wer das Passwort kennt, kann Vorschauen auch öffnen."
+          "title": "Team oder Passwort"
         },
         "public": {
-          "title": "Alle mit dem Link",
-          "description": "Ohne Anmeldung. Vorschauen werden nie indexiert."
+          "title": "Alle mit dem Link"
         }
       },
       "passwordLabel": "Passwort für Vorschauen",
       "newPasswordLabel": "Neues Passwort",
-      "passwordHint": "Mindestens {min} Zeichen. Teile es mit allen, die Vorschauen sehen sollen.",
+      "passwordHint": "Mindestens {min} Zeichen.",
       "changeHint": "Mindestens {min} Zeichen. Wer das alte Passwort benutzt hat, muss das neue eingeben.",
       "passwordSet": "Passwort gesetzt <time></time>",
       "changePassword": "Ändern",
@@ -5547,7 +5497,7 @@
     },
     "integrationsPage": {
       "title": "Analytics",
-      "description": "Analytics und Chat für diese Site. Die Einstellungen landen in notra.json und gehen beim Veröffentlichen live.",
+      "description": "Analytics für diese Site. Die Einstellungen landen in notra.json und gehen beim Veröffentlichen live.",
       "optional": "Optional",
       "connect": "Verbinden",
       "save": "Speichern",
@@ -5562,34 +5512,17 @@
       "invalidTitle": "notra.json kann nicht gelesen werden",
       "invalidDescription": "Die Datei ist kein gültiges JSON. Korrigiere sie im Editor und komm dann zurück.",
       "providers": {
-        "databuddy": "Datenschutzfreundliche Analytics mit Web Vitals und Fehlertracking.",
+        "databuddy": "Datenschutzfreundliche Web-Analytics.",
         "plausible": "Leichtgewichtige Analytics ohne Cookies.",
         "posthog": "Product Analytics, Session Replay und Feature Flags.",
-        "ga4": "Die Web-Analytics von Google.",
-        "gtm": "Tags aus einem Container laden und verwalten.",
-        "umami": "Einfache Open-Source-Analytics, in der Cloud oder selbst gehostet.",
-        "fathom": "Einfache, datenschutzfreundliche Analytics.",
-        "mixpanel": "Product Analytics mit Autocapture und Funnels.",
-        "amplitude": "Product Analytics mit Autocapture.",
-        "segment": "Events einmal erfassen und an deine anderen Tools senden.",
-        "hotjar": "Heatmaps, Aufzeichnungen und Feedback.",
-        "clarity": "Kostenlose Heatmaps und Session-Aufzeichnungen von Microsoft.",
-        "intercom": "Live-Chat und Hilfe mit dem Intercom Messenger.",
-        "crisp": "Live-Chat mit der Crisp-Chatbox."
+        "ga4": "Die Web-Analytics von Google."
       },
       "fields": {
         "databuddy": {
-          "clientId": "Client-ID",
-          "trackWebVitals": "Web Vitals erfassen",
-          "trackErrors": "Fehler erfassen",
-          "trackPerformance": "Seitenperformance erfassen",
-          "trackOutgoingLinks": "Ausgehende Links erfassen",
-          "trackInteractions": "Interaktionen erfassen",
-          "trackAttributes": "data-track-Attribute erfassen"
+          "clientId": "Client-ID"
         },
         "plausible": {
-          "domain": "Domain",
-          "scriptUrl": "Skript-URL"
+          "domain": "Domain"
         },
         "posthog": {
           "apiKey": "Projekt-API-Key",
@@ -5597,53 +5530,11 @@
         },
         "ga4": {
           "measurementId": "Mess-ID"
-        },
-        "gtm": {
-          "tagId": "Container-ID"
-        },
-        "umami": {
-          "websiteId": "Website-ID",
-          "scriptUrl": "Skript-URL"
-        },
-        "fathom": {
-          "siteId": "Site-ID"
-        },
-        "mixpanel": {
-          "projectToken": "Projekt-Token",
-          "region": "Datenstandort"
-        },
-        "amplitude": {
-          "apiKey": "API-Key",
-          "serverZone": "Datenregion"
-        },
-        "segment": {
-          "writeKey": "Write Key"
-        },
-        "hotjar": {
-          "siteId": "Site-ID",
-          "version": "Version des Tracking-Codes"
-        },
-        "clarity": {
-          "projectId": "Projekt-ID"
-        },
-        "intercom": {
-          "appId": "Workspace-ID",
-          "region": "Hosting-Region"
-        },
-        "crisp": {
-          "websiteId": "Website-ID"
         }
       },
       "add": "{provider} hinzufügen",
       "more": "{provider}-Optionen",
-      "edit": "Bearbeiten",
-      "tracking": "Tracking",
-      "options": {
-        "us": "USA",
-        "eu": "Europäische Union",
-        "in": "Indien",
-        "au": "Australien"
-      }
+      "edit": "Bearbeiten"
     }
   },
   "analytics": {

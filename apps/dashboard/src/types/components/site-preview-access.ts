@@ -18,8 +18,6 @@ export interface SitePreviewBuildToggleProps {
 
 export interface SitePreviewAccessModesProps {
   idPrefix: string;
-  /** Previews are on; off disables the choice. */
-  enabled: boolean;
   mode: SitePreviewAccessMode;
   onModeChange: (mode: SitePreviewAccessMode) => void;
 }

@@ -8,15 +8,15 @@ import { m } from "motion/react";
 import { useTranslations } from "next-intl";
 
 import { SiteAddressInput } from "@/components/sites/site-address-input";
-import { SiteCreateSections } from "@/components/sites/site-create-sections";
+import { SiteCreateSectionFields } from "@/components/sites/site-create-section-fields";
 import { SiteCreateStarter } from "@/components/sites/site-create-starter";
 import { SiteSuggestInput } from "@/components/sites/site-suggest-input";
 import { SITE_CREATE_ROW_VARIANTS } from "@/constants/site-create";
-import { useRepositorySuggestions } from "@/lib/hooks/use-repository-suggestions";
 import type { SiteCreateSourceFieldsProps } from "@/types/components/sites";
 
 /**
- * The configure step: name and address, branch and folder, and sections.
+ * The configure step: name and address, branch and folder, and the sections
+ * found in the repository.
  * Each row rises in after the one above it.
  */
 export function SiteCreateSourceFields({
@@ -30,14 +30,10 @@ export function SiteCreateSourceFields({
   errors,
   starterPullRequestUrl,
   onStarterPullRequestOpened,
+  suggestions,
+  sections,
 }: SiteCreateSourceFieldsProps) {
   const t = useTranslations("sites.new");
-  const tSections = useTranslations("sites.sections");
-  const suggestions = useRepositorySuggestions({
-    organizationId,
-    repositoryId: form.repositoryId,
-    branch: form.branch.trim(),
-  });
   const slugMessage = errors.slug ?? (slugInvalid ? t("addressInvalid") : null);
 
   return (
@@ -125,27 +121,12 @@ export function SiteCreateSourceFields({
         />
       ) : null}
       <m.div variants={SITE_CREATE_ROW_VARIANTS}>
-        <SiteCreateSections
+        <SiteCreateSectionFields
           error={errors.sections}
           idPrefix={id}
-          sections={[
-            {
-              key: "blog",
-              title: tSections("blog"),
-              enabled: form.blogEnabled,
-              path: form.blogPath,
-              onEnabledChange: (value) => update("blogEnabled", value),
-              onPathChange: (value) => update("blogPath", value),
-            },
-            {
-              key: "changelog",
-              title: tSections("changelog"),
-              enabled: form.changelogEnabled,
-              path: form.changelogPath,
-              onEnabledChange: (value) => update("changelogEnabled", value),
-              onPathChange: (value) => update("changelogPath", value),
-            },
-          ]}
+          onBlogPathChange={(value) => update("blogPath", value)}
+          onChangelogPathChange={(value) => update("changelogPath", value)}
+          plan={sections}
         />
       </m.div>
     </>

@@ -76,12 +76,13 @@ function PreviewAccessForm({ onDone }: SitePreviewAccessFormProps) {
           id={`${id}-enabled`}
           onEnabledChange={setEnabled}
         />
-        <SitePreviewAccessModes
-          enabled={enabled}
-          idPrefix={id}
-          mode={mode}
-          onModeChange={setMode}
-        />
+        {enabled ? (
+          <SitePreviewAccessModes
+            idPrefix={id}
+            mode={mode}
+            onModeChange={setMode}
+          />
+        ) : null}
         {enabled && mode === "password" ? (
           <SitePreviewPasswordField
             editing={editingPassword}
@@ -129,7 +130,7 @@ export function SitePreviewAccessDialog({
       <ResponsiveDialogContent>
         <ResponsiveDialogHeader>
           <ResponsiveDialogTitle>{t("title")}</ResponsiveDialogTitle>
-          <ResponsiveDialogDescription>
+          <ResponsiveDialogDescription className="sr-only">
             {t("description")}
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>

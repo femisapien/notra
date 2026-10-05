@@ -3,6 +3,7 @@ import type {
   SITE_DEPLOYMENT_STATUSES,
   SITE_DOMAIN_STATUSES,
 } from "@notra/sites-core/constants/sites";
+import type { RepositoryContentCount } from "@notra/sites-server/types/github";
 import type { SiteInputField } from "@notra/sites-server/types/sites";
 import type { InferRouterInputs, InferRouterOutputs } from "@orpc/server";
 import type { ReactNode } from "react";
@@ -134,7 +135,6 @@ export interface SiteSettingsForm {
   changelogEnabled: boolean;
   changelogPath: string;
   publishMode: SitePublishMode;
-  showBranding: boolean;
 }
 
 /** The new-site form; text fields hold what was typed, untrimmed. */
@@ -145,10 +145,9 @@ export interface SiteCreateFormValues {
   slug: string;
   branch: string;
   rootDirectory: string;
-  blogEnabled: boolean;
-  blogPath: string;
-  changelogEnabled: boolean;
-  changelogPath: string;
+  /** URL paths; null follows what the repository has, empty turns the section off. */
+  blogPath: string | null;
+  changelogPath: string | null;
   previewVisibility: SitePreviewVisibility;
   publishMode: SitePublishMode;
 }
@@ -169,7 +168,6 @@ export interface SiteSettingsPatch {
   rootDirectory?: string;
   mounts?: { blog?: string; changelog?: string };
   publishMode?: SitePublishMode;
-  showBranding?: boolean;
 }
 
 export type SiteDomainRecord = SiteDomain["records"][number];
@@ -214,13 +212,6 @@ export interface SiteBuildLogLine {
   continued: boolean;
 }
 
-/** One fact in a deployment's property list. */
-export interface SiteDeploymentPropertyRow {
-  key: string;
-  label: string;
-  value: ReactNode;
-}
-
 /** A build log line, or a run of noisy lines folded behind a "show more" row. */
 export type SiteBuildLogEntry =
   | { kind: "line"; line: SiteBuildLogLine }
@@ -259,31 +250,25 @@ export interface SiteDeploymentFilters {
   status: SiteDeploymentStatusFilter | "all";
 }
 
-/** A step of a deployment's lifecycle, as the detail page's progress list shows it. */
-export type SiteDeploymentStepKey =
-  | "queued"
-  | "building"
-  | "uploading"
-  | "ready";
-export type SiteDeploymentStepState =
-  | "pending"
-  | "active"
-  | "done"
-  | "failed"
-  | "skipped";
-
-export interface SiteDeploymentStep {
-  key: SiteDeploymentStepKey;
-  state: SiteDeploymentStepState;
-  /** How long the step took, or has taken so far; null when unknown. */
-  durationMs: number | null;
+/**
+ * The new site's section paths (empty = off): typed, or suggested from the
+ * repository. `counts` is null until GitHub answered.
+ */
+export interface SiteCreateSectionPlan {
+  blogPath: string;
+  changelogPath: string;
+  counts: RepositoryContentCount | null;
 }
 
-/** The deployment fields the lifecycle steps are derived from. */
-export type SiteDeploymentStepInput = Pick<
-  SiteDeployment,
-  "status" | "createdAt" | "startedAt" | "finishedAt" | "buildDurationMs"
->;
+/** What the new-site and settings forms suggest from the repository. */
+export interface RepositorySuggestionsResult {
+  branches: string[];
+  defaultBranch: string | null;
+  configDirectories: string[];
+  /** Posts per folder; undefined until GitHub answered. */
+  contentCounts: Record<string, RepositoryContentCount> | undefined;
+  isLoading: boolean;
+}
 
 /** Suggestions for a repository picked in the new-site form, or an existing site's repository. */
 export type RepositorySuggestionsScope =

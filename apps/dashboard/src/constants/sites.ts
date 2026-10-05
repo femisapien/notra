@@ -1,18 +1,11 @@
 import {
-  CancelCircleIcon,
-  CheckmarkCircle02Icon,
   DashboardSquare01Icon,
-  DashedLineCircleIcon,
   FileEditIcon,
   AnalyticsUpIcon,
   GitPullRequestIcon,
   Globe02Icon,
-  Loading03Icon,
-  MinusSignCircleIcon,
-  RefreshIcon,
   Rocket01Icon,
   Settings01Icon,
-  Upload04Icon,
   ViewIcon,
 } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
@@ -21,9 +14,6 @@ import type {
   SiteDeploymentFilters,
   SiteDeploymentKind,
   SiteDeploymentStatus,
-  SiteDeploymentStepKey,
-  SiteDeploymentStepState,
-  SiteDeploymentTrigger,
   SiteDomainChipStatus,
   SiteSectionConfig,
 } from "@/types/sites";
@@ -64,8 +54,6 @@ export const SITE_OVERVIEW_PREVIEWS_LIMIT = 5;
 export const SITE_TABLE_EMPTY_HEIGHT = 340;
 export const SITE_TABLE_COMPACT_EMPTY_HEIGHT = 300;
 export const SITE_LIST_TABLE_ROW_HEIGHT = 60;
-/** Property lists (deployment details) use the compact house row. */
-export const SITE_PROPERTY_ROW_HEIGHT = 36;
 export const SITE_SHORT_SHA_LENGTH = 7;
 export const SITE_SHARE_LINK_DAYS = 7;
 
@@ -111,16 +99,6 @@ export const SITE_DOMAIN_STATUS_DOTS: Record<SiteDomainChipStatus, string> = {
   verifying: "bg-warning motion-safe:animate-pulse",
   failed: "bg-destructive",
 };
-
-/** What started a deployment, as the icon next to who started it. */
-export const SITE_TRIGGER_ICONS: Record<SiteDeploymentTrigger, IconSvgElement> =
-  {
-    push: Upload04Icon,
-    pull_request: GitPullRequestIcon,
-    manual: Rocket01Icon,
-    redeploy: RefreshIcon,
-    config: Settings01Icon,
-  };
 
 /** One status language everywhere: building amber, ready green, failed red, the rest grey. */
 export const SITE_STATUS_DOT_STYLES: Record<SiteDeploymentStatus, string> = {
@@ -214,39 +192,6 @@ export const SITE_BUILD_LOG_FRAME_FOLD_MIN = 3;
 /** Noise runs longer than this keep their first lines and fold the rest. */
 export const SITE_BUILD_LOG_NOISE_FOLD_MIN = 6;
 export const SITE_BUILD_LOG_NOISE_KEEP = 2;
-
-export const SITE_DEPLOYMENT_STEP_KEYS: readonly SiteDeploymentStepKey[] = [
-  "queued",
-  "building",
-  "uploading",
-  "ready",
-];
-
-export const SITE_DEPLOYMENT_STEP_ICONS: Record<
-  SiteDeploymentStepState,
-  IconSvgElement
-> = {
-  pending: DashedLineCircleIcon,
-  active: Loading03Icon,
-  done: CheckmarkCircle02Icon,
-  failed: CancelCircleIcon,
-  skipped: MinusSignCircleIcon,
-};
-
-/** Status color lives on the icon only: amber running, green done, red failed. */
-export const SITE_DEPLOYMENT_STEP_ICON_STYLES: Record<
-  SiteDeploymentStepState,
-  string
-> = {
-  pending: "text-muted-foreground/50",
-  active: "text-warning motion-safe:animate-spin",
-  done: "text-success",
-  failed: "text-destructive",
-  skipped: "text-muted-foreground/50",
-};
-
-export const SITE_DEPLOYMENT_STEP_PANEL_CLASS =
-  "h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-[ending-style]:h-0 data-[starting-style]:h-0 motion-reduce:transition-none";
 
 export const SITE_DEPLOYMENT_NO_FILTERS: SiteDeploymentFilters = {
   environment: "all",
