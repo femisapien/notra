@@ -59,7 +59,7 @@ export async function GET(
     );
   }
 
-  const response = await fetch(excalidrawUrl);
+  const response = await fetch(excalidrawUrl, { cache: "no-store" });
   if (!response.ok) {
     return Response.json(
       { error: "Failed to load the Excalidraw scene" },

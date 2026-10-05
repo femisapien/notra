@@ -431,11 +431,10 @@ export async function saveDiagramRevision(params: {
   edit: { kind: "ai" | "manual"; prompt?: string };
   title?: string;
 }) {
-  const { metadata } = await loadDiagramPost(
-    params.organizationId,
-    params.postId
-  );
-  const rendered = await renderDiagram(params.spec);
+  const [{ metadata }, rendered] = await Promise.all([
+    loadDiagramPost(params.organizationId, params.postId),
+    renderDiagram(params.spec),
+  ]);
   const [imageUrl, htmlUrl, excalidrawUrl] = await Promise.all([
     uploadGeneratedImageAsset({
       organizationId: params.organizationId,

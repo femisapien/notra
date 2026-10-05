@@ -109,10 +109,13 @@ export function findDiagramLayoutIssues(scene: ExcalidrawScene): string[] {
   const texts = scene.elements.filter(
     (element): element is ExcalidrawTextElement => element.type === "text"
   );
-  const labels = new Map(
+  const labelElements = new Map(
     texts
       .filter((text) => text.containerId)
-      .map((text) => [text.containerId as string, text.text])
+      .map((text) => [text.containerId as string, text])
+  );
+  const labels = new Map(
+    [...labelElements].map(([id, text]) => [id, text.text])
   );
 
   for (const [index, a] of shapes.entries()) {
@@ -199,7 +202,7 @@ export function findDiagramLayoutIssues(scene: ExcalidrawScene): string[] {
       }
     }
 
-    const label = texts.find((text) => text.containerId === linear.id);
+    const label = labelElements.get(linear.id);
     if (label) {
       const length = points
         .slice(1)
