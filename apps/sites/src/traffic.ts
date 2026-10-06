@@ -16,7 +16,7 @@ function isPrefetch(headers: Headers): boolean {
 }
 
 /** Pages, Markdown twins and llms.txt; assets and redirects are never AI traffic worth reporting. */
-export function isReportableResponse(response: Response): boolean {
+function isReportableResponse(response: Response): boolean {
   if (response.status >= 300 && response.status < 400) {
     return false;
   }
@@ -29,10 +29,7 @@ export function isReportableResponse(response: Response): boolean {
  * visitor. The frame's first load names the dashboard as referer, clicks
  * inside it name the site itself while still loading into a frame.
  */
-export function isDashboardPreview(
-  request: Request,
-  dashboardUrl: string
-): boolean {
+function isDashboardPreview(request: Request, dashboardUrl: string): boolean {
   const referer = request.headers.get("referer");
   if (!referer) {
     return false;
@@ -49,6 +46,19 @@ export function isDashboardPreview(
   } catch {
     return false;
   }
+}
+
+/** A visitor's GET of a page, never the dashboard's own preview frame. */
+export function isReportablePageView(
+  request: Request,
+  response: Response,
+  dashboardUrl: string
+): boolean {
+  return (
+    request.method === "GET" &&
+    isReportableResponse(response) &&
+    !isDashboardPreview(request, dashboardUrl)
+  );
 }
 
 /**

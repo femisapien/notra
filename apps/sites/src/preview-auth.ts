@@ -16,12 +16,9 @@ import {
   verifySitePreviewToken,
 } from "@notra/sites-core/utils/preview-token";
 
-import {
-  GATE_ERROR_PARAMS,
-  PASSWORD_FORM_MAX_BYTES,
-} from "./constants/preview-auth";
+import { PASSWORD_FORM_MAX_BYTES } from "./constants/preview-auth";
 import { previewLockedPage } from "./pages";
-import { html } from "./responses";
+import { html, noStoreRedirect } from "./responses";
 import type { PreviewGateError } from "./types/pages";
 import type { PreviewRequestContext } from "./types/preview-auth";
 import type { SitesDeps } from "./types/worker";
@@ -31,7 +28,7 @@ function nowSeconds(deps: SitesDeps): number {
   return Math.floor(deps.now().getTime() / 1000);
 }
 
-export function previewSignInUrl(
+function previewSignInUrl(
   deps: SitesDeps,
   siteId: string,
   previewKey: string,
@@ -74,7 +71,7 @@ function sessionCookie(url: URL, value: string, maxAge: number): string {
  * for password sessions, it was opened with the password that is set right
  * now. Changing or removing the password ends every password session at once.
  */
-export function previewSessionAllows(
+function previewSessionAllows(
   claims: SitePreviewTokenClaims,
   state: SiteServingState,
   siteId: string,
@@ -101,13 +98,11 @@ async function acceptToken(
   next: string
 ): Promise<Response> {
   const { deps, url, state, siteId, previewKey } = context;
-  const errorParam = url.searchParams.get("error");
   const token = url.searchParams.get("token");
   if (!token) {
+    // The dashboard sends members without access back with `?error=forbidden`.
     const error =
-      errorParam && errorParam in GATE_ERROR_PARAMS
-        ? GATE_ERROR_PARAMS[errorParam as keyof typeof GATE_ERROR_PARAMS]
-        : null;
+      url.searchParams.get("error") === "forbidden" ? "forbidden" : null;
     const gate = previewGate(context, next, error ? 403 : 401, error);
     // The dashboard said no: drop the old session so it is not renewed again (no redirect loop).
     if (error) {
@@ -136,14 +131,9 @@ async function acceptToken(
           SITE_PREVIEW_SESSION_SECONDS,
           Math.max(0, claims.exp - nowSeconds(deps))
         );
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: next,
-      "Cache-Control": "no-store",
-      "Referrer-Policy": "no-referrer",
-      "Set-Cookie": sessionCookie(url, token, maxAge),
-    },
+  return noStoreRedirect(next, 302, {
+    "Referrer-Policy": "no-referrer",
+    "Set-Cookie": sessionCookie(url, token, maxAge),
   });
 }
 
@@ -219,13 +209,8 @@ async function acceptPassword(
     },
     deps.previewSecret
   );
-  return new Response(null, {
-    status: 303,
-    headers: {
-      Location: next,
-      "Cache-Control": "no-store",
-      "Set-Cookie": sessionCookie(url, token, SITE_PREVIEW_SESSION_SECONDS),
-    },
+  return noStoreRedirect(next, 303, {
+    "Set-Cookie": sessionCookie(url, token, SITE_PREVIEW_SESSION_SECONDS),
   });
 }
 
@@ -243,13 +228,8 @@ export async function handlePreviewAuth(
 
 /** Clears this host's preview session and shows the gate again. */
 export function handlePreviewSignOut(context: PreviewRequestContext): Response {
-  return new Response(null, {
-    status: 303,
-    headers: {
-      Location: "/",
-      "Cache-Control": "no-store",
-      "Set-Cookie": sessionCookie(context.url, "", 0),
-    },
+  return noStoreRedirect("/", 303, {
+    "Set-Cookie": sessionCookie(context.url, "", 0),
   });
 }
 
@@ -276,13 +256,10 @@ export async function previewAccessDenied(
     session.claims.kind === "member" &&
     isPageNavigation(request)
   ) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: previewSignInUrl(deps, siteId, previewKey, next),
-        "Cache-Control": "no-store",
-      },
-    });
+    return noStoreRedirect(
+      previewSignInUrl(deps, siteId, previewKey, next),
+      302
+    );
   }
   return previewGate(context, next, 401);
 }

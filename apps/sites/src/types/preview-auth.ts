@@ -1,14 +1,9 @@
 import type { SiteServingState } from "@notra/sites-core/types/deployment";
 
-import type { SitesDeps } from "./worker";
+import type { SiteRequestContext } from "./serving";
 
 /** A request to a preview host, after the host and serving state resolved. */
-export interface PreviewRequestContext {
-  deps: SitesDeps;
-  request: Request;
-  url: URL;
-  /** `http(s)://host[:port]` the visitor sees. */
-  origin: string;
+export interface PreviewRequestContext extends SiteRequestContext {
   state: SiteServingState;
   siteId: string;
   previewKey: string;

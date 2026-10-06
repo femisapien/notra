@@ -11,7 +11,8 @@ import { hashPreviewPassword } from "@notra/sites-core/utils/preview-password";
 import { revokePreviewSessionsInState } from "@notra/sites-core/utils/preview-revocation";
 import { signSitePreviewToken } from "@notra/sites-core/utils/preview-token";
 
-import { handleSiteRequest, resetCachesForTests } from "../src/handler";
+import { handleSiteRequest } from "../src/handler";
+import { resetCachesForTests } from "../src/loaders";
 import type { SitesDeps } from "../src/types/worker";
 
 const SECRET = "test-secret";

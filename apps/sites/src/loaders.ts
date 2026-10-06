@@ -15,7 +15,7 @@ import {
   STATE_TTL_MS,
 } from "./constants/cache";
 import type { LoadedManifest, TimedCacheEntry } from "./types/serving";
-import type { SitesDeps } from "./types/worker";
+import type { SiteBucketObject, SitesDeps } from "./types/worker";
 
 const hostCache = new Map<string, TimedCacheEntry<SiteHostRecord | null>>();
 const stateCache = new Map<string, TimedCacheEntry<SiteServingState | null>>();
@@ -32,8 +32,8 @@ export class StateUnavailableError extends Error {
   readonly name = "StateUnavailableError";
 }
 
-async function readJson(deps: SitesDeps, key: string): Promise<unknown | null> {
-  let object: Awaited<ReturnType<SitesDeps["bucket"]["get"]>>;
+async function readJson(deps: SitesDeps, key: string): Promise<unknown> {
+  let object: SiteBucketObject | null;
   try {
     object = await deps.bucket.get(key);
   } catch (error) {
@@ -41,47 +41,53 @@ async function readJson(deps: SitesDeps, key: string): Promise<unknown | null> {
       `R2 read failed for ${key}: ${String(error)}`
     );
   }
-  if (!object) {
-    return null;
-  }
-  return JSON.parse(await object.text());
+  return object ? JSON.parse(await object.text()) : null;
 }
 
-export async function loadHost(
+/** Serves `cache` entries younger than `ttlMs`; anything older is loaded again. */
+async function loadWithTtl<T>(
   deps: SitesDeps,
-  hostname: string
-): Promise<SiteHostRecord | null> {
-  const cached = hostCache.get(hostname);
-  if (cached && deps.now().getTime() - cached.at < HOST_TTL_MS) {
+  cache: Map<string, TimedCacheEntry<T>>,
+  key: string,
+  ttlMs: number,
+  load: () => Promise<T>
+): Promise<T> {
+  const cached = cache.get(key);
+  if (cached && deps.now().getTime() - cached.at < ttlMs) {
     return cached.value;
   }
-  const raw = await readJson(deps, SITE_R2_KEYS.host(hostname));
-  const parsed = raw ? siteHostRecordSchema.safeParse(raw) : null;
-  const value = parsed?.success ? parsed.data : null;
-  hostCache.set(hostname, { value, at: deps.now().getTime() });
+  const value = await load();
+  cache.set(key, { value, at: deps.now().getTime() });
   return value;
 }
 
-export async function loadState(
+export function loadHost(
+  deps: SitesDeps,
+  hostname: string
+): Promise<SiteHostRecord | null> {
+  return loadWithTtl(deps, hostCache, hostname, HOST_TTL_MS, async () => {
+    const raw = await readJson(deps, SITE_R2_KEYS.host(hostname));
+    const parsed = raw ? siteHostRecordSchema.safeParse(raw) : null;
+    return parsed?.success ? parsed.data : null;
+  });
+}
+
+export function loadState(
   deps: SitesDeps,
   siteId: string
 ): Promise<SiteServingState | null> {
-  const cached = stateCache.get(siteId);
-  if (cached && deps.now().getTime() - cached.at < STATE_TTL_MS) {
-    return cached.value;
-  }
-  const raw = await readJson(deps, SITE_R2_KEYS.state(siteId));
-  if (raw === null) {
-    stateCache.set(siteId, { value: null, at: deps.now().getTime() });
-    return null;
-  }
-  const parsed = siteServingStateSchema.safeParse(raw);
-  if (!parsed.success) {
-    // A state we cannot read is treated like an outage: fail closed.
-    throw new StateUnavailableError(`Invalid serving state for ${siteId}`);
-  }
-  stateCache.set(siteId, { value: parsed.data, at: deps.now().getTime() });
-  return parsed.data;
+  return loadWithTtl(deps, stateCache, siteId, STATE_TTL_MS, async () => {
+    const raw = await readJson(deps, SITE_R2_KEYS.state(siteId));
+    if (raw === null) {
+      return null;
+    }
+    const parsed = siteServingStateSchema.safeParse(raw);
+    if (!parsed.success) {
+      // A state we cannot read is treated like an outage: fail closed.
+      throw new StateUnavailableError(`Invalid serving state for ${siteId}`);
+    }
+    return parsed.data;
+  });
 }
 
 export async function loadManifest(

@@ -2,6 +2,7 @@ import {
   SITE_PREVIEW_AUTH_PATH,
   SITE_PREVIEW_SIGN_OUT_PATH,
 } from "@notra/sites-core/constants/sites";
+import type { SiteServingState } from "@notra/sites-core/types/deployment";
 import type { ParsedSiteHost } from "@notra/sites-core/types/hosts";
 import { parseSiteHost } from "@notra/sites-core/utils/hosts";
 import {
@@ -30,13 +31,20 @@ import {
   handlePreviewSignOut,
   previewAccessDenied,
 } from "./preview-auth";
-import { html, markdownNotFound, robotsTxt, serveFile } from "./responses";
 import {
-  isDashboardPreview,
-  isReportableResponse,
-  reportTraffic,
-} from "./traffic";
-import type { LoadedManifest, ResolvedDeployment } from "./types/serving";
+  html,
+  markdownNotFound,
+  methodNotAllowed,
+  plainText,
+  robotsTxt,
+  serveFile,
+} from "./responses";
+import { isReportablePageView, reportTraffic } from "./traffic";
+import type {
+  LoadedManifest,
+  ResolvedDeployment,
+  SiteRequestContext,
+} from "./types/serving";
 import type { SitesDeps } from "./types/worker";
 import {
   markdownTwin,
@@ -47,8 +55,6 @@ import {
   resolveMarkdownFile,
   twinPagePath,
 } from "./utils/routing";
-
-export { resetCachesForTests } from "./loaders";
 
 /** Resolves which host a request is for. The dev override exists only when its secret is configured. */
 function requestHost(deps: SitesDeps, request: Request, url: URL): string {
@@ -63,80 +69,35 @@ function requestHost(deps: SitesDeps, request: Request, url: URL): string {
   return url.hostname;
 }
 
-/**
- * Host → site → serving state → deployment. Returns a Response whenever the
- * request ends here (unknown host, takedown, locked preview, preview login).
- */
-async function resolveDeployment(
-  deps: SitesDeps,
-  request: Request,
-  url: URL,
-  parsedHost: ParsedSiteHost,
-  origin: string
+async function resolvePreview(
+  context: SiteRequestContext,
+  state: SiteServingState,
+  siteId: string,
+  previewKey: string
 ): Promise<ResolvedDeployment | Response> {
-  const hostKey =
-    parsedHost.kind === "custom"
-      ? parsedHost.hostname
-      : `${parsedHost.slug}.${deps.hostingDomain}`;
-  const hostRecord = await loadHost(deps, hostKey);
-  if (
-    !hostRecord ||
-    hostRecord.kind !== (parsedHost.kind === "custom" ? "custom" : "alias")
-  ) {
-    return html(notFoundPage(), 404);
-  }
-  const siteId = hostRecord.siteId;
-  const state = await loadState(deps, siteId);
-  if (
-    !state ||
-    (parsedHost.kind !== "custom" && parsedHost.slug !== state.slug)
-  ) {
-    return html(notFoundPage(), 404);
-  }
-  // Checked before anything is served or read from cache, so a takedown wins over every cache.
-  if (state.status !== "active") {
-    return html(unavailablePage(), 410);
-  }
-
-  if (parsedHost.kind !== "preview") {
-    if (request.method === "POST") {
-      return new Response("Method not allowed", {
-        status: 405,
-        headers: { Allow: "GET, HEAD" },
-      });
-    }
-    return state.production
-      ? {
-          siteId,
-          deploymentId: state.production.deploymentId,
-          isPreview: false,
-          trafficToken: state.trafficToken,
-        }
-      : html(notDeployedPage(), 404);
-  }
-  const { previewKey } = parsedHost;
+  const { deps, url, origin } = context;
   const pointer = state.previews[previewKey];
   // Closed pull requests and deleted previews leave a tombstone: say so instead of a bare 404.
-  if (pointer && isPreviewExpired(pointer, deps.now())) {
-    return html(previewClosedPage(), 410);
-  }
   if (!pointer) {
     return previewKey in state.removedPreviews
       ? html(previewClosedPage(), 410)
       : html(notFoundPage(), 404);
   }
-  const context = { deps, request, url, origin, state, siteId, previewKey };
+  if (isPreviewExpired(pointer, deps.now())) {
+    return html(previewClosedPage(), 410);
+  }
+  const previewContext = { ...context, state, siteId, previewKey };
   if (url.pathname === SITE_PREVIEW_AUTH_PATH) {
-    return await handlePreviewAuth(context);
+    return await handlePreviewAuth(previewContext);
   }
   if (url.pathname === SITE_PREVIEW_SIGN_OUT_PATH) {
-    return handlePreviewSignOut(context);
+    return handlePreviewSignOut(previewContext);
   }
   if (url.pathname === "/robots.txt") {
-    return robotsTxt(null, false, origin);
+    return robotsTxt(origin, null);
   }
   if (pointer.visibility === "protected") {
-    const denied = await previewAccessDenied(context);
+    const denied = await previewAccessDenied(previewContext);
     if (denied) {
       return denied;
     }
@@ -149,14 +110,54 @@ async function resolveDeployment(
   };
 }
 
+/**
+ * Host → site → serving state → deployment. Returns a Response whenever the
+ * request ends here (unknown host, takedown, locked preview, preview login).
+ */
+async function resolveDeployment(
+  context: SiteRequestContext,
+  parsedHost: ParsedSiteHost
+): Promise<ResolvedDeployment | Response> {
+  const { deps, request } = context;
+  const isCustom = parsedHost.kind === "custom";
+  const hostRecord = await loadHost(
+    deps,
+    isCustom ? parsedHost.hostname : `${parsedHost.slug}.${deps.hostingDomain}`
+  );
+  if (hostRecord?.kind !== (isCustom ? "custom" : "alias")) {
+    return html(notFoundPage(), 404);
+  }
+  const { siteId } = hostRecord;
+  const state = await loadState(deps, siteId);
+  if (!state || (!isCustom && parsedHost.slug !== state.slug)) {
+    return html(notFoundPage(), 404);
+  }
+  // Checked before anything is served or read from cache, so a takedown wins over every cache.
+  if (state.status !== "active") {
+    return html(unavailablePage(), 410);
+  }
+  if (parsedHost.kind === "preview") {
+    return await resolvePreview(context, state, siteId, parsedHost.previewKey);
+  }
+  if (request.method === "POST") {
+    return methodNotAllowed("GET, HEAD");
+  }
+  if (!state.production) {
+    return html(notDeployedPage(), 404);
+  }
+  return {
+    siteId,
+    deploymentId: state.production.deploymentId,
+    isPreview: false,
+    trafficToken: state.trafficToken,
+  };
+}
+
 async function serveDeployment(
-  deps: SitesDeps,
-  request: Request,
-  url: URL,
-  host: string,
-  origin: string,
+  context: SiteRequestContext,
   resolved: ResolvedDeployment
 ): Promise<Response> {
+  const { deps, request, url, host } = context;
   const { siteId, deploymentId, trafficToken } = resolved;
   const loaded = await loadManifest(deps, siteId, deploymentId);
   if (!loaded) {
@@ -164,21 +165,11 @@ async function serveDeployment(
       `Manifest missing for active deployment ${deploymentId}`
     );
   }
-  const response = await serveFromManifest(
-    deps,
-    request,
-    url,
-    host,
-    origin,
-    resolved,
-    loaded
-  );
+  const response = await serveFromManifest(context, resolved, loaded);
   if (
     trafficToken &&
     deps.trafficIngestUrl &&
-    request.method === "GET" &&
-    isReportableResponse(response) &&
-    !isDashboardPreview(request, deps.dashboardUrl)
+    isReportablePageView(request, response, deps.dashboardUrl)
   ) {
     // Reported under the public origin, so a page proxied from acme.com/blog
     // counts for acme.com, the same page the SDK would have reported.
@@ -201,12 +192,7 @@ async function serveDeployment(
 /** The bare hosting domain: who runs it and where to report abuse, as the PSL asks. */
 function hostingApexResponse(deps: SitesDeps, url: URL): Response {
   if (url.pathname === "/.well-known/security.txt") {
-    return new Response(securityTxt(url.origin, deps.now()), {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "public, max-age=86400",
-      },
-    });
+    return plainText(securityTxt(url.origin, deps.now()), 86_400);
   }
   return html(hostingApexPage(deps.hostingDomain), 200);
 }
@@ -218,24 +204,21 @@ function hostingApexResponse(deps: SitesDeps, url: URL): Response {
 function canonicalPageLink(
   publicOrigin: string,
   twinPath: string
-): Record<string, string> | undefined {
+): Record<string, string> {
   const pagePath = twinPagePath(twinPath);
   return pagePath
     ? { Link: `<${new URL(pagePath, publicOrigin).href}>; rel="canonical"` }
-    : undefined;
+    : {};
 }
 
 /** Robots, redirects, the file itself, or the area's own 404 page. */
 async function serveFromManifest(
-  deps: SitesDeps,
-  request: Request,
-  url: URL,
-  host: string,
-  origin: string,
+  context: SiteRequestContext,
   resolved: ResolvedDeployment,
-  loaded: LoadedManifest
+  { manifest, files }: LoadedManifest
 ): Promise<Response> {
-  const { siteId, deploymentId, isPreview } = resolved;
+  const { deps, request, url, host, origin } = context;
+  const { publicOrigin, mounts, noindex } = manifest.target;
   const path = normalizeRequestPath(url.pathname);
   if (path === null) {
     return html(notFoundPage(), 400);
@@ -243,14 +226,10 @@ async function serveFromManifest(
   if (path === "/robots.txt") {
     // Only the canonical host is crawlable. When the customer proxies acme.com/blog to the alias,
     // the alias disallows everything and acme.com's own robots.txt governs the proxied paths.
-    const canonicalHost = new URL(loaded.manifest.target.publicOrigin).hostname;
-    return robotsTxt(
-      loaded.manifest,
-      canonicalHost === host && !loaded.manifest.target.noindex,
-      origin
-    );
+    const crawlable = new URL(publicOrigin).hostname === host && !noindex;
+    return robotsTxt(origin, crawlable ? manifest : null);
   }
-  const redirect = matchRedirect(loaded.manifest, path);
+  const redirect = matchRedirect(manifest, path);
   if (redirect) {
     return new Response(null, {
       status: redirect.status,
@@ -263,42 +242,39 @@ async function serveFromManifest(
   const fileParams = {
     deps,
     request,
-    siteId,
-    deploymentId,
-    isPreview,
-    contentSecurityPolicy: loaded.manifest.contentSecurityPolicy,
+    siteId: resolved.siteId,
+    deploymentId: resolved.deploymentId,
+    isPreview: resolved.isPreview,
+    contentSecurityPolicy: manifest.contentSecurityPolicy,
+    status: 200,
   };
-  const { publicOrigin } = loaded.manifest.target;
-  const markdownFile = resolveMarkdownFile(loaded.files, path);
+  const markdownFile = resolveMarkdownFile(files, path);
   if (markdownFile) {
     return await serveFile({
       ...fileParams,
       file: markdownFile,
-      status: 200,
       extraHeaders: canonicalPageLink(publicOrigin, markdownFile.path),
     });
   }
   const wantsMarkdown = prefersMarkdown(request.headers.get("accept"));
-  const file = resolveFile(loaded.files, path);
+  const file = resolveFile(files, path);
+  // Every page has a Markdown twin: agents get it by asking for text/markdown.
+  const twin = file ? markdownTwin(files, file) : null;
+  if (twin && wantsMarkdown) {
+    return await serveFile({
+      ...fileParams,
+      file: twin,
+      extraHeaders: {
+        Vary: "Accept",
+        "Content-Location": twin.path,
+        ...canonicalPageLink(publicOrigin, twin.path),
+      },
+    });
+  }
   if (file) {
-    // Every page has a Markdown twin: agents get it by asking for text/markdown.
-    const twin = markdownTwin(loaded.files, file);
-    if (twin && wantsMarkdown) {
-      return await serveFile({
-        ...fileParams,
-        file: twin,
-        status: 200,
-        extraHeaders: {
-          Vary: "Accept",
-          "Content-Location": twin.path,
-          ...canonicalPageLink(publicOrigin, twin.path),
-        },
-      });
-    }
     return await serveFile({
       ...fileParams,
       file,
-      status: 200,
       extraHeaders: twin
         ? {
             Vary: "Accept",
@@ -307,10 +283,7 @@ async function serveFromManifest(
         : undefined,
     });
   }
-  const area = resolveAreaForPath(
-    loaded.manifest.target.mounts,
-    path.endsWith("/") ? path.slice(0, -1) || "/" : path
-  );
+  const area = resolveAreaForPath(mounts, path);
   if (wantsMarkdown || path.endsWith(".md")) {
     return markdownNotFound({
       path,
@@ -319,7 +292,7 @@ async function serveFromManifest(
     });
   }
   const notFound = area
-    ? loaded.files.get(joinMountPath(area.mount, "404.html"))
+    ? files.get(joinMountPath(area.mount, "404.html"))
     : undefined;
   if (notFound) {
     return await serveFile({
@@ -339,15 +312,9 @@ export async function handleSiteRequest(
   const url = new URL(request.url);
   // The only POST is the preview password form.
   const allowsPost = url.pathname === SITE_PREVIEW_AUTH_PATH;
-  if (
-    request.method !== "GET" &&
-    request.method !== "HEAD" &&
-    !(allowsPost && request.method === "POST")
-  ) {
-    return new Response("Method not allowed", {
-      status: 405,
-      headers: { Allow: allowsPost ? "GET, HEAD, POST" : "GET, HEAD" },
-    });
+  const allowed = allowsPost ? ["GET", "HEAD", "POST"] : ["GET", "HEAD"];
+  if (!allowed.includes(request.method)) {
+    return methodNotAllowed(allowed.join(", "));
   }
   const host = requestHost(deps, request, url);
   if (host === deps.hostingDomain || host === `www.${deps.hostingDomain}`) {
@@ -358,17 +325,12 @@ export async function handleSiteRequest(
     return html(notFoundPage(), 404);
   }
   const origin = `${url.protocol}//${host}${url.port ? `:${url.port}` : ""}`;
+  const context = { deps, request, url, host, origin };
   try {
-    const resolved = await resolveDeployment(
-      deps,
-      request,
-      url,
-      parsedHost,
-      origin
-    );
+    const resolved = await resolveDeployment(context, parsedHost);
     return resolved instanceof Response
       ? resolved
-      : await serveDeployment(deps, request, url, host, origin, resolved);
+      : await serveDeployment(context, resolved);
   } catch (error) {
     if (
       error instanceof StateUnavailableError ||

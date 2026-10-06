@@ -12,13 +12,9 @@ export default {
         status: 500,
       });
     }
-    const edgeCache = (caches as unknown as { default: Cache }).default;
     return await handleSiteRequest(request, {
       bucket: env.SITES_BUCKET,
-      cache: {
-        match: async (key) => (await edgeCache.match(key)) ?? undefined,
-        put: (key, response) => edgeCache.put(key, response),
-      },
+      cache: caches.default,
       hostingDomain: env.HOSTING_DOMAIN,
       dashboardUrl: env.DASHBOARD_URL,
       previewSecret: env.PREVIEW_SECRET,

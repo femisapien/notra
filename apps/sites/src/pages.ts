@@ -1,9 +1,11 @@
 import { SITE_PREVIEW_AUTH_PATH } from "@notra/sites-core/constants/sites";
 
 import {
+  GATE_ERROR_MESSAGES,
   GLOBE_ICON_SVG,
   LOCK_ICON_SVG,
   NOTRA_HOME_URL,
+  NOTRA_MARK_CHIP_SVG,
   NOTRA_MARK_SVG,
   SECURITY_TXT_LIFETIME_DAYS,
   SITES_ABUSE_EMAIL,
@@ -16,14 +18,6 @@ import type {
   SystemPageContent,
 } from "./types/pages";
 import { escapeHtml } from "./utils/html";
-
-const GATE_ERRORS: Record<PreviewGateError, string> = {
-  wrong_password: "That password isn't right. Try again.",
-  too_many_attempts: "Too many attempts. Wait a minute, then try again.",
-  forbidden:
-    "Your Notra account doesn't have access to this site. Ask for a share link.",
-  invalid_link: "This link has expired or is invalid. Sign in to continue.",
-};
 
 /** Shared shell of every page the worker renders itself: Notra mark top left, one calm centered panel. */
 function page({ title, body }: SystemPageContent): string {
@@ -84,7 +78,7 @@ function passwordForm(next: string, error: PreviewGateError | null): string {
     ? ' aria-invalid="true" aria-describedby="password-error"'
     : "";
   const message = passwordError
-    ? `<p class="error" id="password-error" role="alert">${GATE_ERRORS[error]}</p>`
+    ? `<p class="error" id="password-error" role="alert">${GATE_ERROR_MESSAGES[error]}</p>`
     : "";
   return `<div class="divider">or</div><form method="post" action="${SITE_PREVIEW_AUTH_PATH}"><input type="hidden" name="next" value="${escapeHtml(next)}"><div><label for="password">Preview password</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128"${describedBy}${passwordError ? " autofocus" : ""}></div>${message}<button class="button secondary" type="submit">Continue with password</button></form>`;
 }
@@ -95,7 +89,7 @@ export function previewLockedPage(params: PreviewGatePage): string {
   if (error === "forbidden" && passwordEnabled) {
     notice = `<p class="notice" role="status">Your Notra account doesn't have access to this site. Enter the preview password or ask for a share link.</p>`;
   } else if (error === "forbidden" || error === "invalid_link") {
-    notice = `<p class="notice" role="status">${GATE_ERRORS[error]}</p>`;
+    notice = `<p class="notice" role="status">${GATE_ERROR_MESSAGES[error]}</p>`;
   }
   const lead = passwordEnabled
     ? "Sign in with a Notra account that has access to this site, or enter the preview password."
@@ -103,7 +97,7 @@ export function previewLockedPage(params: PreviewGatePage): string {
   const form = passwordEnabled ? passwordForm(next, error) : "";
   return page({
     title: "Private preview",
-    body: `<div class="icon">${LOCK_ICON_SVG}</div><h1>This preview is private</h1><p>${lead}</p>${notice}<div class="actions"><a class="button primary" href="${escapeHtml(signInUrl)}"><span class="chip">${NOTRA_MARK_SVG.replace('width="22" height="22"', 'width="14" height="14"')}</span>Continue with Notra</a>${form}</div>`,
+    body: `<div class="icon">${LOCK_ICON_SVG}</div><h1>This preview is private</h1><p>${lead}</p>${notice}<div class="actions"><a class="button primary" href="${escapeHtml(signInUrl)}"><span class="chip">${NOTRA_MARK_CHIP_SVG}</span>Continue with Notra</a>${form}</div>`,
   });
 }
 

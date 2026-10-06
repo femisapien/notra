@@ -5,6 +5,17 @@ import type {
 
 import type { SitesDeps } from "./worker";
 
+/** One request to a site host, after the host it is for was resolved. */
+export interface SiteRequestContext {
+  deps: SitesDeps;
+  request: Request;
+  url: URL;
+  /** The site host, also when the dev override picked it. */
+  host: string;
+  /** `http(s)://host[:port]` the visitor sees. */
+  origin: string;
+}
+
 /** The deployment a request resolved to, after host, takedown and preview checks. */
 export interface ResolvedDeployment {
   siteId: string;

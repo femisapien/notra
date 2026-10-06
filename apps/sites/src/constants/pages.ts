@@ -1,6 +1,14 @@
+import type { PreviewGateError } from "../types/pages";
+
 /** The Notra mark (apps/web/public/logo.svg); the outline follows the text color so it works on dark pages. */
 export const NOTRA_MARK_SVG =
   '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 800 800" fill="none"><path d="M572.881 462.223c-12.712 43.22-290.678 105.932-394.068 83.898l-48.305-10.169 48.305-78.814 68.644-104.237 73.729-106.78 251.695-127.119 78.814-22.881 17.796 17.796h10.17c17.796 35.593 3.945 147.458-12.712 195.763-25.424 73.729-124.576 96.61-177.966 114.407-4.064 1.355 96.61-5.085 83.898 38.136Z" fill="#c8b2ee" stroke="currentColor" stroke-width="35" stroke-linecap="round"/><path d="M700 96.111c-162.712-4.237-510.508 111.356-600 607.627" stroke="currentColor" stroke-width="75" stroke-linecap="round"/></svg>';
+
+/** The mark at button size, inside the "Continue with Notra" chip. */
+export const NOTRA_MARK_CHIP_SVG = NOTRA_MARK_SVG.replace(
+  'width="22" height="22"',
+  'width="14" height="14"'
+);
 
 /** Hugeicons-style globe, 1.5 stroke. */
 export const GLOBE_ICON_SVG =
@@ -70,3 +78,11 @@ export const SITES_ABUSE_EMAIL = "abuse@usenotra.com";
 export const SITES_SECURITY_EMAIL = "security@usenotra.com";
 /** security.txt must expire; renewed with every worker deploy. */
 export const SECURITY_TXT_LIFETIME_DAYS = 180;
+
+export const GATE_ERROR_MESSAGES: Record<PreviewGateError, string> = {
+  wrong_password: "That password isn't right. Try again.",
+  too_many_attempts: "Too many attempts. Wait a minute, then try again.",
+  forbidden:
+    "Your Notra account doesn't have access to this site. Ask for a share link.",
+  invalid_link: "This link has expired or is invalid. Sign in to continue.",
+};
