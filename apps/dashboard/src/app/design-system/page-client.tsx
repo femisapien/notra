@@ -244,6 +244,7 @@ import { GeoRangePickerDemo } from "@/components/design-system/geo-range-picker-
 import { ConfirmDialogSection } from "@/components/design-system/sections/confirm-dialog-section";
 import { CopyButtonSection } from "@/components/design-system/sections/copy-button-section";
 import { IconTabsSection } from "@/components/design-system/sections/icon-tabs-section";
+import { InstrumentModuleSection } from "@/components/design-system/sections/instrument-module-section";
 import { PageHeadingSection } from "@/components/design-system/sections/page-heading-section";
 import { SplitModalSection } from "@/components/design-system/sections/split-modal-section";
 import { IntegrationCard } from "@/components/integrations/integration-card";
@@ -1252,6 +1253,8 @@ export default function DesignSystemClientPage() {
         <CopyButtonSection />
 
         <IconTabsSection />
+
+        <InstrumentModuleSection />
 
         <SplitModalSection />
 
