@@ -24,6 +24,7 @@ import {
 } from "@notra/schemas/dashboard/api-keys";
 import { ConfirmDialog } from "@notra/ui/components/shared/confirm-dialog";
 import { ConnectedCards } from "@notra/ui/components/shared/connected-cards";
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
 import {
   ResponsiveDialog,
   ResponsiveDialogClose,
@@ -92,7 +93,6 @@ import { TrackingTokenCard } from "@/components/api-keys/tracking-token-card";
 import { Button } from "@/components/button";
 import { DemoApiCallout } from "@/components/demo/demo-api-callout";
 import { PageContainer } from "@/components/layout/container";
-import { PageHeading } from "@/components/layout/page-heading";
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
 import {
   API_KEY_EXPIRATION_OPTIONS,
