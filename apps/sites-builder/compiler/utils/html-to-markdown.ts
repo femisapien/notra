@@ -59,10 +59,7 @@ function simplify(root: Element) {
     if (!parent || index === undefined) {
       return undefined;
     }
-    if (
-      DROPPED_TAGS.has(node.tagName) ||
-      node.properties.dataMdSkip !== undefined
-    ) {
+    if (isDropped(node)) {
       parent.children.splice(index, 1);
       return [SKIP, index];
     }

@@ -3,19 +3,23 @@ import { cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 
+import { hasErrors } from "@notra/sites-compiler/utils/diagnostics";
 import { SITE_CSP_MAX_SCRIPT_HASHES } from "@notra/sites-core/constants/security";
 import { siteBuildRequestSchema } from "@notra/sites-core/schemas/build";
 import type {
   SiteBuildRequest,
   SiteBuildResult,
+  SiteDiagnostic,
 } from "@notra/sites-core/types/build";
 import { buildSiteContentSecurityPolicy } from "@notra/sites-core/utils/content-security-policy";
 import {
+  joinMountPath,
   listMountedAreas,
   normalizeSiteMounts,
   pathCollidesWithOtherMount,
 } from "@notra/sites-core/utils/mounts";
 
+import type { BuildParams } from "../src/types/build-params";
 import { normalizeAgentInstructions, writeAgentFiles } from "./agent-files";
 import { AREA_PAGES_FILE, ASTRO_LOG_NOISE } from "./constants/build";
 import { writeOgImages } from "./og-images";
@@ -82,6 +86,29 @@ export function runAstro(
   });
 }
 
+/** Writes the params one `astro build`/`astro dev` reads through NOTRA_BUILD_PARAMS. */
+export async function writeBuildParams(
+  path: string,
+  params: BuildParams
+): Promise<void> {
+  await writeFile(path, JSON.stringify(params));
+}
+
+function failedBuild(
+  diagnostics: SiteDiagnostic[],
+  areas: SiteBuildResult["areas"] = []
+): SiteBuildResult {
+  return {
+    ok: false,
+    diagnostics,
+    areas,
+    fileCount: 0,
+    totalBytes: 0,
+    redirects: [],
+    contentSecurityPolicy: null,
+  };
+}
+
 /**
  * Builds every mounted area with its own `base`, then merges the outputs into
  * `outDir` at their mount paths (`out/blog/**`, `out/changelog/**`).
@@ -99,22 +126,14 @@ export async function buildSite(
   ];
   const config = prepared.validation.config;
   if (!(prepared.validation.ok && config)) {
-    return {
-      ok: false,
-      diagnostics,
-      areas: [],
-      fileCount: 0,
-      totalBytes: 0,
-      redirects: [],
-      contentSecurityPolicy: null,
-    };
+    return failedBuild(diagnostics);
   }
 
   // Share images go into the public dir, so they must exist before Astro copies it.
   const ogImages = await writeOgImages({
     workDir,
     config,
-    entries: prepared.entries,
+    entries: prepared.validation.entries,
     publicFiles: prepared.publicFiles,
     includeDrafts: options.target.includeDrafts,
   });
@@ -136,6 +155,7 @@ export async function buildSite(
   await rm(options.outDir, { recursive: true, force: true });
   await mkdir(options.outDir, { recursive: true });
 
+  const publicOrigin = new URL(options.target.publicOrigin).origin;
   const publicFiles = new Set(publicFileList);
   const areas: SiteBuildResult["areas"] = [];
   const areaPages: AreaPages[] = [];
@@ -143,24 +163,21 @@ export async function buildSite(
   const pageHtml = new Map<string, string>();
   for (const { area, mount } of listMountedAreas(mounts)) {
     const paramsPath = join(workDir, `params.${area}.json`);
-    await writeFile(
-      paramsPath,
-      JSON.stringify({
-        area,
-        mount,
-        publicOrigin: new URL(options.target.publicOrigin).origin,
-        siteId: options.target.siteId,
-        deploymentId: options.target.deploymentId,
-        noindex: options.target.noindex,
-        includeDrafts: options.target.includeDrafts,
-        branding: options.target.branding,
-        workDir,
-        publicFiles: publicFileList,
-        mounts,
-        config,
-        headScripts: siteHeadScripts(config, mount, prepared.customScripts),
-      })
-    );
+    await writeBuildParams(paramsPath, {
+      area,
+      mount,
+      publicOrigin,
+      siteId: options.target.siteId,
+      deploymentId: options.target.deploymentId,
+      noindex: options.target.noindex,
+      includeDrafts: options.target.includeDrafts,
+      branding: options.target.branding,
+      workDir,
+      publicFiles: publicFileList,
+      mounts,
+      config,
+      headScripts: siteHeadScripts(config, mount, prepared.customScripts),
+    });
     const started = Date.now();
     let log = "";
     const exitCode = await runAstro(
@@ -180,15 +197,7 @@ export async function buildSite(
         code: "build_failed",
         message: `Building the ${area} failed:\n${log.trim().split("\n").slice(-25).join("\n")}`,
       });
-      return {
-        ok: false,
-        diagnostics,
-        areas,
-        fileCount: 0,
-        totalBytes: 0,
-        redirects: [],
-        contentSecurityPolicy: null,
-      };
+      return failedBuild(diagnostics, areas);
     }
 
     const areaOut = join(workDir, "out", area);
@@ -198,8 +207,7 @@ export async function buildSite(
         areaPages.push(JSON.parse(await readFile(file, "utf8")) as AreaPages);
         continue;
       }
-      const urlPath =
-        mount === "/" ? `/${relativePath}` : `${mount}/${relativePath}`;
+      const urlPath = joinMountPath(mount, relativePath);
       if (pathCollidesWithOtherMount(mounts, area, urlPath)) {
         diagnostics.push({
           severity: "error",
@@ -235,7 +243,7 @@ export async function buildSite(
 
   await writeAgentFiles({
     outDir: options.outDir,
-    origin: new URL(options.target.publicOrigin).origin,
+    origin: publicOrigin,
     siteName: config.name,
     siteDescription: config.description,
     areas: areaPages,
@@ -245,12 +253,9 @@ export async function buildSite(
 
   // One policy for every page: the theme's inline scripts are the same everywhere, so the
   // union of all pages stays small. Computed from the final HTML, after URL rewriting.
-  const scriptHashes = new Set<string>();
-  for (const html of pageHtml.values()) {
-    for (const hash of inlineScriptHashes(html)) {
-      scriptHashes.add(hash);
-    }
-  }
+  const scriptHashes = new Set(
+    [...pageHtml.values()].flatMap((html) => inlineScriptHashes(html))
+  );
   let contentSecurityPolicy: string | null = null;
   if (
     config.security.contentSecurityPolicy &&
@@ -274,15 +279,12 @@ export async function buildSite(
   const sizes = await Promise.all(
     outputFiles.map(async (file) => (await stat(file)).size)
   );
-  const fileCount = outputFiles.length;
-  const totalBytes = sizes.reduce((sum, size) => sum + size, 0);
-  const ok = !diagnostics.some((diagnostic) => diagnostic.severity === "error");
   return {
-    ok,
+    ok: !hasErrors(diagnostics),
     diagnostics,
     areas,
-    fileCount,
-    totalBytes,
+    fileCount: outputFiles.length,
+    totalBytes: sizes.reduce((sum, size) => sum + size, 0),
     redirects: config.redirects,
     contentSecurityPolicy,
   };

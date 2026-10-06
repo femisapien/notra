@@ -2,17 +2,20 @@ import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import type { SiteEntry } from "@notra/sites-compiler/types/diagnostics";
 import { isTextSourceFile, validateSite } from "@notra/sites-compiler/validate";
-import { SITE_ASSETS_DIR } from "@notra/sites-core/constants/sites";
+import { SITE_AREAS, SITE_ASSETS_DIR } from "@notra/sites-core/constants/sites";
 import { sortCustomScriptPaths } from "@notra/sites-core/utils/custom-scripts";
 import { isSiteStylesheet } from "@notra/sites-core/utils/source-files";
 
 import { collectSiteSource } from "./collect";
-import type { PreparedSite, PrepareSiteParams } from "./types/source";
+import type {
+  PreparedSite,
+  PrepareSiteParams,
+  SiteFiles,
+} from "./types/source";
 import { writeFileEnsured } from "./utils/fs";
 
-export async function readSiteFiles(siteRoot: string) {
+export async function readSiteFiles(siteRoot: string): Promise<SiteFiles> {
   const collected = await collectSiteSource(siteRoot);
   const texts = await Promise.all(
     collected.files.map((file) =>
@@ -47,7 +50,6 @@ export async function prepareSite(
       validation,
       collectDiagnostics: collected.diagnostics,
       publicFiles,
-      entries: [],
       customScripts: [],
     };
   }
@@ -57,7 +59,7 @@ export async function prepareSite(
   // Both collections always exist, so a site without posts in one area
   // doesn't fill the build log with "collection does not exist" warnings.
   await Promise.all(
-    ["blog", "changelog"].map((area) =>
+    SITE_AREAS.map((area) =>
       mkdir(join(params.workDir, "entries", area), { recursive: true })
     )
   );
@@ -132,13 +134,10 @@ export async function prepareSite(
       )
     )
   );
-  const entries: SiteEntry[] = [...validation.entries];
-
   return {
     validation,
     collectDiagnostics: collected.diagnostics,
     publicFiles,
-    entries,
     customScripts,
   };
 }

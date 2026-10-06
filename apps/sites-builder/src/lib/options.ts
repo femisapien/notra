@@ -11,17 +11,9 @@ function required<T>(value: T | undefined, name: string): T {
   return value;
 }
 
-const blog = required(config.blog, "blog");
-const changelog = required(config.changelog, "changelog");
-
-export function blogOptions(): typeof blog {
-  return blog;
-}
-
-export function changelogOptions(): typeof changelog {
-  return changelog;
-}
+export const blogOptions = required(config.blog, "blog");
+export const changelogOptions = required(config.changelog, "changelog");
 
 export function heroOptions(area: "blog" | "changelog") {
-  return area === "blog" ? blog.hero : changelog.hero;
+  return area === "blog" ? blogOptions.hero : changelogOptions.hero;
 }

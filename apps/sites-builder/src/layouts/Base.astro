@@ -7,11 +7,13 @@ import CustomChrome from "../components/CustomChrome.astro";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import { siteBanner } from "../lib/banner";
-import { absoluteUrl, areaTitle, config, llmsHref, params } from "../lib/params";
+import { THEME_AREAS } from "../constants/areas";
+import { absoluteUrl, areaTitle, config, llmsHref, namedAreaTitle, params } from "../lib/params";
 import { extraMetaTags, socialImage, structuredData, themeColors, touchIcon, twitterHandle } from "../lib/seo";
 import { chromeComponent } from "../lib/site-files";
 import { decorationClass, faviconFor, fontFaces, googleFontsUrl, themeStyle } from "../lib/theme";
 import type { JsonLdNode } from "../types/seo";
+import { mountPath } from "../utils/paths";
 
 interface Props {
   title: string;
@@ -40,13 +42,9 @@ const twitterSite = twitterHandle();
 const colors = themeColors();
 const appleTouchIcon = touchIcon();
 // Every area's feed, so a reader on the blog also finds the changelog's.
-const feeds = (["blog", "changelog"] as const).flatMap((area) => {
+const feeds = THEME_AREAS.flatMap((area) => {
   const mount = params.mounts[area];
-  if (!mount) {
-    return [];
-  }
-  const label = areaTitle(area);
-  return [{ title: label.startsWith(config.name) ? label : `${config.name} ${label}`, href: `${mount === "/" ? "" : mount}/feed.xml` }];
+  return mount ? [{ title: namedAreaTitle(area), href: mountPath(mount, "feed.xml") }] : [];
 });
 const fontsUrl = googleFontsUrl();
 const appearance = config.appearance;

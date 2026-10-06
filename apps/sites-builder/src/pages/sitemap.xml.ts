@@ -1,16 +1,13 @@
 import type { APIRoute } from "astro";
 
 import { allAuthors, authorsOf } from "../lib/authors";
-import { getBlogEntries, getChangelogEntries } from "../lib/entries";
+import { getAreaEntries } from "../lib/entries";
 import { absoluteUrl, config, href, params } from "../lib/params";
 import { isoDate } from "../utils/dates";
 
 /** One sitemap per area; the customer references it from their root sitemap or robots.txt. */
 export const GET: APIRoute = async () => {
-  const entries =
-    params.area === "blog"
-      ? await getBlogEntries()
-      : await getChangelogEntries();
+  const entries = await getAreaEntries();
   const indexable = params.noindex
     ? []
     : entries.filter(

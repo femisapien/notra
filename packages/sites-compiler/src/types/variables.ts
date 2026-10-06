@@ -16,3 +16,9 @@ export interface TextSegment {
   end: number;
   code: boolean;
 }
+
+/** `{{ name }}` substituted in a short setting; `unknown` lists names without a value. */
+export interface SettingSubstitution {
+  text: string;
+  unknown: string[];
+}

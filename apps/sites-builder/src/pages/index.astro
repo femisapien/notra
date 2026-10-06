@@ -3,13 +3,13 @@ import BlogIndex from "../components/BlogIndex.astro";
 import ChangelogIndex from "../components/ChangelogIndex.astro";
 import Base from "../layouts/Base.astro";
 import { STRUCTURED_DATA_LIST_LIMIT } from "../constants/seo";
-import { getBlogEntries, getChangelogEntries } from "../lib/entries";
+import { getAreaEntries } from "../lib/entries";
 import { absoluteUrl, areaDescription, areaTitle, href, markdownHref, params } from "../lib/params";
 import { areaNodeId, pageTitle, publisherRef, websiteRef } from "../lib/seo";
 
 const title = areaTitle(params.area);
 const url = absoluteUrl(href());
-const entries = params.area === "blog" ? await getBlogEntries() : await getChangelogEntries();
+const entries = await getAreaEntries();
 const listed = entries
   .filter((entry) => !(entry.data.draft || ("noindex" in entry.data && entry.data.noindex)))
   .slice(0, STRUCTURED_DATA_LIST_LIMIT);

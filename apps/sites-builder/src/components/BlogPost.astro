@@ -22,7 +22,7 @@ interface Props {
 
 const { entry } = Astro.props;
 const { Content, headings } = await render(entry);
-const options = blogOptions().post;
+const options = blogOptions.post;
 const image = assetUrl(entry.data.image);
 const authors = options.authorCard ? authorsOf(entry) : [];
 const updated =

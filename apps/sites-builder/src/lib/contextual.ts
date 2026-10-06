@@ -1,18 +1,16 @@
 import { AI_ASSISTANTS } from "../constants/ai-assistants";
-import type { ContextualMenuItem } from "../types/ai-assistants";
+import {
+  CONTEXTUAL_PLACEHOLDER,
+  EXTERNAL_HREF,
+  SAFE_CUSTOM_HREF,
+} from "../constants/contextual";
+import type {
+  ContextualActions,
+  ContextualMenuItem,
+  ContextualPage,
+} from "../types/ai-assistants";
 import { lucideIcon } from "../utils/icons";
 import { absoluteUrl, config } from "./params";
-
-/** Custom actions may only leave for the web or mail; `javascript:` and friends are dropped. */
-const SAFE_CUSTOM_HREF = /^(?:https?:\/\/|\/(?!\/)|mailto:)/i;
-
-interface PageContext {
-  title: string;
-  /** Path of the page itself. */
-  pagePath: string;
-  /** Path of its Markdown twin. */
-  markdownHref: string;
-}
 
 /**
  * `{url}` at the very start is the whole link target and stays as is;
@@ -23,7 +21,7 @@ function fillTemplate(
   values: Record<string, string>
 ): string {
   return template.replace(
-    /\{(url|markdownUrl)\}/g,
+    CONTEXTUAL_PLACEHOLDER,
     (_, key: string, offset: number) => {
       const value = values[key] ?? "";
       return offset === 0 ? value : encodeURIComponent(value);
@@ -31,11 +29,8 @@ function fillTemplate(
   );
 }
 
-/** `contextual.options` in their configured order: whether "Copy article" shows, and the menu. */
-export function contextualActions(page: PageContext): {
-  copy: boolean;
-  menu: ContextualMenuItem[];
-} {
+/** `contextual.options` in their configured order. */
+export function contextualActions(page: ContextualPage): ContextualActions {
   if (config.contextual.display === "none") {
     return { copy: false, menu: [] };
   }
@@ -84,7 +79,7 @@ export function contextualActions(page: PageContext): {
         label: option.title,
         description: option.description,
         href: target,
-        external: /^https?:\/\//i.test(target),
+        external: EXTERNAL_HREF.test(target),
         icon: lucideIcon(option.icon) ?? lucideIcon("arrow-up-right"),
       });
     }

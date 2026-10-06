@@ -1,6 +1,7 @@
-import type { SiteEntry } from "@notra/sites-compiler/types/diagnostics";
+import type { SiteEntry } from "@notra/sites-compiler/types/entries";
 import type { SiteDiagnostic } from "@notra/sites-core/types/build";
 import type { SiteConfig } from "@notra/sites-core/types/site-config";
+import type satori from "satori";
 
 export interface WriteOgImagesParams {
   workDir: string;
@@ -32,3 +33,5 @@ export interface OgCardContent {
   /** Data URI of the repository background image. */
   background?: string;
 }
+
+export type SatoriFont = Parameters<typeof satori>[1]["fonts"][number];

@@ -3,7 +3,7 @@ import type { BlogEntry } from "../types/entries";
 import { absoluteUrl, assetUrl, config, href } from "./params";
 
 /** Path of an author's page in the blog: `/blog/author/jan`. */
-export function authorHref(id: string): string {
+function authorHref(id: string): string {
   return href(`author/${id}`);
 }
 
@@ -28,7 +28,7 @@ function knownAuthor(id: string): ResolvedAuthor | null {
 }
 
 /** `author: jan` names a notra.json author; anything else is a plain name. */
-export function resolveAuthor(value: string): ResolvedAuthor {
+function resolveAuthor(value: string): ResolvedAuthor {
   return knownAuthor(value) ?? { id: null, name: value, links: [] };
 }
 

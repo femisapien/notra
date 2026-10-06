@@ -1,7 +1,6 @@
 import { lstat, readdir } from "node:fs/promises";
 import { extname, join } from "node:path";
 
-import type { SiteSourceFile } from "@notra/sites-compiler/types/diagnostics";
 import { SITE_BUILD_LIMITS } from "@notra/sites-core/constants/sites";
 import type { SiteDiagnostic } from "@notra/sites-core/types/build";
 import {
@@ -10,7 +9,11 @@ import {
 } from "@notra/sites-core/utils/source-files";
 
 import { ALLOWED_EXTENSIONS, SAFE_SEGMENT } from "./constants/source";
-import type { CollectedSource, Inspected } from "./types/source";
+import type {
+  CollectedSource,
+  Inspected,
+  SiteSourceFile,
+} from "./types/source";
 
 /**
  * Lists the files a site may use: the known top-level entries in full, and

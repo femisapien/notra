@@ -1,5 +1,8 @@
 import { join } from "node:path";
 
+import { joinMountPath } from "@notra/sites-core/utils/mounts";
+
+import { withSiteName } from "../src/utils/area-titles";
 import { AGENT_INSTRUCTIONS_HEADING } from "./constants/agent-files";
 import type {
   AreaPageEntry,
@@ -9,6 +12,11 @@ import type {
 } from "./types/agent-files";
 import { exists, writeFileEnsured } from "./utils/fs";
 import { htmlToMarkdown } from "./utils/html-to-markdown";
+
+/** `/blog/post` → `/blog/post/index.<extension>`, where Astro writes the page. */
+function pageFile(pagePath: string, extension: "html" | "md"): string {
+  return joinMountPath(pagePath, `index.${extension}`);
+}
 
 function metaLines(entry: AreaPageEntry, url: string): string[] {
   const lines = [`- URL: ${url}`, `- Published: ${entry.date}`];
@@ -27,7 +35,7 @@ function metaLines(entry: AreaPageEntry, url: string): string[] {
   return lines;
 }
 
-export function entryMarkdown(
+function entryMarkdown(
   entry: AreaPageEntry,
   url: string,
   body: string
@@ -51,7 +59,7 @@ function entryLink(entry: AreaPageEntry, origin: string): string {
 }
 
 /** The area index as Markdown: every entry with a link to its own Markdown page. */
-export function indexMarkdown(pages: AreaPages, origin: string): string {
+function indexMarkdown(pages: AreaPages, origin: string): string {
   const parts = [`# ${pages.title}`];
   if (pages.description) {
     parts.push(`> ${pages.description}`);
@@ -113,34 +121,23 @@ export function llmsTxt(params: LlmsTxtParams): string {
       [
         `## ${area.title}`,
         "",
-        `- [${area.title} index](${new URL(`${area.indexPath === "/" ? "" : area.indexPath}/index.md`, params.origin)})${area.description ? `: ${area.description}` : ""}`,
+        `- [${area.title} index](${new URL(pageFile(area.indexPath, "md"), params.origin)})${area.description ? `: ${area.description}` : ""}`,
         ...entries.map((entry) => entryLink(entry, params.origin)),
       ].join("\n")
     );
   }
-  const areaBase = (area: AreaPages) =>
-    area.indexPath === "/" ? "" : area.indexPath;
   parts.push(
     [
       "## Optional",
       "",
       `- [Full text](${new URL(params.fullTextPath, params.origin)}): every page above in one file`,
       ...params.areas.flatMap((area) => [
-        `- [${area.title} RSS feed](${new URL(`${areaBase(area)}/feed.xml`, params.origin)}): new ${area.area === "blog" ? "posts" : "entries"} as they are published`,
-        `- [${area.title} sitemap](${new URL(`${areaBase(area)}/sitemap.xml`, params.origin)}): every page with its last modification date`,
+        `- [${area.title} RSS feed](${new URL(joinMountPath(area.indexPath, "feed.xml"), params.origin)}): new ${area.area === "blog" ? "posts" : "entries"} as they are published`,
+        `- [${area.title} sitemap](${new URL(joinMountPath(area.indexPath, "sitemap.xml"), params.origin)}): every page with its last modification date`,
       ]),
     ].join("\n")
   );
   return `${parts.join("\n\n")}\n`;
-}
-
-/** `/blog/post` → `/blog/post/index.<extension>`, where Astro writes the page. */
-function pageFile(pagePath: string, extension: "html" | "md"): string {
-  return `${pagePath === "/" ? "" : pagePath}/index.${extension}`;
-}
-
-async function write(outDir: string, urlPath: string, content: string) {
-  await writeFileEnsured(join(outDir, urlPath), content);
 }
 
 /**
@@ -164,9 +161,8 @@ export async function writeAgentFiles(
       const markdown = entryMarkdown(entry, url, htmlToMarkdown(html, url));
       // The page's own Markdown carries the instructions too; llms-full.txt has them once at the top.
       writes.push(
-        write(
-          outDir,
-          pageFile(entry.path, "md"),
+        writeFileEnsured(
+          join(outDir, pageFile(entry.path, "md")),
           instructions ? `${markdown}\n${instructions}\n` : markdown
         )
       );
@@ -176,7 +172,10 @@ export async function writeAgentFiles(
     }
     fullText.set(area.area, texts);
     writes.push(
-      write(outDir, pageFile(area.indexPath, "md"), indexMarkdown(area, origin))
+      writeFileEnsured(
+        join(outDir, pageFile(area.indexPath, "md")),
+        indexMarkdown(area, origin)
+      )
     );
   }
   await Promise.all(writes);
@@ -193,17 +192,12 @@ export async function writeAgentFiles(
       const fullTextPath = `${scope.prefix}/llms-full.txt`;
       const llmsPath = `${scope.prefix}/llms.txt`;
       const areaTitle = scope.prefix ? scope.areas[0]?.title : undefined;
-      // "Acme" + "Changelog" → "Acme Changelog", but "Acme Blog" stays "Acme Blog".
-      let name = params.siteName;
-      if (areaTitle) {
-        name = areaTitle.startsWith(params.siteName)
-          ? areaTitle
-          : `${params.siteName} ${areaTitle}`;
-      }
+      const name = areaTitle
+        ? withSiteName(params.siteName, areaTitle)
+        : params.siteName;
       if (!(await exists(join(outDir, llmsPath)))) {
-        await write(
-          outDir,
-          llmsPath,
+        await writeFileEnsured(
+          join(outDir, llmsPath),
           llmsTxt({
             name,
             description: params.siteDescription,
@@ -218,9 +212,8 @@ export async function writeAgentFiles(
         const pages = scope.areas.flatMap(
           (area) => fullText.get(area.area) ?? []
         );
-        await write(
-          outDir,
-          fullTextPath,
+        await writeFileEnsured(
+          join(outDir, fullTextPath),
           [
             instructions ? `# ${name}\n\n${instructions}` : `# ${name}`,
             ...pages,

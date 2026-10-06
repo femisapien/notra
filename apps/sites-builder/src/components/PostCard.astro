@@ -18,7 +18,7 @@ interface Props {
 }
 
 const { entry, headingLevel: Heading = "h2", variant = "card", featured = false } = Astro.props;
-const show = blogOptions().card;
+const show = blogOptions.card;
 const [author] = show.author ? authorsOf(entry) : [];
 const summary = show.excerpt ? (entry.data.description ?? excerpt(entry.body)) : undefined;
 // Only real covers: the generated share image repeats the title the card already shows.

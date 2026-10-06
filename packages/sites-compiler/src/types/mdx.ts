@@ -2,10 +2,7 @@ import type { SiteDiagnostic } from "@notra/sites-core/types/build";
 import type { ModuleDeclaration } from "estree";
 import type { RootContent } from "mdast";
 
-export interface SourceRange {
-  start: number;
-  end: number;
-}
+import type { SourceRange } from "./estree";
 
 /** Source with the frontmatter blanked out, and the frontmatter's length. */
 export interface BlankedFrontmatter {
@@ -13,9 +10,7 @@ export interface BlankedFrontmatter {
   length: number;
 }
 
-export interface TextEdit {
-  start: number;
-  end: number;
+export interface TextEdit extends SourceRange {
   text: string;
 }
 
@@ -28,17 +23,27 @@ export interface MdxAnalysisContext {
   isEntry: boolean;
 }
 
+/** Generated module holding inline components, so they can hydrate as islands. */
+export interface InlineModule {
+  path: string;
+  source: string;
+}
+
 export interface MdxAnalysis {
   diagnostics: SiteDiagnostic[];
   /** Transformed MDX, or null when there are errors. */
   output: string | null;
-  /** Generated module holding inline components, so they can hydrate as islands. */
-  inlineModule: { path: string; source: string } | null;
+  inlineModule: InlineModule | null;
   /** Site-relative paths this file imports. */
   imports: string[];
 }
 
 export type EsmNode = Extract<RootContent, { type: "mdxjsEsm" }>;
+
+export type MdxJsxElement = Extract<
+  RootContent,
+  { type: "mdxJsxFlowElement" | "mdxJsxTextElement" }
+>;
 
 /** Shared state of one file's analysis: where errors and text edits are collected. */
 export interface MdxPass {
@@ -51,6 +56,14 @@ export interface MdxPass {
   edits: TextEdit[];
 }
 
+/** `export const X = () => …`: moved into a generated module. */
+export interface InlineComponent {
+  names: string[];
+  source: string;
+  node: ModuleDeclaration;
+  start: number;
+}
+
 /** What the file's import/export statements declare. */
 export interface ModuleScan {
   imports: string[];
@@ -60,13 +73,7 @@ export interface ModuleScan {
   hydrated: Set<string>;
   /** Default imports of `.mdx` snippets; rendered at build time. */
   contentComponents: Set<string>;
-  /** `export const X = () => …`: moved into a generated module. */
-  inline: Array<{
-    names: string[];
-    source: string;
-    node: ModuleDeclaration;
-    start: number;
-  }>;
+  inline: InlineComponent[];
   /** `export const x = "value"`: kept, and copied into the generated module. */
   valueExports: string[];
 }

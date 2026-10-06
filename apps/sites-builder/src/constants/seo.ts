@@ -21,3 +21,6 @@ export const X_HOSTS = new Set([
 
 /** Entries listed in an index page's structured data. */
 export const STRUCTURED_DATA_LIST_LIMIT = 50;
+
+/** `seo.metatags` keys that are Open Graph style properties rather than names. */
+export const PROPERTY_META_TAG = /^(?:og|article|fb|profile|book):/i;

@@ -29,7 +29,7 @@ type Props =
   | { kind: "blog"; entry: BlogEntry }
   | { kind: "changelog"; entry: ChangelogEntryType };
 
-const props = Astro.props as Props;
+const props = Astro.props;
 const entry = props.entry;
 const noindex = props.kind === "blog" ? props.entry.data.noindex || props.entry.data.draft : props.entry.data.draft;
 const url = absoluteUrl(href(entry.id));

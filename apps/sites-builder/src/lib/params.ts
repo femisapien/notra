@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 
 import type { BuildParams } from "../types/build-params";
+import { configuredAreaTitle, withSiteName } from "../utils/area-titles";
+import { mountPath } from "../utils/paths";
 
 const paramsPath = process.env.NOTRA_BUILD_PARAMS;
 if (!paramsPath) {
@@ -9,13 +11,11 @@ if (!paramsPath) {
 
 export const params: BuildParams = JSON.parse(readFileSync(paramsPath, "utf8"));
 export const config = params.config;
-const basePrefix = params.mount === "/" ? "" : params.mount;
 const publicFiles = new Set(params.publicFiles);
 
 /** Path inside the current area: `href("post")` → `/blog/post`. */
 export function href(path = ""): string {
-  const tail = path.replace(/^\/+/, "");
-  return tail ? `${basePrefix}/${tail}` : params.mount;
+  return mountPath(params.mount, path);
 }
 
 /** Absolute URL on the customer's public origin. */
@@ -32,13 +32,16 @@ export function assetUrl(path: string | undefined): string | undefined {
     return path;
   }
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  return publicFiles.has(normalized)
-    ? `${basePrefix}${normalized}`
-    : normalized;
+  return publicFiles.has(normalized) ? href(normalized) : normalized;
 }
 
 export function areaTitle(area: BuildParams["area"]): string {
-  return config[area]?.title ?? (area === "blog" ? "Blog" : "Changelog");
+  return configuredAreaTitle(config, area);
+}
+
+/** The area title as feed readers list it: "Changelog" alone says nothing next to other feeds. */
+export function namedAreaTitle(area: BuildParams["area"]): string {
+  return withSiteName(config.name, areaTitle(area));
 }
 
 export function areaDescription(area: BuildParams["area"]): string | undefined {
@@ -59,5 +62,5 @@ export function markdownHref(pagePath?: string): string {
 
 /** llms.txt for this area; at the root mount it is the site-wide one. */
 export function llmsHref(): string {
-  return params.mount === "/" ? "/llms.txt" : href("llms.txt");
+  return href("llms.txt");
 }

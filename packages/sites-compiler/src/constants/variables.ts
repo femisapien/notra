@@ -11,3 +11,9 @@ export const VARIABLE_OR_CODE_SPAN =
 export const CODE_FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
 /** Closing line of a fenced code block: the fence characters and nothing else. */
 export const CODE_FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+
+/** One `{{ name }}` reference; group 1 is the name. */
+export const VARIABLE_REFERENCE = /\{\{\s*([A-Za-z][A-Za-z0-9_-]*)\s*\}\}/g;
+
+/** A value YAML reads the same quoted or not, so it can replace a reference in place. */
+export const YAML_SAFE_VALUE = /^[^"'\n#:{}[\]&*!|>%@`\\]*$/;

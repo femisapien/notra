@@ -3,12 +3,22 @@ import {
   CODE_FENCE_CLOSE,
   CODE_FENCE_OPEN,
   VARIABLE_OR_CODE_SPAN,
+  VARIABLE_REFERENCE,
+  YAML_SAFE_VALUE,
 } from "../constants/variables";
 import type {
+  SettingSubstitution,
   TextSegment,
   UnknownVariable,
   VariableSubstitution,
 } from "../types/variables";
+
+function lookup(
+  variables: Readonly<Record<string, string>>,
+  name: string
+): string | undefined {
+  return Object.hasOwn(variables, name) ? variables[name] : undefined;
+}
 
 /**
  * Splits `source` (from `start` on) into prose and fenced code blocks, so
@@ -87,9 +97,7 @@ export function substituteVariables(
           if (codeSpan !== undefined || name === undefined) {
             return match;
           }
-          const value = Object.hasOwn(variables, name)
-            ? variables[name]
-            : undefined;
+          const value = lookup(variables, name);
           if (value !== undefined) {
             return value;
           }
@@ -102,9 +110,6 @@ export function substituteVariables(
   return { text: parts.join(""), unknown };
 }
 
-/** A value YAML reads the same quoted or not, so it can replace a reference in place. */
-const YAML_SAFE_VALUE = /^[^"'\n#:{}[\]&*!|>%@`\\]*$/;
-
 /**
  * Frontmatter is YAML, so a value is only inserted when it can't change how
  * the line parses (no quotes, colons, brackets…). Anything else stays as
@@ -116,11 +121,9 @@ function substituteFrontmatter(
 ): VariableSubstitution {
   const unknown: UnknownVariable[] = [];
   const text = block.replace(
-    /\{\{\s*([A-Za-z][A-Za-z0-9_-]*)\s*\}\}/g,
+    VARIABLE_REFERENCE,
     (match, name: string, offset: number) => {
-      const value = Object.hasOwn(variables, name)
-        ? variables[name]
-        : undefined;
+      const value = lookup(variables, name);
       if (value !== undefined && YAML_SAFE_VALUE.test(value)) {
         return value;
       }
@@ -135,20 +138,15 @@ function substituteFrontmatter(
 export function substituteSettingText(
   text: string,
   variables: Readonly<Record<string, string>>
-): { text: string; unknown: string[] } {
+): SettingSubstitution {
   const unknown: string[] = [];
-  const result = text.replace(
-    /\{\{\s*([A-Za-z][A-Za-z0-9_-]*)\s*\}\}/g,
-    (match, name: string) => {
-      const value = Object.hasOwn(variables, name)
-        ? variables[name]
-        : undefined;
-      if (value === undefined) {
-        unknown.push(name);
-        return match;
-      }
-      return value;
+  const result = text.replace(VARIABLE_REFERENCE, (match, name: string) => {
+    const value = lookup(variables, name);
+    if (value === undefined) {
+      unknown.push(name);
+      return match;
     }
-  );
+    return value;
+  });
   return { text: result, unknown };
 }

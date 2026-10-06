@@ -20,7 +20,11 @@ export async function getStaticPaths() {
     .map((author) => ({ params: { author: author.id }, props: { author } }));
 }
 
-const { author } = Astro.props as { author: ResolvedAuthor };
+interface Props {
+  author: ResolvedAuthor;
+}
+
+const { author } = Astro.props;
 const posts = (await getBlogEntries()).filter((entry) => authorsOf(entry).some((byline) => byline.id === author.id));
 const url = absoluteUrl(author.href ?? href());
 const description = author.bio ?? `Posts by ${author.name}.`;

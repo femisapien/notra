@@ -1,9 +1,10 @@
 import {
   DEFAULT_THEME_COLORS,
+  PROPERTY_META_TAG,
   TOUCH_ICON_EXTENSIONS,
   X_HOSTS,
 } from "../constants/seo";
-import type { JsonLdNode, SocialImage } from "../types/seo";
+import type { ExtraMetaTag, JsonLdNode, SocialImage } from "../types/seo";
 import {
   absoluteUrl,
   areaTitle,
@@ -142,13 +143,9 @@ export function socialImage(
 }
 
 /** `seo.metatags`: Open Graph style keys (`og:`, `article:`, `fb:`) are properties, the rest names. */
-export function extraMetaTags(): {
-  key: "name" | "property";
-  value: string;
-  content: string;
-}[] {
+export function extraMetaTags(): ExtraMetaTag[] {
   return Object.entries(config.seo.metatags).map(([value, content]) => ({
-    key: /^(?:og|article|fb|profile|book):/i.test(value) ? "property" : "name",
+    key: PROPERTY_META_TAG.test(value) ? "property" : "name",
     value,
     content,
   }));

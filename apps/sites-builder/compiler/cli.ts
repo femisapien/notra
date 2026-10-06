@@ -12,7 +12,12 @@ import {
   normalizeSiteMounts,
 } from "@notra/sites-core/utils/mounts";
 
-import { buildSite, readBuildTarget, runAstro } from "./build";
+import {
+  buildSite,
+  readBuildTarget,
+  runAstro,
+  writeBuildParams,
+} from "./build";
 import { USAGE } from "./constants/cli";
 import { writeOgImages } from "./og-images";
 import { prepareSite, readSiteFiles } from "./prepare";
@@ -111,7 +116,7 @@ async function main() {
           ? await writeOgImages({
               workDir,
               config,
-              entries: prepared.entries,
+              entries: prepared.validation.entries,
               publicFiles: prepared.publicFiles,
               includeDrafts: true,
             })
@@ -144,28 +149,25 @@ async function main() {
       process.exit(1);
     }
     const paramsPath = join(workDir, "params.dev.json");
-    await writeFile(
-      paramsPath,
-      JSON.stringify({
-        area: selected.area,
-        mount: selected.mount,
-        publicOrigin: `http://localhost:${values.port}`,
-        siteId: "local",
-        deploymentId: "local",
-        noindex: true,
-        includeDrafts: true,
-        branding: true,
-        workDir,
-        publicFiles: prepared.publicFiles,
-        mounts,
-        config: prepared.validation.config,
-        headScripts: siteHeadScripts(
-          prepared.validation.config,
-          selected.mount,
-          prepared.customScripts
-        ),
-      })
-    );
+    await writeBuildParams(paramsPath, {
+      area: selected.area,
+      mount: selected.mount,
+      publicOrigin: `http://localhost:${values.port}`,
+      siteId: "local",
+      deploymentId: "local",
+      noindex: true,
+      includeDrafts: true,
+      branding: true,
+      workDir,
+      publicFiles: prepared.publicFiles,
+      mounts,
+      config: prepared.validation.config,
+      headScripts: siteHeadScripts(
+        prepared.validation.config,
+        selected.mount,
+        prepared.customScripts
+      ),
+    });
     let timer: ReturnType<typeof setTimeout> | undefined;
     watch(siteRoot, { recursive: true }, () => {
       clearTimeout(timer);

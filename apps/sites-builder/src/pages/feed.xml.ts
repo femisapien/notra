@@ -1,13 +1,13 @@
 import type { APIRoute } from "astro";
 
 import { authorsOf } from "../lib/authors";
-import { getBlogEntries, getChangelogEntries } from "../lib/entries";
+import { getAreaEntries } from "../lib/entries";
 import {
   absoluteUrl,
   areaDescription,
   areaTitle,
-  config,
   href,
+  namedAreaTitle,
   params,
 } from "../lib/params";
 import type { BlogEntry, ChangelogEntry } from "../types/entries";
@@ -21,10 +21,7 @@ function authors(entry: BlogEntry | ChangelogEntry): string[] {
 }
 
 export const GET: APIRoute = async () => {
-  const entries =
-    params.area === "blog"
-      ? await getBlogEntries()
-      : await getChangelogEntries();
+  const entries = await getAreaEntries();
   const published = entries.filter((entry) => !entry.data.draft);
   const items = published
     .map((entry) => {
@@ -46,11 +43,7 @@ export const GET: APIRoute = async () => {
     ? `<lastBuildDate>${published[0].data.date.toUTCString()}</lastBuildDate>`
     : "";
   const channelLink = absoluteUrl(href());
-  // Readers list feeds by title: "Changelog" alone says nothing next to other feeds.
-  const title = areaTitle(params.area).startsWith(config.name)
-    ? areaTitle(params.area)
-    : `${config.name} ${areaTitle(params.area)}`;
-  const body = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>${escapeXml(title)}</title><link>${channelLink}</link><description>${escapeXml(areaDescription(params.area) ?? areaTitle(params.area))}</description><language>en</language>${lastBuild}<atom:link href="${absoluteUrl(href("feed.xml"))}" rel="self" type="application/rss+xml"/>${items}</channel></rss>`;
+  const body = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>${escapeXml(namedAreaTitle(params.area))}</title><link>${channelLink}</link><description>${escapeXml(areaDescription(params.area) ?? areaTitle(params.area))}</description><language>en</language>${lastBuild}<atom:link href="${absoluteUrl(href("feed.xml"))}" rel="self" type="application/rss+xml"/>${items}</channel></rss>`;
   return new Response(body, {
     headers: { "Content-Type": "application/rss+xml; charset=utf-8" },
   });

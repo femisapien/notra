@@ -1,11 +1,21 @@
-import type { Node as EstreeNode, Program } from "estree";
+import type { ModuleDeclaration, Node as EstreeNode, Statement } from "estree";
 import { EXIT, visit as visitEstree } from "estree-util-visit";
 
-import { NODE_ONLY_GLOBALS } from "../constants/builtins";
-import type { ForbiddenSyntax, IdentifierReference } from "../types/estree";
+import { COMPONENT_NAME, NODE_ONLY_GLOBALS } from "../constants/builtins";
+import type {
+  ForbiddenSyntax,
+  IdentifierReference,
+  SourceRange,
+} from "../types/estree";
+
+/** Offsets acorn adds to every node; the estree types leave them out. */
+export function nodeRange(node: EstreeNode): SourceRange {
+  const ranged = node as EstreeNode & Partial<SourceRange>;
+  return { start: ranged.start ?? 0, end: ranged.end ?? 0 };
+}
 
 /** Names bound by a declaration pattern (`const { a, b: [c] } = …` → a, c). */
-export function patternNames(pattern: EstreeNode | null | undefined): string[] {
+function patternNames(pattern: EstreeNode | null | undefined): string[] {
   if (!pattern) {
     return [];
   }
@@ -27,6 +37,28 @@ export function patternNames(pattern: EstreeNode | null | undefined): string[] {
     default:
       return [];
   }
+}
+
+/** `export const a = …` / `export function b` / `export class C` → their names. */
+export function exportedDeclarationNames(
+  statement: Statement | ModuleDeclaration
+): string[] {
+  if (statement.type !== "ExportNamedDeclaration" || !statement.declaration) {
+    return [];
+  }
+  const { declaration } = statement;
+  if (declaration.type === "VariableDeclaration") {
+    return declaration.declarations.flatMap((declarator) =>
+      declarator.id.type === "Identifier" ? [declarator.id.name] : []
+    );
+  }
+  if (
+    declaration.type === "FunctionDeclaration" ||
+    declaration.type === "ClassDeclaration"
+  ) {
+    return declaration.id ? [declaration.id.name] : [];
+  }
+  return [];
 }
 
 /** Every name a node declares locally (params, variables, functions, classes, catch bindings). */
@@ -77,7 +109,7 @@ export function declaredNames(root: EstreeNode): Set<string> {
 export function referencedIdentifiers(root: EstreeNode): IdentifierReference[] {
   const references: IdentifierReference[] = [];
   visitEstree(root, (node, key, _index, ancestors) => {
-    const current = node as EstreeNode & { start?: number; end?: number };
+    const current = node as EstreeNode & Partial<SourceRange>;
     const parent = ancestors.at(-1) as EstreeNode | undefined;
     if (current.type === "Identifier") {
       if (
@@ -97,18 +129,13 @@ export function referencedIdentifiers(root: EstreeNode): IdentifierReference[] {
       });
       return;
     }
-    // JSX element names reference components too (`<Counter />`).
-    const jsx = current as unknown as {
-      type: string;
-      name?: string;
-      start?: number;
-      end?: number;
-    };
+    // JSX element names reference components too (`<Counter />`); estree has no JSX types.
+    const jsx = node as { type: string; name?: string } & Partial<SourceRange>;
     if (
       jsx.type === "JSXIdentifier" &&
       key === "name" &&
       jsx.name &&
-      /^[A-Z]/.test(jsx.name)
+      COMPONENT_NAME.test(jsx.name)
     ) {
       references.push({
         name: jsx.name,
@@ -120,10 +147,10 @@ export function referencedIdentifiers(root: EstreeNode): IdentifierReference[] {
   return references;
 }
 
-export function containsJsxOrFunction(root: EstreeNode | Program): boolean {
+export function containsJsxOrFunction(root: EstreeNode): boolean {
   let found = false;
-  visitEstree(root as EstreeNode, (node) => {
-    const type = (node as { type: string }).type;
+  visitEstree(root, (node) => {
+    const { type } = node as { type: string };
     if (
       type === "JSXElement" ||
       type === "JSXFragment" ||
@@ -140,17 +167,13 @@ export function containsJsxOrFunction(root: EstreeNode | Program): boolean {
 }
 
 /** Dynamic imports, `require`, `eval` and `new Function` are never allowed in site code. */
-export function findForbiddenSyntax(
-  root: EstreeNode | Program
-): ForbiddenSyntax[] {
+function findForbiddenSyntax(root: EstreeNode): ForbiddenSyntax[] {
   const found: ForbiddenSyntax[] = [];
-  visitEstree(root as EstreeNode, (node) => {
-    const current = node as EstreeNode & { start?: number };
+  visitEstree(root, (node) => {
+    const current = node as EstreeNode;
+    const { start } = nodeRange(current);
     if (current.type === "ImportExpression") {
-      found.push({
-        message: "Dynamic import() is not supported",
-        start: current.start ?? 0,
-      });
+      found.push({ message: "Dynamic import() is not supported", start });
     }
     if (
       current.type === "CallExpression" &&
@@ -159,7 +182,7 @@ export function findForbiddenSyntax(
     ) {
       found.push({
         message: `${current.callee.name}() is not supported`,
-        start: current.start ?? 0,
+        start,
       });
     }
     if (
@@ -167,15 +190,12 @@ export function findForbiddenSyntax(
       current.callee.type === "Identifier" &&
       current.callee.name === "Function"
     ) {
-      found.push({
-        message: "new Function() is not supported",
-        start: current.start ?? 0,
-      });
+      found.push({ message: "new Function() is not supported", start });
     }
     if (current.type === "MetaProperty") {
       found.push({
         message: "import.meta is not available in site code",
-        start: current.start ?? 0,
+        start,
       });
     }
   });
@@ -187,21 +207,25 @@ export function findForbiddenSyntax(
  * Node-only globals are part of neither contract, so using them is an error
  * even though the sandbox would contain it anyway.
  */
-export function findNodeApiUsage(
-  root: EstreeNode | Program,
+function findNodeApiUsage(
+  root: EstreeNode,
+  declared: ReadonlySet<string>
+): ForbiddenSyntax[] {
+  return referencedIdentifiers(root)
+    .filter(
+      (reference) =>
+        NODE_ONLY_GLOBALS.has(reference.name) && !declared.has(reference.name)
+    )
+    .map((reference) => ({
+      message: `${reference.name} is a Node.js API and is not available in site components`,
+      start: reference.start,
+    }));
+}
+
+/** Forbidden syntax, then Node.js globals that `declared` doesn't shadow. */
+export function forbiddenUsage(
+  root: EstreeNode,
   declared: ReadonlySet<string> = new Set()
 ): ForbiddenSyntax[] {
-  const found: ForbiddenSyntax[] = [];
-  for (const reference of referencedIdentifiers(root as EstreeNode)) {
-    if (
-      NODE_ONLY_GLOBALS.has(reference.name) &&
-      !declared.has(reference.name)
-    ) {
-      found.push({
-        message: `${reference.name} is a Node.js API and is not available in site components`,
-        start: reference.start,
-      });
-    }
-  }
-  return found;
+  return [...findForbiddenSyntax(root), ...findNodeApiUsage(root, declared)];
 }

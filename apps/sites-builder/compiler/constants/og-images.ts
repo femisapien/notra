@@ -4,8 +4,6 @@ export const OG_IMAGE_HEIGHT = 630;
 
 /** Below the public dir, so each area serves them at `<mount>/_notra/og/<area>/<slug>.png`. */
 export const OG_IMAGES_DIR = "_notra/og";
-/** `{ "<area>/<slug>": "/_notra/og/<area>/<slug>.png" }`, read by the theme. */
-export const OG_MANIFEST_FILE = "og-manifest.json";
 
 /**
  * Inter, bundled with the toolchain because builds run without network.

@@ -1,3 +1,8 @@
+export interface SourceRange {
+  start: number;
+  end: number;
+}
+
 export interface ForbiddenSyntax {
   message: string;
   start: number;

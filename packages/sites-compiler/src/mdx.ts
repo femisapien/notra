@@ -1,10 +1,5 @@
-import type {
-  ImportDeclaration,
-  ModuleDeclaration,
-  Program,
-  Statement,
-} from "estree";
-import type { Nodes, Root, RootContent } from "mdast";
+import type { ImportDeclaration, Program } from "estree";
+import type { Root } from "mdast";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { mdxFromMarkdown } from "mdast-util-mdx";
 import { mdxjs } from "micromark-extension-mdxjs";
@@ -13,91 +8,42 @@ import { visit } from "unist-util-visit";
 import {
   BUILTIN_COMPONENT_NAMES,
   BUILTINS_IMPORT_SOURCE,
+  COMPONENT_NAME,
   INJECTED_HOOK_NAMES,
   INLINE_MODULE_SUFFIX,
   KNOWN_GLOBALS,
   SITE_IMPORT_ALIAS,
 } from "./constants/builtins";
-import { BLOCKED_HTML_ELEMENTS } from "./constants/elements";
+import {
+  BLOCKED_ELEMENT_HINT,
+  BLOCKED_HTML_ELEMENTS,
+} from "./constants/elements";
 import { missingHookImports, parseJsxModule } from "./jsx";
 import type {
-  BlankedFrontmatter,
   EsmNode,
+  InlineModule,
   MdxAnalysis,
   MdxAnalysisContext,
   MdxPass,
   ModuleScan,
-  SourceRange,
-  TextEdit,
 } from "./types/mdx";
+import { hasErrors } from "./utils/diagnostics";
+import { errorSummary, micromarkErrorPosition } from "./utils/errors";
 import {
   containsJsxOrFunction,
   declaredNames,
-  findForbiddenSyntax,
-  findNodeApiUsage,
+  exportedDeclarationNames,
+  forbiddenUsage,
+  nodeRange,
   referencedIdentifiers,
 } from "./utils/estree";
+import {
+  expressionPrograms,
+  hasClientDirective,
+  isMdxJsxElement,
+} from "./utils/mdast";
 import { offsetToLineColumn, resolveSiteImport } from "./utils/paths";
-
-const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/;
-
-/** Replaces the frontmatter with same-length whitespace so parser offsets stay absolute. */
-function blankFrontmatter(source: string): BlankedFrontmatter {
-  const match = FRONTMATTER.exec(source);
-  if (!match) {
-    return { text: source, length: 0 };
-  }
-  const blanked = match[0].replace(/[^\n]/g, " ");
-  return {
-    text: blanked + source.slice(match[0].length),
-    length: match[0].length,
-  };
-}
-
-function applyEdits(source: string, edits: TextEdit[]): string {
-  let output = source;
-  for (const edit of [...edits].sort(
-    (a, b) => b.start - a.start || b.end - a.end
-  )) {
-    output = output.slice(0, edit.start) + edit.text + output.slice(edit.end);
-  }
-  return output;
-}
-
-function statementRange(statement: Statement | ModuleDeclaration): SourceRange {
-  const ranged = statement as unknown as { start: number; end: number };
-  return { start: ranged.start, end: ranged.end };
-}
-
-function exportedDeclarationNames(statement: ModuleDeclaration): string[] {
-  if (statement.type !== "ExportNamedDeclaration" || !statement.declaration) {
-    return [];
-  }
-  const declaration = statement.declaration;
-  if (declaration.type === "VariableDeclaration") {
-    return declaration.declarations.flatMap((declarator) =>
-      declarator.id.type === "Identifier" ? [declarator.id.name] : []
-    );
-  }
-  if (
-    declaration.type === "FunctionDeclaration" ||
-    declaration.type === "ClassDeclaration"
-  ) {
-    return declaration.id ? [declaration.id.name] : [];
-  }
-  return [];
-}
-
-function hasClientDirective(
-  attributes: Array<{ type: string; name?: unknown }>
-): boolean {
-  return attributes.some(
-    (attribute) =>
-      attribute.type === "mdxJsxAttribute" &&
-      typeof attribute.name === "string" &&
-      attribute.name.startsWith("client:")
-  );
-}
+import { applyEdits, blankFrontmatter } from "./utils/text-edits";
 
 function report(pass: MdxPass, code: string, message: string, offset: number) {
   pass.diagnostics.push({
@@ -112,12 +58,9 @@ function report(pass: MdxPass, code: string, message: string, offset: number) {
 function checkForbidden(
   pass: MdxPass,
   program: Program,
-  declared: ReadonlySet<string> = new Set()
+  declared?: ReadonlySet<string>
 ) {
-  for (const forbidden of [
-    ...findForbiddenSyntax(program),
-    ...findNodeApiUsage(program, declared),
-  ]) {
+  for (const forbidden of forbiddenUsage(program, declared)) {
     report(pass, "forbidden_syntax", forbidden.message, forbidden.start);
   }
 }
@@ -129,24 +72,12 @@ function parseMdx(pass: MdxPass): Root | null {
       mdastExtensions: [mdxFromMarkdown()],
     });
   } catch (parseError) {
-    const place = (
-      parseError as {
-        place?: {
-          line?: number;
-          column?: number;
-          start?: { line: number; column: number };
-        };
-      }
-    ).place;
-    const line = place?.line ?? place?.start?.line;
-    const column = place?.column ?? place?.start?.column;
     pass.diagnostics.push({
       severity: "error",
       code: "mdx_syntax",
       file: pass.path,
-      ...(line ? { line } : {}),
-      ...(column ? { column } : {}),
-      message: `MDX syntax error: ${(parseError as Error).message.split("\n")[0]}`,
+      ...micromarkErrorPosition(parseError),
+      message: `MDX syntax error: ${errorSummary(parseError)}`,
     });
     return null;
   }
@@ -157,7 +88,7 @@ function scanImport(
   statement: ImportDeclaration,
   scan: ModuleScan
 ) {
-  const start = statementRange(statement).start;
+  const { start } = nodeRange(statement);
   const sourceValue = String(statement.source.value);
   const resolved = resolveSiteImport(
     pass.path,
@@ -169,9 +100,8 @@ function scanImport(
     return;
   }
   scan.imports.push(resolved.path);
-  const literal = statementRange(statement.source as never);
   pass.edits.push({
-    ...literal,
+    ...nodeRange(statement.source),
     text: JSON.stringify(`${SITE_IMPORT_ALIAS}/${resolved.path}`),
   });
   for (const specifier of statement.specifiers) {
@@ -213,10 +143,10 @@ function scanImport(
 
 function scanExport(
   pass: MdxPass,
-  statement: ModuleDeclaration,
+  statement: Exclude<Program["body"][number], ImportDeclaration>,
   scan: ModuleScan
 ) {
-  const range = statementRange(statement);
+  const range = nodeRange(statement);
   if (statement.type === "ExportDefaultDeclaration") {
     report(
       pass,
@@ -247,7 +177,7 @@ function scanExport(
     scan.exportedNames.add(name);
   }
   const source = pass.text.slice(range.start, range.end);
-  if (containsJsxOrFunction(statement as never)) {
+  if (containsJsxOrFunction(statement)) {
     scan.inline.push({ names, source, node: statement, start: range.start });
     pass.edits.push({ ...range, text: "" });
   } else {
@@ -269,22 +199,22 @@ function scanModule(pass: MdxPass, tree: Root): ModuleScan {
   for (const node of tree.children.filter(
     (child): child is EsmNode => child.type === "mdxjsEsm"
   )) {
-    const program = node.data?.estree as Program | undefined;
+    const program = node.data?.estree;
     if (!program) {
       continue;
     }
-    checkForbidden(pass, program, declaredNames(program as never));
+    checkForbidden(pass, program, declaredNames(program));
     for (const statement of program.body) {
       if (statement.type === "ImportDeclaration") {
         scanImport(pass, statement, scan);
       } else {
-        scanExport(pass, statement as ModuleDeclaration, scan);
+        scanExport(pass, statement, scan);
       }
     }
   }
   for (const inline of scan.inline) {
     for (const name of inline.names.filter((candidate) =>
-      /^[A-Z]/.test(candidate)
+      COMPONENT_NAME.test(candidate)
     )) {
       scan.hydrated.add(name);
     }
@@ -299,9 +229,7 @@ function scanModule(pass: MdxPass, tree: Root): ModuleScan {
 function checkInlineComponents(pass: MdxPass, scan: ModuleScan) {
   for (const inline of scan.inline) {
     const used = new Set(
-      referencedIdentifiers(inline.node as never).map(
-        (reference) => reference.name
-      )
+      referencedIdentifiers(inline.node).map((reference) => reference.name)
     );
     for (const name of scan.importedNames) {
       if (used.has(name)) {
@@ -316,36 +244,16 @@ function checkInlineComponents(pass: MdxPass, scan: ModuleScan) {
   }
 }
 
-function expressionPrograms(node: Nodes): Program[] {
-  if (node.type === "mdxFlowExpression" || node.type === "mdxTextExpression") {
-    const program = (node as { data?: { estree?: Program } }).data?.estree;
-    return program ? [program] : [];
-  }
-  if (node.type !== "mdxJsxFlowElement" && node.type !== "mdxJsxTextElement") {
-    return [];
-  }
-  const element = node as Extract<RootContent, { type: "mdxJsxFlowElement" }>;
-  return element.attributes.flatMap((attribute) => {
-    if (attribute.type === "mdxJsxExpressionAttribute") {
-      return attribute.data?.estree ? [attribute.data.estree as Program] : [];
-    }
-    const value = attribute.value;
-    return value && typeof value === "object" && value.data?.estree
-      ? [value.data.estree as Program]
-      : [];
-  });
-}
-
 /**
  * Snippets take props by bare name: `{word}` in a snippet means the prop
- * `word`. Rewrites free identifiers to `props.word`.
+ * `word`. Returns the offsets of free identifiers to prefix with `props.`.
  */
 function snippetPropOffsets(
   program: Program,
   localNames: ReadonlySet<string>
 ): number[] {
-  const declared = declaredNames(program as never);
-  return referencedIdentifiers(program as never)
+  const declared = declaredNames(program);
+  return referencedIdentifiers(program)
     .filter(
       (reference) =>
         reference.start >= 0 &&
@@ -354,7 +262,7 @@ function snippetPropOffsets(
         !KNOWN_GLOBALS.has(reference.name) &&
         !BUILTIN_COMPONENT_NAMES.has(reference.name) &&
         !INJECTED_HOOK_NAMES.has(reference.name) &&
-        !/^[A-Z]/.test(reference.name) &&
+        !COMPONENT_NAME.test(reference.name) &&
         !(reference.name in globalThis)
     )
     .map((reference) => reference.start);
@@ -374,31 +282,26 @@ function walkContent(pass: MdxPass, tree: Root, scan: ModuleScan): Set<string> {
         }
       }
     }
-    if (
-      node.type !== "mdxJsxFlowElement" &&
-      node.type !== "mdxJsxTextElement"
-    ) {
+    if (!(isMdxJsxElement(node) && node.name)) {
       return;
     }
-    const name = node.name;
-    const root = name?.split(".")[0] ?? "";
+    const { name } = node;
+    const root = name.split(".")[0] ?? "";
     const start = node.position?.start.offset ?? 0;
-    // Inline scripts would slip past the review of script.js and, being part of
-    // the page, get hashed into the Content-Security-Policy like ours.
-    if (name && BLOCKED_HTML_ELEMENTS.has(name.toLowerCase())) {
+    if (BLOCKED_HTML_ELEMENTS.has(name.toLowerCase())) {
       report(
         pass,
         "blocked_element",
-        `<${name}> is not allowed in content. Put JavaScript in script.js or scripts/*.js.`,
+        `<${name}> ${BLOCKED_ELEMENT_HINT}`,
         start
       );
       return;
     }
-    if (!(name && /^[A-Z]/.test(root))) {
+    if (!COMPONENT_NAME.test(root)) {
       return;
     }
     if (scan.hydrated.has(root)) {
-      if (!hasClientDirective(node.attributes as never)) {
+      if (!hasClientDirective(node)) {
         const at = start + 1 + name.length;
         pass.edits.push({ start: at, end: at, text: " client:load" });
       }
@@ -423,7 +326,7 @@ function walkContent(pass: MdxPass, tree: Root, scan: ModuleScan): Set<string> {
 function buildInlineModule(
   pass: MdxPass,
   scan: ModuleScan
-): MdxAnalysis["inlineModule"] {
+): InlineModule | null {
   const first = scan.inline[0];
   if (!first) {
     return null;
@@ -460,9 +363,6 @@ function buildInlineModule(
   };
 }
 
-const hasErrors = (pass: MdxPass) =>
-  pass.diagnostics.some((diagnostic) => diagnostic.severity === "error");
-
 /**
  * Validates one MDX file against the site contract and rewrites it for the
  * Astro build: site imports go through the `@site` alias, inline components
@@ -484,26 +384,25 @@ export function analyzeMdxFile(
     diagnostics: [],
     edits: [],
   };
+  const failed = (imports: string[]): MdxAnalysis => ({
+    diagnostics: pass.diagnostics,
+    output: null,
+    inlineModule: null,
+    imports,
+  });
   const tree = parseMdx(pass);
   if (!tree) {
-    return {
-      diagnostics: pass.diagnostics,
-      output: null,
-      inlineModule: null,
-      imports: [],
-    };
+    return failed([]);
   }
   const scan = scanModule(pass, tree);
   checkInlineComponents(pass, scan);
   const usedBuiltins = walkContent(pass, tree, scan);
-  const inlineModule = hasErrors(pass) ? null : buildInlineModule(pass, scan);
-  if (hasErrors(pass)) {
-    return {
-      diagnostics: pass.diagnostics,
-      output: null,
-      inlineModule: null,
-      imports: scan.imports,
-    };
+  if (hasErrors(pass.diagnostics)) {
+    return failed(scan.imports);
+  }
+  const inlineModule = buildInlineModule(pass, scan);
+  if (hasErrors(pass.diagnostics)) {
+    return failed(scan.imports);
   }
   if (usedBuiltins.size > 0) {
     pass.edits.push({

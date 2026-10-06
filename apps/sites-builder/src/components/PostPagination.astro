@@ -14,9 +14,9 @@ interface Props {
 
 const { next, previous } = Astro.props;
 const cards = [
-  next && { entry: next, label: "Next", right: false },
-  previous && { entry: previous, label: "Previous", right: true },
-].filter((card): card is { entry: BlogEntry; label: string; right: boolean } => Boolean(card));
+  ...(next ? [{ entry: next, label: "Next", right: false }] : []),
+  ...(previous ? [{ entry: previous, label: "Previous", right: true }] : []),
+];
 ---
 
 {

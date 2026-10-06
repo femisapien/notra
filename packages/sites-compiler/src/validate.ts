@@ -14,30 +14,38 @@ import type { SiteConfig } from "@notra/sites-core/types/site-config";
 import { isCustomScriptPath } from "@notra/sites-core/utils/custom-scripts";
 import { Parser } from "acorn";
 
+import {
+  ENTRY_FILE,
+  ENTRY_SLUG,
+  MDX_FILE,
+  SCRIPT_FILE,
+  TEXT_SOURCE_FILE,
+} from "./constants/validate";
 import { parseEntryFrontmatter } from "./frontmatter";
 import { analyzeJsxSnippet } from "./jsx";
 import { analyzeMdxFile } from "./mdx";
-import type { SiteEntry } from "./types/diagnostics";
+import type { SiteEntry } from "./types/entries";
 import type { MdxAnalysis } from "./types/mdx";
 import type {
   EntryCandidate,
+  ParsedSiteConfig,
   SiteValidationInput,
   SiteValidationResult,
+  SubstitutedSources,
 } from "./types/validate";
 import {
   featuredSlugWarnings,
   unknownConfigKeyWarnings,
 } from "./utils/config-checks";
+import { hasErrors } from "./utils/diagnostics";
+import { acornSyntaxError } from "./utils/errors";
+import { importCycleDiagnostics } from "./utils/import-cycles";
 import { blockedMarkdownHtml } from "./utils/markdown-html";
 import { offsetToLineColumn } from "./utils/paths";
 import { substituteSettingText, substituteVariables } from "./utils/variables";
 
-const TEXT_EXTENSIONS = /\.(?:mdx?|jsx?|json|txt|css|svg)$/i;
-const ENTRY_FILE = /^(blog|changelog)\/(.+)\.(mdx?)$/;
-const SLUG = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
-
 export function isTextSourceFile(path: string): boolean {
-  return TEXT_EXTENSIONS.test(path);
+  return TEXT_SOURCE_FILE.test(path);
 }
 
 function entryCandidate(path: string): EntryCandidate | null {
@@ -65,7 +73,7 @@ function takesVariables(path: string): boolean {
   return (
     entryCandidate(path) !== null ||
     (SITE_CHROME_FILES as readonly string[]).includes(path) ||
-    (path.startsWith(`${SITE_SLOTS_DIR}/`) && /\.mdx$/i.test(path))
+    (path.startsWith(`${SITE_SLOTS_DIR}/`) && MDX_FILE.test(path))
   );
 }
 
@@ -150,11 +158,70 @@ function substituteSettingVariables(config: SiteConfig): {
   };
 }
 
+function configError(code: string, message: string): SiteDiagnostic {
+  return { severity: "error", file: SITE_CONFIG_FILENAME, code, message };
+}
+
+/**
+ * Parses notra.json. Absent areas get their defaults here, once, so the theme
+ * (which runs in the build sandbox without the schema package) never parses.
+ */
+function parseSiteConfig(raw: string | null | undefined): ParsedSiteConfig {
+  if (raw === undefined || raw === null) {
+    return {
+      config: null,
+      diagnostics: [
+        configError(
+          "config_missing",
+          `Add a ${SITE_CONFIG_FILENAME} at the site root, e.g. { "name": "Acme" }`
+        ),
+      ],
+    };
+  }
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch (error) {
+    return {
+      config: null,
+      diagnostics: [
+        configError(
+          "config_json",
+          `${SITE_CONFIG_FILENAME} is not valid JSON: ${(error as Error).message}`
+        ),
+      ],
+    };
+  }
+  const diagnostics = unknownConfigKeyWarnings(json);
+  const parsed = siteConfigSchema.safeParse(json);
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) {
+      diagnostics.push(
+        configError(
+          "config_invalid",
+          `${issue.path.join(".") || "config"}: ${issue.message}`
+        )
+      );
+    }
+    return { config: null, diagnostics };
+  }
+  const settings = substituteSettingVariables(parsed.data);
+  diagnostics.push(...settings.diagnostics);
+  return {
+    config: {
+      ...settings.config,
+      blog: settings.config.blog ?? siteBlogSchema.parse({}),
+      changelog: settings.config.changelog ?? siteChangelogSchema.parse({}),
+    },
+    diagnostics,
+  };
+}
+
 /** Replaces `{{ name }}` in every file that takes variables; unknown names become warnings. */
 function applyVariables(
   files: ReadonlyMap<string, string | null>,
   variables: Readonly<Record<string, string>>
-): { sources: Map<string, string | null>; diagnostics: SiteDiagnostic[] } {
+): SubstitutedSources {
   const sources = new Map(files);
   const diagnostics: SiteDiagnostic[] = [];
   for (const [path, content] of files) {
@@ -185,14 +252,14 @@ function validateCustomScript(path: string, source: string): SiteDiagnostic[] {
     Parser.parse(source, { ecmaVersion: "latest", sourceType: "script" });
     return [];
   } catch (error) {
-    const pos = (error as { pos?: number }).pos ?? 0;
+    const syntax = acornSyntaxError(error);
     return [
       {
         severity: "error",
         file: path,
-        ...offsetToLineColumn(source, pos),
+        ...offsetToLineColumn(source, syntax.offset),
         code: "script_syntax",
-        message: `Syntax error: ${(error as Error).message.replace(/\s*\(\d+:\d+\)$/, "")}. Custom scripts are plain browser JavaScript, not modules.`,
+        message: `Syntax error: ${syntax.message}. Custom scripts are plain browser JavaScript, not modules.`,
       },
     ];
   }
@@ -204,70 +271,28 @@ function validateCustomScript(path: string, source: string): SiteDiagnostic[] {
  * plane (dashboard editor, webhook pre-check) and inside the build sandbox.
  */
 export function validateSite(input: SiteValidationInput): SiteValidationResult {
-  const diagnostics: SiteDiagnostic[] = [];
   const outputs = new Map<string, string>();
   // Custom scripts are page-level JavaScript, not snippets: MDX cannot import them.
   const paths = new Set(
     [...input.files.keys()].filter((path) => !isCustomScriptPath(path))
   );
 
-  let config: SiteConfig | null = null;
-  const rawConfig = input.files.get(SITE_CONFIG_FILENAME);
-  if (rawConfig === undefined || rawConfig === null) {
-    diagnostics.push({
-      severity: "error",
-      file: SITE_CONFIG_FILENAME,
-      code: "config_missing",
-      message: `Add a ${SITE_CONFIG_FILENAME} at the site root, e.g. { "name": "Acme" }`,
-    });
-  } else {
-    try {
-      const json: unknown = JSON.parse(rawConfig);
-      diagnostics.push(...unknownConfigKeyWarnings(json));
-      const parsed = siteConfigSchema.safeParse(json);
-      if (parsed.success) {
-        // Absent areas get their defaults here, once, so the theme (which runs
-        // in the build sandbox without the schema package) never parses.
-        const settings = substituteSettingVariables(parsed.data);
-        diagnostics.push(...settings.diagnostics);
-        config = {
-          ...settings.config,
-          blog: settings.config.blog ?? siteBlogSchema.parse({}),
-          changelog: settings.config.changelog ?? siteChangelogSchema.parse({}),
-        };
-      } else {
-        for (const issue of parsed.error.issues) {
-          diagnostics.push({
-            severity: "error",
-            file: SITE_CONFIG_FILENAME,
-            code: "config_invalid",
-            message: `${issue.path.join(".") || "config"}: ${issue.message}`,
-          });
-        }
-      }
-    } catch (error) {
-      diagnostics.push({
-        severity: "error",
-        file: SITE_CONFIG_FILENAME,
-        code: "config_json",
-        message: `${SITE_CONFIG_FILENAME} is not valid JSON: ${(error as Error).message}`,
-      });
-    }
-  }
+  const { config, diagnostics } = parseSiteConfig(
+    input.files.get(SITE_CONFIG_FILENAME)
+  );
 
   // Without a valid config there are no variables; leave `{{ }}` alone instead of warning about each.
-  const substituted = config
+  const { sources, diagnostics: variableDiagnostics } = config
     ? applyVariables(input.files, config.variables)
     : { sources: new Map(input.files), diagnostics: [] };
-  const sources = substituted.sources;
-  diagnostics.push(...substituted.diagnostics);
+  diagnostics.push(...variableDiagnostics);
   for (const path of input.files.keys()) {
     diagnostics.push(...validateSlotFile(path));
   }
 
   const componentExports = new Map<string, readonly string[]>();
   for (const [path, content] of input.files) {
-    if (!/\.jsx?$/i.test(path) || content === null) {
+    if (!SCRIPT_FILE.test(path) || content === null) {
       continue;
     }
     if (isCustomScriptPath(path)) {
@@ -283,70 +308,41 @@ export function validateSite(input: SiteValidationInput): SiteValidationResult {
   }
 
   const mdxPaths = [...input.files.keys()].filter((path) =>
-    /\.mdx$/i.test(path)
+    MDX_FILE.test(path)
   );
   const analyses = new Map<string, MdxAnalysis>();
+  // Header, footer and slots are not entries: like snippets, `{post.title}` reads the
+  // props the theme renders them with (`post`, `entry`, `site`, `area`).
   const analyze = (path: string, isEntry: boolean) => {
-    const content = sources.get(path) ?? "";
-    // Header, footer and slots are not entries: like snippets, `{post.title}` reads the
-    // props the theme renders them with (`post`, `entry`, `site`, `area`).
-    const analysis = analyzeMdxFile(path, content, {
-      files: paths,
-      componentExports,
-      isEntry,
-    });
-    analyses.set(path, analysis);
-    return analysis;
+    analyses.set(
+      path,
+      analyzeMdxFile(path, sources.get(path) ?? "", {
+        files: paths,
+        componentExports,
+        isEntry,
+      })
+    );
   };
-
   for (const path of mdxPaths) {
     analyze(path, entryCandidate(path) !== null);
   }
 
   // A file another file imports is a snippet, even when it sits in blog/.
-  const importedPaths = new Set<string>();
-  for (const analysis of analyses.values()) {
-    for (const imported of analysis.imports) {
-      importedPaths.add(imported);
-    }
-  }
+  const importedPaths = new Set(
+    [...analyses.values()].flatMap((analysis) => analysis.imports)
+  );
   for (const path of mdxPaths) {
     if (importedPaths.has(path) && entryCandidate(path) !== null) {
       analyze(path, false);
     }
   }
 
-  // Import cycles make the MDX compiler recurse forever; catch them up front.
-  const visiting = new Set<string>();
-  const done = new Set<string>();
-  const reportedCycles = new Set<string>();
-  const walk = (path: string, trail: string[]) => {
-    if (done.has(path)) {
-      return;
-    }
-    if (visiting.has(path)) {
-      const cycle = [...trail.slice(trail.indexOf(path)), path].join(" → ");
-      if (!reportedCycles.has(cycle)) {
-        reportedCycles.add(cycle);
-        diagnostics.push({
-          severity: "error",
-          file: path,
-          code: "import_cycle",
-          message: `Import cycle: ${cycle}`,
-        });
-      }
-      return;
-    }
-    visiting.add(path);
-    for (const next of analyses.get(path)?.imports ?? []) {
-      walk(next, [...trail, path]);
-    }
-    visiting.delete(path);
-    done.add(path);
-  };
-  for (const path of mdxPaths) {
-    walk(path, []);
-  }
+  diagnostics.push(
+    ...importCycleDiagnostics(
+      mdxPaths,
+      (path) => analyses.get(path)?.imports ?? []
+    )
+  );
 
   for (const [path, analysis] of analyses) {
     diagnostics.push(...analysis.diagnostics);
@@ -371,7 +367,7 @@ export function validateSite(input: SiteValidationInput): SiteValidationResult {
       unreadEntries += 1;
       continue;
     }
-    if (!SLUG.test(candidate.slug)) {
+    if (!ENTRY_SLUG.test(candidate.slug)) {
       diagnostics.push({
         severity: "error",
         file: path,
@@ -397,15 +393,11 @@ export function validateSite(input: SiteValidationInput): SiteValidationResult {
     );
     if (candidate.format === "md") {
       diagnostics.push(...blockedMarkdownHtml(path, content));
-    }
-    // Plain Markdown is not transformed, but still gets its variables.
-    const substitutedSource = sources.get(path);
-    if (
-      candidate.format === "md" &&
-      typeof substitutedSource === "string" &&
-      substitutedSource !== content
-    ) {
-      outputs.set(path, substitutedSource);
+      // Plain Markdown is not transformed, but still gets its variables.
+      const substituted = sources.get(path);
+      if (typeof substituted === "string" && substituted !== content) {
+        outputs.set(path, substituted);
+      }
     }
     entries.push({
       area: candidate.area,
@@ -415,16 +407,15 @@ export function validateSite(input: SiteValidationInput): SiteValidationResult {
     });
   }
 
-  if (config && entries.length === 0 && unreadEntries === 0) {
-    diagnostics.push({
-      severity: "warning",
-      file: null,
-      code: "no_entries",
-      message: "No posts yet. Add .mdx files to blog/ or changelog/.",
-    });
-  }
-
   if (config) {
+    if (entries.length === 0 && unreadEntries === 0) {
+      diagnostics.push({
+        severity: "warning",
+        file: null,
+        code: "no_entries",
+        message: "No posts yet. Add .mdx files to blog/ or changelog/.",
+      });
+    }
     diagnostics.push(...featuredSlugWarnings(config, entries));
   }
   entries.sort((a, b) => a.path.localeCompare(b.path));
@@ -433,6 +424,6 @@ export function validateSite(input: SiteValidationInput): SiteValidationResult {
     config,
     entries,
     outputs,
-    ok: !diagnostics.some((diagnostic) => diagnostic.severity === "error"),
+    ok: !hasErrors(diagnostics),
   };
 }

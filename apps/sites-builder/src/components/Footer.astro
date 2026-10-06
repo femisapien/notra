@@ -8,8 +8,6 @@ const columns = footerColumns();
 const links = footerFlatLinks();
 const socials = footerSocials();
 const year = new Date().getUTCFullYear();
-// Sites without the setting (older build requests) keep the badge.
-const showBranding = params.branding !== false;
 ---
 
 <footer id="footer" class="border-t border-border">
@@ -48,14 +46,14 @@ const showBranding = params.branding !== false;
       <a href={href("feed.xml")} class="transition-colors hover:text-foreground">RSS</a>
     </div>
     {
-      (socials.length > 0 || showBranding) && (
+      (socials.length > 0 || params.branding) && (
         <div class="flex items-center gap-4">
           {socials.map((social) => (
             <a href={social.href} rel="noopener" aria-label={social.label} title={social.label} class="transition-colors hover:text-foreground">
               <LinkIcon icon={social.icon} size={16} />
             </a>
           ))}
-          {showBranding && <PoweredByNotra />}
+          {params.branding && <PoweredByNotra />}
         </div>
       )
     }

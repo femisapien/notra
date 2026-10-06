@@ -2,11 +2,21 @@ import {
   blogFrontmatterSchema,
   changelogFrontmatterSchema,
 } from "@notra/sites-core/schemas/site-config";
+import type { SiteDiagnostic } from "@notra/sites-core/types/build";
 import { parse as parseYaml } from "yaml";
 
 import { FRONTMATTER_BLOCK } from "./constants/frontmatter";
-import type { SiteEntry } from "./types/diagnostics";
+import type { SiteEntry } from "./types/entries";
 import type { ParsedFrontmatter } from "./types/frontmatter";
+import { errorSummary } from "./utils/errors";
+
+function frontmatterError(
+  path: string,
+  code: string,
+  message: string
+): SiteDiagnostic {
+  return { severity: "error", file: path, line: 1, code, message };
+}
 
 /**
  * Parses and checks a post's or changelog entry's frontmatter. Used by
@@ -23,14 +33,11 @@ export function parseEntryFrontmatter(
     return {
       data: null,
       diagnostics: [
-        {
-          severity: "error",
-          file: path,
-          line: 1,
-          code: "frontmatter_missing",
-          message:
-            "Missing frontmatter. Start the file with ---, a title and a date, then ---.",
-        },
+        frontmatterError(
+          path,
+          "frontmatter_missing",
+          "Missing frontmatter. Start the file with ---, a title and a date, then ---."
+        ),
       ],
     };
   }
@@ -41,13 +48,11 @@ export function parseEntryFrontmatter(
     return {
       data: null,
       diagnostics: [
-        {
-          severity: "error",
-          file: path,
-          line: 1,
-          code: "frontmatter_yaml",
-          message: `Frontmatter is not valid YAML: ${(error as Error).message.split("\n")[0]}`,
-        },
+        frontmatterError(
+          path,
+          "frontmatter_yaml",
+          `Frontmatter is not valid YAML: ${errorSummary(error)}`
+        ),
       ],
     };
   }
@@ -59,12 +64,12 @@ export function parseEntryFrontmatter(
   }
   return {
     data: null,
-    diagnostics: parsed.error.issues.map((issue) => ({
-      severity: "error" as const,
-      file: path,
-      line: 1,
-      code: "frontmatter_invalid",
-      message: `Frontmatter ${issue.path.join(".") || "value"}: ${issue.message}`,
-    })),
+    diagnostics: parsed.error.issues.map((issue) =>
+      frontmatterError(
+        path,
+        "frontmatter_invalid",
+        `Frontmatter ${issue.path.join(".") || "value"}: ${issue.message}`
+      )
+    ),
   };
 }

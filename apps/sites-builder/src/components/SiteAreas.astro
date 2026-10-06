@@ -1,9 +1,9 @@
 ---
+import { AREA_DEFAULT_TITLES, THEME_AREAS } from "../constants/areas";
 import { areaHref, params } from "../lib/params";
 
 // Blog/Changelog pills for every mounted area; also a builtin, so a custom header.mdx keeps the switcher.
-const sections = (["blog", "changelog"] as const)
-  .map((area) => ({ area, label: area === "blog" ? "Blog" : "Changelog", href: areaHref(area), active: area === params.area }))
+const sections = THEME_AREAS.map((area) => ({ area, label: AREA_DEFAULT_TITLES[area], href: areaHref(area), active: area === params.area }))
   .filter((section) => section.href !== null);
 ---
 

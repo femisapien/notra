@@ -1,10 +1,12 @@
 import { PLATFORM_LABELS } from "../constants/navigation";
-import type { FooterColumn, ResolvedLink } from "../types/navigation";
+import type {
+  FooterColumn,
+  NavbarLink,
+  PlainLink,
+  ResolvedLink,
+} from "../types/navigation";
 import { brandIcon, lucideIcon } from "../utils/icons";
 import { config } from "./params";
-
-type NavbarLink = (typeof config.navbar.links)[number];
-type PlainLink = { label: string; href: string; icon?: string };
 
 function plainLink(link: PlainLink): ResolvedLink {
   return {

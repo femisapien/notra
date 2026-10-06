@@ -5,10 +5,13 @@ import type { Program } from "estree";
 
 import { INJECTED_HOOK_NAMES } from "./constants/builtins";
 import type { JsxSnippetAnalysis } from "./types/jsx";
+import { hasErrors } from "./utils/diagnostics";
+import { acornSyntaxError } from "./utils/errors";
 import {
   declaredNames,
-  findForbiddenSyntax,
-  findNodeApiUsage,
+  exportedDeclarationNames,
+  forbiddenUsage,
+  nodeRange,
   referencedIdentifiers,
 } from "./utils/estree";
 import { offsetToLineColumn } from "./utils/paths";
@@ -28,7 +31,7 @@ export function missingHookImports(
   ownNames: ReadonlySet<string>
 ): string[] {
   const missing = new Set<string>();
-  for (const reference of referencedIdentifiers(program as never)) {
+  for (const reference of referencedIdentifiers(program)) {
     if (
       INJECTED_HOOK_NAMES.has(reference.name) &&
       !ownNames.has(reference.name)
@@ -49,85 +52,66 @@ export function analyzeJsxSnippet(
   source: string
 ): JsxSnippetAnalysis {
   const diagnostics: SiteDiagnostic[] = [];
-  const at = (offset: number) => ({
-    file: path,
-    ...offsetToLineColumn(source, offset),
-  });
+  const error = (code: string, message: string, offset: number) => {
+    diagnostics.push({
+      severity: "error",
+      code,
+      message,
+      file: path,
+      ...offsetToLineColumn(source, offset),
+    });
+  };
 
   let program: Program;
   try {
     program = parseJsxModule(source);
-  } catch (error) {
-    const pos = (error as { pos?: number }).pos ?? 0;
-    diagnostics.push({
-      severity: "error",
-      code: "jsx_syntax",
-      message: `Syntax error: ${(error as Error).message.replace(/\s*\(\d+:\d+\)$/, "")}`,
-      ...at(pos),
-    });
+  } catch (parseError) {
+    const syntax = acornSyntaxError(parseError);
+    error("jsx_syntax", `Syntax error: ${syntax.message}`, syntax.offset);
     return { diagnostics, exportedNames: [], output: null };
   }
 
   const ownNames = new Set<string>();
   const exportedNames: string[] = [];
   for (const statement of program.body) {
-    const start = (statement as { start?: number }).start ?? 0;
+    const { start } = nodeRange(statement);
     switch (statement.type) {
       case "ImportDeclaration":
         if (statement.source.value !== "react") {
-          diagnostics.push({
-            severity: "error",
-            code: "snippet_import",
-            message: `Snippets cannot import "${String(statement.source.value)}". Import every snippet directly in the MDX page instead; npm packages are not supported.`,
-            ...at(start),
-          });
+          error(
+            "snippet_import",
+            `Snippets cannot import "${String(statement.source.value)}". Import every snippet directly in the MDX page instead; npm packages are not supported.`,
+            start
+          );
         }
         for (const specifier of statement.specifiers) {
           ownNames.add(specifier.local.name);
         }
         break;
       case "ExportDefaultDeclaration":
-        diagnostics.push({
-          severity: "error",
-          code: "default_export",
-          message:
-            "Default exports are not supported. Use a named export: export const MyComponent = () => …",
-          ...at(start),
-        });
+        error(
+          "default_export",
+          "Default exports are not supported. Use a named export: export const MyComponent = () => …",
+          start
+        );
         break;
       case "ExportAllDeclaration":
-        diagnostics.push({
-          severity: "error",
-          code: "export_all",
-          message: "export * is not supported in snippets",
-          ...at(start),
-        });
+        error("export_all", "export * is not supported in snippets", start);
         break;
       case "ExportNamedDeclaration":
         if (statement.source) {
-          diagnostics.push({
-            severity: "error",
-            code: "reexport",
-            message: "Re-exporting from another file is not supported",
-            ...at(start),
-          });
+          error(
+            "reexport",
+            "Re-exporting from another file is not supported",
+            start
+          );
         }
-        if (statement.declaration?.type === "VariableDeclaration") {
-          for (const declarator of statement.declaration.declarations) {
-            if (declarator.id.type === "Identifier") {
-              exportedNames.push(declarator.id.name);
-              ownNames.add(declarator.id.name);
-            }
-          }
-        } else if (
-          statement.declaration?.type === "FunctionDeclaration" ||
-          statement.declaration?.type === "ClassDeclaration"
-        ) {
-          exportedNames.push(statement.declaration.id.name);
-          ownNames.add(statement.declaration.id.name);
+        for (const name of exportedDeclarationNames(statement)) {
+          exportedNames.push(name);
+          ownNames.add(name);
         }
         for (const specifier of statement.specifiers) {
-          const exported = specifier.exported;
+          const { exported } = specifier;
           exportedNames.push(
             exported.type === "Identifier"
               ? exported.name
@@ -151,16 +135,8 @@ export function analyzeJsxSnippet(
     }
   }
 
-  for (const forbidden of [
-    ...findForbiddenSyntax(program),
-    ...findNodeApiUsage(program, declaredNames(program as never)),
-  ]) {
-    diagnostics.push({
-      severity: "error",
-      code: "forbidden_syntax",
-      message: forbidden.message,
-      ...at(forbidden.start),
-    });
+  for (const forbidden of forbiddenUsage(program, declaredNames(program))) {
+    error("forbidden_syntax", forbidden.message, forbidden.start);
   }
 
   if (exportedNames.length === 0) {
@@ -172,7 +148,7 @@ export function analyzeJsxSnippet(
     });
   }
 
-  if (diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
+  if (hasErrors(diagnostics)) {
     return { diagnostics, exportedNames, output: null };
   }
 

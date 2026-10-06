@@ -9,6 +9,21 @@ export interface AiAssistant {
   logo: string;
 }
 
+/** The page a contextual menu acts on. */
+export interface ContextualPage {
+  title: string;
+  /** Path of the page itself. */
+  pagePath: string;
+  /** Path of its Markdown twin. */
+  markdownHref: string;
+}
+
+/** `contextual.options` resolved: whether "Copy article" shows, and the "Open in" menu. */
+export interface ContextualActions {
+  copy: boolean;
+  menu: ContextualMenuItem[];
+}
+
 /** One entry of the "Open in" menu. */
 export interface ContextualMenuItem {
   /** The menu draws a divider wherever the kind changes. */

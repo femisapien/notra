@@ -3,12 +3,13 @@ import { createRequire } from "node:module";
 import { extname, join } from "node:path";
 
 import { parseEntryFrontmatter } from "@notra/sites-compiler/frontmatter";
-import type { SiteEntry } from "@notra/sites-compiler/types/diagnostics";
+import { SITE_CONFIG_FILENAME } from "@notra/sites-core/constants/sites";
 import type { SiteDiagnostic } from "@notra/sites-core/types/build";
-import type { SiteConfig } from "@notra/sites-core/types/site-config";
 import { Resvg } from "@resvg/resvg-js";
 import satori from "satori";
 
+import { OG_MANIFEST_FILE } from "../src/constants/og";
+import { configuredAreaTitle, withSiteName } from "../src/utils/area-titles";
 import { OgCard } from "./components/og-card";
 import {
   OG_BACKGROUND_MIME_TYPES,
@@ -17,17 +18,15 @@ import {
   OG_IMAGE_HEIGHT,
   OG_IMAGE_WIDTH,
   OG_IMAGES_DIR,
-  OG_MANIFEST_FILE,
 } from "./constants/og-images";
 import type {
   OgCardContent,
   OgImagesResult,
   OgManifest,
+  SatoriFont,
   WriteOgImagesParams,
 } from "./types/og-images";
 import { writeFileEnsured } from "./utils/fs";
-
-type SatoriFont = Parameters<typeof satori>[1]["fonts"][number];
 
 let fontsPromise: Promise<SatoriFont[]> | null = null;
 
@@ -58,16 +57,6 @@ function loadFonts(): Promise<SatoriFont[]> {
   return fontsPromise;
 }
 
-function areaTitle(config: SiteConfig, area: SiteEntry["area"]): string {
-  return config[area]?.title ?? (area === "blog" ? "Blog" : "Changelog");
-}
-
-/** "Acme Blog" stays as it is; "Changelog" becomes "Acme · Changelog". */
-function eyebrow(config: SiteConfig, area: SiteEntry["area"]): string {
-  const title = areaTitle(config, area);
-  return title.startsWith(config.name) ? title : `${config.name} · ${title}`;
-}
-
 function formatDate(date: Date): string {
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
@@ -92,7 +81,7 @@ async function loadBackground(
     return {
       diagnostic: {
         severity: "warning",
-        file: "notra.json",
+        file: SITE_CONFIG_FILENAME,
         code: "thumbnail_background",
         message: `thumbnails.background: ${path} is not a PNG, JPEG or SVG file in public/. Share images are drawn without it.`,
       },
@@ -164,7 +153,12 @@ export async function writeOgImages(
         const version = "version" in data ? data.version : undefined;
         const png = await renderPng(
           {
-            eyebrow: eyebrow(config, entry.area),
+            // "Acme Blog" stays as it is; "Changelog" becomes "Acme · Changelog".
+            eyebrow: withSiteName(
+              config.name,
+              configuredAreaTitle(config, entry.area),
+              " · "
+            ),
             title: data.title,
             footer: [version, formatDate(data.date)]
               .filter(Boolean)

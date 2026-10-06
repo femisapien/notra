@@ -8,7 +8,7 @@ const EMPHASIS = /\*(.+?)\*|(?<!\w)_(.+?)_(?!\w)/g;
 // A private-use character marks held pieces; it is stripped from the input first.
 const PLACEHOLDER = /\uE000(\d+)\uE000/g;
 
-export function escapeHtml(text: string): string {
+function escapeHtml(text: string): string {
   return text
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")

@@ -1,18 +1,9 @@
 import { createHash } from "node:crypto";
 
 import { BANNER_COLORS, BANNER_DISMISS_KEY } from "../constants/banner";
+import type { ResolvedBanner } from "../types/banner";
 import { renderInlineMarkdown } from "../utils/inline-markdown";
 import { config } from "./params";
-
-export interface ResolvedBanner {
-  html: string;
-  dismissible: boolean;
-  storageKey: string;
-  light: string;
-  dark: string;
-  /** `info` follows the brand color, whose readable text color may be dark. */
-  foreground: string;
-}
 
 export function siteBanner(): ResolvedBanner | null {
   const banner = config.banner;

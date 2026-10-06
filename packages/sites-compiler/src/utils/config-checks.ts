@@ -3,7 +3,7 @@ import { siteConfigSchema } from "@notra/sites-core/schemas/site-config";
 import type { SiteDiagnostic } from "@notra/sites-core/types/build";
 import type { SiteConfig } from "@notra/sites-core/types/site-config";
 
-import type { SiteEntry } from "../types/diagnostics";
+import type { SiteEntry } from "../types/entries";
 
 /** Edit distance, for "did you mean" on misspelled keys. */
 function distance(a: string, b: string): number {
