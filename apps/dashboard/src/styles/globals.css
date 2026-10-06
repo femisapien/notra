@@ -331,3 +331,12 @@
     animation: none;
   }
 }
+
+/* Passages annotated in the chat's content preview. */
+::highlight(chat-annotation) {
+  background-color: color-mix(in oklch, var(--warning) 22%, transparent);
+}
+
+::highlight(chat-annotation-draft) {
+  background-color: color-mix(in oklch, var(--primary) 22%, transparent);
+}

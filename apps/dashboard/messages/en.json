@@ -5710,7 +5710,8 @@
     },
     "quote": {
       "quoteSelection": "Quote selected text",
-      "removeQuote": "Remove quote"
+      "removeQuote": "Remove quote",
+      "annotate": "Annotate"
     },
     "contentPanel": {
       "title": "Content",
@@ -5728,6 +5729,17 @@
     "todos": {
       "label": "Plan",
       "stopped": "Stopped"
+    },
+    "annotations": {
+      "label": "Annotations",
+      "remove": "Remove annotation {index}",
+      "noteLabel": "Note",
+      "notePlaceholder": "What should change here?",
+      "add": "Add",
+      "save": "Save",
+      "cancel": "Cancel",
+      "addNote": "Add a note",
+      "editNote": "Edit note for annotation {index}"
     }
   },
   "content": {

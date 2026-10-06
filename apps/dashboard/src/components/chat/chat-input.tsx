@@ -76,6 +76,7 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "use-intl";
 
+import { ChatAnnotationsPreview } from "@/components/chat/chat-annotations-preview";
 import { ChatQuotePreview, useChatQuote } from "@/components/chat/chat-quote";
 import { Composer } from "@/components/composer/composer-shell";
 import Image from "@/components/framework/image";
@@ -101,6 +102,7 @@ import {
   isImageMimeType,
 } from "@/lib/upload/mime";
 import type { ChatMessageAuthor } from "@/types/chat";
+import type { ChatAnnotation } from "@/types/chat-annotations";
 import type { ChatPostMention } from "@/types/chat-posts";
 import type {
   ChatContextOption,
@@ -109,10 +111,13 @@ import type {
 } from "@/types/components/chat-input";
 import type { GitHubRepository } from "@/types/integrations";
 import type { SkillSlashOption } from "@/types/skills/slash";
+import {
+  buildComposerPrefix,
+  prependComposerPrefix,
+} from "@/utils/chat-annotations";
 import { hasIncludedChatPlan } from "@/utils/chat-billing";
 import { contextItemKey, contextItemsEqual } from "@/utils/chat-input";
 import { getPostReferenceValue } from "@/utils/chat-posts";
-import { prependChatQuote } from "@/utils/chat-quote";
 import {
   extractIntegrationReferences,
   getIntegrationReferenceValue,
@@ -1071,6 +1076,7 @@ function ChatComposerContextPicker({
 }
 
 const EMPTY_POST_MENTIONS: readonly ChatPostMention[] = [];
+const EMPTY_ANNOTATIONS: readonly ChatAnnotation[] = [];
 
 interface ChatInputAdvancedProps {
   availableModels?: readonly ChatModelOption[];
@@ -1258,7 +1264,7 @@ function sendOrQueueComposer({
         return;
       }
     }
-    onSend?.(prependChatQuote(outbound, quote), []);
+    onSend?.(prependComposerPrefix(outbound, quote), []);
     clearComposer();
     return;
   }
@@ -1284,7 +1290,7 @@ function sendOrQueueComposer({
     }
     clearError();
     setPendingSend({
-      value: prependChatQuote(outbound, quote),
+      value: prependComposerPrefix(outbound, quote),
       attachments: [...attachments],
       pendingUploadIds: pendingUploads.map((pending) => pending.id),
     });
@@ -1328,6 +1334,11 @@ export function ChatInputAdvanced({
   const tChatShared = useTranslations("chat.shared");
   const limitMessage = t("send.noCredits");
   const quoteContext = useChatQuote();
+  // The quote and any post annotations go out ahead of the typed text.
+  const composerPrefix = buildComposerPrefix(
+    quoteContext?.quote,
+    quoteContext?.annotations ?? EMPTY_ANNOTATIONS
+  );
   const contextPickerId = useId();
   const slashListId = useId();
   const mentionListId = useId();
@@ -2417,6 +2428,7 @@ export function ChatInputAdvanced({
     }
     clearTaggedSkills();
     quoteContext?.setQuote(null);
+    quoteContext?.setAnnotations([]);
   }, [clearTaggedSkills, draftStorageKey, onRemoveContext, quoteContext]);
 
   const sendSnapshot = useCallback(
@@ -2481,14 +2493,14 @@ export function ChatInputAdvanced({
       taggedSkillNames
     );
     const currentAttachments = attachmentsRef.current;
-    if (!outbound && !quoteContext?.quote && currentAttachments.length === 0) {
+    if (!outbound && !composerPrefix && currentAttachments.length === 0) {
       return false;
     }
     return sendSnapshot(
-      prependChatQuote(outbound, quoteContext?.quote),
+      prependComposerPrefix(outbound, composerPrefix),
       currentAttachments
     );
-  }, [isLoading, sendSnapshot, taggedSkillNames, quoteContext]);
+  }, [composerPrefix, isLoading, sendSnapshot, taggedSkillNames]);
 
   const handleSend = useCallback(() => {
     const editor = editorRef.current;
@@ -2496,7 +2508,7 @@ export function ChatInputAdvanced({
       return;
     }
     sendOrQueueComposer({
-      quote: quoteContext?.quote,
+      quote: composerPrefix,
       attachments: attachmentsRef.current,
       chatIncludedInPlan,
       check,
@@ -2530,7 +2542,7 @@ export function ChatInputAdvanced({
     onSend,
     performSend,
     taggedSkillNames,
-    quoteContext,
+    composerPrefix,
   ]);
 
   useEffect(() => {
@@ -2808,6 +2820,7 @@ export function ChatInputAdvanced({
         >
           <section aria-label={tChatShared("chatInputDropArea")}>
             <ChatQuotePreview disabled={isQueued} />
+            <ChatAnnotationsPreview disabled={isQueued} />
             <input
               accept={`${allowedChatMimeTypes.join(",")},image/heic,.heic`}
               className="hidden"
@@ -2912,7 +2925,7 @@ export function ChatInputAdvanced({
                 attachmentCount={attachments.length}
                 hasUnsupportedAttachments={hasUnsupportedAttachmentsForModel}
                 isEmpty={
-                  isEmpty && taggedSkills.length === 0 && !quoteContext?.quote
+                  isEmpty && taggedSkills.length === 0 && !composerPrefix
                 }
                 isLoading={isLoading}
                 isQueued={isQueued}

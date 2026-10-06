@@ -8,6 +8,14 @@ const PLAN = [
   "Write a LinkedIn post about both",
 ];
 
+// Six steps done, the seventh running, the rest open.
+function longPlanStatus(index: number): ChatTodoItem["status"] {
+  if (index < 6) {
+    return "completed";
+  }
+  return index === 6 ? "in_progress" : "pending";
+}
+
 function plan(statuses: ChatTodoItem["status"][]): ChatTodoItem[] {
   return PLAN.map((content, index) => ({
     content,
@@ -52,6 +60,25 @@ export const DESIGN_SYSTEM_TODO_STATES: {
       "completed",
       "completed",
     ]),
+  },
+  {
+    id: "long",
+    label: "Long plan (scrolls)",
+    isActive: true,
+    todos: [
+      "Research bulk export",
+      "Research Slack alerts",
+      "Research dark mode",
+      "Write the bulk export changelog",
+      "Write the Slack alerts blog post",
+      "Write the dark mode blog post",
+      "Write a LinkedIn post about all three",
+      "Write a recap tweet",
+      "Write the investor update section",
+    ].map((content, index) => ({
+      content,
+      status: longPlanStatus(index),
+    })),
   },
   {
     id: "edge",

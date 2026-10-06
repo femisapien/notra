@@ -80,12 +80,12 @@ import {
   ChatInputAdvanced,
   type ThinkingLevel,
 } from "@/components/chat/chat-input";
+import { ChatMessageAnnotations } from "@/components/chat/chat-message-annotations";
 import { ChatMinimapRail } from "@/components/chat/chat-minimap-rail";
 import type { QueuedMessage } from "@/components/chat/chat-queue";
 import {
   ChatQuoteProvider,
   ChatQuoteMessage as Message,
-  useChatQuote,
 } from "@/components/chat/chat-quote";
 import { ChatScrollOnSend } from "@/components/chat/chat-scroll-on-send";
 import { ChatSuggestions } from "@/components/chat/chat-suggestions";
@@ -150,6 +150,7 @@ import type {
 } from "@/types/components/chat-page";
 import type { PublishedSocialPost } from "@/types/content/post-social";
 import { getChatActivity, hasVisibleChatContent } from "@/utils/chat-activity";
+import { parseChatAnnotations } from "@/utils/chat-annotations";
 import {
   hasPendingApproval,
   isTerminalToolState,
@@ -827,18 +828,15 @@ function StandaloneChatPageClient({
     [tCommon]
   );
 
-  // Quoting text from a post in the preview also tags that post, so the agent
-  // revises the right one.
-  const quoteContext = useChatQuote();
-  const quotedPost = quoteContext?.quotedPost ?? null;
-  const clearQuotedPost = quoteContext?.setQuotedPost;
-  useEffect(() => {
-    if (!quotedPost) {
-      return;
-    }
-    handleAskForPostChanges(quotedPost);
-    clearQuotedPost?.(null);
-  }, [clearQuotedPost, handleAskForPostChanges, quotedPost]);
+  const openPostPreviewById = useCallback(
+    (postId: string) => {
+      const post = chatPosts.find((entry) => entry.postId === postId);
+      if (post) {
+        openPostPreview(post.toolCallId);
+      }
+    },
+    [chatPosts, openPostPreview]
+  );
 
   // While the preview is open it follows the newest post the agent starts.
   const latestPostToolCallId = chatPosts.at(-1)?.toolCallId ?? null;
@@ -1448,7 +1446,9 @@ function StandaloneChatPageClient({
 
   const toDisplayText = useCallback(
     (serialized: string) => {
-      return serialized.replace(CHAT_REFERENCE_TOKEN_SPLIT_REGEX, (match) => {
+      const annotated = parseChatAnnotations(serialized);
+      const text = annotated ? annotated.rest : serialized;
+      return text.replace(CHAT_REFERENCE_TOKEN_SPLIT_REGEX, (match) => {
         const postId = parsePostReferenceValue(match);
         if (postId) {
           return `@${postTitlesById.get(postId) ?? tCommon("labels.untitled")}`;
@@ -2292,10 +2292,27 @@ function StandaloneChatPageClient({
     index: number
   ) {
     if (part.type === "text") {
-      const text = part.text as string;
-      if (!text.trim()) {
+      const rawText = part.text as string;
+      if (!rawText.trim()) {
         return null;
       }
+
+      // Annotations from the preview arrive as a block ahead of the text.
+      const annotated = parseChatAnnotations(rawText);
+      if (annotated) {
+        return (
+          <div className="size-full" key={`${messageId}-text-${index}`}>
+            <ChatMessageAnnotations
+              annotations={annotated.annotations}
+              onOpenPost={openPostPreviewById}
+            />
+            {annotated.rest.trim()
+              ? renderPart({ ...part, text: annotated.rest }, messageId, index)
+              : null}
+          </div>
+        );
+      }
+      const text = rawText;
 
       const hasInlineReference =
         text.includes("integration/github/") ||

@@ -9,8 +9,10 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ChatTodoItem } from "@notra/ai/types/todos";
 import { cn } from "@notra/ui/lib/utils";
+import { useEffect, useRef } from "react";
 import { useTranslations } from "use-intl";
 
+import { useScrollEdges } from "@/lib/hooks/use-scroll-edges";
 import type { ChatTodoListProps } from "@/types/components/chat-todo-list";
 
 const ICON_LAYER_CLASSNAME =
@@ -92,6 +94,25 @@ export function ChatTodoList({
 }: ChatTodoListProps) {
   const t = useTranslations("chat.todos");
   const showStopped = isStopped && !isActive;
+  const listRef = useRef<HTMLOListElement>(null);
+  const { canScrollUp, canScrollDown } = useScrollEdges(listRef);
+  const currentIndex = todos.findIndex((todo) => todo.status === "in_progress");
+
+  // Long plans scroll inside the box; keep the running step in view.
+  useEffect(() => {
+    const list = listRef.current;
+    const item = currentIndex === -1 ? null : list?.children[currentIndex];
+    if (!(list && item instanceof HTMLElement)) {
+      return;
+    }
+    const top = item.offsetTop - (list.clientHeight - item.offsetHeight) / 2;
+    list.scrollTo({
+      top: Math.max(top, 0),
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+  }, [currentIndex]);
 
   return (
     <section
@@ -115,35 +136,52 @@ export function ChatTodoList({
           {t("stopped")}
         </span>
       </header>
-      <ol className="border-border bg-background flex flex-col gap-1.5 rounded-[14px] border px-3 py-2.5">
-        {withTodoKeys(todos).map(({ key, todo }) => (
-          <li className="flex items-start gap-2 text-sm leading-5" key={key}>
-            <span className="flex h-5 items-center">
-              <TodoStatusIcon
-                isActive={isActive}
-                isStopped={showStopped}
-                status={todo.status}
-              />
-            </span>
-            <span
-              className={cn(
-                "min-w-0 text-pretty line-through decoration-1 transition-[color,text-decoration-color] duration-300 ease-out motion-reduce:transition-none",
-                todo.status === "completed"
-                  ? "text-muted-foreground decoration-muted-foreground"
-                  : "decoration-transparent",
-                todo.status === "pending" &&
-                  (showStopped
-                    ? "text-muted-foreground"
-                    : "text-foreground/80"),
-                todo.status === "in_progress" &&
-                  (showStopped ? "text-foreground/80" : "text-foreground")
-              )}
-            >
-              {todo.content}
-            </span>
-          </li>
-        ))}
-      </ol>
+      <div className="border-border bg-background overflow-hidden rounded-[14px] border">
+        <ol
+          className={cn(
+            // About five single-line steps before the list scrolls.
+            "relative flex max-h-36 scrollbar-none flex-col gap-1.5 overflow-y-auto overscroll-contain px-3 py-2.5",
+            canScrollUp &&
+              canScrollDown &&
+              "[mask-image:linear-gradient(to_bottom,transparent,#000_2.5rem,#000_calc(100%-2.5rem),transparent)]",
+            canScrollUp &&
+              !canScrollDown &&
+              "[mask-image:linear-gradient(to_bottom,transparent,#000_2.5rem)]",
+            !canScrollUp &&
+              canScrollDown &&
+              "[mask-image:linear-gradient(to_bottom,#000_calc(100%-2.5rem),transparent)]"
+          )}
+          ref={listRef}
+        >
+          {withTodoKeys(todos).map(({ key, todo }) => (
+            <li className="flex items-start gap-2 text-sm leading-5" key={key}>
+              <span className="flex h-5 items-center">
+                <TodoStatusIcon
+                  isActive={isActive}
+                  isStopped={showStopped}
+                  status={todo.status}
+                />
+              </span>
+              <span
+                className={cn(
+                  "min-w-0 text-pretty line-through decoration-1 transition-[color,text-decoration-color] duration-300 ease-out motion-reduce:transition-none",
+                  todo.status === "completed"
+                    ? "text-muted-foreground decoration-muted-foreground"
+                    : "decoration-transparent",
+                  todo.status === "pending" &&
+                    (showStopped
+                      ? "text-muted-foreground"
+                      : "text-foreground/80"),
+                  todo.status === "in_progress" &&
+                    (showStopped ? "text-foreground/80" : "text-foreground")
+                )}
+              >
+                {todo.content}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
     </section>
   );
 }

@@ -44,7 +44,13 @@ import {
   TooltipTrigger,
 } from "@notra/ui/components/ui/tooltip";
 import { cn } from "@notra/ui/lib/utils";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "use-intl";
 
@@ -52,6 +58,7 @@ import { useChatQuote } from "@/components/chat/chat-quote";
 import { RightPanel } from "@/components/dashboard/right-panel";
 import { useRightPanel } from "@/components/dashboard/right-panel-context";
 import Link from "@/components/framework/link";
+import { useAnnotationHighlights } from "@/lib/hooks/use-annotation-highlights";
 import { useContent } from "@/lib/hooks/use-content";
 import { useDesktopBreakpoint } from "@/lib/hooks/use-desktop-breakpoint";
 import { useOutputTypeLabel } from "@/lib/hooks/use-output-type-label";
@@ -95,6 +102,11 @@ function ChatContentPanelDocument({
     savedPost?.content.title ?? (post.title || tCommon("labels.untitled"));
   const markdown = savedPost?.content.markdown ?? post.markdown;
   const { postId } = post;
+  const articleRef = useRef<HTMLElement>(null);
+  const annotatedPassages = (quoteContext?.annotations ?? []).flatMap(
+    (annotation) => (annotation.postId === postId ? [annotation.text] : [])
+  );
+  useAnnotationHighlights(articleRef, annotatedPassages, markdown);
 
   let status = t("status.unsaved");
   if (post.state === "writing") {
@@ -117,6 +129,7 @@ function ChatContentPanelDocument({
       >
         <article
           className="mx-auto w-full max-w-[42rem]"
+          ref={articleRef}
           data-chat-quote-post-id={postId ?? undefined}
           data-chat-quote-post-title={postId ? title : undefined}
           data-chat-quote-source={postId ? quoteContext?.scopeId : undefined}
@@ -259,11 +272,16 @@ function ChatContentPanelTab({
       // While dragging, the slot stays as a faint placeholder; the copy in
       // the overlay follows the pointer.
       className={cn(
-        // Each tab is as wide as its title within the same bounds, and only
-        // shrinks (and truncates) once the bar runs out of room.
-        "max-w-64 min-w-28 shrink",
+        // All tabs share the bar evenly between the same bounds; past the
+        // minimum the bar scrolls.
+        "max-w-64 min-w-28 flex-1 basis-0",
+        // A new tab grows in from nothing, so the tabs after it and the "+"
+        // slide over instead of jumping. The clip margin keeps the tab's
+        // shadow and focus ring visible.
+        "-my-1 overflow-clip py-1 transition-[max-width,min-width,opacity] duration-200 ease-out [overflow-clip-margin:4px] motion-reduce:transition-none starting:max-w-0 starting:min-w-0 starting:opacity-0",
         isDragging && "opacity-35"
       )}
+      data-tab-id={post.toolCallId}
       ref={setNodeRef}
       style={{
         transform: transform
@@ -347,6 +365,22 @@ export function ChatContentPanel({
     );
   };
 
+  // A tab that opens or activates off-screen slides into view.
+  useEffect(() => {
+    const tab = activeToolCallId
+      ? tablistRef.current?.querySelector(
+          `[data-tab-id="${CSS.escape(activeToolCallId)}"]`
+        )
+      : null;
+    tab?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [activeToolCallId, openToolCallIds.length]);
+
   // The panel belongs to this chat; leaving it must not leave the slot open.
   const closeOnLeave = useEffectEvent(() => closePanel("preview"));
   useEffect(() => () => closeOnLeave(), []);
@@ -380,9 +414,16 @@ export function ChatContentPanel({
           />
           <div
             aria-label={t("title")}
-            className="flex min-w-0 shrink scrollbar-none items-center gap-1 overflow-x-auto"
+            // Grows only as wide as its tabs at full width, so the "+" stays
+            // right after the last tab.
+            className="flex max-w-(--tabs-max-width) min-w-0 flex-1 scrollbar-none items-center gap-1 overflow-x-auto"
             ref={tablistRef}
             role="tablist"
+            style={
+              {
+                "--tabs-max-width": `calc(${openPosts.length} * 16rem + ${Math.max(openPosts.length - 1, 0)} * 0.25rem)`,
+              } as CSSProperties
+            }
           >
             <DndContext
               // The bar scrolling under the pointer clips the dragged tab.
