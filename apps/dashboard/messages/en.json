@@ -3977,7 +3977,6 @@
       "noMatches": "No competitors match “{query}”."
     },
     "webVisitors": {
-      "title": "Visitors",
       "visitors": "Visitors",
       "views": "Page views",
       "fromAi": "From AI answers",
@@ -3988,7 +3987,6 @@
       "share": "{share}%",
       "topPages": "Top pages",
       "page": "Page",
-      "sources": "Sources",
       "direct": "Direct",
       "sessions": "Sessions",
       "countries": "Countries",
@@ -3999,7 +3997,6 @@
       "deviceTablet": "Tablet",
       "outcomesTitle": "What AI visitors do",
       "outcomesAll": "All visitors",
-      "outcomesAi": "From {source}",
       "pagesPerSession": "Pages per visit",
       "engagedRate": "Read further",
       "noData": "No visitors in this period",
@@ -6934,8 +6931,7 @@
       "columns": {
         "environment": "Environment",
         "commit": "Commit",
-        "trigger": "Trigger",
-        "duration": "Duration"
+        "trigger": "Trigger"
       },
       "actions": {
         "label": "Actions for deployment {sha}",
@@ -6970,7 +6966,6 @@
     },
     "editor": {
       "intro": "Changes save as drafts and never touch the live site until you publish.",
-      "validate": "Validate",
       "validateFailed": "Couldn't validate the site",
       "problems": "{count, plural, one {# problem} other {# problems}}",
       "dismiss": "Dismiss",
@@ -7172,7 +7167,6 @@
         "lines": "{count, plural, one {# line} other {# lines}}",
         "copy": "Copy log",
         "copied": "Log copied",
-        "matches": "{current} of {total}",
         "noMatches": "No matches",
         "next": "Next match",
         "previous": "Previous match",
@@ -7251,11 +7245,8 @@
       "title": "Domains",
       "description": "Serve your site on your own domain. A verified domain becomes the primary address.",
       "addDomain": "Add domain",
-      "listLabel": "Domains for this site",
       "notraAddress": "Notra address",
-      "notraAddressHint": "Always works, also after you add a domain.",
       "primary": "Primary",
-      "primaryHint": "Canonical address for links, feeds and search engines.",
       "open": "Open",
       "copyUrl": "Copy URL",
       "kinds": {
@@ -7277,8 +7268,6 @@
       "verifyDnsHint": "DNS changes can take a few minutes.",
       "verifyProxyHint": "We fetch a test file through your site.",
       "lastErrorTitle": "Last check failed",
-      "showDnsRecords": "DNS records",
-      "showProxySetup": "Proxy setup",
       "remove": "Remove",
       "removeConfirm": "Remove domain",
       "removeTitle": "Remove this domain?",

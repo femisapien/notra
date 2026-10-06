@@ -105,6 +105,36 @@ const SECONDS_PER_DAY = 86_400;
 
 const STACK_FRAME = /^\s+at\s/;
 
+/** The lines from `start` on that match, up to the first that doesn't. */
+function takeRun(
+  lines: readonly SiteBuildLogLine[],
+  start: number,
+  matches: (line: SiteBuildLogLine) => boolean
+): SiteBuildLogLine[] {
+  const run: SiteBuildLogLine[] = [];
+  for (let index = start; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!(line && matches(line))) {
+      break;
+    }
+    run.push(line);
+  }
+  return run;
+}
+
+function lineEntries(lines: readonly SiteBuildLogLine[]): SiteBuildLogEntry[] {
+  return lines.map((line) => ({ kind: "line", line }));
+}
+
+function foldEntry(
+  lines: SiteBuildLogLine[],
+  tone: SiteBuildLogTone
+): SiteBuildLogEntry {
+  return { kind: "fold", id: `fold-${lines[0]?.number}`, lines, tone };
+}
+
+const isStackFrame = (line: SiteBuildLogLine) => STACK_FRAME.test(line.text);
+
 /** Keeps an error's message and hints; three or more stack frames fold after the first. */
 function foldStackFrames(
   run: readonly SiteBuildLogLine[]
@@ -112,33 +142,24 @@ function foldStackFrames(
   const entries: SiteBuildLogEntry[] = [];
   let index = 0;
   while (index < run.length) {
-    const line = run[index] as SiteBuildLogLine;
-    if (!STACK_FRAME.test(line.text)) {
+    const line = run[index];
+    if (!line) {
+      break;
+    }
+    if (!isStackFrame(line)) {
       entries.push({ kind: "line", line });
       index += 1;
       continue;
     }
-    const frames: SiteBuildLogLine[] = [];
-    while (index < run.length && STACK_FRAME.test(run[index]?.text ?? "")) {
-      frames.push(run[index] as SiteBuildLogLine);
-      index += 1;
-    }
-    const [first, ...rest] = frames;
-    if (first) {
-      entries.push({ kind: "line", line: first });
-    }
-    if (rest.length >= SITE_BUILD_LOG_FRAME_FOLD_MIN - 1) {
-      entries.push({
-        kind: "fold",
-        id: `fold-${rest[0]?.number}`,
-        lines: rest,
-        tone: "error",
-      });
-    } else {
-      for (const item of rest) {
-        entries.push({ kind: "line", line: item });
-      }
-    }
+    const frames = takeRun(run, index, isStackFrame);
+    index += frames.length;
+    const rest = frames.slice(1);
+    entries.push(
+      { kind: "line", line },
+      ...(rest.length >= SITE_BUILD_LOG_FRAME_FOLD_MIN - 1
+        ? [foldEntry(rest, "error")]
+        : lineEntries(rest))
+    );
   }
   return entries;
 }
@@ -158,53 +179,32 @@ export function groupBuildLog(
       break;
     }
     if (line.continued) {
-      const run: SiteBuildLogLine[] = [];
-      while (lines[index]?.continued) {
-        run.push(lines[index] as SiteBuildLogLine);
-        index += 1;
-      }
+      const run = takeRun(lines, index, (candidate) => candidate.continued);
+      index += run.length;
       if (line.tone === "error") {
         // An error's frame is the point of the log: keep it, fold only its stack.
         entries.push(...foldStackFrames(run));
       } else if (run.length >= SITE_BUILD_LOG_FRAME_FOLD_MIN) {
-        entries.push({
-          kind: "fold",
-          id: `fold-${run[0]?.number}`,
-          lines: run,
-          tone: line.tone,
-        });
+        entries.push(foldEntry(run, line.tone));
       } else {
-        for (const item of run) {
-          entries.push({ kind: "line", line: item });
-        }
+        entries.push(...lineEntries(run));
       }
       continue;
     }
     if (NOISE_LINE.test(line.text)) {
-      const run: SiteBuildLogLine[] = [];
-      while (
-        lines[index] &&
-        !lines[index]?.continued &&
-        NOISE_LINE.test(lines[index]?.text ?? "")
-      ) {
-        run.push(lines[index] as SiteBuildLogLine);
-        index += 1;
-      }
+      const run = takeRun(
+        lines,
+        index,
+        (candidate) => !candidate.continued && NOISE_LINE.test(candidate.text)
+      );
+      index += run.length;
       const kept =
         run.length > SITE_BUILD_LOG_NOISE_FOLD_MIN
           ? SITE_BUILD_LOG_NOISE_KEEP
           : run.length;
-      for (const item of run.slice(0, kept)) {
-        entries.push({ kind: "line", line: item });
-      }
+      entries.push(...lineEntries(run.slice(0, kept)));
       if (kept < run.length) {
-        const folded = run.slice(kept);
-        entries.push({
-          kind: "fold",
-          id: `fold-${folded[0]?.number}`,
-          lines: folded,
-          tone: "default",
-        });
+        entries.push(foldEntry(run.slice(kept), "default"));
       }
       continue;
     }

@@ -3977,7 +3977,6 @@
       "noMatches": "Keine Wettbewerber passen zu „{query}“."
     },
     "webVisitors": {
-      "title": "Besucher",
       "visitors": "Besucher",
       "views": "Seitenaufrufe",
       "fromAi": "Aus AI-Antworten",
@@ -3988,7 +3987,6 @@
       "share": "{share} %",
       "topPages": "Top-Seiten",
       "page": "Seite",
-      "sources": "Quellen",
       "direct": "Direkt",
       "sessions": "Sitzungen",
       "countries": "Länder",
@@ -3999,7 +3997,6 @@
       "deviceTablet": "Tablet",
       "outcomesTitle": "Was AI-Besucher tun",
       "outcomesAll": "Alle Besucher",
-      "outcomesAi": "Aus {source}",
       "pagesPerSession": "Seiten pro Besuch",
       "engagedRate": "Weitergelesen",
       "noData": "Keine Besucher in diesem Zeitraum",
@@ -6934,8 +6931,7 @@
       "columns": {
         "environment": "Umgebung",
         "commit": "Commit",
-        "trigger": "Auslöser",
-        "duration": "Dauer"
+        "trigger": "Auslöser"
       },
       "actions": {
         "label": "Aktionen für Deployment {sha}",
@@ -6970,7 +6966,6 @@
     },
     "editor": {
       "intro": "Änderungen werden als Entwürfe gespeichert und berühren die Live-Site erst, wenn du veröffentlichst.",
-      "validate": "Prüfen",
       "validateFailed": "Site konnte nicht geprüft werden",
       "problems": "{count, plural, one {# Problem} other {# Probleme}}",
       "dismiss": "Ausblenden",
@@ -7172,7 +7167,6 @@
         "lines": "{count, plural, one {# Zeile} other {# Zeilen}}",
         "copy": "Log kopieren",
         "copied": "Log kopiert",
-        "matches": "{current} von {total}",
         "noMatches": "Keine Treffer",
         "next": "Nächster Treffer",
         "previous": "Vorheriger Treffer",
@@ -7251,11 +7245,8 @@
       "title": "Domains",
       "description": "Stelle deine Site unter deiner eigenen Domain bereit. Eine verifizierte Domain wird zur primären Adresse.",
       "addDomain": "Domain hinzufügen",
-      "listLabel": "Domains dieser Site",
       "notraAddress": "Notra-Adresse",
-      "notraAddressHint": "Funktioniert immer, auch mit eigener Domain.",
       "primary": "Primär",
-      "primaryHint": "Kanonische Adresse für Links, Feeds und Suchmaschinen.",
       "open": "Öffnen",
       "copyUrl": "URL kopieren",
       "kinds": {
@@ -7277,8 +7268,6 @@
       "verifyDnsHint": "DNS-Änderungen können ein paar Minuten dauern.",
       "verifyProxyHint": "Wir rufen eine Testdatei über deine Site ab.",
       "lastErrorTitle": "Letzte Prüfung fehlgeschlagen",
-      "showDnsRecords": "DNS-Einträge",
-      "showProxySetup": "Proxy-Einrichtung",
       "remove": "Entfernen",
       "removeConfirm": "Domain entfernen",
       "removeTitle": "Domain entfernen?",

@@ -22,7 +22,7 @@ import { SiteSettingsRow } from "@/components/sites/site-settings-row";
 import { SiteSettingsSaveBar } from "@/components/sites/site-settings-save-bar";
 import { SiteSuggestInput } from "@/components/sites/site-suggest-input";
 import { useRepositorySuggestions } from "@/lib/hooks/use-repository-suggestions";
-import { useSitePublishModeOptions } from "@/lib/hooks/use-site-choice-options";
+import { useSitePublishModeOptions } from "@/lib/hooks/use-site-publish-mode-options";
 import { useSiteRootDirectoryToggle } from "@/lib/hooks/use-site-root-directory-toggle";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";

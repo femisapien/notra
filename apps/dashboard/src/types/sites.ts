@@ -1,8 +1,5 @@
 import type { IconSvgElement } from "@hugeicons/react";
-import type {
-  SITE_DEPLOYMENT_STATUSES,
-  SITE_DOMAIN_STATUSES,
-} from "@notra/sites-core/constants/sites";
+import type { SITE_DEPLOYMENT_STATUSES } from "@notra/sites-core/constants/sites";
 import type { RepositoryContentCount } from "@notra/sites-server/types/github";
 import type { SiteInputField } from "@notra/sites-server/types/sites";
 import type { InferRouterInputs, InferRouterOutputs } from "@orpc/server";
@@ -29,24 +26,21 @@ export type SiteRecord = SiteDetail["site"];
 export type SiteDeployment = SiteDetail["deployments"][number];
 export type SiteDeploymentDetail = SitesOutputs["deployments"]["get"];
 export type SiteDeploymentRecord = SiteDeploymentDetail["deployment"];
-export type SitePreview = SiteDetail["previews"][number];
+type SitePreview = SiteDetail["previews"][number];
 export type SiteDomain = SiteDetail["domains"][number];
 export type SiteRepository = SitesOutputs["connectRepository"];
-/** A repository the GitHub App can see; `integrationId` is set once it is connected to Notra. */
 export type SiteCreateStepId = (typeof SITE_CREATE_STEP_IDS)[number];
+/** A repository the GitHub App can see; `integrationId` is set once it is connected to Notra. */
 export type SiteImportableRepository =
   SitesOutputs["importableRepositories"]["repositories"][number];
-export type SiteEditorFiles = SitesOutputs["editor"]["files"];
+type SiteEditorFiles = SitesOutputs["editor"]["files"];
 export type SiteEditorFile = SiteEditorFiles["files"][number];
 export type SiteEditorDraft = SiteEditorFiles["drafts"][number];
 export type SiteEditorDocument = SitesOutputs["editor"]["read"];
 export type SiteDiagnostic = SiteDeploymentRecord["diagnostics"][number];
 
 export type SiteDeploymentStatus = (typeof SITE_DEPLOYMENT_STATUSES)[number];
-/** What a badge shows: the build status, or "live" when the serving state points at it. */
-export type SiteDomainStatus = (typeof SITE_DOMAIN_STATUSES)[number];
-export type SiteDetailTab = (typeof SITE_DETAIL_TABS)[number];
-export type SiteSection = SiteDetailTab;
+export type SiteSection = (typeof SITE_DETAIL_TABS)[number];
 
 export interface SiteSectionConfig {
   section: SiteSection;
@@ -155,7 +149,6 @@ export interface SiteSettingsPatch {
 }
 
 export type SiteDomainRecord = SiteDomain["records"][number];
-export type SiteDomainConnectResult = SitesOutputs["domains"]["connect"];
 export type SiteDomainConnectOutcome =
   (typeof SITE_DOMAIN_CONNECT_OUTCOMES)[number];
 /** What the domain status chip says; `pending` splits by kind. */

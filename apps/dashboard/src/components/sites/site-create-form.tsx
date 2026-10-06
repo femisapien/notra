@@ -102,10 +102,12 @@ export function SiteCreateForm({
     hasSiteCreateSection(sections) &&
     !suggestions.isLoading;
 
-  const stepIds = SITE_CREATE_STEP_IDS;
-  const activeIndex = stepIds.indexOf(activeStep);
+  const activeIndex = SITE_CREATE_STEP_IDS.indexOf(activeStep);
   const stateOf = (step: SiteCreateStepId): SiteCreateStepState => {
-    const index = stepIds.indexOf(step);
+    if (step === "configure" && !repository) {
+      return "locked";
+    }
+    const index = SITE_CREATE_STEP_IDS.indexOf(step);
     if (index === activeIndex) {
       return "active";
     }
@@ -205,12 +207,16 @@ export function SiteCreateForm({
     );
   };
 
-  const steps = stepIds.map((step) => ({
+  const steps = SITE_CREATE_STEP_IDS.map((step) => ({
     id: step,
     label: t(`stepLabels.${step}`),
-    state:
-      step === "configure" && !repository ? ("locked" as const) : stateOf(step),
+    state: stateOf(step),
   }));
+  const configureDescription = repository
+    ? t("stepConfigureDescription", {
+        repository: `${repository.owner}/${repository.repo}`,
+      })
+    : undefined;
   const sideTitle = {
     repository: {
       title: t("stepRepository"),
@@ -218,11 +224,7 @@ export function SiteCreateForm({
     },
     configure: {
       title: t("stepConfigure"),
-      description: repository
-        ? t("stepConfigureDescription", {
-            repository: `${repository.owner}/${repository.repo}`,
-          })
-        : undefined,
+      description: configureDescription,
     },
     deploy: {
       title: t("stepDeploy"),
@@ -255,10 +257,7 @@ export function SiteCreateForm({
             </div>
           }
           right={
-            <SiteCreateStepList
-              onSelect={(step) => goTo(step as SiteCreateStepId)}
-              steps={steps}
-            />
+            <SiteCreateStepList onSelect={(step) => goTo(step)} steps={steps} />
           }
         >
           <SiteCreateStep
@@ -284,13 +283,7 @@ export function SiteCreateForm({
           </SiteCreateStep>
 
           <SiteCreateStep
-            description={
-              repository
-                ? t("stepConfigureDescription", {
-                    repository: `${repository.owner}/${repository.repo}`,
-                  })
-                : undefined
-            }
+            description={configureDescription}
             footer={
               <Button
                 disabled={!isReady}
@@ -302,7 +295,7 @@ export function SiteCreateForm({
               </Button>
             }
             onActivate={() => goTo("configure", `${id}-name`)}
-            state={repository ? stateOf("configure") : "locked"}
+            state={stateOf("configure")}
             title={t("stepConfigure")}
           >
             <MotionConfig reducedMotion="user">

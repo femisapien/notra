@@ -32,6 +32,16 @@ export function hostFromOrigin(origin: string): string {
   }
 }
 
+export function githubBranchUrl(
+  repository: SiteRepositoryRef | null,
+  branch: string
+): string | null {
+  if (!repository) {
+    return null;
+  }
+  return `https://github.com/${repository.owner}/${repository.name}/tree/${branch}`;
+}
+
 export function githubCommitUrl(
   repository: SiteRepositoryRef | null,
   sha: string
@@ -54,11 +64,10 @@ export function githubPullRequestUrl(
 
 /** The live URL's path (a mount such as /blog) on another origin of the same site. */
 export function siteUrlOnOrigin(origin: string, liveUrl: string): string {
-  let path = "";
+  const base = origin.replace(/\/$/, "");
   try {
-    path = new URL(liveUrl).pathname.replace(/\/$/, "");
+    return `${base}${new URL(liveUrl).pathname.replace(/\/$/, "")}`;
   } catch {
-    path = "";
+    return base;
   }
-  return `${origin.replace(/\/$/, "")}${path}`;
 }

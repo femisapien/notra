@@ -2,13 +2,13 @@
 
 import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { CopyButton } from "@notra/ui/components/ui/copy-button";
 import { Cloudflare } from "@notra/ui/components/ui/svgs/cloudflare";
 import { Vercel } from "@notra/ui/components/ui/svgs/vercel";
 import { type ReactNode, useState } from "react";
 import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
-import { SiteCopyButton } from "@/components/sites/site-copy-button";
 import {
   SITE_CLOUDFLARE_PROVIDER_PATTERN,
   SITE_VERCEL_PROVIDER_PATTERN,
@@ -20,15 +20,24 @@ import type {
   SiteDnsRecordsTableProps,
   SiteDnsSetupProps,
 } from "@/types/components/sites";
+import { toastCopyError } from "@/utils/copy-to-clipboard";
 import { siteDnsProviderDashboardUrl } from "@/utils/site-domains";
 
 function RecordValue({ value, label }: SiteDnsRecordValueProps) {
+  const tCommon = useTranslations("common");
   return (
     <span className="flex min-w-0 items-center gap-1">
       <span className="min-w-0 truncate font-mono text-xs" title={value}>
         {value}
       </span>
-      <SiteCopyButton label={label} value={value} />
+      <CopyButton
+        aria-label={tCommon("labels.copyLabel", { label })}
+        className="shrink-0"
+        copiedAriaLabel={tCommon("labels.labelCopied", { label })}
+        onCopyError={toastCopyError}
+        size="icon-xs"
+        value={value}
+      />
     </span>
   );
 }

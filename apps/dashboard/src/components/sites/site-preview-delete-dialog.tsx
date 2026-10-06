@@ -1,10 +1,10 @@
 "use client";
 
+import { ConfirmDialog } from "@notra/ui/components/shared/confirm-dialog";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslations } from "use-intl";
 
-import { SiteConfirmDialog } from "@/components/sites/site-confirm-dialog";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SitePreviewDeleteDialogProps } from "@/types/components/sites";
@@ -38,12 +38,12 @@ export function SitePreviewDeleteDialog({
   });
 
   return (
-    <SiteConfirmDialog
+    <ConfirmDialog
       confirmLabel={t("delete")}
       description={t("deleteDescription", {
         name: preview?.branch ?? preview?.previewKey ?? "",
       })}
-      destructive
+      variant="destructive"
       onConfirm={() => {
         if (preview) {
           deleteMutation.mutate(preview.previewKey);

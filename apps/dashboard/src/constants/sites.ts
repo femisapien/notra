@@ -97,8 +97,6 @@ export const SITE_DOMAIN_CONNECT_OUTCOMES = [
   "cancelled",
   "error",
 ] as const;
-/** How long a copy button shows "Copied". */
-export const SITE_COPY_FEEDBACK_MS = 1500;
 
 /** Status dot per domain state; `pending` reads differently for DNS and proxy domains. */
 export const SITE_DOMAIN_STATUS_DOTS: Record<SiteDomainChipStatus, string> = {

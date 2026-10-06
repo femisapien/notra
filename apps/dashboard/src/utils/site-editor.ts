@@ -33,11 +33,11 @@ import type {
 
 const ENTRY_FILE = /^(blog|changelog)\/(.+)\.mdx?$/;
 
-export function isEditableSiteFile(path: string): boolean {
+function isEditableSiteFile(path: string): boolean {
   return SITE_EDITABLE_FILE_PATTERN.test(path);
 }
 
-export function fileNameFromPath(path: string): string {
+function fileNameFromPath(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
 }
 

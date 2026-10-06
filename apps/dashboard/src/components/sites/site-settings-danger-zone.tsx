@@ -1,5 +1,6 @@
 "use client";
 
+import { ConfirmDialog } from "@notra/ui/components/shared/confirm-dialog";
 import { TitleCard } from "@notra/ui/components/ui/title-card";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
@@ -7,7 +8,6 @@ import { toast } from "sonner";
 import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
-import { SiteConfirmDialog } from "@/components/sites/site-confirm-dialog";
 import { SiteDeleteDialog } from "@/components/sites/site-delete-dialog";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
@@ -135,10 +135,10 @@ export function SiteSettingsDangerZone({
         </div>
       </TitleCard>
 
-      <SiteConfirmDialog
+      <ConfirmDialog
         confirmLabel={t("offline.action")}
         description={t("offline.confirmDescription")}
-        destructive
+        variant="destructive"
         onConfirm={() => suspendMutation.mutate(true)}
         onOpenChange={setOfflineOpen}
         open={offlineOpen}

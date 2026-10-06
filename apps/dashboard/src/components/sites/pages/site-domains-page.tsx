@@ -2,6 +2,7 @@
 
 import { PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { ConfirmDialog } from "@notra/ui/components/shared/confirm-dialog";
 import { PageHeading } from "@notra/ui/components/shared/page-heading";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -9,7 +10,6 @@ import { toast } from "sonner";
 import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
-import { SiteConfirmDialog } from "@/components/sites/site-confirm-dialog";
 import { useSite } from "@/components/sites/site-context";
 import { SiteDomainAddDialog } from "@/components/sites/site-domain-add-dialog";
 import { SiteDomainsTable } from "@/components/sites/site-domains-table";
@@ -86,7 +86,7 @@ function RemoveDomainDialog({
   });
 
   return (
-    <SiteConfirmDialog
+    <ConfirmDialog
       confirmLabel={t("removeConfirm")}
       description={
         domain?.isPrimary
@@ -96,7 +96,7 @@ function RemoveDomainDialog({
             })
           : t("removeDescription", { hostname: domain?.hostname ?? "" })
       }
-      destructive
+      variant="destructive"
       onConfirm={() => {
         if (domain) {
           removeMutation.mutate(domain.id);

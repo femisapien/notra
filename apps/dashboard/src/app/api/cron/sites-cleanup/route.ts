@@ -1,6 +1,6 @@
 import { db } from "@notra/db/drizzle";
 import { sites, siteWebhookDeliveries } from "@notra/db/schema";
-import { cleanupSiteDeployments } from "@notra/sites-server/sites";
+import { cleanupSiteDeployments } from "@notra/sites-server/cleanup";
 import { mapWithConcurrency } from "@notra/sites-server/utils/concurrency";
 import { isDemoMode } from "@notra/utils/demo-mode";
 import { lt, sql } from "drizzle-orm";

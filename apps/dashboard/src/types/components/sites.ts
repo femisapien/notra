@@ -11,6 +11,7 @@ import type {
   SiteCreateFieldErrors,
   SiteCreateFormValues,
   SiteCreateSectionPlan,
+  SiteCreateStepId,
   SiteDeployment,
   SiteDeploymentRecord,
   SiteDeploymentStatus,
@@ -138,25 +139,6 @@ export interface SiteDeleteDialogProps extends SiteScope {
   siteName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-export interface SiteCopyButtonProps {
-  value: string;
-  /** What is copied, for the accessible name: "Copy {label}". */
-  label: string;
-}
-
-export interface SiteConfirmDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  description: ReactNode;
-  confirmLabel: string;
-  destructive?: boolean;
-  pending: boolean;
-  onConfirm: () => void;
-  /** Shown between the description and the buttons, e.g. what is affected. */
-  children?: ReactNode;
 }
 
 export interface SiteMetaProps {
@@ -377,6 +359,17 @@ export interface SiteDeploymentSummaryProps {
   live: boolean;
   urls: string[];
   primaryUrl: string;
+}
+
+export interface SiteDeploymentFactProps {
+  label: string;
+  children: ReactNode;
+}
+
+export interface SiteDeploymentExternalLinkProps {
+  href: string | null;
+  children: ReactNode;
+  mono?: boolean;
 }
 
 export interface SiteDeploymentRecordProps {
@@ -615,8 +608,8 @@ export interface SiteCreateStepProps {
 }
 
 export interface SiteCreateStepListProps {
-  steps: { id: string; label: string; state: SiteCreateStepState }[];
-  onSelect: (id: string) => void;
+  steps: { id: SiteCreateStepId; label: string; state: SiteCreateStepState }[];
+  onSelect: (id: SiteCreateStepId) => void;
 }
 
 export interface SiteCreateStageProps {

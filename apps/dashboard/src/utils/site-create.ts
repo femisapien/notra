@@ -16,13 +16,8 @@ import type {
   SiteRepository,
 } from "@/types/sites";
 
-/** `owner/repo`, as the repository picker lists it. */
-export function siteRepositoryLabel(repository: SiteRepository): string {
-  return `${repository.owner ?? ""}/${repository.repo ?? ""}`;
-}
-
 /** The address as the server will store it. */
-export function siteCreateSlug(form: SiteCreateFormValues): string {
+function siteCreateSlug(form: SiteCreateFormValues): string {
   return form.slug.trim().toLowerCase();
 }
 
@@ -56,7 +51,7 @@ export function isSiteCreateSlugInvalid(form: SiteCreateFormValues): boolean {
 }
 
 /** Named; sections are checked against the repository plan. */
-export function isSiteCreateFormComplete(form: SiteCreateFormValues): boolean {
+function isSiteCreateFormComplete(form: SiteCreateFormValues): boolean {
   return form.name.trim().length > 0;
 }
 
@@ -109,7 +104,7 @@ export function withSiteRepository(
 }
 
 /** The branch the first build will use; null until a repository (with a branch) is picked. */
-export function siteCreateProductionBranch(
+function siteCreateProductionBranch(
   form: SiteCreateFormValues,
   repository: SiteRepository | null
 ): string | null {

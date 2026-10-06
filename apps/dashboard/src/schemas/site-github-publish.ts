@@ -1,4 +1,4 @@
-import { SITE_AUTHOR_ID } from "@notra/sites-core/schemas/site-config";
+import { SITE_AUTHOR_ID } from "@notra/sites-core/constants/site-config";
 import { z } from "zod";
 
 /**

@@ -7,7 +7,6 @@ import {
   GitPullRequestIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { ReactNode } from "react";
 import { useLocale, useTranslations } from "use-intl";
 
 import { SiteEnvironmentBadge } from "@/components/sites/site-environment-badge";
@@ -15,7 +14,12 @@ import { SitePreviewFrame } from "@/components/sites/site-preview-frame";
 import { SiteRelativeTime } from "@/components/sites/site-relative-time";
 import { SiteStatusDot } from "@/components/sites/site-status-dot";
 import { useNow } from "@/lib/hooks/use-now";
-import type { SiteDeploymentSummaryProps } from "@/types/components/sites";
+import { cn } from "@/lib/utils";
+import type {
+  SiteDeploymentExternalLinkProps,
+  SiteDeploymentFactProps,
+  SiteDeploymentSummaryProps,
+} from "@/types/components/sites";
 import { formatBytes } from "@/utils/format";
 import {
   deploymentElapsedMs,
@@ -26,6 +30,7 @@ import {
 } from "@/utils/site-deployments";
 import {
   displayUrl,
+  githubBranchUrl,
   githubCommitUrl,
   githubPullRequestUrl,
 } from "@/utils/site-links";
@@ -34,7 +39,7 @@ const SHELL = "border-shell-border bg-shell rounded-2xl border p-0.5";
 const SURFACE =
   "bg-background shadow-lift grid gap-6 rounded-[14px] border p-5 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]";
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
+function Fact({ label, children }: SiteDeploymentFactProps) {
   return (
     <div className="min-w-0 space-y-1">
       <dt className="text-muted-foreground text-xs">{label}</dt>
@@ -47,18 +52,17 @@ function ExternalLink({
   href,
   children,
   mono = false,
-}: {
-  href: string | null;
-  children: ReactNode;
-  mono?: boolean;
-}) {
+}: SiteDeploymentExternalLinkProps) {
   const className = mono ? "font-mono text-xs" : undefined;
   if (!href) {
     return <span className={className}>{children}</span>;
   }
   return (
     <a
-      className={`${className ?? ""} decoration-foreground/25 hover:decoration-foreground underline underline-offset-4 transition-colors duration-150`}
+      className={cn(
+        className,
+        "decoration-foreground/25 hover:decoration-foreground underline underline-offset-4 transition-colors duration-150"
+      )}
       href={href}
       rel="noopener noreferrer"
       target="_blank"
@@ -88,9 +92,7 @@ export function SiteDeploymentSummary({
       ? formatBuildDuration(deploymentElapsedMs(deployment, now))
       : null;
   const repository = detail.site.repository;
-  const branchUrl = repository
-    ? `https://github.com/${repository.owner}/${repository.name}/tree/${deployment.branch}`
-    : null;
+  const branchUrl = githubBranchUrl(repository, deployment.branch);
   const protectedPreview = isDeploymentProtected(deployment, detail);
 
   let fallback = t("preview.notLive");

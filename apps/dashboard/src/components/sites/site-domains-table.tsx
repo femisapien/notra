@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Alert02Icon,
   ArrowDown01Icon,
   ArrowUpRight01Icon,
   Delete02Icon,
@@ -10,11 +9,6 @@ import {
   RefreshIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@notra/ui/components/ui/alert";
 import {
   DataTable,
   type TableColumn,
@@ -35,11 +29,7 @@ import { type ReactNode, useState } from "react";
 import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
-import {
-  SiteDnsRecordsTable,
-  SiteDnsSetup,
-} from "@/components/sites/site-domain-dns";
-import { SiteProxySetup } from "@/components/sites/site-domain-proxy";
+import { SiteDomainSetup } from "@/components/sites/site-domain-setup";
 import { SiteRelativeTime } from "@/components/sites/site-relative-time";
 import { SITE_DOMAIN_STATUS_DOTS } from "@/constants/sites";
 import { useSiteDomainCheck } from "@/lib/hooks/use-site-domain-check";
@@ -47,8 +37,6 @@ import { cn } from "@/lib/utils";
 import type {
   SiteDomainCheckButtonProps,
   SiteDomainRowMenuProps,
-  SiteDomainSetupProps,
-  SiteDomainSetupStepProps,
   SiteDomainStatusDotProps,
   SiteDomainsTableProps,
 } from "@/types/components/sites";
@@ -159,106 +147,6 @@ function RowMenu({ hostname, url, canOpen, onRemove }: SiteDomainRowMenuProps) {
   );
 }
 
-/** How to connect a domain, under its row: DNS records or proxy rewrites, then a check. */
-function DomainSetup({
-  organizationId,
-  siteId,
-  domain,
-  aliasOrigin,
-  mounts,
-}: SiteDomainSetupProps) {
-  const t = useTranslations("sites.domainsPage");
-  const check = useSiteDomainCheck({
-    organizationId,
-    siteId,
-    domainId: domain.id,
-  });
-  const isActive = domain.status === "active";
-
-  let setup = (
-    <SiteDnsSetup
-      domain={domain}
-      organizationId={organizationId}
-      siteId={siteId}
-    />
-  );
-  if (domain.kind === "proxy") {
-    setup = <SiteProxySetup aliasOrigin={aliasOrigin} mounts={mounts} />;
-  } else if (isActive) {
-    setup = <SiteDnsRecordsTable records={domain.records} />;
-  }
-
-  return (
-    <div className="space-y-5 px-4 py-5 sm:ps-6 sm:pe-5">
-      {!isActive && domain.lastError ? (
-        <Alert variant={domain.lastCheckedAt ? "destructive" : "warning"}>
-          <HugeiconsIcon icon={Alert02Icon} strokeWidth={1.5} />
-          <AlertTitle>
-            {domain.lastCheckedAt ? t("lastErrorTitle") : t("setupErrorTitle")}
-          </AlertTitle>
-          <AlertDescription className="break-words">
-            {domain.lastError}
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {isActive ? (
-        setup
-      ) : (
-        <ol>
-          <DomainSetupStep number={1}>{setup}</DomainSetupStep>
-          <DomainSetupStep isLast number={2}>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0 space-y-0.5">
-                <p className="text-sm font-medium">{t("checkTitle")}</p>
-                <p className="text-muted-foreground text-sm text-pretty">
-                  {domain.kind === "proxy"
-                    ? t("verifyProxyHint")
-                    : t("verifyDnsHint")}
-                </p>
-              </div>
-              <Button
-                className="w-full shrink-0 sm:w-auto"
-                loading={check.isPending}
-                onClick={() => check.mutate()}
-                size="sm"
-                variant="outline"
-              >
-                <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.5} />
-                {t("verifyNow")}
-              </Button>
-            </div>
-          </DomainSetupStep>
-        </ol>
-      )}
-    </div>
-  );
-}
-
-/** One numbered setup step, joined to the next by a thin line. */
-function DomainSetupStep({
-  number,
-  isLast = false,
-  children,
-}: SiteDomainSetupStepProps) {
-  return (
-    <li className={cn("relative flex gap-3", !isLast && "pb-6")}>
-      {isLast ? null : (
-        <span
-          aria-hidden="true"
-          className="bg-border absolute top-7 bottom-1 left-3 w-px -translate-x-1/2"
-        />
-      )}
-      <span
-        aria-hidden="true"
-        className="text-muted-foreground flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium tabular-nums"
-      >
-        {number}
-      </span>
-      <div className="min-w-0 flex-1 pt-0.5">{children}</div>
-    </li>
-  );
-}
-
 /**
  * The Notra address and every custom domain in one house table. A domain
  * that still needs setup opens its DNS records or rewrites under its row;
@@ -288,6 +176,11 @@ export function SiteDomainsTable({
       domain,
     })),
   ];
+
+  const rowHostname = (row: SiteDomainRow) =>
+    row.kind === "alias" ? displayUrl(aliasOrigin) : row.domain.hostname;
+  const rowStatus = (row: SiteDomainRow) =>
+    row.kind === "alias" ? "active" : siteDomainChipStatus(row.domain);
 
   const isExpanded = (row: SiteDomainRow) => {
     if (row.kind === "alias") {
@@ -320,7 +213,7 @@ export function SiteDomainsTable({
       minWidth: "9rem",
       cell: (row) => {
         const isAlias = row.kind === "alias";
-        const name = isAlias ? displayUrl(aliasOrigin) : row.domain.hostname;
+        const name = rowHostname(row);
         let detail = t("notraAddress");
         if (!isAlias) {
           detail =
@@ -339,9 +232,7 @@ export function SiteDomainsTable({
             </span>
             {/* Narrow screens drop the status column; keep the status here. */}
             <span className="@min-[30rem]/main:hidden">
-              <StatusDot
-                status={isAlias ? "active" : siteDomainChipStatus(row.domain)}
-              />
+              <StatusDot status={rowStatus(row)} />
             </span>
           </span>
         );
@@ -354,11 +245,7 @@ export function SiteDomainsTable({
       collapsePriority: 2,
       cell: (row) => (
         <span className="flex h-10 items-center">
-          <StatusDot
-            status={
-              row.kind === "alias" ? "active" : siteDomainChipStatus(row.domain)
-            }
-          />
+          <StatusDot status={rowStatus(row)} />
         </span>
       ),
     },
@@ -398,8 +285,6 @@ export function SiteDomainsTable({
           row.kind === "alias"
             ? aliasOrigin
             : siteDomainUrl(row.domain, mounts);
-        const hostname =
-          row.kind === "alias" ? displayUrl(aliasOrigin) : row.domain.hostname;
         return (
           // Menu events bubble through the portal to the row; keep them here.
           <span
@@ -413,7 +298,7 @@ export function SiteDomainsTable({
             ) : null}
             <RowMenu
               canOpen={row.kind === "alias" || row.domain.status === "active"}
-              hostname={hostname}
+              hostname={rowHostname(row)}
               onRemove={
                 row.kind === "domain" ? () => onRemove(row.domain) : undefined
               }
@@ -450,7 +335,7 @@ export function SiteDomainsTable({
       onRowClick={toggle}
       renderRowDetail={(row) =>
         row.kind === "domain" && isExpanded(row) ? (
-          <DomainSetup
+          <SiteDomainSetup
             aliasOrigin={aliasOrigin}
             domain={row.domain}
             mounts={mounts}

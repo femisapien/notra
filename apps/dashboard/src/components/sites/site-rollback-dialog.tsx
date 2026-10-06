@@ -1,10 +1,10 @@
 "use client";
 
+import { ConfirmDialog } from "@notra/ui/components/shared/confirm-dialog";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslations } from "use-intl";
 
-import { SiteConfirmDialog } from "@/components/sites/site-confirm-dialog";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SiteRollbackDialogProps } from "@/types/components/sites";
@@ -39,7 +39,7 @@ export function SiteRollbackDialog({
   const title = deployment ? commitTitle(deployment.commitMessage) : null;
 
   return (
-    <SiteConfirmDialog
+    <ConfirmDialog
       confirmLabel={t("confirm")}
       description={t("description")}
       onConfirm={() => {
@@ -62,6 +62,6 @@ export function SiteRollbackDialog({
           </p>
         </div>
       ) : null}
-    </SiteConfirmDialog>
+    </ConfirmDialog>
   );
 }

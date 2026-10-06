@@ -3,7 +3,7 @@ import type { ComponentType, SVGProps } from "react";
 
 export type { SiteIntegrationName };
 
-export interface SiteIntegrationField {
+interface SiteIntegrationField {
   /** The key in notra.json under `integrations.<provider>`. */
   key: string;
   placeholder?: string;

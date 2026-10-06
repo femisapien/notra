@@ -156,7 +156,7 @@ function normalizeHeadingText(value: string): string {
 }
 
 /** Sites renders the title itself, so a leading `# Title` would show it twice. */
-export function stripLeadingTitleHeading(body: string, title: string): string {
+function stripLeadingTitleHeading(body: string, title: string): string {
   const withoutBlankLines = body.replace(LEADING_BLANK_LINES, "");
   const heading = LEADING_ATX_HEADING.exec(withoutBlankLines);
   if (
@@ -227,7 +227,7 @@ function findFirstImageUrl(node: SiteMarkdownNode): string | null {
 }
 
 /** The first inline image when Sites can load it (a site path or an https URL). */
-export function findSiteEntryImage(markdown: string): string | null {
+function findSiteEntryImage(markdown: string): string | null {
   const url = findFirstImageUrl(fromMarkdown(markdown) as SiteMarkdownNode);
   return url && SITE_IMAGE_URL.test(url) ? url : null;
 }
