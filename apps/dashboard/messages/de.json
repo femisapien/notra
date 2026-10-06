@@ -5724,7 +5724,8 @@
         "draft": "Entwurf"
       },
       "openTab": "Weiteren Beitrag öffnen",
-      "closeTab": "{title} schließen"
+      "closeTab": "{title} schließen",
+      "passageChanged": "Diese Stelle wurde seit der Annotation geändert."
     },
     "todos": {
       "label": "Plan",
@@ -5739,7 +5740,10 @@
       "save": "Speichern",
       "cancel": "Abbrechen",
       "addNote": "Notiz hinzufügen",
-      "editNote": "Notiz zu Annotation {index} bearbeiten"
+      "editNote": "Notiz zu Annotation {index} bearbeiten",
+      "show": "Annotation {index} im Beitrag zeigen",
+      "count": "{count, plural, one {# Annotation} other {# Annotationen}}",
+      "limit": "Höchstens {max} Annotationen pro Nachricht. Sende oder entferne zuerst welche."
     }
   },
   "content": {

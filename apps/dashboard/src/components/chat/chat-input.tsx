@@ -113,7 +113,9 @@ import type { GitHubRepository } from "@/types/integrations";
 import type { SkillSlashOption } from "@/types/skills/slash";
 import {
   buildComposerPrefix,
+  parseChatAnnotations,
   prependComposerPrefix,
+  toChatDisplayLabel,
 } from "@/utils/chat-annotations";
 import { hasIncludedChatPlan } from "@/utils/chat-billing";
 import { contextItemKey, contextItemsEqual } from "@/utils/chat-input";
@@ -617,6 +619,7 @@ function ChatMentionMenu({
 function ChatComposerNudge({
   attachments,
   authorsById,
+  formatQueuedLabel,
   context,
   isQueued,
   onEditQueued,
@@ -637,6 +640,7 @@ function ChatComposerNudge({
 }: {
   attachments: ChatAttachment[];
   authorsById?: Map<string, ChatMessageAuthor>;
+  formatQueuedLabel?: (text: string) => string;
   context: ContextItem[];
   isQueued: boolean;
   onEditQueued?: (message: QueuedMessage) => void;
@@ -692,6 +696,7 @@ function ChatComposerNudge({
         <>
           <ChatQueue
             authorsById={authorsById}
+            formatLabel={formatQueuedLabel}
             messages={queuedMessages}
             onEdit={onEditQueued}
             onRemove={onRemoveQueued}
@@ -1114,6 +1119,8 @@ interface QueuedSendSnapshot {
   value: string;
   attachments: ChatAttachment[];
   pendingUploadIds: string[];
+  /** Annotations already in `value`; ones added while waiting stay. */
+  annotationIds: string[];
 }
 
 function handleComposerEditorKeyDown(
@@ -1197,6 +1204,7 @@ function handleComposerEditorKeyDown(
 }
 
 function sendOrQueueComposer({
+  annotationIds,
   quote,
   chatIncludedInPlan,
   check,
@@ -1217,6 +1225,7 @@ function sendOrQueueComposer({
   taggedSkillNames,
   limitMessage,
 }: {
+  annotationIds: string[];
   quote?: string | null;
   attachments: ChatAttachment[];
   chatIncludedInPlan: boolean;
@@ -1293,6 +1302,7 @@ function sendOrQueueComposer({
       value: prependComposerPrefix(outbound, quote),
       attachments: [...attachments],
       pendingUploadIds: pendingUploads.map((pending) => pending.id),
+      annotationIds,
     });
     return;
   }
@@ -1331,9 +1341,29 @@ export function ChatInputAdvanced({
 }: ChatInputAdvancedProps) {
   const t = useTranslations("chat.input");
   const tCommon2 = useTranslations("common");
+  const tAnnotations = useTranslations("chat.annotations");
   const tChatShared = useTranslations("chat.shared");
   const limitMessage = t("send.noCredits");
   const quoteContext = useChatQuote();
+  const quoteContextRef = useRef(quoteContext);
+  const postTitlesById = useMemo(
+    () => new Map(postMentions.map((post) => [post.postId, post.title])),
+    [postMentions]
+  );
+  const postTitlesByIdRef = useRef(postTitlesById);
+  const untitledLabelRef = useRef(tCommon2("labels.untitled"));
+  useEffect(() => {
+    quoteContextRef.current = quoteContext;
+    postTitlesByIdRef.current = postTitlesById;
+    untitledLabelRef.current = tCommon2("labels.untitled");
+  }, [postTitlesById, quoteContext, tCommon2]);
+  const formatQueuedLabel = useCallback(
+    (text: string) =>
+      toChatDisplayLabel(text, postTitlesById, (count) =>
+        tAnnotations("count", { count })
+      ),
+    [postTitlesById, tAnnotations]
+  );
   // The quote and any post annotations go out ahead of the typed text.
   const composerPrefix = buildComposerPrefix(
     quoteContext?.quote,
@@ -1945,8 +1975,25 @@ export function ChatInputAdvanced({
         if (!editor) {
           return;
         }
-        editor.textContent = text;
-        setIsEmpty(text.trim().length === 0);
+        // A queued message comes back serialized: lift its annotations back
+        // into the tray and its post tags back into chips.
+        const parsed = parseChatAnnotations(text);
+        if (parsed && quoteContextRef.current) {
+          quoteContextRef.current.setAnnotations(
+            parsed.annotations.map((annotation) => ({
+              ...annotation,
+              id: crypto.randomUUID(),
+            }))
+          );
+        }
+        const body = parsed ? parsed.rest : text;
+        setEditorTextWithPostReferences(
+          editor,
+          body,
+          postTitlesByIdRef.current,
+          untitledLabelRef.current
+        );
+        setIsEmpty(body.trim().length === 0);
         editor.focus();
         const range = document.createRange();
         range.selectNodeContents(editor);
@@ -2405,34 +2452,48 @@ export function ChatInputAdvanced({
     [onAddContext, persistDraft]
   );
 
-  const clearComposer = useCallback(() => {
-    const editor = editorRef.current;
-    if (editor) {
-      editor.innerHTML = "";
-    }
-    if (draftStorageKey) {
-      try {
-        window.localStorage.removeItem(draftStorageKey);
-        window.localStorage.removeItem(skillDraftStorageKey(draftStorageKey));
-      } catch {
-        // noop
+  const clearComposer = useCallback(
+    (sentAnnotationIds?: readonly string[]) => {
+      const editor = editorRef.current;
+      if (editor) {
+        editor.innerHTML = "";
       }
-    }
-    setIsEmpty(true);
-    setAttachments([]);
-    attachmentsRef.current = [];
-    setPendingSend(null);
-    completedUploadsRef.current.clear();
-    for (const item of contextRef.current) {
-      onRemoveContext?.(item);
-    }
-    clearTaggedSkills();
-    quoteContext?.setQuote(null);
-    quoteContext?.setAnnotations([]);
-  }, [clearTaggedSkills, draftStorageKey, onRemoveContext, quoteContext]);
+      if (draftStorageKey) {
+        try {
+          window.localStorage.removeItem(draftStorageKey);
+          window.localStorage.removeItem(skillDraftStorageKey(draftStorageKey));
+        } catch {
+          // noop
+        }
+      }
+      setIsEmpty(true);
+      setAttachments([]);
+      attachmentsRef.current = [];
+      setPendingSend(null);
+      completedUploadsRef.current.clear();
+      for (const item of contextRef.current) {
+        onRemoveContext?.(item);
+      }
+      clearTaggedSkills();
+      quoteContext?.setQuote(null);
+      if (sentAnnotationIds) {
+        const sent = new Set(sentAnnotationIds);
+        quoteContext?.setAnnotations((current) =>
+          current.filter((annotation) => !sent.has(annotation.id))
+        );
+      } else {
+        quoteContext?.setAnnotations([]);
+      }
+    },
+    [clearTaggedSkills, draftStorageKey, onRemoveContext, quoteContext]
+  );
 
   const sendSnapshot = useCallback(
-    (value: string, snapshotAttachments: ChatAttachment[]) => {
+    (
+      value: string,
+      snapshotAttachments: ChatAttachment[],
+      sentAnnotationIds?: readonly string[]
+    ) => {
       if (isLoading) {
         return false;
       }
@@ -2466,7 +2527,7 @@ export function ChatInputAdvanced({
         submittedKeysRef.current.add(attachment.key);
       }
       onSend?.(value, snapshotAttachments);
-      clearComposer();
+      clearComposer(sentAnnotationIds);
       return true;
     },
     [
@@ -2508,6 +2569,9 @@ export function ChatInputAdvanced({
       return;
     }
     sendOrQueueComposer({
+      annotationIds: (quoteContext?.annotations ?? EMPTY_ANNOTATIONS).map(
+        (annotation) => annotation.id
+      ),
       quote: composerPrefix,
       attachments: attachmentsRef.current,
       chatIncludedInPlan,
@@ -2565,10 +2629,11 @@ export function ChatInputAdvanced({
       return;
     }
 
-    sendSnapshot(pendingSend.value, [
-      ...pendingSend.attachments,
-      ...resolvedAttachments,
-    ]);
+    sendSnapshot(
+      pendingSend.value,
+      [...pendingSend.attachments, ...resolvedAttachments],
+      pendingSend.annotationIds
+    );
   }, [isUploading, pendingSend, sendSnapshot, t]);
 
   const handlePaste = useCallback(
@@ -2797,6 +2862,7 @@ export function ChatInputAdvanced({
               <ChatComposerNudge
                 attachments={attachments}
                 authorsById={authorsById}
+                formatQueuedLabel={formatQueuedLabel}
                 context={context}
                 isQueued={isQueued}
                 onEditQueued={onEditQueued}

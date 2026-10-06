@@ -52,12 +52,14 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 import { useTranslations } from "use-intl";
 
 import { useChatQuote } from "@/components/chat/chat-quote";
 import { RightPanel } from "@/components/dashboard/right-panel";
 import { useRightPanel } from "@/components/dashboard/right-panel-context";
 import Link from "@/components/framework/link";
+import { useAnnotationFlash } from "@/lib/hooks/use-annotation-flash";
 import { useAnnotationHighlights } from "@/lib/hooks/use-annotation-highlights";
 import { useContent } from "@/lib/hooks/use-content";
 import { useDesktopBreakpoint } from "@/lib/hooks/use-desktop-breakpoint";
@@ -87,6 +89,7 @@ function isSocialPost(post: ChatPostEntry) {
 }
 
 function ChatContentPanelDocument({
+  focus,
   onAskForChanges,
   organizationId,
   organizationSlug,
@@ -107,6 +110,14 @@ function ChatContentPanelDocument({
     (annotation) => (annotation.postId === postId ? [annotation.text] : [])
   );
   useAnnotationHighlights(articleRef, annotatedPassages, markdown);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const flashRects = useAnnotationFlash(
+    articleRef,
+    scrollRef,
+    focus ?? null,
+    () => toast(t("passageChanged")),
+    () => quoteContext?.clearAnnotationFocus()
+  );
 
   let status = t("status.unsaved");
   if (post.state === "writing") {
@@ -123,17 +134,31 @@ function ChatContentPanelDocument({
       <div
         aria-label={tPreview("contentRegion", { type: title })}
         className="bg-background mx-2 min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border px-6 py-6 focus-visible:outline-none"
+        ref={scrollRef}
         role="region"
         // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The scrollable preview must be reachable for keyboard scrolling.
         tabIndex={0}
       >
         <article
-          className="mx-auto w-full max-w-[42rem]"
+          className="relative mx-auto w-full max-w-[42rem]"
           ref={articleRef}
           data-chat-quote-post-id={postId ?? undefined}
           data-chat-quote-post-title={postId ? title : undefined}
           data-chat-quote-source={postId ? quoteContext?.scopeId : undefined}
         >
+          {flashRects.map((rect) => (
+            <span
+              aria-hidden="true"
+              className="bg-warning/30 pointer-events-none absolute rounded-sm motion-safe:animate-[annotation-flash_1.6s_ease-out_forwards]"
+              key={rect.key}
+              style={{
+                top: rect.top,
+                left: rect.left,
+                width: rect.width,
+                height: rect.height,
+              }}
+            />
+          ))}
           <h1 className="text-foreground mb-4 text-xl leading-snug font-semibold text-balance">
             {title}
           </h1>
@@ -303,6 +328,7 @@ function ChatContentPanelTab({
 
 export function ChatContentPanel({
   activeToolCallId,
+  focus,
   onActivateTab,
   onAskForChanges,
   onCloseTab,
@@ -514,6 +540,9 @@ export function ChatContentPanel({
       </header>
       {activePost ? (
         <ChatContentPanelDocument
+          focus={
+            focus && focus.postId === activePost.postId ? focus : undefined
+          }
           key={activePost.toolCallId}
           onAskForChanges={onAskForChanges}
           organizationId={organizationId}

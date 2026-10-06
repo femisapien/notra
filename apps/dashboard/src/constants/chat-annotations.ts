@@ -13,3 +13,5 @@ export const CHAT_ANNOTATION_DRAFT_HIGHLIGHT_NAME = "chat-annotation-draft";
 export const CHAT_ANNOTATION_PASSAGE_REGEX = /<passage>([\s\S]*?)<\/passage>/;
 
 export const CHAT_ANNOTATION_NOTE_REGEX = /<note>([\s\S]*?)<\/note>/;
+
+export const CHAT_ANNOTATION_FLASH_MS = 1600;

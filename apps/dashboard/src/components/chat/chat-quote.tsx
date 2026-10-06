@@ -29,6 +29,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import { useTranslations } from "use-intl";
 
 import { ChatAnnotationNoteForm } from "@/components/chat/chat-annotation-note-form";
@@ -36,7 +37,10 @@ import {
   CHAT_ANNOTATION_DRAFT_HIGHLIGHT_NAME,
   CHAT_ANNOTATIONS_MAX,
 } from "@/constants/chat-annotations";
-import type { ChatAnnotation } from "@/types/chat-annotations";
+import type {
+  ChatAnnotation,
+  ChatAnnotationFocus,
+} from "@/types/chat-annotations";
 import type {
   ChatQuoteContextValue,
   ChatQuoteSelection,
@@ -51,14 +55,27 @@ export function useChatQuote() {
   return useContext(ChatQuoteContext);
 }
 
+// The live range follows scrolling; once a re-render detaches its text (the
+// agent saved an edit), the last measured position keeps the popover put.
+function getDraftRect(draft: ChatQuoteSelection) {
+  const { range } = draft;
+  if (range.startContainer.isConnected && !range.collapsed) {
+    return range.getBoundingClientRect();
+  }
+  return draft.rect;
+}
+
 export function ChatQuoteProvider({
   children,
   conversationId,
 }: ChatQuoteProviderProps) {
   const t = useTranslations("chat.quote");
+  const tAnnotations = useTranslations("chat.annotations");
   const scopeId = useId();
   const [quote, setQuote] = useState<string | null>(null);
   const [annotations, setAnnotations] = useState<ChatAnnotation[]>([]);
+  const [annotationFocus, setAnnotationFocus] =
+    useState<ChatAnnotationFocus | null>(null);
   const [selection, setSelection] = useState<ChatQuoteSelection | null>(null);
   // An annotation being written: the popover holds a note form for it.
   const [draft, setDraft] = useState<ChatQuoteSelection | null>(null);
@@ -77,8 +94,18 @@ export function ChatQuoteProvider({
   }
   const buttonRef = useRef<HTMLButtonElement>(null);
   const context = useMemo(
-    () => ({ scopeId, quote, setQuote, annotations, setAnnotations }),
-    [scopeId, quote, annotations]
+    () => ({
+      scopeId,
+      quote,
+      setQuote,
+      annotations,
+      setAnnotations,
+      annotationFocus,
+      focusAnnotation: (target: Omit<ChatAnnotationFocus, "nonce">) =>
+        setAnnotationFocus({ ...target, nonce: Date.now() }),
+      clearAnnotationFocus: () => setAnnotationFocus(null),
+    }),
+    [scopeId, quote, annotations, annotationFocus]
   );
 
   useEffect(() => {
@@ -183,6 +210,16 @@ export function ChatQuoteProvider({
       return;
     }
     if (selection.post) {
+      const { postId } = selection.post;
+      const isKnownPassage = annotations.some(
+        (annotation) =>
+          annotation.postId === postId && annotation.text === selection.text
+      );
+      if (annotations.length >= CHAT_ANNOTATIONS_MAX && !isKnownPassage) {
+        toast(tAnnotations("limit", { max: CHAT_ANNOTATIONS_MAX }));
+        setSelection(null);
+        return;
+      }
       // Text selected in a previewed post opens a note form for it.
       setDraft(selection);
       setSelection(null);
@@ -250,9 +287,7 @@ export function ChatQuoteProvider({
               anchorSelection
                 ? {
                     getBoundingClientRect: () =>
-                      draft
-                        ? draft.range.getBoundingClientRect()
-                        : anchorSelection.rect,
+                      draft ? getDraftRect(draft) : anchorSelection.rect,
                   }
                 : null
             }

@@ -56,9 +56,19 @@ export function ChatAnnotationsPreview({
                   key={annotation.id}
                   transition={transition}
                 >
-                  <span className="bg-muted text-muted-foreground mt-0.5 flex size-4 shrink-0 items-center justify-center rounded text-[10px] font-medium tabular-nums">
+                  <button
+                    aria-label={t("show", { index: index + 1 })}
+                    className="bg-muted text-muted-foreground hover:bg-foreground/10 hover:text-foreground focus-visible:ring-ring mt-0.5 flex size-4 shrink-0 cursor-pointer items-center justify-center rounded text-[10px] font-medium tabular-nums outline-none focus-visible:ring-2"
+                    onClick={() =>
+                      context?.focusAnnotation({
+                        postId: annotation.postId,
+                        text: annotation.text,
+                      })
+                    }
+                    type="button"
+                  >
                     {index + 1}
-                  </span>
+                  </button>
                   {editingId === annotation.id ? (
                     <ChatAnnotationNoteForm
                       className="w-full p-0"

@@ -5724,7 +5724,8 @@
         "draft": "Draft"
       },
       "openTab": "Open another post",
-      "closeTab": "Close {title}"
+      "closeTab": "Close {title}",
+      "passageChanged": "This passage has changed since it was annotated."
     },
     "todos": {
       "label": "Plan",
@@ -5739,7 +5740,10 @@
       "save": "Save",
       "cancel": "Cancel",
       "addNote": "Add a note",
-      "editNote": "Edit note for annotation {index}"
+      "editNote": "Edit note for annotation {index}",
+      "show": "Show annotation {index} in the post",
+      "count": "{count, plural, one {# annotation} other {# annotations}}",
+      "limit": "Up to {max} annotations per message. Send or remove some first."
     }
   },
   "content": {

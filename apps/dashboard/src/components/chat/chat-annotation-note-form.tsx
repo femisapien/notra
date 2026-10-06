@@ -3,7 +3,7 @@
 import { Button } from "@notra/ui/components/ui/button";
 import { Textarea } from "@notra/ui/components/ui/textarea";
 import { cn } from "@notra/ui/lib/utils";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "use-intl";
 
 import type { ChatAnnotationNoteFormProps } from "@/types/components/chat-annotation-note-form";
@@ -19,6 +19,18 @@ export function ChatAnnotationNoteForm({
 }: ChatAnnotationNoteFormProps) {
   const t = useTranslations("chat.annotations");
   const [note, setNote] = useState(initialNote);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Focus once when the form opens, after any existing note, so later
+  // re-renders never pull focus back from the composer.
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }, []);
 
   return (
     <form
@@ -30,16 +42,7 @@ export function ChatAnnotationNoteForm({
     >
       <Textarea
         aria-label={t("noteLabel")}
-        // Focus lands after an existing note, ready to continue it.
-        ref={(element) => {
-          if (element && document.activeElement !== element) {
-            element.focus();
-            element.setSelectionRange(
-              element.value.length,
-              element.value.length
-            );
-          }
-        }}
+        ref={textareaRef}
         className="max-h-32 min-h-14 resize-none"
         maxLength={500}
         onChange={(event) => setNote(event.target.value)}

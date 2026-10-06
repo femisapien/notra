@@ -1,8 +1,11 @@
 import type { DraggableSyntheticListeners } from "@dnd-kit/core";
 
+import type { ChatAnnotationFocus } from "@/types/chat-annotations";
 import type { ChatPostEntry } from "@/types/chat-posts";
 
 export interface ChatContentPanelProps {
+  /** An annotated passage to scroll to and flash in the active post. */
+  focus?: ChatAnnotationFocus | null;
   /** Tool call ids of the open tabs, in tab order. */
   openToolCallIds: string[];
   activeToolCallId: string | null;
@@ -32,6 +35,7 @@ export interface ChatContentPanelTabSurfaceProps extends ChatContentPanelTabProp
 }
 
 export interface ChatContentPanelDocumentProps {
+  focus?: ChatAnnotationFocus;
   onAskForChanges: ChatContentPanelProps["onAskForChanges"];
   organizationId: string;
   organizationSlug: string;

@@ -10,11 +10,12 @@ export const UPDATE_TODOS_MAX_CALLS = 6;
 /**
  * A plan the model keeps for long, multi-deliverable requests. It stores
  * nothing: the list lives in the tool call, and the chat renders the latest
- * accepted one as a checklist. Built per reply, so the call cap resets with
- * every turn.
+ * accepted one as a checklist. Built per request; the caller passes the
+ * calls the reply already made so the cap holds across approvals.
  */
-export function createUpdateTodosTool(): Tool {
-  let calls = 0;
+export function createUpdateTodosTool(previousCalls = 0): Tool {
+  // Approvals resume a reply in a new request, so earlier calls count too.
+  let calls = previousCalls;
 
   return tool({
     description: toolDescription({

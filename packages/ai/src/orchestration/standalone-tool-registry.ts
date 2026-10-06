@@ -129,7 +129,9 @@ export function buildStandaloneToolSet(
     organizationId,
     contentType: "blog_post",
   });
-  tools[UPDATE_TODOS_TOOL_NAME] = createUpdateTodosTool();
+  tools[UPDATE_TODOS_TOOL_NAME] = createUpdateTodosTool(
+    params.previousTodoCalls ?? 0
+  );
 
   tools.viewPost = createViewPostTool({
     organizationId,

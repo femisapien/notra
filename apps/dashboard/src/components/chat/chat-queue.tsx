@@ -27,6 +27,8 @@ interface ChatQueueProps {
   onRemove?: (id: string) => void;
   onSteer?: (message: QueuedMessage) => void;
   authorsById?: Map<string, ChatMessageAuthor>;
+  /** Turns the serialized message into a readable chip label. */
+  formatLabel?: (text: string) => string;
   showAuthorAvatars?: boolean;
 }
 
@@ -36,6 +38,7 @@ export function ChatQueue({
   onRemove,
   onSteer,
   authorsById,
+  formatLabel,
   showAuthorAvatars = false,
 }: ChatQueueProps) {
   const t = useTranslations("chat.queue");
@@ -67,7 +70,7 @@ export function ChatQueue({
             ) : undefined
           }
           key={message.id}
-          label={message.text}
+          label={formatLabel ? formatLabel(message.text) : message.text}
           labelClassName={COMPOSER_QUEUED_CHIP_LABEL}
           onEdit={onEdit ? () => onEdit(message) : undefined}
           onRemove={onRemove ? () => onRemove(message.id) : undefined}

@@ -25,6 +25,7 @@ const UNESCAPES: Record<string, string> = {
   quot: '"',
 };
 const LINE_BREAK_REGEX = /\r?\n/;
+const POST_TOKEN_REGEX = /@post\/([A-Za-z0-9_-]+)/g;
 
 function escapeText(value: string) {
   return value.replace(ESCAPE_REGEX, (char) => ESCAPES[char] ?? char);
@@ -101,4 +102,48 @@ export function parseChatAnnotations(
     }
   );
   return { annotations, rest: text.slice(block[0].length) };
+}
+
+/**
+ * Re-applies what an edited message lost in the plain-text editor: the
+ * annotations block and `@post/<id>` tokens shown as `@Title`.
+ */
+export function restoreChatReferences(
+  originalText: string,
+  editedText: string,
+  postTitlesById: ReadonlyMap<string, string>
+): string {
+  let text = editedText;
+  for (const [, postId = ""] of originalText.matchAll(POST_TOKEN_REGEX)) {
+    const title = postTitlesById.get(postId);
+    if (title) {
+      text = text.replace(`@${title}`, getPostReferenceValue(postId));
+    }
+  }
+  const block = originalText.match(CHAT_ANNOTATIONS_BLOCK_REGEX)?.[0];
+  return block ? `${block.trimEnd()}\n\n${text}` : text;
+}
+
+/**
+ * Readable one-line text for a serialized message: the annotations block
+ * becomes a count and `@post/<id>` tokens become `@Title`.
+ */
+export function toChatDisplayLabel(
+  text: string,
+  postTitlesById: ReadonlyMap<string, string>,
+  annotationsLabel: (count: number) => string
+): string {
+  const parsed = parseChatAnnotations(text);
+  const body = (parsed ? parsed.rest : text).replace(
+    POST_TOKEN_REGEX,
+    (token, postId: string) => {
+      const title = postTitlesById.get(postId);
+      return title ? `@${title}` : token;
+    }
+  );
+  if (!parsed) {
+    return body;
+  }
+  const count = annotationsLabel(parsed.annotations.length);
+  return body.trim() ? `${count} · ${body.trim()}` : count;
 }

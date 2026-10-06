@@ -86,6 +86,7 @@ import type { QueuedMessage } from "@/components/chat/chat-queue";
 import {
   ChatQuoteProvider,
   ChatQuoteMessage as Message,
+  useChatQuote,
 } from "@/components/chat/chat-quote";
 import { ChatScrollOnSend } from "@/components/chat/chat-scroll-on-send";
 import { ChatSuggestions } from "@/components/chat/chat-suggestions";
@@ -133,6 +134,7 @@ import { useDelayedAppearance } from "@/lib/hooks/use-delayed-appearance";
 import { useElapsedSeconds } from "@/lib/hooks/use-elapsed-seconds";
 import { useHasZdrEntitlement } from "@/lib/hooks/use-plan";
 import { useSlackMirrorStream } from "@/lib/hooks/use-slack-mirror-stream";
+import { useStableValue } from "@/lib/hooks/use-stable-value";
 import { getMcpIconUrls } from "@/lib/integrations/mcp";
 import { usePathname, useRouter } from "@/lib/navigation";
 import { dashboardOrpcClient } from "@/lib/orpc/client";
@@ -150,7 +152,10 @@ import type {
 } from "@/types/components/chat-page";
 import type { PublishedSocialPost } from "@/types/content/post-social";
 import { getChatActivity, hasVisibleChatContent } from "@/utils/chat-activity";
-import { parseChatAnnotations } from "@/utils/chat-annotations";
+import {
+  parseChatAnnotations,
+  restoreChatReferences,
+} from "@/utils/chat-annotations";
 import {
   hasPendingApproval,
   isTerminalToolState,
@@ -757,20 +762,26 @@ function StandaloneChatPageClient({
   });
 
   const chatPosts = useMemo(() => getChatPosts(messages), [messages]);
-  const postMentions = useMemo(
-    () =>
-      chatPosts.flatMap((post) =>
-        post.postId
-          ? [
-              {
-                postId: post.postId,
-                title: post.title || tCommon("labels.untitled"),
-                contentType: post.contentType,
-              },
-            ]
-          : []
-      ),
-    [chatPosts, tCommon]
+  // Rebuilt per streamed chunk; only a new id, title or type is a real
+  // change, so the composer does not re-render on every token.
+  const mentionsDraft = chatPosts.flatMap((post) =>
+    post.postId
+      ? [
+          {
+            postId: post.postId,
+            title: post.title || tCommon("labels.untitled"),
+            contentType: post.contentType,
+          },
+        ]
+      : []
+  );
+  const postMentions = useStableValue(
+    mentionsDraft,
+    mentionsDraft
+      .map(
+        (post) => `${post.postId}\u0000${post.title}\u0000${post.contentType}`
+      )
+      .join("\n")
   );
   const postTitlesById = useMemo(
     () => new Map(postMentions.map((post) => [post.postId, post.title])),
@@ -779,10 +790,19 @@ function StandaloneChatPageClient({
   const { active: activeRightPanel, closePanel, openPanel } = useRightPanel();
   const isPreviewOpen = activeRightPanel === "preview";
   // Preview tabs: each post opens at most once, in the order it was opened.
-  const [previewTabIds, setPreviewTabIds] = useState<string[]>([]);
-  const [previewToolCallId, setPreviewToolCallId] = useState<string | null>(
-    null
-  );
+  const [storedPreviewTabIds, setPreviewTabIds] = useState<string[]>([]);
+  const [storedPreviewToolCallId, setPreviewToolCallId] = useState<
+    string | null
+  >(null);
+  // Retry, edit or a branch switch can drop posts; their tabs go with them.
+  const previewTabIds = useMemo(() => {
+    const postIds = new Set(chatPosts.map((post) => post.toolCallId));
+    return storedPreviewTabIds.filter((id) => postIds.has(id));
+  }, [chatPosts, storedPreviewTabIds]);
+  const previewToolCallId =
+    storedPreviewToolCallId && previewTabIds.includes(storedPreviewToolCallId)
+      ? storedPreviewToolCallId
+      : (previewTabIds.at(-1) ?? null);
   const openPostPreview = useCallback(
     (toolCallId: string) => {
       setPreviewTabIds((tabs) =>
@@ -828,15 +848,19 @@ function StandaloneChatPageClient({
     [tCommon]
   );
 
-  const openPostPreviewById = useCallback(
-    (postId: string) => {
-      const post = chatPosts.find((entry) => entry.postId === postId);
-      if (post) {
-        openPostPreview(post.toolCallId);
-      }
-    },
-    [chatPosts, openPostPreview]
-  );
+  // Clicking an annotation opens its post and jumps to the passage.
+  const annotationFocus = useChatQuote()?.annotationFocus ?? null;
+  const openFocusedPost = useEffectEvent((postId: string) => {
+    const post = chatPosts.find((entry) => entry.postId === postId);
+    if (post) {
+      openPostPreview(post.toolCallId);
+    }
+  });
+  useEffect(() => {
+    if (annotationFocus) {
+      openFocusedPost(annotationFocus.postId);
+    }
+  }, [annotationFocus]);
 
   // While the preview is open it follows the newest post the agent starts.
   const latestPostToolCallId = chatPosts.at(-1)?.toolCallId ?? null;
@@ -1546,12 +1570,23 @@ function StandaloneChatPageClient({
       trackEvent(POSTHOG_EVENTS.CHAT_MESSAGE_EDITED, { chat_id: stableChatId });
       const current = messagesRef.current;
       const message = current.find((m) => m.id === userMessageId);
-      const attachments = message
-        ? extractUserMessageContent(message).attachments
-        : [];
-      await resendFromUserMessage(userMessageId, newText, attachments);
+      const original = message
+        ? extractUserMessageContent(message)
+        : { text: "", attachments: [] };
+      // The editor shows display text only; keep the annotations and post
+      // tags the original message carried.
+      await resendFromUserMessage(
+        userMessageId,
+        restoreChatReferences(original.text, newText, postTitlesById),
+        original.attachments
+      );
     },
-    [extractUserMessageContent, resendFromUserMessage, stableChatId]
+    [
+      extractUserMessageContent,
+      postTitlesById,
+      resendFromUserMessage,
+      stableChatId,
+    ]
   );
 
   const handleRetryMessage = useCallback(
@@ -2250,13 +2285,18 @@ function StandaloneChatPageClient({
     if (todoParts[0] !== toolPart) {
       return null;
     }
-    // Updates over the per-reply cap come back with accepted: false.
-    const latest = todoParts.findLast((part) => {
+    // Updates over the per-reply cap come back with accepted: false. A
+    // later update counts once its input is complete, so a half-streamed list
+    // never replaces the full one; the first plan may stream in.
+    const latest = todoParts.findLast((part, partIndex) => {
       if (!isToolUIPart(part)) {
         return false;
       }
       const output = part.output as { accepted?: boolean } | undefined;
+      const isComplete =
+        part.state === "input-available" || part.state === "output-available";
       return (
+        (partIndex === 0 || isComplete) &&
         output?.accepted !== false &&
         chatTodoListSchema.safeParse(part.input).success
       );
@@ -2302,10 +2342,7 @@ function StandaloneChatPageClient({
       if (annotated) {
         return (
           <div className="size-full" key={`${messageId}-text-${index}`}>
-            <ChatMessageAnnotations
-              annotations={annotated.annotations}
-              onOpenPost={openPostPreviewById}
-            />
+            <ChatMessageAnnotations annotations={annotated.annotations} />
             {annotated.rest.trim()
               ? renderPart({ ...part, text: annotated.rest }, messageId, index)
               : null}
@@ -3217,6 +3254,7 @@ function StandaloneChatPageClient({
       {chatPosts.length > 0 ? (
         <ChatContentPanel
           activeToolCallId={previewToolCallId}
+          focus={annotationFocus}
           onActivateTab={setPreviewToolCallId}
           onAskForChanges={handleAskForPostChanges}
           onCloseTab={closePostPreviewTab}

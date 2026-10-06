@@ -1,6 +1,9 @@
 import type { Dispatch, SetStateAction, ReactNode } from "react";
 
-import type { ChatAnnotation } from "@/types/chat-annotations";
+import type {
+  ChatAnnotation,
+  ChatAnnotationFocus,
+} from "@/types/chat-annotations";
 
 export interface ChatQuoteProviderProps {
   children: ReactNode;
@@ -24,6 +27,10 @@ export interface ChatQuoteContextValue {
   /** Passages selected in previewed posts, sent with the next message. */
   annotations: ChatAnnotation[];
   setAnnotations: Dispatch<SetStateAction<ChatAnnotation[]>>;
+  /** The passage the preview should scroll to and flash. */
+  annotationFocus: ChatAnnotationFocus | null;
+  focusAnnotation: (target: Omit<ChatAnnotationFocus, "nonce">) => void;
+  clearAnnotationFocus: () => void;
 }
 
 export interface ChatQuoteSelection {
