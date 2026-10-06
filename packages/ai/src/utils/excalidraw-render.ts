@@ -22,7 +22,10 @@ import type {
   ExcalidrawTextElement,
   RenderedDiagram,
 } from "@notra/ai/types/excalidraw-diagram";
-import { buildExcalidrawScene } from "@notra/ai/utils/excalidraw-diagram";
+import {
+  buildExcalidrawScene,
+  rotatedBox,
+} from "@notra/ai/utils/excalidraw-diagram";
 import { loadGoogleFont } from "@notra/ai/utils/repo-image-render";
 import { Resvg } from "@resvg/resvg-js";
 // biome-ignore lint/performance/noNamespaceImport: opentype.js is UMD; see parseFont
@@ -382,8 +385,9 @@ function sceneBounds(elements: ExcalidrawElement[]) {
         include(element.x + px, element.y + py);
       }
     } else {
-      include(element.x, element.y);
-      include(element.x + element.width, element.y + element.height);
+      const box = rotatedBox(element);
+      include(box.x, box.y);
+      include(box.x + box.width, box.y + box.height);
     }
   }
   return { minX, minY, width: maxX - minX, height: maxY - minY };

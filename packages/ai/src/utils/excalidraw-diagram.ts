@@ -222,6 +222,31 @@ function shapeCenter(shape: ExcalidrawShapeElement): Point {
   return [shape.x + shape.width / 2, shape.y + shape.height / 2];
 }
 
+/** Axis-aligned box around an element after its rotation (unchanged at angle 0). */
+export function rotatedBox(element: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  angle: number;
+}) {
+  if (element.angle === 0) {
+    return {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    };
+  }
+  const cos = Math.abs(Math.cos(element.angle));
+  const sin = Math.abs(Math.sin(element.angle));
+  const width = element.width * cos + element.height * sin;
+  const height = element.width * sin + element.height * cos;
+  const cx = element.x + element.width / 2;
+  const cy = element.y + element.height / 2;
+  return { x: cx - width / 2, y: cy - height / 2, width, height };
+}
+
 function rotatePoint([px, py]: Point, [cx, cy]: Point, angle: number): Point {
   if (angle === 0) {
     return [px, py];

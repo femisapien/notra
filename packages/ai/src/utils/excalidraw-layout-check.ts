@@ -13,6 +13,7 @@ import type {
   ExcalidrawShapeElement,
   ExcalidrawTextElement,
 } from "@notra/ai/types/excalidraw-diagram";
+import { rotatedBox } from "@notra/ai/utils/excalidraw-diagram";
 
 type Point = [number, number];
 interface Box {
@@ -23,6 +24,7 @@ interface Box {
 }
 
 const MIN_READABLE_SCALE = 0.9;
+const QUARTER_TURN_TOLERANCE = 0.001;
 const LABEL_CLEARANCE = 24;
 
 function isShape(
@@ -39,6 +41,10 @@ function isLinear(
   element: ExcalidrawElement
 ): element is ExcalidrawLinearElement {
   return element.type === "arrow" || element.type === "line";
+}
+
+function isQuarterTurn(angle: number) {
+  return Math.abs(Math.sin(angle * 2)) < QUARTER_TURN_TOLERANCE;
 }
 
 function shrink(box: Box, by: number): Box {
@@ -104,9 +110,20 @@ function describe(element: ExcalidrawElement, labels: Map<string, string>) {
  */
 export function findDiagramLayoutIssues(scene: ExcalidrawScene): string[] {
   const issues: string[] = [];
-  const shapes = scene.elements.filter(isShape);
-  const linears = scene.elements.filter(isLinear);
-  const texts = scene.elements.filter(
+  // A quarter-turned element is checked by its rotated box, which is exact.
+  // Other angles only come from hand edits; leave those elements out of the
+  // overlap and crossing checks rather than flag problems that aren't there.
+  const checked = scene.elements.flatMap((element) => {
+    if (isLinear(element) || element.angle === 0) {
+      return [element];
+    }
+    return isQuarterTurn(element.angle)
+      ? [{ ...element, ...rotatedBox(element) }]
+      : [];
+  });
+  const shapes = checked.filter(isShape);
+  const linears = checked.filter(isLinear);
+  const texts = checked.filter(
     (element): element is ExcalidrawTextElement => element.type === "text"
   );
   const labelElements = new Map(
@@ -233,12 +250,19 @@ export function findDiagramLayoutIssues(scene: ExcalidrawScene): string[] {
   let maxX = Number.NEGATIVE_INFINITY;
   let maxY = Number.NEGATIVE_INFINITY;
   for (const element of scene.elements) {
-    const points = isLinear(element)
-      ? element.points.map(([px, py]) => [element.x + px, element.y + py])
-      : [
-          [element.x, element.y],
-          [element.x + element.width, element.y + element.height],
-        ];
+    let points: number[][];
+    if (isLinear(element)) {
+      points = element.points.map(([px, py]) => [
+        element.x + px,
+        element.y + py,
+      ]);
+    } else {
+      const box = rotatedBox(element);
+      points = [
+        [box.x, box.y],
+        [box.x + box.width, box.y + box.height],
+      ];
+    }
     for (const [px = 0, py = 0] of points) {
       minX = Math.min(minX, px);
       minY = Math.min(minY, py);

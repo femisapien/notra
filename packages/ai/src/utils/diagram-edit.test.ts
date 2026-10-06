@@ -210,6 +210,69 @@ describe("findDiagramLayoutIssues", () => {
     expect(findDiagramLayoutIssues(sceneOf(flow))).toEqual([]);
   });
 
+  test("checks rotated shapes by their rotated outline", () => {
+    const quarter = Math.PI / 2;
+    // Two wide boxes turned upright: far apart on screen, overlapping unrotated.
+    const upright = findDiagramLayoutIssues(
+      sceneOf({
+        elements: [
+          { type: "rectangle", id: "a", x: 0, y: 200, width: 400, height: 80 },
+          {
+            type: "rectangle",
+            id: "b",
+            x: 200,
+            y: 200,
+            width: 400,
+            height: 80,
+            angle: quarter,
+          },
+          {
+            type: "rectangle",
+            id: "c",
+            x: 300,
+            y: 200,
+            width: 400,
+            height: 80,
+            angle: quarter,
+          },
+        ],
+      })
+    );
+    // A box tilted by hand is left alone; a tall turned box still counts for size.
+    const tilted = findDiagramLayoutIssues(
+      sceneOf({
+        elements: [
+          { type: "rectangle", id: "a", x: 0, y: 0, width: 200, height: 80 },
+          {
+            type: "rectangle",
+            id: "b",
+            x: 60,
+            y: 20,
+            width: 200,
+            height: 80,
+            angle: 0.3,
+          },
+          {
+            type: "rectangle",
+            id: "tall",
+            x: 400,
+            y: 0,
+            width: 900,
+            height: 80,
+            angle: quarter,
+          },
+        ],
+      })
+    );
+
+    // Only a and the upright b really touch; b and c only overlap unrotated.
+    expect(upright.filter((issue) => issue.includes("overlap"))).toEqual([
+      "Shapes a and b overlap.",
+    ]);
+    expect(tilted.some((issue) => issue.includes("overlap"))).toBe(false);
+    expect(tilted.some((issue) => issue.includes("larger than"))).toBe(true);
+  });
+
   test("flags arrows through unrelated shapes, overlaps, cramped labels, and oversize", () => {
     const issues = findDiagramLayoutIssues(
       sceneOf({
