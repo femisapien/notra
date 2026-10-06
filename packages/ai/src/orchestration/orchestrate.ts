@@ -45,6 +45,7 @@ export async function orchestrateChat(
     userId,
     imageDefaults,
     useMarkup,
+    chargeAiCredits,
     selection,
     context = [],
     maxSteps = 1,
@@ -116,6 +117,7 @@ export async function orchestrateChat(
       userId,
       imageDefaults,
       useMarkup,
+      chargeAiCredits,
       validatedIntegrations,
     },
     {

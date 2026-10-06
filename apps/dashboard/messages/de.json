@@ -6009,7 +6009,9 @@
       "save": "Diagramm speichern",
       "saved": "Diagramm gespeichert",
       "saveFailed": "Diagramm konnte nicht gespeichert werden",
-      "savedWithDropped": "Diagramm gespeichert. {types} kann Notra noch nicht rendern, das wurde weggelassen."
+      "savedWithDropped": "Diagramm gespeichert. {types} kann Notra noch nicht rendern, das wurde weggelassen.",
+      "conflict": "Das Diagramm wurde geändert, während du es bearbeitet hast. Kopiere, was du brauchst, schließe den Editor und öffne ihn erneut.",
+      "saveRejected": "Diagramm konnte nicht gespeichert werden: {reason}"
     },
     "toolbar": {
       "copyFor": "Für {target} kopieren",

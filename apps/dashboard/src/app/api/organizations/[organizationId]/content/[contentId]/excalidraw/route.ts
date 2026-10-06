@@ -1,11 +1,19 @@
 import {
+  canEditDiagramWithoutSandbox,
+  isDiagramConflictError,
+  readDiagramRevision,
   saveDiagramRevision,
   sceneToDiagramSpec,
 } from "@notra/ai/utils/diagram-edit";
+import { describeDiagramSpecError } from "@notra/ai/utils/excalidraw-diagram";
 import { db } from "@notra/db/drizzle";
 import { posts } from "@notra/db/schema";
 import { and, eq } from "drizzle-orm";
 
+import {
+  DIAGRAM_REVISION_HEADER,
+  MAX_DIAGRAM_SCENE_BYTES,
+} from "@/constants/diagram-editor";
 import { withOrganizationAuth } from "@/lib/auth/organization";
 import { saveDiagramSceneSchema } from "@/schemas/diagram-editor";
 import type { RouteContext } from "@/types/api/routes";
@@ -71,6 +79,11 @@ export async function GET(
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
+      // The editor sends this back on save, so a save based on an older scene
+      // cannot overwrite a newer chat or hand edit.
+      [DIAGRAM_REVISION_HEADER]: String(
+        readDiagramRevision(post?.sourceMetadata)
+      ),
     },
   });
 }
@@ -87,44 +100,64 @@ export async function PUT(
     return auth.response;
   }
 
-  const body = saveDiagramSceneSchema.safeParse(
-    await request.json().catch(() => null)
-  );
+  const raw = await request.text();
+  if (raw.length > MAX_DIAGRAM_SCENE_BYTES) {
+    return Response.json({ error: "Diagram is too large" }, { status: 413 });
+  }
+  let json: unknown = null;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    // Reported as an invalid scene below.
+  }
+  const body = saveDiagramSceneSchema.safeParse(json);
   if (!body.success) {
     return Response.json({ error: "Invalid diagram scene" }, { status: 400 });
   }
 
   const post = await db.query.posts.findFirst({
-    columns: { id: true },
+    columns: { sourceMetadata: true },
     where: and(
       eq(posts.id, contentId),
       eq(posts.organizationId, organizationId),
       eq(posts.contentType, "image")
     ),
   });
-  if (!post) {
+  // Only diagrams: saving a scene over a marketing image would replace it.
+  if (!(post && canEditDiagramWithoutSandbox(post.sourceMetadata))) {
     return Response.json({ error: "Diagram not found" }, { status: 404 });
   }
 
   let converted: ReturnType<typeof sceneToDiagramSpec>;
   try {
     converted = sceneToDiagramSpec(body.data.scene);
-  } catch {
+  } catch (error) {
     return Response.json(
-      { error: "The diagram has no shapes Notra can render" },
+      { error: describeDiagramSpecError(error) },
       { status: 422 }
     );
   }
 
-  const { imageUrl } = await saveDiagramRevision({
-    organizationId,
-    postId: contentId,
-    spec: converted.spec,
-    edit: { kind: "manual" },
-  });
-
-  return Response.json({
-    imageUrl,
-    droppedTypes: converted.droppedTypes,
-  });
+  try {
+    const { imageUrl, revision } = await saveDiagramRevision({
+      organizationId,
+      postId: contentId,
+      spec: converted.spec,
+      edit: { kind: "manual" },
+      expectedRevision: body.data.revision,
+    });
+    return Response.json({
+      imageUrl,
+      revision,
+      droppedTypes: converted.droppedTypes,
+    });
+  } catch (error) {
+    if (isDiagramConflictError(error)) {
+      return Response.json(
+        { error: error.message, code: "conflict" },
+        { status: 409 }
+      );
+    }
+    throw error;
+  }
 }

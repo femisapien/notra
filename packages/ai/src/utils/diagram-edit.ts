@@ -4,11 +4,22 @@ import {
   DIAGRAM_DEFAULT_STROKE,
   DIAGRAM_DEFAULT_STROKE_WIDTH,
   DIAGRAM_ANGLE_TOLERANCE,
+  DIAGRAM_ARROW_LABEL_FONT_SIZE,
+  DIAGRAM_ARROWHEAD_FALLBACKS,
   DIAGRAM_ATTACHMENT_TOLERANCE,
+  DIAGRAM_EDIT_ATTEMPT_TIMEOUT_MS,
   DIAGRAM_EDIT_ATTEMPTS,
   DIAGRAM_EDIT_MAX_OUTPUT_TOKENS,
   DIAGRAM_EDIT_MODEL_ID,
   DIAGRAM_EDIT_PROVIDER_OPTIONS,
+  DIAGRAM_MAX_COORDINATE,
+  DIAGRAM_MAX_ELEMENTS,
+  DIAGRAM_MAX_FONT_SIZE,
+  DIAGRAM_MAX_LABEL_FONT_SIZE,
+  DIAGRAM_MAX_SHAPE_SIZE,
+  DIAGRAM_MAX_STROKE_WIDTH,
+  DIAGRAM_MAX_TEXT_LENGTH,
+  DIAGRAM_MAX_VIA_POINTS,
   DIAGRAM_SHAPE_TYPES,
   JSON_CODE_FENCE_REGEX,
 } from "@notra/ai/constants/excalidraw-diagram";
@@ -26,6 +37,7 @@ import type {
 } from "@notra/ai/types/excalidraw-diagram";
 import {
   boundPoint,
+  DiagramSpecError,
   describeDiagramSpecError,
   isDiagramSpecError,
   readDiagramSpec,
@@ -44,7 +56,7 @@ import { toAgentTokenUsage } from "@notra/ai/utils/token-usage";
 import { db } from "@notra/db/drizzle";
 import { posts } from "@notra/db/schema";
 import { generateText } from "ai";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 type SceneRecord = Record<string, unknown>;
 
@@ -88,6 +100,54 @@ function round(value: number | undefined) {
   return value === undefined ? undefined : Math.round(value);
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function coordinate(value: number) {
+  return Math.round(
+    clamp(value, -DIAGRAM_MAX_COORDINATE, DIAGRAM_MAX_COORDINATE)
+  );
+}
+
+function size(value: number | undefined) {
+  return value === undefined
+    ? undefined
+    : clamp(Math.round(value), 1, DIAGRAM_MAX_SHAPE_SIZE);
+}
+
+function fontSize(value: number | undefined, max: number) {
+  return value === undefined || value <= 0 ? undefined : Math.min(value, max);
+}
+
+function clipText(value: string) {
+  return value.slice(0, DIAGRAM_MAX_TEXT_LENGTH);
+}
+
+/** Keeps the first and last waypoint and evenly spaced ones in between. */
+function limitVia(points: [number, number][]) {
+  if (points.length <= DIAGRAM_MAX_VIA_POINTS) {
+    return points;
+  }
+  const step = (points.length - 1) / (DIAGRAM_MAX_VIA_POINTS - 1);
+  return Array.from(
+    { length: DIAGRAM_MAX_VIA_POINTS },
+    (_, index) => points[Math.round(index * step)] as [number, number]
+  );
+}
+
+// Excalidraw offers more arrowheads than the spec; draw the closest one.
+function readArrowhead(element: SceneRecord, key: string) {
+  const value = element[key];
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    return null;
+  }
+  return DIAGRAM_ARROWHEAD_FALLBACKS[value] ?? value;
+}
+
 function readStyle(element: SceneRecord) {
   const style: Record<string, string | number> = {};
   for (const [key, fallback] of Object.entries(STYLE_DEFAULTS)) {
@@ -96,7 +156,10 @@ function readStyle(element: SceneRecord) {
       (typeof value === "string" || typeof value === "number") &&
       value !== fallback
     ) {
-      style[key] = value;
+      style[key] =
+        key === "strokeWidth" && typeof value === "number"
+          ? clamp(value, 0.5, DIAGRAM_MAX_STROKE_WIDTH)
+          : value;
     }
   }
   return style;
@@ -199,31 +262,46 @@ export function sceneToDiagramSpec(scene: unknown): {
       labels.set(containerId, element);
     }
   }
+  const elementsById = new Map<string, SceneRecord>();
+  for (const element of elements) {
+    const id = readString(element, "id");
+    if (id) {
+      elementsById.set(id, element);
+    }
+  }
   const labelFor = (id: string | undefined) => {
     const label = id ? labels.get(id) : undefined;
+    // `text` holds the lines as Excalidraw wrapped them to the container's
+    // width; `originalText` would come back as one line and widen the shape.
     const text = label
-      ? (readString(label, "originalText") ?? readString(label, "text"))
+      ? (readString(label, "text") ?? readString(label, "originalText"))
       : undefined;
     if (!(label && text?.trim())) {
       return undefined;
     }
-    const fontSize = readNumber(label, "fontSize");
+    const container = id ? elementsById.get(id) : undefined;
+    const containerType = container ? readString(container, "type") : undefined;
+    const defaultSize =
+      containerType === "arrow" || containerType === "line"
+        ? DIAGRAM_ARROW_LABEL_FONT_SIZE
+        : DIAGRAM_DEFAULT_FONT_SIZE;
+    const labelSize = fontSize(
+      readNumber(label, "fontSize"),
+      DIAGRAM_MAX_LABEL_FONT_SIZE
+    );
     const strokeColor = readString(label, "strokeColor");
-    const containerStroke = id
-      ? readString(
-          elements.find((element) => element.id === id) ?? {},
-          "strokeColor"
-        )
+    const containerStroke = container
+      ? readString(container, "strokeColor")
       : undefined;
     if (
-      fontSize === DIAGRAM_DEFAULT_FONT_SIZE &&
+      (labelSize === undefined || labelSize === defaultSize) &&
       (!strokeColor || strokeColor === containerStroke)
     ) {
-      return text;
+      return clipText(text);
     }
     return {
-      text,
-      fontSize,
+      text: clipText(text),
+      fontSize: labelSize,
       strokeColor: strokeColor === containerStroke ? undefined : strokeColor,
     };
   };
@@ -250,10 +328,10 @@ export function sceneToDiagramSpec(scene: unknown): {
       specElements.push({
         type,
         id,
-        x: round(x),
-        y: round(y),
-        width: round(readNumber(element, "width")),
-        height: round(readNumber(element, "height")),
+        x: coordinate(x),
+        y: coordinate(y),
+        width: size(readNumber(element, "width")),
+        height: size(readNumber(element, "height")),
         // Rectangles default to rounded corners; other shapes to sharp ones.
         rounded: rounded === (type === "rectangle") ? undefined : rounded,
         angle: readAngle(element),
@@ -265,14 +343,25 @@ export function sceneToDiagramSpec(scene: unknown): {
         continue;
       }
       const textAlign = readString(element, "textAlign");
+      // A fixed-width text box keeps the line breaks Excalidraw wrapped it to.
+      const text =
+        element.autoResize === false
+          ? (readString(element, "text") ?? readString(element, "originalText"))
+          : (readString(element, "originalText") ??
+            readString(element, "text"));
+      if (!text?.trim()) {
+        continue;
+      }
       specElements.push({
         type,
         id,
-        x: round(x),
-        y: round(y),
-        text:
-          readString(element, "originalText") ?? readString(element, "text"),
-        fontSize: readNumber(element, "fontSize"),
+        x: coordinate(x),
+        y: coordinate(y),
+        text: clipText(text),
+        fontSize: fontSize(
+          readNumber(element, "fontSize"),
+          DIAGRAM_MAX_FONT_SIZE
+        ),
         textAlign: textAlign === "left" ? undefined : textAlign,
         angle: readAngle(element),
         ...readStyle(element),
@@ -286,10 +375,23 @@ export function sceneToDiagramSpec(scene: unknown): {
               typeof point[1] === "number"
           )
         : [];
-      const absolute = points.map(
-        ([px, py]) =>
-          [Math.round(x + px), Math.round(y + py)] as [number, number]
-      );
+      // A rotated line stores unrotated points plus an angle around the
+      // center of its points' box.
+      const angle = readNumber(element, "angle") ?? 0;
+      const xs = points.map(([px]) => px);
+      const ys = points.map(([, py]) => py);
+      const cx = x + (Math.min(...xs, 0) + Math.max(...xs, 0)) / 2;
+      const cy = y + (Math.min(...ys, 0) + Math.max(...ys, 0)) / 2;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const absolute = points.map(([px, py]) => {
+        const dx = x + px - cx;
+        const dy = y + py - cy;
+        return [
+          coordinate(cx + dx * cos - dy * sin),
+          coordinate(cy + dx * sin + dy * cos),
+        ] as [number, number];
+      });
       const first = absolute[0] ?? [x, y];
       const last = absolute.at(-1) ?? first;
       // Mirror the scene builder: a bound end faces the next point, or the
@@ -312,7 +414,7 @@ export function sceneToDiagramSpec(scene: unknown): {
         first;
       const defaultEnd = type === "arrow" ? "arrow" : null;
       const arrowhead = (key: string, fallback: string | null) => {
-        const value = element[key] ?? null;
+        const value = readArrowhead(element, key);
         if (value === fallback) {
           return undefined;
         }
@@ -335,7 +437,7 @@ export function sceneToDiagramSpec(scene: unknown): {
           x: last[0],
           y: last[1],
         },
-        via: hasVia ? absolute.slice(1, -1) : undefined,
+        via: hasVia ? limitVia(absolute.slice(1, -1)) : undefined,
         curved:
           hasVia &&
           element.roundness !== null &&
@@ -352,6 +454,11 @@ export function sceneToDiagramSpec(scene: unknown): {
     }
   }
 
+  if (specElements.length > DIAGRAM_MAX_ELEMENTS) {
+    throw new DiagramSpecError(
+      `The diagram has ${specElements.length} elements; Notra supports up to ${DIAGRAM_MAX_ELEMENTS}. Remove some before saving.`
+    );
+  }
   const spec = diagramSpecSchema.parse({
     background: readString(appState, "viewBackgroundColor"),
     elements: specElements,
@@ -417,45 +524,59 @@ export async function editDiagramSpecWithAi(params: {
     modelId: modelId.replace(VERCEL_MODEL_PREFIX_REGEX, ""),
   };
   let best: { spec: DiagramSpec; issues: string[] } | undefined;
-  let error: string | undefined;
+  // Layout problems of the last valid answer, and why the latest answer
+  // could not be used at all; the model gets each under its own heading.
+  let layoutError: string | undefined;
+  let answerError: string | undefined;
   let lastValid: DiagramSpec | undefined;
-  // Fix what is already broken in the same pass, so the first answer can pass
-  // the layout check.
-  const existingIssues = findDiagramLayoutIssues(
-    (await renderDiagram(params.spec)).scene
+  // Problems the diagram already has (often on purpose after a hand edit) are
+  // not the edit's job; only problems the edit introduces need another round.
+  const existingIssues = new Set(
+    findDiagramLayoutIssues((await renderDiagram(params.spec)).scene)
   );
-  const request =
-    existingIssues.length > 0
-      ? `${params.prompt}\n\nThe current diagram also has these layout problems. Fix them too:\n- ${existingIssues.join("\n- ")}`
-      : params.prompt;
 
   for (let attempt = 1; attempt <= DIAGRAM_EDIT_ATTEMPTS; attempt++) {
-    const result = await generateText({
-      model: gateway(modelId, {
-        organizationId: params.organizationId,
-      }),
-      system: buildDiagramEditSystemPrompt(),
-      // After a layout-only failure, fix the previous answer instead of
-      // redoing the whole change from the original diagram.
-      prompt: lastValid
-        ? buildDiagramEditPrompt({
-            spec: lastValid,
-            prompt: `Fix these layout problems and change nothing else:\n${error}`,
-          })
-        : buildDiagramEditPrompt({
-            spec: params.spec,
-            prompt: request,
-            error,
-          }),
-      maxOutputTokens: DIAGRAM_EDIT_MAX_OUTPUT_TOKENS,
-      providerOptions: withRouterDefaults(
-        {
-          gateway: { tags: ["content-diagram-edit"] },
-          ...(params.providerOptions ?? DIAGRAM_EDIT_PROVIDER_OPTIONS),
-        },
-        { modelId }
-      ),
-    });
+    let result: Awaited<ReturnType<typeof generateText>>;
+    try {
+      result = await generateText({
+        model: gateway(modelId, {
+          organizationId: params.organizationId,
+        }),
+        system: buildDiagramEditSystemPrompt(),
+        // After a layout-only failure, fix the previous answer instead of
+        // redoing the whole change from the original diagram.
+        prompt: lastValid
+          ? buildDiagramEditPrompt({
+              spec: lastValid,
+              prompt: `Fix these layout problems and change nothing else:\n${layoutError}`,
+              error: answerError,
+            })
+          : buildDiagramEditPrompt({
+              spec: params.spec,
+              prompt: params.prompt,
+              error: answerError,
+            }),
+        maxOutputTokens: DIAGRAM_EDIT_MAX_OUTPUT_TOKENS,
+        abortSignal: AbortSignal.timeout(DIAGRAM_EDIT_ATTEMPT_TIMEOUT_MS),
+        providerOptions: withRouterDefaults(
+          {
+            gateway: { tags: ["content-diagram-edit"] },
+            ...(params.providerOptions ?? DIAGRAM_EDIT_PROVIDER_OPTIONS),
+          },
+          { modelId }
+        ),
+      });
+    } catch (caught) {
+      // A failed or timed-out fix round should not throw away a usable edit.
+      if (best) {
+        logWarn("[diagram-edit] Edit attempt failed; keeping best result", {
+          attempt,
+          error: caught instanceof Error ? caught.message : String(caught),
+        });
+        break;
+      }
+      throw caught;
+    }
     const callUsage = toAgentTokenUsage(result.usage);
     usage.inputTokens += callUsage.inputTokens;
     usage.outputTokens += callUsage.outputTokens;
@@ -463,11 +584,24 @@ export async function editDiagramSpecWithAi(params: {
     usage.cacheReadTokens += callUsage.cacheReadTokens;
     usage.cacheWriteTokens += callUsage.cacheWriteTokens;
 
+    if (result.finishReason === "length") {
+      // The whole diagram did not fit in the answer; more rounds hit the
+      // same limit.
+      if (best) {
+        break;
+      }
+      throw new Error(
+        "This diagram is too large for a quick edit. Retry with useRepository to edit it in the sandbox."
+      );
+    }
+
     try {
       const spec = parseDiagramSpecText(result.text);
       // Building the scene catches dangling arrow ids before we save anything.
       const rendered = await renderDiagram(spec);
-      const issues = findDiagramLayoutIssues(rendered.scene);
+      const issues = findDiagramLayoutIssues(rendered.scene).filter(
+        (issue) => !existingIssues.has(issue)
+      );
       if (issues.length === 0) {
         return { spec, usage, attempts: attempt, layoutIssues: [] };
       }
@@ -479,19 +613,23 @@ export async function editDiagramSpecWithAi(params: {
       if (!best || issues.length < best.issues.length) {
         best = { spec, issues };
       }
-      error = `- ${issues.join("\n- ")}`;
+      layoutError = `- ${issues.join("\n- ")}`;
+      answerError = undefined;
     } catch (caught) {
       if (!isDiagramSpecError(caught)) {
+        if (best) {
+          break;
+        }
         throw caught;
       }
-      error = describeDiagramSpecError(caught);
+      answerError = describeDiagramSpecError(caught);
     }
     logWarn("[diagram-edit] Edit attempt rejected", {
       attempt,
       maxAttempts: DIAGRAM_EDIT_ATTEMPTS,
       finishReason: result.finishReason,
       outputChars: result.text.length,
-      error,
+      error: answerError ?? layoutError,
     });
   }
 
@@ -503,7 +641,9 @@ export async function editDiagramSpecWithAi(params: {
       layoutIssues: best.issues,
     };
   }
-  throw new Error(`The diagram edit did not produce a valid diagram: ${error}`);
+  throw new Error(
+    `The diagram edit did not produce a valid diagram: ${answerError ?? layoutError}`
+  );
 }
 
 function readExcalidrawUrl(metadata: unknown) {
@@ -525,6 +665,30 @@ async function resolveDiagramSpec(metadata: unknown) {
   return sceneToDiagramSpec(await response.json()).spec;
 }
 
+/** Thrown when the diagram changed between reading and saving it. */
+export class DiagramConflictError extends Error {
+  constructor() {
+    super(
+      "The diagram changed while this edit was in progress. Reload it and try again."
+    );
+    this.name = "DiagramConflictError";
+  }
+}
+
+export function isDiagramConflictError(
+  error: unknown
+): error is DiagramConflictError {
+  return error instanceof DiagramConflictError;
+}
+
+/** Version of the stored diagram; every save increments it. */
+export function readDiagramRevision(metadata: unknown) {
+  const revision = isRecord(metadata)
+    ? readNumber(metadata, "diagramRevision")
+    : undefined;
+  return revision ?? 0;
+}
+
 async function loadDiagramPost(organizationId: string, postId: string) {
   const post = await db.query.posts.findFirst({
     where: and(eq(posts.id, postId), eq(posts.organizationId, organizationId)),
@@ -543,11 +707,17 @@ export async function saveDiagramRevision(params: {
   spec: DiagramSpec;
   edit: { kind: "ai" | "manual"; prompt?: string };
   title?: string;
+  /** Revision the edit started from; a newer stored one aborts the save. */
+  expectedRevision: number;
 }) {
   const [{ metadata }, rendered] = await Promise.all([
     loadDiagramPost(params.organizationId, params.postId),
     renderDiagram(params.spec),
   ]);
+  const revision = readDiagramRevision(metadata);
+  if (revision !== params.expectedRevision) {
+    throw new DiagramConflictError();
+  }
   const [imageUrl, htmlUrl, excalidrawUrl] = await Promise.all([
     uploadGeneratedImageAsset({
       organizationId: params.organizationId,
@@ -566,7 +736,7 @@ export async function saveDiagramRevision(params: {
     }),
   ]);
 
-  await db
+  const updated = await db
     .update(posts)
     .set({
       ...(params.title ? { title: params.title } : {}),
@@ -578,6 +748,7 @@ export async function saveDiagramRevision(params: {
         format: "diagram",
         excalidrawUrl,
         diagramSpec: rendered.spec,
+        diagramRevision: revision + 1,
         lastDiagramEdit: {
           kind: params.edit.kind,
           prompt: params.edit.prompt ?? null,
@@ -589,11 +760,17 @@ export async function saveDiagramRevision(params: {
     .where(
       and(
         eq(posts.id, params.postId),
-        eq(posts.organizationId, params.organizationId)
+        eq(posts.organizationId, params.organizationId),
+        // Compare-and-set: a save that landed while we rendered wins.
+        sql`coalesce((${posts.sourceMetadata}->>'diagramRevision')::int, 0) = ${revision}`
       )
-    );
+    )
+    .returning({ id: posts.id });
+  if (updated.length === 0) {
+    throw new DiagramConflictError();
+  }
 
-  return { imageUrl, excalidrawUrl };
+  return { imageUrl, excalidrawUrl, revision: revision + 1 };
 }
 
 /** True when the post is a diagram whose spec can be edited without a sandbox. */
@@ -626,6 +803,7 @@ export async function reviseDiagramPost(params: {
   if (!spec) {
     throw new Error("This image has no editable diagram");
   }
+  const startRevision = readDiagramRevision(metadata);
 
   const edited = await editDiagramSpecWithAi({
     spec,
@@ -638,6 +816,7 @@ export async function reviseDiagramPost(params: {
     spec: edited.spec,
     edit: { kind: "ai", prompt: params.prompt },
     title: params.title,
+    expectedRevision: startRevision,
   });
   await trackImageGenerationUsage({
     organizationId: params.organizationId,

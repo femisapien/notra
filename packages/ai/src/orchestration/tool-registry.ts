@@ -58,6 +58,7 @@ export function buildToolSet(
     userId,
     imageDefaults,
     useMarkup,
+    chargeAiCredits,
     onMarkdownUpdate,
     validatedIntegrations,
   } = params;
@@ -90,6 +91,7 @@ export function buildToolSet(
         branch: imageDefaults.branch,
         brandIdentityId: imageDefaults.brandIdentityId,
         useMarkup,
+        chargeAiCredits,
       });
       descriptions.unshift(
         "**Image Editing**: Revise the current image using reviseImage. Marketing images restore the saved sandbox snapshot, apply the visual change, and store a new snapshot. Diagrams are edited directly in seconds; set useRepository only when the change needs new facts from the code. Call reviseImage once per request and describe the whole change in one prompt."

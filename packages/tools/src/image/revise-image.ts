@@ -6,6 +6,7 @@ import {
   canEditDiagramWithoutSandbox,
   reviseDiagramPost,
 } from "@notra/ai/utils/diagram-edit";
+import { readImageFormat } from "@notra/ai/utils/excalidraw-diagram";
 import {
   uploadGeneratedHtmlAsset,
   uploadGeneratedImageAsset,
@@ -121,6 +122,9 @@ export function createReviseImageTool() {
             brandIdentityId: previousSnapshot.brandIdentityId,
             mode: "prompt",
             prompt,
+            // From the post, not from files in the restored repo: a customer
+            // repo can contain its own diagram.json.
+            format: readImageFormat(post.sourceMetadata),
           },
           restoreSnapshotId: previousSnapshot.snapshotId,
           restoreDiagramSpec: previousSnapshot.diagramSpec,

@@ -241,6 +241,100 @@ test("keeps an end moved without a focus change and a curved arrow", () => {
   ).toBeCloseTo(retry.y + lastY, 0);
 });
 
+test("saves what the Excalidraw editor allows instead of rejecting it", () => {
+  const base = {
+    strokeColor: "#1e1e1e",
+    backgroundColor: "transparent",
+    fillStyle: "solid",
+    strokeWidth: 2,
+    strokeStyle: "solid",
+    roughness: 1,
+    opacity: 100,
+    angle: 0,
+  };
+  const linePoints = Array.from({ length: 20 }, (_, index) => [
+    index * 10,
+    index % 2 === 0 ? 0 : 10,
+  ]);
+  const { spec } = sceneToDiagramSpec({
+    elements: [
+      {
+        ...base,
+        id: "a",
+        type: "rectangle",
+        x: 0,
+        y: 0,
+        width: 0.4,
+        height: 80,
+      },
+      {
+        ...base,
+        id: "big",
+        type: "text",
+        x: 0,
+        y: 200,
+        text: "Huge",
+        originalText: "Huge",
+        fontSize: 150,
+      },
+      {
+        ...base,
+        id: "wide",
+        type: "line",
+        x: 0,
+        y: 400,
+        points: linePoints,
+        strokeWidth: 16,
+      },
+      {
+        ...base,
+        id: "dot",
+        type: "arrow",
+        x: 0,
+        y: 600,
+        points: [
+          [0, 0],
+          [100, 0],
+        ],
+        startArrowhead: "circle_outline",
+        endArrowhead: "crowfoot_many",
+      },
+      // Excalidraw stores a rotated line unrotated plus its angle.
+      {
+        ...base,
+        id: "turned",
+        type: "line",
+        x: 0,
+        y: 800,
+        points: [
+          [0, 0],
+          [200, 0],
+        ],
+        angle: Math.PI / 2,
+      },
+    ],
+  });
+  const byId = (id: string) =>
+    spec.elements.find((element) => element.id === id);
+  const shape = byId("a");
+  const big = byId("big");
+  const wide = byId("wide");
+  const dot = byId("dot");
+  const turned = byId("turned");
+
+  expect(shape?.type === "rectangle" && shape.width).toBe(1);
+  expect(big?.type === "text" && big.fontSize).toBe(120);
+  expect(wide?.type === "line" && wide.via?.length).toBe(12);
+  expect(wide?.type === "line" && wide.strokeWidth).toBe(8);
+  expect(
+    dot?.type === "arrow" && [dot.startArrowhead, dot.endArrowhead]
+  ).toEqual(["dot", undefined]);
+  expect(turned?.type === "line" && [turned.start, turned.end]).toEqual([
+    { x: 100, y: 700 },
+    { x: 100, y: 900 },
+  ]);
+});
+
 describe("findDiagramLayoutIssues", () => {
   test("a tidy diagram has no issues", () => {
     expect(findDiagramLayoutIssues(sceneOf(flow))).toEqual([]);

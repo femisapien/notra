@@ -60,6 +60,7 @@ export interface ImageRevisionToolConfig {
   branch: string;
   brandIdentityId?: string;
   useMarkup?: boolean;
+  chargeAiCredits?: boolean;
 }
 
 export interface FontSpec {

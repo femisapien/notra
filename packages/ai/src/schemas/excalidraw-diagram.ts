@@ -1,14 +1,35 @@
+import {
+  DIAGRAM_MAX_COORDINATE,
+  DIAGRAM_MAX_ELEMENTS,
+  DIAGRAM_MAX_FONT_SIZE,
+  DIAGRAM_MAX_LABEL_FONT_SIZE,
+  DIAGRAM_MAX_SHAPE_SIZE,
+  DIAGRAM_MAX_STROKE_WIDTH,
+  DIAGRAM_MAX_TEXT_LENGTH,
+  DIAGRAM_MAX_VIA_POINTS,
+} from "@notra/ai/constants/excalidraw-diagram";
 // biome-ignore lint/performance/noNamespaceImport: Zod recommended way to import
 import * as z from "zod";
+
+const coordinateSchema = z
+  .number()
+  .min(-DIAGRAM_MAX_COORDINATE)
+  .max(DIAGRAM_MAX_COORDINATE);
+const sizeSchema = z.number().positive().max(DIAGRAM_MAX_SHAPE_SIZE);
+const textContentSchema = z.string().max(DIAGRAM_MAX_TEXT_LENGTH);
 
 const colorSchema = z.string().trim().min(1).max(40);
 
 const labelSchema = z
   .union([
-    z.string(),
+    textContentSchema,
     z.object({
-      text: z.string(),
-      fontSize: z.number().positive().max(96).optional(),
+      text: textContentSchema,
+      fontSize: z
+        .number()
+        .positive()
+        .max(DIAGRAM_MAX_LABEL_FONT_SIZE)
+        .optional(),
       strokeColor: colorSchema.optional(),
     }),
   ])
@@ -19,7 +40,7 @@ const sharedStyleFields = {
   strokeColor: colorSchema.optional(),
   backgroundColor: colorSchema.optional(),
   fillStyle: z.enum(["solid", "hachure", "cross-hatch", "zigzag"]).optional(),
-  strokeWidth: z.number().positive().max(8).optional(),
+  strokeWidth: z.number().positive().max(DIAGRAM_MAX_STROKE_WIDTH).optional(),
   strokeStyle: z.enum(["solid", "dashed", "dotted"]).optional(),
   roughness: z.number().min(0).max(2).optional(),
   opacity: z.number().min(0).max(100).optional(),
@@ -31,10 +52,10 @@ const angleSchema = z.number().min(-7).max(7).optional();
 const shapeSchema = z.object({
   ...sharedStyleFields,
   type: z.enum(["rectangle", "ellipse", "diamond"]),
-  x: z.number(),
-  y: z.number(),
-  width: z.number().positive().optional(),
-  height: z.number().positive().optional(),
+  x: coordinateSchema,
+  y: coordinateSchema,
+  width: sizeSchema.optional(),
+  height: sizeSchema.optional(),
   rounded: z.boolean().optional(),
   angle: angleSchema,
   label: labelSchema.optional(),
@@ -43,10 +64,10 @@ const shapeSchema = z.object({
 const textSchema = z.object({
   ...sharedStyleFields,
   type: z.literal("text"),
-  x: z.number(),
-  y: z.number(),
-  text: z.string().min(1),
-  fontSize: z.number().positive().max(120).optional(),
+  x: coordinateSchema,
+  y: coordinateSchema,
+  text: textContentSchema.min(1),
+  fontSize: z.number().positive().max(DIAGRAM_MAX_FONT_SIZE).optional(),
   textAlign: z.enum(["left", "center", "right"]).optional(),
   angle: angleSchema,
 });
@@ -63,7 +84,7 @@ const endpointSchema = z.union([
     // attachment when the shape moves.
     focus: z.number().min(-1).max(1).optional(),
   }),
-  z.object({ x: z.number(), y: z.number() }),
+  z.object({ x: coordinateSchema, y: coordinateSchema }),
 ]);
 
 const arrowheadSchema = z
@@ -77,8 +98,8 @@ const linearSchema = z.object({
   start: endpointSchema,
   end: endpointSchema,
   via: z
-    .array(z.tuple([z.number(), z.number()]))
-    .max(12)
+    .array(z.tuple([coordinateSchema, coordinateSchema]))
+    .max(DIAGRAM_MAX_VIA_POINTS)
     .optional(),
   label: labelSchema.optional(),
   // Set when the user curved the arrow in the editor; Notra draws sharp elbows.
@@ -96,7 +117,7 @@ export const diagramElementSchema = z.discriminatedUnion("type", [
 export const diagramSpecSchema = z.object({
   title: z.string().optional(),
   background: colorSchema.optional(),
-  elements: z.array(diagramElementSchema).min(1).max(150),
+  elements: z.array(diagramElementSchema).min(1).max(DIAGRAM_MAX_ELEMENTS),
 });
 
 export const diagramReviewSchema = z.object({

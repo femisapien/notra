@@ -12,7 +12,10 @@ import { getChatProjectId } from "@notra/ai/chat/history";
 import { IMAGE_GEN_MODEL_ID } from "@notra/ai/constants/repo-image";
 import { maybeGenerateCollectionTitle } from "@notra/ai/jobs/collection-title";
 import type { GenerateRepoImageResult } from "@notra/ai/types/repo-image";
-import { readDiagramSpec } from "@notra/ai/utils/excalidraw-diagram";
+import {
+  readDiagramSpec,
+  readImageFormat,
+} from "@notra/ai/utils/excalidraw-diagram";
 import {
   uploadGeneratedExcalidrawAsset,
   uploadGeneratedHtmlAsset,
@@ -224,6 +227,7 @@ export async function getImageSnapshot(organizationId: string, postId: string) {
     snapshotId: metadata.sandbox.snapshotId,
     brandIdentityId,
     diagramSpec: readDiagramSpec(metadata),
+    format: readImageFormat(metadata),
   };
 }
 

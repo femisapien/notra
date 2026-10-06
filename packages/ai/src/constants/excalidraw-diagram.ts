@@ -131,9 +131,16 @@ function measure(text, fontSize) {
   return { width, height: lines.length * fontSize * LINE_HEIGHT, lines: lines.length };
 }
 
+const isObject = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+// Arrows can only attach to shapes; an arrow ending at a text fails to render.
+const shapeIds = new Set(spec.elements.filter((e) => isObject(e) && SHAPES.has(e.type) && e.id).map((e) => e.id));
 const ids = new Map();
 const boxes = [];
 for (const [index, element] of spec.elements.entries()) {
+  if (!isObject(element)) {
+    errors.push("element " + index + ": must be an object");
+    continue;
+  }
   const where = "element " + index + (element.id ? " (" + element.id + ")" : "");
   if (element.id) {
     if (ids.has(element.id)) errors.push(where + ": duplicate id");
@@ -161,9 +168,10 @@ for (const [index, element] of spec.elements.entries()) {
   } else if (element.type === "arrow" || element.type === "line") {
     for (const end of ["start", "end"]) {
       const point = element[end];
-      if (!point) errors.push(where + ": missing " + end);
-      else if ("id" in point && !ids.has(point.id) && !spec.elements.some((e) => e.id === point.id)) errors.push(where + ": " + end + " id '" + point.id + "' does not exist");
+      if (!isObject(point)) errors.push(where + ": " + end + " must be an object with an id, or with x and y");
+      else if ("id" in point && !shapeIds.has(point.id)) errors.push(where + ": " + end + " id '" + point.id + "' is not a rectangle, ellipse, or diamond");
     }
+    if (isObject(element.start) && isObject(element.end) && element.start.id && element.start.id === element.end.id && !element.via?.length) errors.push(where + ": starts and ends at '" + element.start.id + "'; add via points to draw a loop");
   } else {
     errors.push(where + ": unknown type '" + element.type + "'");
   }
@@ -172,7 +180,7 @@ for (const [index, element] of spec.elements.entries()) {
 const boxById = new Map();
 for (const box of boxes) if (box.id) boxById.set(box.id, box);
 for (const [index, element] of spec.elements.entries()) {
-  if (element.type !== "arrow" && element.type !== "line") continue;
+  if (!isObject(element) || (element.type !== "arrow" && element.type !== "line")) continue;
   const text = labelText(element.label);
   if (!text || element.via) continue;
   const a = boxById.get(element.start?.id);
@@ -212,7 +220,7 @@ if (boxes.length > 0) {
   if (width < 700 && height < 340) warnings.push("diagram only uses " + Math.round(width) + "x" + Math.round(height) + " of the 1100x530 box; spread it out or enlarge shapes");
 }
 
-const shapeCount = spec.elements.filter((e) => SHAPES.has(e.type)).length;
+const shapeCount = spec.elements.filter((e) => isObject(e) && SHAPES.has(e.type)).length;
 if (shapeCount > 10) warnings.push(shapeCount + " shapes, keep it to 8 or fewer");
 
 for (const error of errors) console.log("ERROR: " + error);
@@ -228,6 +236,8 @@ process.exit(errors.length > 0 ? 1 : 0);
 export const DIAGRAM_EDIT_MODEL_ID = "vercel/openai/gpt-6-luna";
 // Luna is cheap enough that a third layout-fix round costs well under a cent.
 export const DIAGRAM_EDIT_ATTEMPTS = 3;
+// Luna answers in ~15 s; a fallback model with thinking can take minutes.
+export const DIAGRAM_EDIT_ATTEMPT_TIMEOUT_MS = 60_000;
 export const DIAGRAM_EDIT_MAX_OUTPUT_TOKENS = 16_000;
 // Both keys are set so a router fallback to Claude also skips thinking: Sonnet
 // 5 at low effort took 90 to 220 s per edit versus ~13 s with thinking off.
@@ -237,3 +247,26 @@ export const DIAGRAM_EDIT_PROVIDER_OPTIONS = {
 };
 export const JSON_CODE_FENCE_REGEX = /```(?:json)?\s*([\s\S]*?)```/;
 export const DIAGRAM_SHAPE_TYPES = ["rectangle", "ellipse", "diamond"] as const;
+
+// Spec limits. Hand-edited scenes are clamped to these on save, so a normal
+// Excalidraw edit never fails validation, and a crafted one cannot make the
+// renderer draw a 100k px hachure fill or a megabyte of glyph paths.
+export const DIAGRAM_MAX_ELEMENTS = 150;
+export const DIAGRAM_MAX_VIA_POINTS = 12;
+export const DIAGRAM_MAX_TEXT_LENGTH = 2000;
+export const DIAGRAM_MAX_SHAPE_SIZE = 10_000;
+export const DIAGRAM_MAX_COORDINATE = 100_000;
+export const DIAGRAM_MAX_FONT_SIZE = 120;
+export const DIAGRAM_MAX_LABEL_FONT_SIZE = 96;
+export const DIAGRAM_MAX_STROKE_WIDTH = 8;
+// Excalidraw arrowheads the spec has no equivalent for, drawn as the closest one.
+export const DIAGRAM_ARROWHEAD_FALLBACKS: Record<string, string> = {
+  circle: "dot",
+  circle_outline: "dot",
+  diamond: "dot",
+  diamond_outline: "dot",
+  triangle_outline: "triangle",
+  crowfoot_one: "bar",
+  crowfoot_many: "arrow",
+  crowfoot_one_or_many: "arrow",
+};

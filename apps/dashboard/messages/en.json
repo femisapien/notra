@@ -6009,7 +6009,9 @@
       "save": "Save diagram",
       "saved": "Diagram saved",
       "saveFailed": "Couldn't save the diagram",
-      "savedWithDropped": "Diagram saved. Notra can't render {types} yet, so those were left out."
+      "savedWithDropped": "Diagram saved. Notra can't render {types} yet, so those were left out.",
+      "conflict": "Someone changed this diagram while you were editing. Copy anything you need, close the editor, and open it again.",
+      "saveRejected": "Couldn't save the diagram: {reason}"
     },
     "toolbar": {
       "copyFor": "Copy for {target}",

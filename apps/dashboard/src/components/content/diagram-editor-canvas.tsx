@@ -38,6 +38,8 @@ export default function DiagramEditorCanvas({
           loadScene: false,
           saveToActiveFile: false,
         },
+        // Notra cannot render images in a diagram; they would be dropped on save.
+        tools: { image: false },
       }}
     />
   );

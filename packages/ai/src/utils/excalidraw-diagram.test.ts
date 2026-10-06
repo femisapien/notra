@@ -235,7 +235,44 @@ describe("buildExcalidrawScene", () => {
   });
 });
 
+test("keeps ids unique: explicit ids win and labels never collide", () => {
+  const scene = build({
+    elements: [
+      { type: "rectangle", x: 0, y: 0, label: "anon" },
+      { type: "rectangle", id: "rectangle-0", x: 400, y: 0, label: "named" },
+      { type: "text", id: "rectangle-0-label", x: 0, y: 300, text: "note" },
+      { type: "arrow", start: { x: 200, y: 400 }, end: { id: "rectangle-0" } },
+    ],
+  });
+  const ids = scene.elements.map((element) => element.id);
+  const arrow = scene.elements.find((element) => element.type === "arrow");
+  const named = byId<ExcalidrawShapeElement>(scene, "rectangle-0");
+  const namedLabel = scene.elements.find(
+    (element) => element.type === "text" && element.containerId === named.id
+  );
+
+  expect(new Set(ids).size).toBe(ids.length);
+  expect(named.x).toBe(400);
+  expect(arrow && "endBinding" in arrow && arrow.endBinding?.elementId).toBe(
+    "rectangle-0"
+  );
+  expect(named.boundElements?.map((bound) => bound.id)).toContain(
+    namedLabel?.id ?? ""
+  );
+});
+
 describe("diagram spec errors", () => {
+  test("an arrow from a shape to itself needs via points", () => {
+    expect(() =>
+      build({
+        elements: [
+          { type: "rectangle", id: "a", x: 0, y: 0, label: "A" },
+          { type: "arrow", start: { id: "a" }, end: { id: "a" } },
+        ],
+      })
+    ).toThrow("Add via points");
+  });
+
   test("an arrow to an unknown shape is a spec error the agent can fix", () => {
     let caught: unknown;
     try {

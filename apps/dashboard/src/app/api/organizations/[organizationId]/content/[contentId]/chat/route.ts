@@ -234,6 +234,7 @@ export const POST = withEvlog(async function POST(
         log,
         timezone,
         useMarkup,
+        chargeAiCredits,
         telemetryMetadata: {
           contentId,
           contentType: contentType ?? "unknown",

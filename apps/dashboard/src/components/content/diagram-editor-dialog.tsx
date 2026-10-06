@@ -18,9 +18,11 @@ import { toast } from "sonner";
 import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
+import { DIAGRAM_REVISION_HEADER } from "@/constants/diagram-editor";
 import type {
   DiagramEditorDialogProps,
-  DiagramEditorScene,
+  DiagramEditorLoadedScene,
+  DiagramEditorSaveResult,
 } from "@/types/components/diagram-editor";
 import lazyComponent from "@/utils/lazy-component";
 
@@ -45,6 +47,9 @@ export function DiagramEditorDialog({
 }: DiagramEditorDialogProps) {
   const t = useTranslations("content.diagramEditor");
   const [open, setOpen] = useState(false);
+  // Save stays off until this session's canvas hands over its API; a ref
+  // alone would still point at the previous, unmounted editor on reopen.
+  const [editorReady, setEditorReady] = useState(false);
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const sceneUrl = `/api/organizations/${organizationId}/content/${contentId}/excalidraw`;
 
@@ -53,12 +58,15 @@ export function DiagramEditorDialog({
 
   const sceneQuery = useQuery({
     queryKey: sceneQueryKey,
-    queryFn: async (): Promise<DiagramEditorScene> => {
+    queryFn: async (): Promise<DiagramEditorLoadedScene> => {
       const response = await fetch(sceneUrl, { cache: "no-store" });
       if (!response.ok) {
         throw new Error(`Failed to load diagram: ${response.status}`);
       }
-      return response.json();
+      return {
+        scene: await response.json(),
+        revision: Number(response.headers.get(DIAGRAM_REVISION_HEADER) ?? 0),
+      };
     },
     enabled: open,
     gcTime: 0,
@@ -70,14 +78,17 @@ export function DiagramEditorDialog({
   // Every session starts from the stored scene: a cached one would bring back
   // the drawing from before the last save or chat edit.
   const openEditor = () => {
+    apiRef.current = null;
+    setEditorReady(false);
     queryClient.resetQueries({ queryKey: sceneQueryKey, exact: true });
     setOpen(true);
   };
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<DiagramEditorSaveResult> => {
       const api = apiRef.current;
-      if (!api) {
+      const loaded = sceneQuery.data;
+      if (!(api && loaded)) {
         throw new Error("Editor is not ready");
       }
       const response = await fetch(sceneUrl, {
@@ -90,14 +101,35 @@ export function DiagramEditorDialog({
               viewBackgroundColor: api.getAppState().viewBackgroundColor,
             },
           },
+          revision: loaded.revision,
         }),
       });
+      const result = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        droppedTypes?: string[];
+      };
+      if (response.status === 409) {
+        return { status: "conflict" };
+      }
+      if (response.status === 422 && result.error) {
+        return { status: "invalid", reason: result.error };
+      }
       if (!response.ok) {
         throw new Error(`Failed to save diagram: ${response.status}`);
       }
-      return (await response.json()) as { droppedTypes: string[] };
+      return { status: "saved", droppedTypes: result.droppedTypes ?? [] };
     },
-    onSuccess: async ({ droppedTypes }) => {
+    onSuccess: async (result) => {
+      // Keep the editor open so the drawing is not lost.
+      if (result.status === "conflict") {
+        toast.error(t("conflict"));
+        return;
+      }
+      if (result.status === "invalid") {
+        toast.error(t("saveRejected", { reason: result.reason }));
+        return;
+      }
+      const { droppedTypes } = result;
       await onSaved();
       setOpen(false);
       if (droppedTypes.length > 0) {
@@ -143,8 +175,9 @@ export function DiagramEditorDialog({
               <DiagramEditorCanvas
                 onReady={(api) => {
                   apiRef.current = api;
+                  setEditorReady(true);
                 }}
-                scene={sceneQuery.data}
+                scene={sceneQuery.data.scene}
               />
             ) : (
               <div className="text-muted-foreground flex size-full items-center justify-center">
@@ -157,7 +190,7 @@ export function DiagramEditorDialog({
               {t("cancel")}
             </Button>
             <Button
-              disabled={!sceneQuery.data}
+              disabled={!(sceneQuery.data && editorReady)}
               loading={saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
             >

@@ -55,6 +55,16 @@ export function isDiagramSpecError(error: unknown) {
   );
 }
 
+/** Which image format a stored image post is, from its source metadata. */
+export function readImageFormat(metadata: unknown): "diagram" | "marketing" {
+  const isDiagram =
+    typeof metadata === "object" &&
+    metadata !== null &&
+    (("format" in metadata && metadata.format === "diagram") ||
+      ("diagramSpec" in metadata && Boolean(metadata.diagramSpec)));
+  return isDiagram ? "diagram" : "marketing";
+}
+
 /** The editable spec saved on a diagram post, or null for other images. */
 export function readDiagramSpec(metadata: unknown): DiagramSpec | null {
   if (
@@ -74,6 +84,8 @@ export function describeDiagramSpecError(error: unknown) {
   }
   return error instanceof Error ? error.message : String(error);
 }
+
+const CARRIAGE_RETURN_REGEX = /\r\n?/g;
 
 const LABEL_FACTORS: Record<DiagramShapeSpec["type"], number> = {
   rectangle: 1,
@@ -136,19 +148,23 @@ function buildTextElement(params: {
   measurer: DiagramTextMeasurer;
   centerOnPoint?: boolean;
 }): ExcalidrawTextElement {
-  const size = params.measurer.measure(params.text, params.fontSize);
+  // Nunito has no glyph for a tab, and a stray \r shifts the line.
+  const text = params.text
+    .replace(CARRIAGE_RETURN_REGEX, "\n")
+    .replaceAll("\t", "    ");
+  const size = params.measurer.measure(text, params.fontSize);
   const x = params.centerOnPoint ? params.x - size.width / 2 : params.x;
   const y = params.centerOnPoint ? params.y - size.height / 2 : params.y;
   return {
     ...baseElement(
       params.id,
-      { type: "text", x, y, text: params.text },
+      { type: "text", x, y, text },
       { x, y, width: size.width, height: size.height }
     ),
     strokeColor: params.strokeColor,
     type: "text",
-    text: params.text,
-    originalText: params.text,
+    text,
+    originalText: text,
     fontSize: params.fontSize,
     fontFamily: EXCALIDRAW_FONT_FAMILY_NUNITO,
     textAlign: params.textAlign,
@@ -366,6 +382,12 @@ function buildLinear(
       `Arrow ${id} ends at unknown shape "${spec.end.id}"`
     );
   }
+  if (startShape && startShape === endShape && !spec.via?.length) {
+    // Both ends would snap to the same point: a stray arrowhead on the label.
+    throw new DiagramSpecError(
+      `Arrow ${id} starts and ends at "${startShape.id}". Add via points to draw a loop around it.`
+    );
+  }
 
   const via = (spec.via ?? []) as Point[];
   const rawStart: Point = startShape
@@ -480,6 +502,41 @@ function buildFreeText(
 }
 
 /**
+ * Labels are `${containerId}-label`, which can collide with an element the
+ * spec named that way. Excalidraw keys elements by id, so rename the label.
+ */
+function dedupeLabelIds(elements: ExcalidrawElement[]) {
+  const taken = new Set<string>();
+  for (const element of elements) {
+    if (!(element.type === "text" && element.containerId)) {
+      taken.add(element.id);
+    }
+  }
+  const byId = new Map(elements.map((element) => [element.id, element]));
+  for (const element of elements) {
+    if (!(element.type === "text" && element.containerId)) {
+      continue;
+    }
+    if (!taken.has(element.id)) {
+      taken.add(element.id);
+      continue;
+    }
+    let id = `${element.id}-text`;
+    while (taken.has(id)) {
+      id = `${id}-text`;
+    }
+    const container = byId.get(element.containerId);
+    if (container?.boundElements) {
+      container.boundElements = container.boundElements.map((bound) =>
+        bound.id === element.id ? { ...bound, id } : bound
+      );
+    }
+    element.id = id;
+    taken.add(id);
+  }
+}
+
+/**
  * Expands the compact agent-authored spec into a full Excalidraw scene:
  * label-fitted shapes, edge-snapped arrows with bindings, and bound text.
  */
@@ -487,8 +544,21 @@ export function buildExcalidrawScene(
   spec: DiagramSpec,
   measurer: DiagramTextMeasurer
 ): ExcalidrawScene {
+  // Explicit ids first, so a generated `rectangle-0` cannot take an id that
+  // an arrow later in the spec points at.
   const usedIds = new Set<string>();
+  const explicitIds = spec.elements.map((element) => {
+    if (!element.id || usedIds.has(element.id)) {
+      return undefined;
+    }
+    usedIds.add(element.id);
+    return element.id;
+  });
   const ids = spec.elements.map((element, index) => {
+    const explicit = explicitIds[index];
+    if (explicit) {
+      return explicit;
+    }
     let id = element.id ?? `${element.type}-${index}`;
     while (usedIds.has(id)) {
       id = `${id}-${index}`;
@@ -540,11 +610,14 @@ export function buildExcalidrawScene(
     }
   }
 
+  const elements = [...shapeElements, ...overlayElements];
+  dedupeLabelIds(elements);
+
   return {
     type: "excalidraw",
     version: 2,
     source: EXCALIDRAW_SCENE_SOURCE,
-    elements: [...shapeElements, ...overlayElements],
+    elements,
     appState: {
       viewBackgroundColor: spec.background ?? DIAGRAM_DEFAULT_BACKGROUND,
       gridSize: null,

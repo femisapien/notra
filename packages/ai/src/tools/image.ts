@@ -15,6 +15,7 @@ import {
   canEditDiagramWithoutSandbox,
   reviseDiagramPost,
 } from "@notra/ai/utils/diagram-edit";
+import { readImageFormat } from "@notra/ai/utils/excalidraw-diagram";
 import {
   uploadGeneratedHtmlAsset,
   uploadGeneratedImageAsset,
@@ -57,7 +58,8 @@ export function createImageTool(config: ImageToolConfig): Tool {
           branch: input.branch,
           brandIdentityId,
           mode: input.mode,
-          format: input.format,
+          // A follow-up keeps the source image's format unless asked otherwise.
+          format: input.format ?? restoreSnapshot?.format,
           prompt: input.prompt,
           prNumber: input.prNumber,
           commitSha: input.commitSha,
@@ -141,6 +143,7 @@ export function createImageRevisionTool(config: ImageRevisionToolConfig): Tool {
           prompt,
           title,
           useMarkup: config.useMarkup,
+          chargeAiCredits: config.chargeAiCredits,
         });
       }
 
@@ -158,6 +161,9 @@ export function createImageRevisionTool(config: ImageRevisionToolConfig): Tool {
           brandIdentityId: config.brandIdentityId,
           mode: "prompt",
           prompt,
+          // From the post, not from files in the restored repo: a customer
+          // repo can contain its own diagram.json.
+          format: readImageFormat(post?.sourceMetadata),
         },
         restoreSnapshotId: previousSnapshot.snapshotId,
         restoreDiagramSpec: previousSnapshot.diagramSpec,
@@ -213,6 +219,7 @@ export function createImageRevisionTool(config: ImageRevisionToolConfig): Tool {
         postId: config.postId,
         usage: result.usage,
         useMarkup: config.useMarkup,
+        chargeAiCredits: config.chargeAiCredits,
       });
 
       return {

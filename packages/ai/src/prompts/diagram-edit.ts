@@ -33,7 +33,7 @@ export function buildDiagramEditPrompt(params: {
     : "";
   return dedent`Current diagram.json:
 
-${JSON.stringify(params.spec, null, 2)}
+${JSON.stringify(params.spec)}
 
 Change request:
 ${params.prompt}${retry}`;

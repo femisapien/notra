@@ -151,6 +151,8 @@ export interface OrchestrateInput {
   timezone?: string;
   telemetryMetadata?: TccMetadata;
   useMarkup?: boolean;
+  /** False when the plan covers AI usage; image revisions then skip credits. */
+  chargeAiCredits?: boolean;
 }
 
 export interface OrchestrateResult {
@@ -183,6 +185,8 @@ export interface BuildToolSetParams {
   userId?: string;
   imageDefaults?: ImageDefaults;
   useMarkup?: boolean;
+  /** False when the plan covers AI usage; image revisions then skip credits. */
+  chargeAiCredits?: boolean;
   onMarkdownUpdate?: (markdown: string) => void;
   validatedIntegrations: ValidatedIntegration[];
 }

@@ -65,7 +65,8 @@ export function createGenerateImageTool() {
           branch: input.branch,
           brandIdentityId,
           mode: input.mode,
-          format: input.format,
+          // A follow-up keeps the source image's format unless asked otherwise.
+          format: input.format ?? restoreSnapshot?.format,
           prompt: input.prompt,
           prNumber: input.prNumber,
           commitSha: input.commitSha,

@@ -5,6 +5,17 @@ export interface DiagramEditorScene {
   appState?: { viewBackgroundColor?: string };
 }
 
+export interface DiagramEditorLoadedScene {
+  scene: DiagramEditorScene;
+  /** Stored revision the scene belongs to; sent back on save. */
+  revision: number;
+}
+
+export type DiagramEditorSaveResult =
+  | { status: "saved"; droppedTypes: string[] }
+  | { status: "conflict" }
+  | { status: "invalid"; reason: string };
+
 export interface DiagramEditorCanvasProps {
   scene: DiagramEditorScene;
   onReady: (api: ExcalidrawImperativeAPI) => void;

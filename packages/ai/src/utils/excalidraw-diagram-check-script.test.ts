@@ -92,7 +92,9 @@ test("invalid JSON and dangling arrow ids fail with exit code 1", () => {
     ],
   });
   expect(dangling.exitCode).toBe(1);
-  expect(dangling.output).toContain("end id 'ghost' does not exist");
+  expect(dangling.output).toContain(
+    "end id 'ghost' is not a rectangle, ellipse, or diamond"
+  );
 });
 
 test("warns about overlaps, oversized diagrams, and labels that do not fit", () => {
