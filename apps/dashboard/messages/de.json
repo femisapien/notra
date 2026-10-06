@@ -3838,7 +3838,9 @@
         "metaTitle": "GEO-Traffic",
         "title": "KI-Traffic",
         "description": "KI-Crawler und Verweise, die deine Website besuchen",
-        "setupDescription": "Richte zuerst das GEO-Tracking ein und beobachte dann KI-Crawler und Verweise, sobald sie eintreffen."
+        "setupDescription": "Richte zuerst das GEO-Tracking ein und beobachte dann KI-Crawler und Verweise, sobald sie eintreffen.",
+        "titleWithVisitors": "Traffic",
+        "descriptionWithVisitors": "Menschen und AI-Agents auf deiner Website"
       },
       "write": {
         "metaTitle": "GEO Writer",
@@ -3877,6 +3879,8 @@
       "startScanFailed": "Scan konnte nicht gestartet werden",
       "startRescanFailed": "Erneuter Scan konnte nicht gestartet werden",
       "loadAgentReadinessFailed": "Agent Readiness konnte nicht geladen werden",
+      "loadVisitorsFailed": "Besucher konnten nicht geladen werden",
+      "trackVisitorsFailed": "Besucher-Tracking konnte nicht geändert werden",
       "loadAITrafficFailed": "KI-Traffic konnte nicht geladen werden",
       "loadAITrackingLogFailed": "KI-Tracking-Log konnte nicht geladen werden",
       "loadTopAIPagesFailed": "Top-KI-Seiten konnten nicht geladen werden",
@@ -3979,6 +3983,42 @@
     "liveIndicator": {
       "label": "Live",
       "hint": "Aktualisiert sich automatisch, sobald neue Daten ankommen"
+    },
+    "webVisitors": {
+      "title": "Besucher",
+      "visitors": "Besucher",
+      "views": "Seitenaufrufe",
+      "fromAi": "Aus AI-Antworten",
+      "agents": "AI-Agents",
+      "trendTitle": "Seitenaufrufe über Zeit",
+      "people": "Menschen",
+      "agentsSeries": "AI-Agents",
+      "share": "{share} %",
+      "domainReadout": "Aus {tracked} von {total} Domains",
+      "topPages": "Top-Seiten",
+      "page": "Seite",
+      "aiVisitorsDetail": "{count} aus AI",
+      "sources": "Quellen",
+      "direct": "Direkt",
+      "sessions": "Sitzungen",
+      "countries": "Länder",
+      "devices": "Geräte",
+      "unknownCountry": "Unbekannt",
+      "deviceDesktop": "Desktop",
+      "deviceMobile": "Mobil",
+      "deviceTablet": "Tablet",
+      "outcomesTitle": "Was AI-Besucher tun",
+      "outcomesAll": "Alle Besucher",
+      "outcomesAi": "Aus {source}",
+      "pagesPerSession": "Seiten pro Besuch",
+      "engagedRate": "Weitergelesen",
+      "noData": "Keine Besucher in diesem Zeitraum",
+      "trackTitle": "Auch Menschen zählen",
+      "trackDescription": "Besucher, Quellen und Länder neben dem AI-Traffic. Ohne Cookies, ohne Script.",
+      "trackOn": "Besucher-Tracking ist an",
+      "trackOnDescription": "Menschen tauchen hier eine Minute nach dem ersten Besuch auf.",
+      "trackSiteTitle": "Menschen auch auf deinen anderen Domains zählen",
+      "trackSiteDescription": "Deine Notra Site zählt ihre Besucher schon. Schalte das ein, um auch Menschen auf den Domains mit SDK zu zählen."
     }
   },
   "integrations": {
@@ -4837,7 +4877,7 @@
     "triggers": {
       "push": "Push",
       "pull_request": "Pull Request",
-      "manual": "Manuell",
+      "manual": "Manuelles Update",
       "redeploy": "Redeploy",
       "config": "Einstellungsänderung"
     },
@@ -4878,17 +4918,14 @@
       "address": "Adresse",
       "addressInvalid": "Verwende 3–40 Kleinbuchstaben, Ziffern und einzelne Bindestriche.",
       "branch": "Produktions-Branch",
-      "rootDirectory": "Root-Verzeichnis",
       "rootDirectoryPlaceholder": "apps/blog",
       "publishMode": "Veröffentlichen aus dem Editor",
       "create": "Site erstellen",
       "createFailed": "Site konnte nicht erstellt werden",
       "noBranchMatch": "Kein passender Branch",
       "noDirectoryMatch": "Kein Ordner mit notra.json passt",
-      "optional": "Optional",
       "publishing": "Vorschauen und Veröffentlichen",
       "branchHint": "Pushes auf diesen Branch gehen live.",
-      "rootDirectoryHint": "Für Monorepos: der Ordner mit notra.json.",
       "account": "GitHub-Konto",
       "searchRepositories": "Repositories durchsuchen",
       "import": "Importieren",
@@ -4931,11 +4968,15 @@
         "view": "Ansehen",
         "mergeFirst": "Merge ihn, bevor du die Site erstellst. Bis dahin schlägt der erste Build fehl, weil die notra.json fehlt.",
         "failed": "Der Starter-Pull-Request konnte nicht geöffnet werden"
-      }
+      },
+      "subdirectory": "notra.json liegt in einem Unterordner",
+      "subdirectoryHint": "Einschalten, wenn die Seite in einem Ordner des Repositorys liegt.",
+      "rootDirectoryPath": "Pfad zu notra.json",
+      "rootDirectoryPathHint": "Ordner mit der notra.json, relativ zum Repository-Root."
     },
     "detail": {
       "visit": "Öffnen",
-      "deployLatest": "Neuesten Stand deployen",
+      "deployLatest": "Manuelles Update",
       "deployQueued": "Deployment eingereiht",
       "deployFailed": "Deployment konnte nicht gestartet werden",
       "offline": "Offline",
@@ -4953,12 +4994,13 @@
       },
       "tabs": {
         "overview": "Übersicht",
+        "analytics": "Analytics",
         "deployments": "Deployments",
         "previews": "Vorschauen",
         "domains": "Domains",
         "editor": "Editor",
         "settings": "Einstellungen",
-        "integrations": "Analytics"
+        "integrations": "Integrationen"
       }
     },
     "deployments": {
@@ -5496,7 +5538,7 @@
       "saveFailed": "Zugriff konnte nicht aktualisiert werden"
     },
     "integrationsPage": {
-      "title": "Analytics",
+      "title": "Integrationen",
       "description": "Analytics für diese Site. Die Einstellungen landen in notra.json und gehen beim Veröffentlichen live.",
       "optional": "Optional",
       "connect": "Verbinden",
@@ -5535,6 +5577,16 @@
       "add": "{provider} hinzufügen",
       "more": "{provider}-Optionen",
       "edit": "Bearbeiten"
+    },
+    "analyticsPage": {
+      "title": "Analytics",
+      "description": "Menschen und AI-Agents auf dieser Seite",
+      "emptyTitle": "Noch keine Besucher",
+      "emptyDescription": "Besuche erscheinen hier etwa eine Minute, nachdem jemand die Seite öffnet.",
+      "overviewTitle": "Letzte 7 Tage",
+      "viewAnalytics": "Analytics ansehen",
+      "errorTitle": "Analytics konnten nicht geladen werden",
+      "errorDescription": "Versuch es gleich noch einmal."
     }
   },
   "analytics": {

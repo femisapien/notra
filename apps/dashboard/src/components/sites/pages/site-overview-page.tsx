@@ -3,7 +3,7 @@
 import {
   ArrowRight01Icon,
   ArrowUpRight01Icon,
-  Rocket01Icon,
+  RefreshIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTranslations } from "next-intl";
@@ -17,12 +17,16 @@ import { SiteDeploymentsTable } from "@/components/sites/site-deployments-table"
 import { SiteOverviewHero } from "@/components/sites/site-overview-hero";
 import { SitePreviewsTable } from "@/components/sites/site-previews-table";
 import { SiteRelativeTime } from "@/components/sites/site-relative-time";
+import { SiteVisitorsCard } from "@/components/sites/site-visitors-card";
 import {
   SITE_OVERVIEW_PREVIEWS_LIMIT,
   SITE_RECENT_DEPLOYMENTS_LIMIT,
   SITE_TABLE_COMPACT_EMPTY_HEIGHT,
 } from "@/constants/sites";
-import { useDeployLatest } from "@/lib/hooks/use-site-deployments";
+import {
+  useDeployLatest,
+  useSiteDeploymentsList,
+} from "@/lib/hooks/use-site-deployments";
 import type {
   SiteUpdatedLineProps,
   SiteViewAllLinkProps,
@@ -73,6 +77,9 @@ export function SiteOverviewPage() {
   const { site } = detail;
   const suspended = site.status === "suspended";
   const deployLatest = useDeployLatest({ organizationId, siteId });
+  // The site layout holds the latest 30; the full list pages through the rest.
+  const deploymentsList = useSiteDeploymentsList({ organizationId, siteId });
+  const deployments = deploymentsList.data ?? detail.deployments;
   const previews = sitePreviewRows(detail);
   const latestProduction =
     detail.deployments.find((deployment) => deployment.kind === "production") ??
@@ -101,19 +108,6 @@ export function SiteOverviewPage() {
               />
             </a>
           ) : null}
-          <Button
-            disabled={suspended}
-            loading={deployLatest.isPending}
-            onClick={() => deployLatest.mutate()}
-          >
-            <HugeiconsIcon
-              aria-hidden="true"
-              data-icon="inline-start"
-              icon={Rocket01Icon}
-              strokeWidth={1.5}
-            />
-            {tDetail("deployLatest")}
-          </Button>
         </div>
       </PageHeader>
       <span aria-live="polite" className="sr-only">
@@ -126,22 +120,31 @@ export function SiteOverviewPage() {
 
       <SiteOverviewHero />
 
+      <SiteVisitorsCard />
+
       <InstrumentSection
         action={
-          detail.deployments.length > 0 ? (
-            <ViewAllLink
-              href={siteHref(organizationSlug, siteId, "deployments")}
-              label={t("viewAll")}
+          // Starts a build of the branch head right away, no confirmation.
+          <Button
+            disabled={suspended}
+            loading={deployLatest.isPending}
+            onClick={() => deployLatest.mutate()}
+            size="sm"
+            variant="outline"
+          >
+            <HugeiconsIcon
+              aria-hidden="true"
+              data-icon="inline-start"
+              icon={RefreshIcon}
+              strokeWidth={1.5}
             />
-          ) : null
+            {tDetail("deployLatest")}
+          </Button>
         }
         eyebrow={t("activity")}
       >
         <SiteDeploymentsTable
-          deployments={detail.deployments.slice(
-            0,
-            SITE_RECENT_DEPLOYMENTS_LIMIT
-          )}
+          deployments={deployments}
           emptyHeight={SITE_TABLE_COMPACT_EMPTY_HEIGHT}
           emptyState={
             <p className="text-sm text-pretty">
@@ -152,6 +155,7 @@ export function SiteOverviewPage() {
           }
           organizationId={organizationId}
           organizationSlug={organizationSlug}
+          pageSize={SITE_RECENT_DEPLOYMENTS_LIMIT}
           siteId={siteId}
         />
       </InstrumentSection>

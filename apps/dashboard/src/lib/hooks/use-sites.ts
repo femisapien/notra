@@ -1,8 +1,13 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
 import {
   SITE_ACTIVE_POLL_INTERVAL_MS,
+  SITE_ANALYTICS_POLL_INTERVAL_MS,
   SITE_IDLE_POLL_INTERVAL_MS,
 } from "@/constants/sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
@@ -61,6 +66,23 @@ export function useSiteDetail(organizationId: string, siteId: string) {
       refetchIntervalInBackground: false,
     })
   );
+}
+
+/** People and AI traffic for one site; refreshes every minute while open. */
+export function useSiteAnalytics(
+  organizationId: string,
+  siteId: string,
+  window: { days?: number; from?: string; to?: string }
+) {
+  return useQuery({
+    ...dashboardOrpc.sites.analytics.queryOptions({
+      input: { organizationId, siteId, ...window },
+      enabled: organizationId.length > 0,
+      refetchInterval: SITE_ANALYTICS_POLL_INTERVAL_MS,
+      refetchIntervalInBackground: false,
+    }),
+    placeholderData: keepPreviousData,
+  });
 }
 
 export function useInvalidateSites() {

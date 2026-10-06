@@ -3,6 +3,7 @@ import type { GeoWriterBrief } from "@notra/ai/types/geo-writer";
 import type { GeoWriterSourceKind } from "@notra/db/types/geo-writer";
 import type {
   AiTrafficResponse,
+  WebAnalyticsResponse,
   GeoAnswerSource,
   GeoChangeEvent,
   GeoChangesSummary,
@@ -166,6 +167,7 @@ export interface TrafficPageViewProps {
   isPagesPending: boolean;
   trafficPages: readonly GeoTrafficPage[];
   ingestSetup: GeoIngestSetupResponse | undefined;
+  web: WebAnalyticsResponse | undefined;
 }
 
 export interface GeoTrafficSkeletonProps {
@@ -713,7 +715,6 @@ export interface TrafficPageSourcesCellProps {
 export interface TrafficPagesCardProps {
   pages: readonly GeoTrafficPage[];
   isPending?: boolean;
-  hosts?: readonly string[];
 }
 
 export interface TrafficPagesResultsProps {
@@ -723,10 +724,6 @@ export interface TrafficPagesResultsProps {
 }
 
 export interface TrafficPagesFiltersProps {
-  showHostFilter: boolean;
-  hostSelectValue: string;
-  hostOptions: readonly string[];
-  onHostChange: (value: string) => void;
   pathQuery: string;
   onPathQueryChange: (value: string) => void;
 }
@@ -1820,4 +1817,45 @@ export interface PromptTranslationTextProps {
   translating: boolean;
   onEdit: () => void;
   onReset: () => void;
+}
+
+export interface WebTrendRow {
+  day: string;
+  rawDay: string;
+  people: number;
+  agents: number;
+  [key: string]: string | number;
+}
+
+export interface WebVisitorsSectionProps {
+  web: WebAnalyticsResponse;
+  traffic: AiTrafficResponse | undefined;
+  range?: GeoRangeQuery;
+  /** Hosts the domain selector offers; the readout says how many count people. */
+  domainCount: number;
+}
+
+export interface WebBarListRow {
+  key: string;
+  label: ReactNode;
+  value: number;
+  /** Shown after the value, e.g. AI visitors on a page. */
+  detail?: ReactNode;
+}
+
+export interface WebBarListProps {
+  rows: readonly WebBarListRow[];
+  emptyMessage: string;
+  valueLabel: string;
+}
+
+export interface TrafficDomainSelectProps {
+  hosts: readonly string[];
+}
+
+export interface VisitorTrackingToggleProps {
+  organizationId: string;
+  enabled: boolean;
+  /** A Notra Site already counts people; the switch adds the SDK's domains. */
+  siteCounts: boolean;
 }

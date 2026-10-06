@@ -11,6 +11,8 @@ import {
   sites,
 } from "@notra/db/schema";
 import { isGeoIngestConfigured } from "@notra/geo-core/geo/ingest";
+import { loadSiteAnalytics } from "@notra/geo-core/geo/web-analytics";
+import { geoWindow } from "@notra/geo-core/geo/window";
 import { organizationIdInputSchema } from "@notra/schemas/dashboard/auth/organization";
 import {
   addSiteDomainInputSchema,
@@ -29,6 +31,7 @@ import {
   siteFilePathInputSchema,
   sitePreviewAccessInputSchema,
   sitePreviewInputSchema,
+  siteAnalyticsInputSchema,
   siteScopeInputSchema,
   siteSetPreviewPasswordInputSchema,
   siteStarterInputSchema,
@@ -104,10 +107,12 @@ import {
   sitePreviewOrigin,
 } from "@notra/sites-server/urls";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { Effect } from "effect";
 import { after } from "next/server";
 
 import { SITE_ADMIN_ROLES } from "@/constants/sites";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
+import { geoCoreDashboardLayer } from "@/lib/geo/configure";
 import { authorizedProcedure } from "@/lib/orpc/base";
 import { runOrpcEffect } from "@/lib/orpc/effect";
 import {
@@ -116,6 +121,7 @@ import {
   notFound,
   serviceUnavailable,
 } from "@/lib/orpc/utils/errors";
+import { toGeoOrpcError } from "@/lib/orpc/utils/geo-errors";
 import { dispatchSiteJobs } from "@/lib/sites/dispatch";
 import { toSitesOrpcError } from "@/lib/sites/orpc-errors";
 import {
@@ -419,6 +425,18 @@ export const sitesRouter = {
         previews: serializePreviews(site, state, deployments),
         draftCount: drafts.length,
       };
+    }),
+
+  analytics: sitesProcedure
+    .input(siteAnalyticsInputSchema)
+    .handler(async ({ context, input }) => {
+      const { site } = await requireSite(context, input);
+      return runOrpcEffect(
+        loadSiteAnalytics(site, geoWindow(input)).pipe(
+          Effect.provide(geoCoreDashboardLayer)
+        ),
+        toGeoOrpcError
+      );
     }),
 
   create: sitesProcedure

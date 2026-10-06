@@ -1,0 +1,70 @@
+"use client";
+
+import { Skeleton } from "@notra/ui/components/ui/skeleton";
+import { useTranslations } from "next-intl";
+
+import { EmptyState } from "@/components/empty-state";
+import { EmptyStateTablePreview } from "@/components/empty-state-preview";
+import { GeoRangePicker } from "@/components/geo/geo-range-picker";
+import { WebVisitorsSection } from "@/components/geo/web-visitors-section";
+import { PageHeader } from "@/components/layout/page-header";
+import { useSite } from "@/components/sites/site-context";
+import {
+  EMPTY_STATE_TABLE_COLUMNS,
+  EMPTY_STATE_TABLE_ROWS,
+} from "@/constants/empty-state";
+import { useGeoRange } from "@/lib/hooks/use-geo-range";
+import { useSiteAnalytics } from "@/lib/hooks/use-sites";
+
+/** The site's own people and the AI agents reading it, in one view. */
+export function SiteAnalyticsPage() {
+  const t = useTranslations("sites.analyticsPage");
+  const { organizationId, siteId } = useSite();
+  const geoRange = useGeoRange();
+  const query = useSiteAnalytics(organizationId, siteId, geoRange.query);
+  const data = query.data;
+  const isEmpty =
+    data !== undefined &&
+    data.web.totals.views === 0 &&
+    data.traffic.sources.length === 0;
+
+  return (
+    <div className="space-y-6">
+      <PageHeader description={t("description")} title={t("title")}>
+        <GeoRangePicker control={geoRange} />
+      </PageHeader>
+      {query.isError && data === undefined ? (
+        <EmptyState
+          description={t("errorDescription")}
+          title={t("errorTitle")}
+        />
+      ) : null}
+      {data === undefined && !query.isError ? (
+        <div className="space-y-6">
+          <Skeleton className="h-28 w-full rounded-2xl" />
+          <Skeleton className="h-64 w-full rounded-2xl" />
+        </div>
+      ) : null}
+      {isEmpty ? (
+        <EmptyState
+          description={t("emptyDescription")}
+          preview={
+            <EmptyStateTablePreview
+              columns={EMPTY_STATE_TABLE_COLUMNS.traffic}
+              rows={EMPTY_STATE_TABLE_ROWS}
+            />
+          }
+          title={t("emptyTitle")}
+        />
+      ) : null}
+      {data !== undefined && !isEmpty ? (
+        <WebVisitorsSection
+          domainCount={1}
+          range={geoRange.query}
+          traffic={data.traffic}
+          web={data.web}
+        />
+      ) : null}
+    </div>
+  );
+}

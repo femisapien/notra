@@ -3838,7 +3838,9 @@
         "metaTitle": "GEO Traffic",
         "title": "AI Traffic",
         "description": "AI crawlers and referrals visiting your site",
-        "setupDescription": "Set up GEO tracking first, then watch AI crawlers and referrals as they arrive."
+        "setupDescription": "Set up GEO tracking first, then watch AI crawlers and referrals as they arrive.",
+        "titleWithVisitors": "Traffic",
+        "descriptionWithVisitors": "People and AI agents on your site"
       },
       "write": {
         "metaTitle": "GEO Writer",
@@ -3877,6 +3879,8 @@
       "startScanFailed": "Failed to start scan",
       "startRescanFailed": "Failed to start rescan",
       "loadAgentReadinessFailed": "Failed to load agent readiness",
+      "loadVisitorsFailed": "Failed to load visitors",
+      "trackVisitorsFailed": "Couldn't change visitor tracking",
       "loadAITrafficFailed": "Failed to load AI traffic",
       "loadAITrackingLogFailed": "Failed to load AI tracking log",
       "loadTopAIPagesFailed": "Failed to load top AI pages",
@@ -3979,6 +3983,42 @@
     "liveIndicator": {
       "label": "Live",
       "hint": "Updates on its own as new data comes in"
+    },
+    "webVisitors": {
+      "title": "Visitors",
+      "visitors": "Visitors",
+      "views": "Page views",
+      "fromAi": "From AI answers",
+      "agents": "AI agents",
+      "trendTitle": "Page views over time",
+      "people": "People",
+      "agentsSeries": "AI agents",
+      "share": "{share}%",
+      "domainReadout": "From {tracked} of {total} domains",
+      "topPages": "Top pages",
+      "page": "Page",
+      "aiVisitorsDetail": "{count} from AI",
+      "sources": "Sources",
+      "direct": "Direct",
+      "sessions": "Sessions",
+      "countries": "Countries",
+      "devices": "Devices",
+      "unknownCountry": "Unknown",
+      "deviceDesktop": "Desktop",
+      "deviceMobile": "Mobile",
+      "deviceTablet": "Tablet",
+      "outcomesTitle": "What AI visitors do",
+      "outcomesAll": "All visitors",
+      "outcomesAi": "From {source}",
+      "pagesPerSession": "Pages per visit",
+      "engagedRate": "Read further",
+      "noData": "No visitors in this period",
+      "trackTitle": "Count people too",
+      "trackDescription": "See visitors, sources and countries next to AI traffic. No cookies, no script.",
+      "trackOn": "Visitor tracking is on",
+      "trackOnDescription": "People show up here within a minute of their first visit.",
+      "trackSiteTitle": "Count people on your other domains",
+      "trackSiteDescription": "Your Notra Site already counts its visitors. Switch this on to count people on the domains that use the SDK too."
     }
   },
   "integrations": {
@@ -4837,7 +4877,7 @@
     "triggers": {
       "push": "Push",
       "pull_request": "Pull request",
-      "manual": "Manual",
+      "manual": "Manual update",
       "redeploy": "Redeploy",
       "config": "Settings change"
     },
@@ -4878,17 +4918,14 @@
       "address": "Address",
       "addressInvalid": "Use 3–40 lowercase letters, digits and single dashes.",
       "branch": "Production branch",
-      "rootDirectory": "Root directory",
       "rootDirectoryPlaceholder": "apps/blog",
       "publishMode": "Publishing from the editor",
       "create": "Create site",
       "createFailed": "Couldn't create the site",
       "noBranchMatch": "No matching branch",
       "noDirectoryMatch": "No folder with notra.json matches",
-      "optional": "Optional",
       "publishing": "Previews and publishing",
       "branchHint": "Pushes to this branch go live.",
-      "rootDirectoryHint": "For monorepos: the folder with notra.json.",
       "account": "GitHub account",
       "searchRepositories": "Search repositories",
       "import": "Import",
@@ -4931,11 +4968,15 @@
         "view": "View",
         "mergeFirst": "Merge it before you create the site. Until it is merged, the first build fails because notra.json is missing.",
         "failed": "Could not open the starter pull request"
-      }
+      },
+      "subdirectory": "notra.json is in a subdirectory",
+      "subdirectoryHint": "Turn on when the site lives in a folder of the repository.",
+      "rootDirectoryPath": "Path to notra.json",
+      "rootDirectoryPathHint": "Folder that contains notra.json, relative to the repository root."
     },
     "detail": {
       "visit": "Visit",
-      "deployLatest": "Deploy latest",
+      "deployLatest": "Manual update",
       "deployQueued": "Deployment queued",
       "deployFailed": "Couldn't start the deployment",
       "offline": "Offline",
@@ -4953,12 +4994,13 @@
       },
       "tabs": {
         "overview": "Overview",
+        "analytics": "Analytics",
         "deployments": "Deployments",
         "previews": "Previews",
         "domains": "Domains",
         "editor": "Editor",
         "settings": "Settings",
-        "integrations": "Analytics"
+        "integrations": "Integrations"
       }
     },
     "deployments": {
@@ -5496,7 +5538,7 @@
       "saveFailed": "Couldn't update preview access"
     },
     "integrationsPage": {
-      "title": "Analytics",
+      "title": "Integrations",
       "description": "Analytics for this site. Settings are saved in notra.json and go live when you publish.",
       "optional": "Optional",
       "connect": "Connect",
@@ -5535,6 +5577,16 @@
       "add": "Add {provider}",
       "more": "{provider} options",
       "edit": "Edit"
+    },
+    "analyticsPage": {
+      "title": "Analytics",
+      "description": "People and AI agents on this site",
+      "emptyTitle": "No visitors yet",
+      "emptyDescription": "Visits show up here about a minute after someone opens the site.",
+      "overviewTitle": "Last 7 days",
+      "viewAnalytics": "View analytics",
+      "errorTitle": "Couldn't load analytics",
+      "errorDescription": "Try again in a moment."
     }
   },
   "analytics": {

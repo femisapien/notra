@@ -5,6 +5,7 @@ import {
 } from "@notra/geo-core/constants/geo";
 
 import {
+  geoHostQueryInput,
   geoOverviewQueryInput,
   geoSettingsQueryInput,
   geoTrafficJourneysQueryInput,
@@ -119,7 +120,8 @@ export function geoTrafficHydrationInputs(
 
   return {
     settings: geoSettingsQueryInput(scope),
-    aiTraffic: geoOverviewQueryInput(scope, window),
+    aiTraffic: geoHostQueryInput(scope, window, host),
+    webAnalytics: geoHostQueryInput(scope, window, host),
     trafficPages: geoTrafficPagesQueryInput(scope, window, host),
     trafficLog: geoTrafficLogQueryInput(
       scope,

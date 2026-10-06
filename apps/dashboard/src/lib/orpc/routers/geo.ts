@@ -145,6 +145,11 @@ import {
   dismissSuggestion,
   listSuggestions,
 } from "@notra/geo-core/geo/suggestions";
+import {
+  loadWebAnalytics,
+  setVisitorTracking,
+  webHostFilter,
+} from "@notra/geo-core/geo/web-analytics";
 import { geoWindow } from "@notra/geo-core/geo/window";
 import {
   approveAndStartGeoWriter,
@@ -203,6 +208,8 @@ import {
   geoTrafficJourneysInputSchema,
   geoTrafficLogInputSchema,
   geoTrafficPagesInputSchema,
+  geoTrackVisitorsInputSchema,
+  webAnalyticsInputSchema,
   geoWriterBriefIdInputSchema,
   geoWriterPlanInputSchema,
   geoWriterUpdateInputSchema,
@@ -1157,7 +1164,21 @@ export const geoRouter = {
     ),
   aiTraffic: authorizedProcedure
     .input(aiTrafficInputSchema)
-    .handler(geoHandler((input) => loadAiTraffic(input, geoWindow(input)))),
+    .handler(
+      geoHandler((input) =>
+        loadAiTraffic(input, geoWindow(input), webHostFilter(input.host))
+      )
+    ),
+  webAnalytics: authorizedProcedure
+    .input(webAnalyticsInputSchema)
+    .handler(
+      geoHandler((input) =>
+        loadWebAnalytics(input, geoWindow(input), input.host)
+      )
+    ),
+  setTrackVisitors: authorizedProcedure
+    .input(geoTrackVisitorsInputSchema)
+    .handler(geoHandler((input) => setVisitorTracking(input, input.enabled))),
   trafficLog: authorizedProcedure
     .input(geoTrafficLogInputSchema)
     .handler(

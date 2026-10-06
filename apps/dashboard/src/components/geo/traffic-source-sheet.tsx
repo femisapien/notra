@@ -30,6 +30,7 @@ import { TrafficSourceGroupIcon } from "@/components/geo/traffic-source-group-ic
 import { Table, type TableColumn } from "@/components/motion/table";
 import { AI_TRAFFIC_PURPOSE_LABEL_KEYS } from "@/constants/ai-traffic-purposes";
 import { TABLE_ROW_HEIGHT } from "@/constants/table";
+import { useGeoTrafficHostQuery } from "@/lib/hooks/use-geo-traffic-host";
 import { useRetainedValue } from "@/lib/hooks/use-retained-value";
 import type {
   GeoTrafficGroupPage,
@@ -165,6 +166,7 @@ function TrafficSourceSheetContent({
 }: TrafficSourceSheetContentProps) {
   const t = useTranslations("geo.trafficSourceSheet");
   const tGeoShared = useTranslations("geo.shared");
+  const [trafficHost] = useGeoTrafficHostQuery();
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const purposeLabel = (category: string) => {
@@ -175,7 +177,8 @@ function TrafficSourceSheetContent({
   };
   const previous = trafficGroupPreviousVisits(group);
   const topPages = trafficGroupTopPages(pages, group, TOP_PAGES_LIMIT);
-  const showMarkdown = group.band !== "ai_referral";
+  // The per-domain rollup has no Markdown counts, so a domain filter hides it.
+  const showMarkdown = group.band !== "ai_referral" && trafficHost === "";
   const stats: SheetStat[] = [
     {
       label: tGeoShared("visits"),

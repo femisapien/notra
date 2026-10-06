@@ -2,10 +2,7 @@
 
 import { SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  GEO_TRAFFIC_HOST_ALL,
-  GEO_TRAFFIC_PAGES_PATH_PARAM,
-} from "@notra/geo-core/constants/geo";
+import { GEO_TRAFFIC_PAGES_PATH_PARAM } from "@notra/geo-core/constants/geo";
 import {
   formatGeoSource,
   trafficVisitDelta,
@@ -17,13 +14,6 @@ import {
 import { AnimatedNumber } from "@notra/ui/components/animated-number";
 import { TruncateWithTooltip } from "@notra/ui/components/shared/truncate-with-tooltip";
 import { Input } from "@notra/ui/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@notra/ui/components/ui/select";
 import { useLocale, useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
 
@@ -46,9 +36,6 @@ import {
   filterTrafficPageGroups,
   filterTrafficPageGroupsByHost,
   groupTrafficPages,
-  trafficHostSelectOptions,
-  trafficHostSelectValue,
-  trafficHostsFromPages,
 } from "@/utils/ai-traffic-pages";
 import { tableHeightFor } from "@/utils/table";
 
@@ -115,48 +102,12 @@ function trafficPageColumns(
 }
 
 function TrafficPagesFilters({
-  showHostFilter,
-  hostSelectValue,
-  hostOptions,
-  onHostChange,
   pathQuery,
   onPathQueryChange,
 }: TrafficPagesFiltersProps) {
   const t = useTranslations("geo.trafficPagesCard");
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {showHostFilter ? (
-        <Select
-          onValueChange={(value) => {
-            if (value) {
-              onHostChange(value === GEO_TRAFFIC_HOST_ALL ? "" : value);
-            }
-          }}
-          value={hostSelectValue}
-        >
-          <SelectTrigger
-            aria-label={t("filterByDomain")}
-            className="w-full min-w-0 sm:max-w-52"
-            size="sm"
-          >
-            <SelectValue>
-              {hostSelectValue === GEO_TRAFFIC_HOST_ALL
-                ? t("allDomains")
-                : hostSelectValue}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={GEO_TRAFFIC_HOST_ALL}>
-              {t("allDomains")}
-            </SelectItem>
-            {hostOptions.map((host) => (
-              <SelectItem key={host} value={host}>
-                {host}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : null}
       <div className="relative max-w-xs min-w-40 flex-1">
         <HugeiconsIcon
           className="text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2"
@@ -207,7 +158,6 @@ function TrafficPagesResults({
 export function TrafficPagesCard({
   pages,
   isPending = false,
-  hosts,
 }: TrafficPagesCardProps) {
   const tGeoShared = useTranslations("geo.shared");
   const tCommon = useTranslations("common");
@@ -217,12 +167,8 @@ export function TrafficPagesCard({
     parseAsString.withDefault("").withOptions({ clearOnDefault: true })
   );
   const groups = groupTrafficPages(pages);
-  const observedHosts = hosts ?? trafficHostsFromPages(pages);
-  const [hostQuery, setHostQuery] = useGeoTrafficHostQuery();
-  const hostSelectValue = trafficHostSelectValue(hostQuery);
+  const [hostQuery] = useGeoTrafficHostQuery();
   const appliedHost = trafficLogHostFilter(hostQuery);
-  const hostOptions = trafficHostSelectOptions(observedHosts, appliedHost);
-  const showHostFilter = hostOptions.length > 1 || appliedHost.length > 0;
   const hasActiveFilter = appliedHost.length > 0 || pathQuery.trim().length > 0;
   const filteredGroups = filterTrafficPageGroupsByHost(
     filterTrafficPageGroups(groups, pathQuery),
@@ -230,9 +176,6 @@ export function TrafficPagesCard({
   );
   const handlePathQueryChange = (value: string) => {
     setPathQuery(value);
-  };
-  const handleHostQueryChange = (value: string) => {
-    setHostQuery(value);
   };
 
   if (groups.length === 0 && !hasActiveFilter && !isPending) {
@@ -250,12 +193,8 @@ export function TrafficPagesCard({
     <InstrumentSection eyebrow={tGeoShared("topPagesByAiSource")}>
       <div className="flex flex-col gap-2">
         <TrafficPagesFilters
-          hostOptions={hostOptions}
-          hostSelectValue={hostSelectValue}
-          onHostChange={handleHostQueryChange}
           onPathQueryChange={handlePathQueryChange}
           pathQuery={pathQuery}
-          showHostFilter={showHostFilter}
         />
         <TrafficPagesResults
           columns={trafficPageColumns(
