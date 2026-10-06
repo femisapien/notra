@@ -25,7 +25,7 @@ export interface SendBrewEmailOptions {
 }
 
 export interface BrewRequestInit {
-  method: "GET" | "POST" | "PATCH" | "DELETE";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   idempotencyKey?: string;
 }
@@ -86,6 +86,16 @@ export interface BrewContactInput {
   firstName?: string;
   lastName?: string;
   customFields: BrewContactCustomFields;
+}
+
+export interface BrewContact {
+  email: string;
+  customFields?: Partial<BrewContactCustomFields>;
+}
+
+export interface BrewContactsPage {
+  data: BrewContact[];
+  pagination: { cursor: string | null };
 }
 
 export interface BrewContactsBatchResponse {
