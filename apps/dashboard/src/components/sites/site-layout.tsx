@@ -1,11 +1,11 @@
 "use client";
 
 import { ORPCError } from "@orpc/client";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { useTranslations } from "use-intl";
 
 import { buttonVariants } from "@/components/button";
 import { EmptyState } from "@/components/empty-state";
+import Link from "@/components/framework/link";
 import { useSiteDetail, useSitesOrganizationId } from "@/lib/hooks/use-sites";
 import type { SiteLayoutProps } from "@/types/components/sites";
 import { siteHref } from "@/utils/site-links";

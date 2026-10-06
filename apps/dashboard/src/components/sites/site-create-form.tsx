@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
 import {
   domAnimation,
   LazyMotion,
@@ -7,12 +8,11 @@ import {
   MotionConfig,
   useReducedMotion,
 } from "motion/react";
-import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
-import { PageHeading } from "@/components/layout/page-heading";
 import { SiteCreateDeploy } from "@/components/sites/site-create-deploy";
 import { SiteCreateSourceFields } from "@/components/sites/site-create-source-fields";
 import { SiteCreateStage } from "@/components/sites/site-create-stage";

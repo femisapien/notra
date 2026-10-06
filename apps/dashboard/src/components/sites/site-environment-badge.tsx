@@ -1,7 +1,7 @@
 "use client";
 
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { SITE_ENVIRONMENT_ICONS } from "@/constants/sites";
 import { cn } from "@/lib/utils";

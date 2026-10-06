@@ -18,8 +18,8 @@ import {
   DropdownMenuTrigger,
 } from "@notra/ui/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@notra/ui/components/ui/tabs";
-import { useTranslations } from "next-intl";
 import { Fragment } from "react";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { cn } from "@/lib/utils";

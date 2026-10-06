@@ -2,20 +2,20 @@
 
 import { PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
 import { useMutation } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
-import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
-import { PageHeader } from "@/components/layout/page-header";
 import { SiteConfirmDialog } from "@/components/sites/site-confirm-dialog";
 import { useSite } from "@/components/sites/site-context";
 import { SiteDomainAddDialog } from "@/components/sites/site-domain-add-dialog";
 import { SiteDomainsTable } from "@/components/sites/site-domains-table";
 import { SITE_DOMAIN_CONNECT_PARAM } from "@/constants/sites";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
+import { usePathname, useSearchParams } from "@/lib/navigation";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SiteDomainRemoveDialogProps } from "@/types/components/sites";
 import type { SiteDomain } from "@/types/sites";
@@ -120,12 +120,12 @@ export function SiteDomainsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader description={t("description")} title={t("title")}>
+      <PageHeading description={t("description")} title={t("title")}>
         <Button onClick={() => setAddOpen(true)}>
           <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} />
           {t("addDomain")}
         </Button>
-      </PageHeader>
+      </PageHeading>
 
       <SiteDomainsTable
         aliasOrigin={site.aliasOrigin}

@@ -2,9 +2,9 @@
 
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { useTranslations } from "use-intl";
 
+import Link from "@/components/framework/link";
 import { useSite } from "@/components/sites/site-context";
 import { SiteStatusDot } from "@/components/sites/site-status-dot";
 import { useNow } from "@/lib/hooks/use-now";

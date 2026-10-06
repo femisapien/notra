@@ -10,18 +10,18 @@ import {
 import { todayIsoDate } from "@notra/geo-core/utils/day-label";
 import { trafficLogHostFilter } from "@notra/geo-core/utils/geo-project-domains";
 import { AnimatedNumber } from "@notra/ui/components/animated-number";
+import {
+  InstrumentEmpty,
+  InstrumentModule,
+} from "@notra/ui/components/instrument/instrument-module";
 import { TruncateWithTooltip } from "@notra/ui/components/shared/truncate-with-tooltip";
-import { useLocale, useTranslations } from "next-intl";
 import type { CSSProperties } from "react";
+import { useLocale, useTranslations } from "use-intl";
 
 import { EChartsAreaChart } from "@/components/evilcharts/charts/echarts-area-chart";
 import { EngineIcon } from "@/components/geo/engine-icon";
 import { GeoStatDelta } from "@/components/geo/geo-stat-delta";
 import { CountryFlag } from "@/components/geo/twemoji";
-import {
-  InstrumentEmpty,
-  InstrumentModule,
-} from "@/components/instrument/instrument-module";
 import { CHART_PRIMARY_COLOR, CHART_SECONDARY_COLOR } from "@/constants/charts";
 import {
   TRAFFIC_HERO_CHART_SURFACE_CLASS,

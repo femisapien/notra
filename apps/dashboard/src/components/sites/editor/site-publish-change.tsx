@@ -10,8 +10,8 @@ import {
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
 import { parseDiffFromFile } from "@pierre/diffs";
 import { useQuery } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
 import { useMemo } from "react";
+import { useTranslations } from "use-intl";
 
 import { SiteFileDiff } from "@/components/sites/editor/site-file-diff";
 import { useSiteCodeHighlighter } from "@/lib/hooks/use-site-code-highlighter";

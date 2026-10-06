@@ -10,16 +10,18 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
+  DataTable,
+  type TableColumn,
+} from "@notra/ui/components/ui/data-table";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@notra/ui/components/ui/tooltip";
-import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
-import { Table, type TableColumn } from "@/components/motion/table";
 import { SiteMeta } from "@/components/sites/site-meta";
 import { SitePreviewDeleteDialog } from "@/components/sites/site-preview-delete-dialog";
 import { SitePreviewRowMenu } from "@/components/sites/site-preview-row-menu";
@@ -30,6 +32,7 @@ import {
   SITE_TABLE_EMPTY_HEIGHT,
 } from "@/constants/sites";
 import { useSitePreviewLinks } from "@/lib/hooks/use-site-preview-links";
+import { useRouter } from "@/lib/navigation";
 import type {
   SiteOpenPreviewButtonProps,
   SitePreviewsTableProps,
@@ -249,7 +252,7 @@ export function SitePreviewsTable({
 
   return (
     <>
-      <Table
+      <DataTable
         autoHeight
         className="rounded-2xl"
         columns={columns}

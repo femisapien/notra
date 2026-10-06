@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "use-intl";
 
 import { cn } from "@/lib/utils";
 import type { SiteRelativeTimeProps } from "@/types/components/sites";

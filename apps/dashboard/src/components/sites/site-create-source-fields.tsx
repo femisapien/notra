@@ -12,7 +12,7 @@ import {
 import { Input } from "@notra/ui/components/ui/input";
 import { Switch } from "@notra/ui/components/ui/switch";
 import { m } from "motion/react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { SiteAddressInput } from "@/components/sites/site-address-input";
 import { SiteCreateSectionFields } from "@/components/sites/site-create-section-fields";

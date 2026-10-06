@@ -2,8 +2,8 @@
 
 import { Cancel01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useTranslations } from "next-intl";
 import type { KeyboardEvent } from "react";
+import { useTranslations } from "use-intl";
 
 import type { SiteBuildLogFilterProps } from "@/types/components/sites";
 

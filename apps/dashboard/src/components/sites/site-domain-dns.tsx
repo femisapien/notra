@@ -4,8 +4,8 @@ import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cloudflare } from "@notra/ui/components/ui/svgs/cloudflare";
 import { Vercel } from "@notra/ui/components/ui/svgs/vercel";
-import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { SiteCopyButton } from "@/components/sites/site-copy-button";

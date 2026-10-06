@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, TabsList, TabsTrigger } from "@notra/ui/components/ui/tabs";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import type { SiteNewFileFolderTabsProps } from "@/types/components/sites";
 

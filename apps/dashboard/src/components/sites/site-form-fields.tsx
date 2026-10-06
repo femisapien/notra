@@ -14,8 +14,8 @@ import {
   RadioGroupItem,
 } from "@notra/ui/components/ui/radio-group";
 import { Switch } from "@notra/ui/components/ui/switch";
-import { useTranslations } from "next-intl";
 import { useId } from "react";
+import { useTranslations } from "use-intl";
 
 import { cn } from "@/lib/utils";
 import type {

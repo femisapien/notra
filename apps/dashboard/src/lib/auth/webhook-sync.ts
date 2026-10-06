@@ -1,12 +1,13 @@
 import { db } from "@notra/db/drizzle";
 import { members, organizations, users } from "@notra/db/schema";
-import { getWorkOS } from "@workos-inc/authkit-nextjs";
+import { isSitesConfigured } from "@notra/sites-server/env";
 import type { OrganizationMembership } from "@workos-inc/node";
+import { getWorkOS } from "@workos/authkit-session";
 import { and, eq } from "drizzle-orm";
 import { Data, Effect } from "effect";
 
 import { upsertMembership } from "@/lib/auth/membership-upsert";
-import { revokeSitePreviewAccess } from "@/lib/sites/preview-revocation";
+import { isWorkOSNotFound } from "@/lib/auth/workos-error";
 
 class WebhookSyncError extends Data.TaggedError("WebhookSyncError")<{
   readonly message: string;
@@ -43,10 +44,16 @@ const resolveOrganizationIdByExternalId = Effect.fn(
 )(function* (workosOrgId: string) {
   return yield* Effect.tryPromise({
     try: async () => {
-      const remote =
-        await getWorkOS().organizations.getOrganization(workosOrgId);
+      const remote = await getWorkOS()
+        .organizations.getOrganization(workosOrgId)
+        .catch((error) => {
+          if (isWorkOSNotFound(error)) {
+            return null;
+          }
+          throw error;
+        });
 
-      if (!remote.externalId) {
+      if (!remote?.externalId) {
         return null;
       }
 
@@ -70,7 +77,18 @@ const resolveUserIdByExternalId = Effect.fn(
 )(function* (workosUserId: string) {
   return yield* Effect.tryPromise({
     try: async () => {
-      const remote = await getWorkOS().userManagement.getUser(workosUserId);
+      const remote = await getWorkOS()
+        .userManagement.getUser(workosUserId)
+        .catch((error) => {
+          if (isWorkOSNotFound(error)) {
+            return null;
+          }
+          throw error;
+        });
+
+      if (!remote) {
+        return null;
+      }
 
       const user = await db.query.users.findFirst({
         where: remote.externalId
@@ -127,8 +145,9 @@ export const removeMembershipFromWebhook = Effect.fn(
   const organizationId =
     resolved.organizationId ??
     (yield* resolveOrganizationIdByExternalId(membership.organizationId));
-  const userId =
-    resolved.userId ?? (yield* resolveUserIdByExternalId(membership.userId));
+  const userId = organizationId
+    ? (resolved.userId ?? (yield* resolveUserIdByExternalId(membership.userId)))
+    : null;
 
   if (!(organizationId && userId)) {
     yield* Effect.logWarning(
@@ -155,5 +174,15 @@ export const removeMembershipFromWebhook = Effect.fn(
     catch: (cause) =>
       new WebhookSyncError({ message: "Failed to remove membership", cause }),
   });
-  yield* Effect.promise(() => revokeSitePreviewAccess(organizationId, userId));
+  // Loaded on use: the revocation module pulls in Redis and the Sites state,
+  // which every other webhook event (and an install without Sites) can do
+  // without.
+  if (!isSitesConfigured()) {
+    return;
+  }
+  yield* Effect.promise(async () => {
+    const { revokeSitePreviewAccess } =
+      await import("@/lib/sites/preview-revocation");
+    await revokeSitePreviewAccess(organizationId, userId);
+  });
 });

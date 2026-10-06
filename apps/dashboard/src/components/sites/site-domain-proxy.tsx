@@ -9,8 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@notra/ui/components/ui/select";
-import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { CodeSnippet } from "@/components/geo/code-snippet";
 import type { SiteProxySetupProps } from "@/types/components/sites";

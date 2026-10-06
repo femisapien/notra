@@ -1,8 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
+import { useTranslations } from "use-intl";
 
-import { PageHeading } from "@/components/layout/page-heading";
 import { SiteCreateForm } from "@/components/sites/site-create-form";
 import { SitesPageShell } from "@/components/sites/sites-page-shell";
 import { SitesUnavailableState } from "@/components/sites/sites-unavailable-state";

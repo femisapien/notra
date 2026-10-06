@@ -6,7 +6,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@notra/ui/components/ui/sheet";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import type { SiteEditorFilePickerProps } from "@/types/components/site-editor";
 

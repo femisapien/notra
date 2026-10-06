@@ -8,11 +8,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@notra/ui/components/ui/sidebar";
-import { useTranslations } from "next-intl";
-import { usePathname } from "next/navigation";
+import { useTranslations } from "use-intl";
 
 import { SITE_SECTIONS } from "@/constants/sites";
 import { useSiteDetail, useSitesOrganizationId } from "@/lib/hooks/use-sites";
+import { usePathname } from "@/lib/navigation";
 import type { NavSiteProps } from "@/types/components/nav";
 import { siteHref } from "@/utils/site-links";
 import { siteSectionCount } from "@/utils/site-sections";

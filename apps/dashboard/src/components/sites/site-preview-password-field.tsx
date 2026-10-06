@@ -13,7 +13,7 @@ import {
   InputGroupInput,
 } from "@notra/ui/components/ui/input-group";
 import { Label } from "@notra/ui/components/ui/label";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { SiteRelativeTime } from "@/components/sites/site-relative-time";

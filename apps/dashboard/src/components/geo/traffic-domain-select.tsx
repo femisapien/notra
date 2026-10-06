@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@notra/ui/components/ui/select";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { useGeoTrafficHostQuery } from "@/lib/hooks/use-geo-traffic-host";
 import type { TrafficDomainSelectProps } from "@/types/geo";

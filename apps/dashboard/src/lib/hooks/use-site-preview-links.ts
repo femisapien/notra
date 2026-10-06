@@ -1,5 +1,5 @@
-import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { useTranslations } from "use-intl";
 
 import { SITE_SHARE_LINK_DAYS } from "@/constants/sites";
 import { dashboardOrpc } from "@/lib/orpc/query";

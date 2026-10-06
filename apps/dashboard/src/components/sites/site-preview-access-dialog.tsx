@@ -8,8 +8,8 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
 } from "@notra/ui/components/shared/responsive-dialog";
-import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { useSite } from "@/components/sites/site-context";

@@ -8,10 +8,10 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { useTranslations } from "use-intl";
 
 import { buttonVariants } from "@/components/button";
+import Link from "@/components/framework/link";
 import { SiteBuildLogs } from "@/components/sites/site-build-logs";
 import {
   SITE_CONFIG_MISSING_DIAGNOSTIC,

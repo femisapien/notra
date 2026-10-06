@@ -108,10 +108,10 @@ import {
 } from "@notra/sites-server/urls";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { Effect } from "effect";
-import { after } from "next/server";
 
 import { SITE_ADMIN_ROLES } from "@/constants/sites";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
+import { afterResponse } from "@/lib/framework/after-response";
 import { geoCoreDashboardLayer } from "@/lib/geo/configure";
 import { authorizedProcedure } from "@/lib/orpc/base";
 import { runOrpcEffect } from "@/lib/orpc/effect";
@@ -156,7 +156,7 @@ const sitesProcedure = authorizedProcedure.use(async ({ next }) => {
 function dispatchLater(jobIds: Array<string | null>) {
   const ids = jobIds.filter((id): id is string => Boolean(id));
   if (ids.length > 0) {
-    after(() => dispatchSiteJobs(ids));
+    afterResponse(() => dispatchSiteJobs(ids));
   }
 }
 
@@ -415,7 +415,7 @@ export const sitesRouter = {
         (state.previewPassword?.version !== site.previewPassword?.version ||
           (state.trafficToken === null && isGeoIngestConfigured()))
       ) {
-        after(() => syncServingPreviewAccess(site));
+        afterResponse(() => syncServingPreviewAccess(site));
       }
       return {
         site: serializeSite(site, state),

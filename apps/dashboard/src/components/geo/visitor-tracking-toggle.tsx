@@ -1,8 +1,8 @@
 "use client";
 
 import { Switch } from "@notra/ui/components/ui/switch";
-import { useTranslations } from "next-intl";
 import { useId } from "react";
+import { useTranslations } from "use-intl";
 
 import { useSetTrackVisitors } from "@/lib/hooks/use-geo";
 import type { VisitorTrackingToggleProps } from "@/types/geo";

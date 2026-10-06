@@ -10,8 +10,8 @@ import {
 } from "@notra/ui/components/ui/input-group";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
 import { FileTree, useFileTree, useFileTreeSearch } from "@pierre/trees/react";
-import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useTranslations } from "use-intl";
 
 import {
   SITE_FILE_TREE_CSS,

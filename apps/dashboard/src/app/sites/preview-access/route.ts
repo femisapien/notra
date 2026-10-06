@@ -3,7 +3,6 @@ import { safePreviewNextPath } from "@notra/sites-core/utils/preview-path";
 import { getSite } from "@notra/sites-server/deployments";
 import { previewAccessUrl } from "@notra/sites-server/preview-access";
 import { sitePreviewOrigin } from "@notra/sites-server/urls";
-import type { NextRequest } from "next/server";
 
 import { SITE_PREVIEW_KEY_PATTERN } from "@/constants/sites";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
@@ -13,10 +12,12 @@ import { assertOrganizationAccess } from "@/lib/auth/organization";
  * login; membership in the site's organization decides access, then the
  * visitor is bounced back to the preview with a short-lived signed token.
  */
-export async function GET(request: NextRequest) {
-  const siteId = request.nextUrl.searchParams.get("site") ?? "";
-  const previewKey = request.nextUrl.searchParams.get("preview") ?? "";
-  const next = safePreviewNextPath(request.nextUrl.searchParams.get("next"));
+export async function GET(request: Request) {
+  const siteId = new URL(request.url).searchParams.get("site") ?? "";
+  const previewKey = new URL(request.url).searchParams.get("preview") ?? "";
+  const next = safePreviewNextPath(
+    new URL(request.url).searchParams.get("next")
+  );
   if (
     !(siteId.startsWith("site_") && SITE_PREVIEW_KEY_PATTERN.test(previewKey))
   ) {

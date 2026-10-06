@@ -1,21 +1,19 @@
 "use client";
 
-import { GEO_TRAFFIC_REVEAL_MS } from "@notra/geo-core/constants/geo";
 import { isTrafficPagePending } from "@notra/geo-core/utils/ai-traffic";
 import {
   ingestAllowedHosts,
   unionTrafficHosts,
 } from "@notra/geo-core/utils/geo-project-domains";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
-import { useReducedMotion } from "motion/react";
-import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
+import { useEffect, useRef } from "react";
+import { useTranslations } from "use-intl";
 
 import { EmptyState } from "@/components/empty-state";
 import { EmptyStateTablePreview } from "@/components/empty-state-preview";
 import { AiTrafficCard } from "@/components/geo/ai-traffic-card";
 import { AiTrafficLogCard } from "@/components/geo/ai-traffic-log-card";
-import { GeoLiveIndicator } from "@/components/geo/geo-live-indicator";
 import { GeoRangePicker } from "@/components/geo/geo-range-picker";
 import { GeoSetupButton } from "@/components/geo/geo-setup-button";
 import { TrafficDomainSelect } from "@/components/geo/traffic-domain-select";
@@ -23,9 +21,7 @@ import { TrafficEmpty } from "@/components/geo/traffic-empty";
 import { TrafficPagesCard } from "@/components/geo/traffic-pages-card";
 import { VisitorTrackingToggle } from "@/components/geo/visitor-tracking-toggle";
 import { WebVisitorsSection } from "@/components/geo/web-visitors-section";
-import { InstrumentReveal } from "@/components/instrument/instrument-reveal";
 import { PageContainer } from "@/components/layout/container";
-import { PageHeader } from "@/components/layout/page-header";
 import { useGeoProjectScope } from "@/components/providers/geo-project-provider";
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
 import {
@@ -57,7 +53,6 @@ function TrafficPageView({
   projectId,
   settings,
   isEmptyTraffic,
-  revealActive,
   geoRange,
   traffic,
   isTrafficPending,
@@ -75,7 +70,7 @@ function TrafficPageView({
     return (
       <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
         <div className="w-full min-w-0 space-y-6 px-4 lg:px-6">
-          <PageHeader description={t("description")} title={t("title")} />
+          <PageHeading description={t("description")} title={t("title")} />
           <EmptyState
             action={<GeoSetupButton organizationId={organizationId} />}
             description={t("setupDescription")}
@@ -95,7 +90,7 @@ function TrafficPageView({
   const showVisitors = hasWebAnalytics(web, trafficHost);
 
   const header = (
-    <PageHeader
+    <PageHeading
       description={
         showVisitors ? t("descriptionWithVisitors") : t("description")
       }
@@ -103,10 +98,9 @@ function TrafficPageView({
     >
       <div className="flex items-center gap-2">
         <TrafficDomainSelect hosts={knownHosts} />
-        <GeoLiveIndicator />
         <GeoRangePicker control={geoRange} />
       </div>
-    </PageHeader>
+    </PageHeading>
   );
 
   if (isEmptyTraffic) {
@@ -114,9 +108,7 @@ function TrafficPageView({
       <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
         <div className="flex w-full min-w-0 flex-col gap-6 px-4 lg:px-6">
           {header}
-          <InstrumentReveal active={revealActive} order={0}>
-            <TrafficEmpty setup={ingestSetup} />
-          </InstrumentReveal>
+          <TrafficEmpty setup={ingestSetup} />
         </div>
       </PageContainer>
     );
@@ -128,33 +120,25 @@ function TrafficPageView({
         {header}
         <div className="flex flex-col gap-6">
           {showVisitors && web ? (
-            <InstrumentReveal active={revealActive} order={0}>
-              <WebVisitorsSection
-                domainCount={trafficHost ? 0 : knownHosts.length}
-                range={geoRange.query}
-                traffic={traffic}
-                web={web}
-              />
-            </InstrumentReveal>
-          ) : null}
-          <InstrumentReveal active={revealActive} order={0}>
-            <AiTrafficCard
-              isPending={isTrafficPending}
-              pages={inventoryPages}
+            <WebVisitorsSection
+              domainCount={trafficHost ? 0 : knownHosts.length}
               range={geoRange.query}
-              settingsHref={withGeoProject(
-                geoSettingsPath(organizationSlug),
-                projectId
-              )}
               traffic={traffic}
+              web={web}
             />
-          </InstrumentReveal>
-          <InstrumentReveal active={revealActive} order={1}>
-            <TrafficPagesCard isPending={isPagesPending} pages={trafficPages} />
-          </InstrumentReveal>
-          <InstrumentReveal active={revealActive} order={2}>
-            <AiTrafficLogCard organizationId={organizationId} />
-          </InstrumentReveal>
+          ) : null}
+          <AiTrafficCard
+            isPending={isTrafficPending}
+            pages={inventoryPages}
+            range={geoRange.query}
+            settingsHref={withGeoProject(
+              geoSettingsPath(organizationSlug),
+              projectId
+            )}
+            traffic={traffic}
+          />
+          <TrafficPagesCard isPending={isPagesPending} pages={trafficPages} />
+          <AiTrafficLogCard organizationId={organizationId} />
           {web ? (
             <VisitorTrackingToggle
               enabled={web.trackVisitors}
@@ -224,21 +208,7 @@ export default function PageClient({ organizationSlug }: GeoPageClientProps) {
     isIngestPending,
   });
 
-  const reduceMotion = useReducedMotion();
-  const [modulesVisible, setModulesVisible] = useState(false);
   const ready = !showSkeleton;
-  const revealActive = ready && (Boolean(reduceMotion) || modulesVisible);
-
-  useEffect(() => {
-    if (!(ready && !reduceMotion)) {
-      return;
-    }
-    const timer = setTimeout(
-      () => setModulesVisible(true),
-      GEO_TRAFFIC_REVEAL_MS
-    );
-    return () => clearTimeout(timer);
-  }, [ready, reduceMotion]);
 
   const viewedRef = useRef(false);
   const hasSettings = settings !== null;
@@ -272,7 +242,6 @@ export default function PageClient({ organizationSlug }: GeoPageClientProps) {
       organizationId={organizationId}
       organizationSlug={organizationSlug}
       projectId={projectId}
-      revealActive={revealActive}
       settings={settings}
       traffic={traffic}
       trafficPages={trafficPages?.pages ?? []}

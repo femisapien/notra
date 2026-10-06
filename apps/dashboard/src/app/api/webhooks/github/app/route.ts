@@ -3,15 +3,13 @@ import {
   getGitHubAppWebhookSecret,
   ingestGitHubAppMentionWebhook,
 } from "@notra/ai/utils/github-mention-ingest";
-import { handleSitesWebhook } from "@notra/sites-server/webhooks";
-import { after, type NextRequest } from "next/server";
 
 import { SITES_ONLY_GITHUB_EVENTS } from "@/constants/sites";
-import { dispatchSiteJobs } from "@/lib/sites/dispatch";
+import { afterResponse } from "@/lib/framework/after-response";
 import { writeMentionWebhookLog } from "@/lib/webhooks/github-mention-log";
 import { startGitHubMentionRun } from "@/lib/workflows/start";
 
-export const POST = withEvlog(async (request: NextRequest) => {
+export const POST = withEvlog(async (request: Request) => {
   const rawBody = await request.text();
   const deliveryId = request.headers.get("x-github-delivery");
   const event = request.headers.get("x-github-event");
@@ -24,6 +22,11 @@ export const POST = withEvlog(async (request: NextRequest) => {
   const secret = getGitHubAppWebhookSecret();
   if (event && secret) {
     try {
+      // Loaded on use, so mention-only deliveries skip the Sites runtime.
+      const [{ handleSitesWebhook }, { dispatchSiteJobs }] = await Promise.all([
+        import("@notra/sites-server/webhooks"),
+        import("@/lib/sites/dispatch"),
+      ]);
       const sites = await handleSitesWebhook({
         event,
         deliveryId,
@@ -34,7 +37,7 @@ export const POST = withEvlog(async (request: NextRequest) => {
       if (sites) {
         if (sites.jobIds.length > 0) {
           const jobIds = sites.jobIds;
-          after(() => dispatchSiteJobs(jobIds));
+          afterResponse(() => dispatchSiteJobs(jobIds));
         }
         if (SITES_ONLY_GITHUB_EVENTS.has(event) || sites.httpStatus >= 400) {
           return Response.json(sites.body, { status: sites.httpStatus });
@@ -71,7 +74,7 @@ export const POST = withEvlog(async (request: NextRequest) => {
 
   if (result.log && !result.context) {
     const log = result.log;
-    after(() => writeMentionWebhookLog(log, deliveryId));
+    afterResponse(() => writeMentionWebhookLog(log, deliveryId));
   }
 
   // GitHub redelivers on 5xx; Sites released its delivery claim, mentions dedupe on their own.

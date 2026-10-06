@@ -77,22 +77,6 @@ export interface SitesPageClientProps {
   organizationSlug: string;
 }
 
-/** `/[slug]/sites` and `/[slug]/sites/new`. */
-export interface SitesRoutePageProps {
-  params: Promise<{ slug: string }>;
-}
-
-/** `/[slug]/sites/[siteId]` layout. */
-export interface SiteRouteLayoutProps {
-  children: ReactNode;
-  params: Promise<{ slug: string; siteId: string }>;
-}
-
-/** `/[slug]/sites/[siteId]/deployments/[deploymentId]`. */
-export interface SiteDeploymentRoutePageProps {
-  params: Promise<{ slug: string; siteId: string; deploymentId: string }>;
-}
-
 /** Route context of the Domain Connect callback `/sites/domain-connect/[token]`. */
 export interface SiteDomainConnectRouteContext {
   params: Promise<{ token: string }>;

@@ -2,6 +2,7 @@
 
 import { RefreshIcon, Rocket01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
 import {
   Empty,
   EmptyContent,
@@ -17,11 +18,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@notra/ui/components/ui/select";
-import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
-import { PageHeader } from "@/components/layout/page-header";
 import { useSite } from "@/components/sites/site-context";
 import { SiteDeploymentsTable } from "@/components/sites/site-deployments-table";
 import {
@@ -116,12 +116,12 @@ export function SiteDeploymentsPage() {
 
   return (
     <>
-      <PageHeader
+      <PageHeading
         description={t("description")}
         title={tDetail("tabs.deployments")}
       >
         {deployButton("default")}
-      </PageHeader>
+      </PageHeading>
 
       {deployments.length > 0 ? (
         <div

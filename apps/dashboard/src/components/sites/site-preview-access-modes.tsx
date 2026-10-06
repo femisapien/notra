@@ -5,7 +5,7 @@ import {
   RadioGroup,
   RadioGroupItem,
 } from "@notra/ui/components/ui/radio-group";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { SITE_PREVIEW_ACCESS_MODES } from "@/constants/site-preview-access";
 import { cn } from "@/lib/utils";

@@ -7,10 +7,10 @@ import type { EditorChangeEvent, EditorOptions } from "@pierre/diffs/edit";
 import { EditStateManager } from "@pierre/diffs/edit";
 import { File } from "@pierre/diffs/react";
 import type { FileOptions } from "@pierre/diffs/react";
-import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import type { KeyboardEvent } from "react";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { useTranslations } from "use-intl";
 
 import {
   SITE_CODE_EDITOR_CSS,

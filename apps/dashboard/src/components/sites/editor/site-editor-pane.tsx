@@ -1,9 +1,9 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "use-intl";
 
 import { SiteCodeEditor } from "@/components/sites/editor/site-code-editor";
 import { SiteEditorFileBar } from "@/components/sites/editor/site-editor-file-bar";

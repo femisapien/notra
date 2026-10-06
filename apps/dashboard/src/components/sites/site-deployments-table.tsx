@@ -1,12 +1,13 @@
 "use client";
 
 import { HugeiconsIcon } from "@hugeicons/react";
-import { TablePagination } from "@notra/ui/components/shared/table-pagination";
-import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import {
+  DataTable,
+  type TableColumn,
+} from "@notra/ui/components/ui/data-table";
 import { useState } from "react";
+import { useTranslations } from "use-intl";
 
-import { Table, type TableColumn } from "@/components/motion/table";
 import { SiteDeploymentMenu } from "@/components/sites/site-deployment-menu";
 import { SiteEnvironmentBadge } from "@/components/sites/site-environment-badge";
 import { SiteRelativeTime } from "@/components/sites/site-relative-time";
@@ -19,6 +20,7 @@ import {
 } from "@/constants/sites";
 import { useNow } from "@/lib/hooks/use-now";
 import { useRedeployDeployment } from "@/lib/hooks/use-site-deployments";
+import { useRouter } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import type { SiteDeploymentsTableProps } from "@/types/components/sites";
 import type { SiteDeployment } from "@/types/sites";
@@ -223,7 +225,7 @@ export function SiteDeploymentsTable({
 
   return (
     <>
-      <Table
+      <DataTable
         className="rounded-2xl"
         columns={columns}
         data={deployments}
@@ -237,25 +239,19 @@ export function SiteDeploymentsTable({
         defaultSort={{ key: "created", direction: "desc" }}
         getRowId={(deployment) => deployment.id}
         height={tableHeight}
-        footer={
-          deployments.length > 0 ? (
-            <TablePagination
-              page={page}
-              pageCount={pageCount}
-              pageRowCount={pageRowCount}
-              pageSize={pageSize}
-              setPage={(next) =>
-                setPage(Math.min(Math.max(1, next), pageCount))
-              }
-              totalItems={deployments.length}
-            />
-          ) : undefined
-        }
         onRowClick={(deployment) => router.push(href(deployment))}
         onRowPointerEnter={(deployment) => router.prefetch(href(deployment))}
+        pagination={
+          deployments.length > pageSize
+            ? {
+                page,
+                pageSize,
+                onPageChange: (next) =>
+                  setPage(Math.min(Math.max(1, next), pageCount)),
+              }
+            : undefined
+        }
         resizable
-        page={page}
-        pageSize={pageSize}
         rowHeight={SITE_DEPLOYMENT_ROW_HEIGHT}
         scrollFade={false}
       />

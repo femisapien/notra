@@ -4,12 +4,12 @@ import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { trafficVisitDelta } from "@notra/geo-core/utils/ai-traffic";
 import { AnimatedNumber } from "@notra/ui/components/animated-number";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { InstrumentSection } from "@notra/ui/components/instrument/instrument-module";
+import { useTranslations } from "use-intl";
 
 import { buttonVariants } from "@/components/button";
+import Link from "@/components/framework/link";
 import { GeoStatDelta } from "@/components/geo/geo-stat-delta";
-import { InstrumentSection } from "@/components/instrument/instrument-module";
 import { useSite } from "@/components/sites/site-context";
 import { SITE_OVERVIEW_ANALYTICS_DAYS } from "@/constants/sites";
 import { useSiteAnalytics } from "@/lib/hooks/use-sites";

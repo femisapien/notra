@@ -9,7 +9,6 @@ import {
   verifyVercelDnsState,
 } from "@notra/sites-server/vercel-dns";
 import { and, eq } from "drizzle-orm";
-import type { NextRequest } from "next/server";
 
 import {
   finishDnsCallback,
@@ -23,8 +22,8 @@ import type { SiteDomainConnectOutcome } from "@/types/sites";
  * domain; the records go into their Vercel DNS zone and the integration is
  * uninstalled again, so no Vercel access is kept.
  */
-export async function GET(request: NextRequest) {
-  const { searchParams } = request.nextUrl;
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
   const claims = verifyVercelDnsState(searchParams.get("state") ?? "");
   if (!claims) {
     return new Response(

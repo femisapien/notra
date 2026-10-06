@@ -1,7 +1,7 @@
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { useTranslations } from "use-intl";
 
 import { SITE_CREATE_STARTER_DEBOUNCE_MS } from "@/constants/site-create";
 import { SITE_REPOSITORY_SUGGESTIONS_STALE_MS } from "@/constants/sites";

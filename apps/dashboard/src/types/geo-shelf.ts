@@ -257,6 +257,7 @@ export interface GeoShelfPagingProps {
 }
 
 export interface GeoShelfBoardProps {
+  height?: number;
   rows: GeoShelfRow[];
   boardCounts: GeoShelfBoardCounts;
   hasNextPage: boolean;
@@ -271,6 +272,8 @@ export interface GeoShelfBoardProps {
 
 export interface GeoShelfViewProps extends GeoShelfPagingProps {
   view: GeoShelfView;
+  /** Tracked competitors; a row stores only the ones a check has classified. */
+  competitorCount: number;
   rows: GeoShelfRow[];
   totalCount: number;
   boardCounts: GeoShelfBoardCounts;
@@ -287,7 +290,9 @@ export interface GeoShelfViewProps extends GeoShelfPagingProps {
 }
 
 export interface GeoShelfTableProps extends GeoShelfPagingProps {
+  height?: number;
   rows: GeoShelfRow[];
+  competitorCount: number;
   totalCount: number;
   sort: GeoShelfSortState;
   onSortChange: (sort: GeoShelfSortState) => void;

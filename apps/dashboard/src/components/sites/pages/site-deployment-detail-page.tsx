@@ -9,12 +9,12 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
 import { ORPCError } from "@orpc/client";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { Button, buttonVariants } from "@/components/button";
 import { EmptyState } from "@/components/empty-state";
+import Link from "@/components/framework/link";
 import { SiteBuildLogs } from "@/components/sites/site-build-logs";
 import { useSite } from "@/components/sites/site-context";
 import { SiteDeploymentFailure } from "@/components/sites/site-deployment-failure";

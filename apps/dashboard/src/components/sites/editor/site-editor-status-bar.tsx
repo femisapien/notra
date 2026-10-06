@@ -7,7 +7,7 @@ import {
   Loading03Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { SITE_EDITOR_LANGUAGE_LABELS } from "@/constants/site-editor";
 import { cn } from "@/lib/utils";

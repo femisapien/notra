@@ -11,6 +11,7 @@ import {
   GEO_MENTION_ROW_HEIGHT_REM,
   GEO_MENTION_SUMMARY_VISIBLE,
 } from "@notra/geo-core/constants/geo";
+import { InstrumentModule } from "@notra/ui/components/instrument/instrument-module";
 import { DetailCardContent } from "@notra/ui/components/ui/detail-card";
 import {
   Empty,
@@ -24,8 +25,8 @@ import {
   HoverCard,
   HoverCardTrigger,
 } from "@notra/ui/components/ui/hover-card";
-import { useLocale, useTranslations } from "next-intl";
 import { type CSSProperties, useState } from "react";
+import { useLocale, useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { ChartColorScope } from "@/components/charts/chart-color-scope";
@@ -34,7 +35,6 @@ import { CompetitorEditDialog } from "@/components/geo/competitor-edit-dialog";
 import { CompetitorLogo } from "@/components/geo/competitor-logo";
 import { GeoStatDelta } from "@/components/geo/geo-stat-delta";
 import { ProjectLogo } from "@/components/geo/project-logo";
-import { InstrumentModule } from "@/components/instrument/instrument-module";
 import { useGeoActiveProject } from "@/lib/hooks/use-geo-active-project";
 import { useScrollOverflow } from "@/lib/hooks/use-scroll-overflow";
 import { cn } from "@/lib/utils";
@@ -303,12 +303,13 @@ export function ShareOfVoiceChart(props: ShareOfVoiceChartProps) {
             hint={t("shareHint")}
             readout={`${formatChartInteger(totalMentions, locale)} ${t("totalMentions")}`}
             variant="table"
-            bodyClassName="flex flex-col items-center justify-center p-5"
+            bodyClassName="flex flex-col p-3"
           >
-            <div className="relative w-full max-w-80">
+            {/* Fills the card, which the ranking card next to it stretches. */}
+            <div className="relative min-h-72 w-full flex-1">
               <EChartsPieChart
                 animation={false}
-                className="h-72 w-full"
+                className="absolute inset-0"
                 config={donutConfig}
                 data={slices.filter((row) => row.mentions > 0)}
                 dataKey="mentions"

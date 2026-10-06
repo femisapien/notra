@@ -1,13 +1,13 @@
 "use client";
 
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { EmptyState } from "@/components/empty-state";
 import { EmptyStateTablePreview } from "@/components/empty-state-preview";
 import { GeoRangePicker } from "@/components/geo/geo-range-picker";
 import { WebVisitorsSection } from "@/components/geo/web-visitors-section";
-import { PageHeader } from "@/components/layout/page-header";
 import { useSite } from "@/components/sites/site-context";
 import {
   EMPTY_STATE_TABLE_COLUMNS,
@@ -30,9 +30,9 @@ export function SiteAnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader description={t("description")} title={t("title")}>
+      <PageHeading description={t("description")} title={t("title")}>
         <GeoRangePicker control={geoRange} />
-      </PageHeader>
+      </PageHeading>
       {query.isError && data === undefined ? (
         <EmptyState
           description={t("errorDescription")}

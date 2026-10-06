@@ -16,6 +16,10 @@ import {
   AlertTitle,
 } from "@notra/ui/components/ui/alert";
 import {
+  DataTable,
+  type TableColumn,
+} from "@notra/ui/components/ui/data-table";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -27,11 +31,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@notra/ui/components/ui/tooltip";
-import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
-import { Table, type TableColumn } from "@/components/motion/table";
 import {
   SiteDnsRecordsTable,
   SiteDnsSetup,
@@ -436,7 +439,7 @@ export function SiteDomainsTable({
   ];
 
   return (
-    <Table
+    <DataTable
       autoHeight
       className="rounded-2xl"
       columns={columns}

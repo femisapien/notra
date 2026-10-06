@@ -2,13 +2,13 @@
 
 import { PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
+import { useTranslations } from "use-intl";
 
 import { buttonVariants } from "@/components/button";
 import { EmptyState } from "@/components/empty-state";
 import { EmptyStateTablePreview } from "@/components/empty-state-preview";
-import { PageHeading } from "@/components/layout/page-heading";
+import Link from "@/components/framework/link";
 import { SitesPageShell } from "@/components/sites/sites-page-shell";
 import { SitesTable } from "@/components/sites/sites-table";
 import { SitesUnavailableState } from "@/components/sites/sites-unavailable-state";

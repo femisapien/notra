@@ -25,6 +25,8 @@ import type {
   GeoIngestDefer,
   GeoIngestResult,
 } from "../types/ingest";
+import { geoIngestAdmissionKey } from "../utils/geo-ingest-admission-key";
+import { logGeoFailure } from "../utils/geo-log";
 import { trackGeoIngestAnalytics } from "./analytics";
 import { classifyVisitor } from "./classify-visitor";
 import {
@@ -40,7 +42,11 @@ import { loadIngestAllowedHosts } from "./hosts";
 import { isGeoIngestIdentityActive } from "./identity";
 import { resolveJourneyId } from "./journey";
 import { announceGeoTrafficEvent, expediteForLiveViewers } from "./live";
-import { geoIngestRatelimit, webIngestRatelimit } from "./ratelimit";
+import {
+  geoIngestAdmissionRatelimit,
+  geoIngestRatelimit,
+  webIngestRatelimit,
+} from "./ratelimit";
 import { loadIngestSite, loadOrganizationSitePrefixes } from "./sites";
 import { buildWebPageView, isHumanPageView } from "./web";
 import { isVisitorTrackingEnabled } from "./web-tracking";
@@ -93,10 +99,14 @@ const readBearerIdentity = Effect.fn("geoIngest.readBearerIdentity")(function* (
 });
 
 const enforceRateLimit = Effect.fn("geoIngest.rateLimit")(function* (
-  organizationId: string
+  organizationId: string,
+  admissionKey?: string
 ) {
+  const limiter = admissionKey
+    ? geoIngestAdmissionRatelimit
+    : geoIngestRatelimit;
   const { success, reason } = yield* Effect.tryPromise({
-    try: () => geoIngestRatelimit.limit(organizationId),
+    try: () => limiter.limit(admissionKey ?? organizationId),
     catch: (cause) => new GeoIngestFailedError({ cause }),
   });
   // Upstash reports timeouts as success; an unavailable limiter is not approval.
@@ -139,26 +149,33 @@ const parseUrl = Effect.fn("geoIngest.parseUrl")(function* (value: string) {
  * write or an exhausted web budget never fails the request: AI traffic in the
  * same request still has to be stored.
  */
-const storeWebPageView = Effect.fn("geoIngest.storeWebPageView")(function* (
-  organizationId: string,
-  row: WebPageViewRow,
-  buffer: GeoIngestBuffer | undefined
+/** Fails open: an unavailable limiter must not cost a page view. */
+const admitWebPageView = Effect.fn("geoIngest.admitWebPageView")(function* (
+  admissionKey: string
 ) {
-  const allowed = yield* Effect.promise(() =>
+  return yield* Effect.promise(() =>
     webIngestRatelimit
-      .limit(organizationId)
+      .limit(admissionKey)
       .then((result) => result.success)
       .catch(() => true)
   );
-  if (!allowed) {
-    return;
-  }
+});
+
+const storeWebPageView = Effect.fn("geoIngest.storeWebPageView")(function* (
+  row: WebPageViewRow,
+  buffer: GeoIngestBuffer | undefined
+) {
   if (buffer?.enqueueWeb?.(row)) {
     return;
   }
   yield* Effect.promise(() =>
     ingestWebPageViews([row]).catch((error: unknown) => {
-      console.error("[geo-ingest] Web page view write failed", error);
+      logGeoFailure(
+        "geo.ingest.web_write_failed",
+        "Web page view write failed",
+        error,
+        { organizationId: row.organization_id }
+      );
       return null;
     })
   );
@@ -211,6 +228,10 @@ const failWithAuthPrecedence = Effect.fn("geoIngest.failWithAuthPrecedence")(
     identity: GeoIngestIdentity,
     error: GeoIngestInvalidPayloadError | GeoIngestUnparseableUrlError
   ) {
+    yield* enforceRateLimit(
+      identity.organizationId,
+      geoIngestAdmissionKey(identity)
+    );
     const active = yield* Effect.promise(() =>
       isGeoIngestIdentityActive(identity)
     );
@@ -267,6 +288,23 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
     } satisfies GeoIngestResult;
   }
 
+  // AI requests share the admission limit. People have their own, larger
+  // budget: a busy site must never push its AI traffic into a 429, and
+  // views over it are dropped quietly before any lookup.
+  if (isAi) {
+    yield* enforceRateLimit(
+      identity.organizationId,
+      geoIngestAdmissionKey(identity)
+    );
+  } else if (!(yield* admitWebPageView(geoIngestAdmissionKey(identity)))) {
+    return {
+      outcome: "dropped",
+      reason: "web_rate_limited",
+      organizationId: identity.organizationId,
+      projectId: identity.projectId,
+      visitorType: classification.visitorType,
+    } satisfies GeoIngestResult;
+  }
   const [active, allowedHosts, sitePrefixes] = yield* Effect.all(
     [
       Effect.promise(() => isGeoIngestIdentityActive(identity)),
@@ -325,7 +363,7 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
       )
     : null;
   if (webRow) {
-    yield* storeWebPageView(identity.organizationId, webRow, buffer);
+    yield* storeWebPageView(webRow, buffer);
   }
   if (!isAi) {
     return {
@@ -378,11 +416,15 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
       try {
         await Effect.runPromise(trackGeoIngestAnalytics({ identity, event }));
       } catch (error) {
-        console.error("[geo-ingest] Deferred analytics failed", {
+        logGeoFailure(
+          "geo.ingest.analytics_failed",
+          "Deferred ingest analytics failed",
           error,
-          organizationId: identity.organizationId,
-          projectId: identity.projectId,
-        });
+          {
+            organizationId: identity.organizationId,
+            projectId: identity.projectId,
+          }
+        );
       }
       await announced;
     })

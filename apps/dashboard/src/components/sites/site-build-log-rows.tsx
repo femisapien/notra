@@ -2,8 +2,8 @@
 
 import { Alert02Icon, CancelCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { SITE_BUILD_LOG_ROW_GRID } from "@/constants/sites";
 import { cn } from "@/lib/utils";

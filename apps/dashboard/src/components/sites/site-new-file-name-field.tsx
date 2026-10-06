@@ -7,7 +7,7 @@ import {
   InputGroupText,
 } from "@notra/ui/components/ui/input-group";
 import { Label } from "@notra/ui/components/ui/label";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { SITE_NEW_FILE_EXTENSION } from "@/constants/sites";
 import type { SiteNewFileNameFieldProps } from "@/types/components/sites";

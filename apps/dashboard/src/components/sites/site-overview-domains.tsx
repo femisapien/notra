@@ -1,8 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { useTranslations } from "use-intl";
 
+import Link from "@/components/framework/link";
 import { useSite } from "@/components/sites/site-context";
 import { SiteOverviewExternalLink } from "@/components/sites/site-overview-external-link";
 import { SITE_OVERVIEW_LINK_CLASS } from "@/constants/sites";

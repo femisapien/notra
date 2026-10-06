@@ -1,5 +1,4 @@
 import { verifyDomainConnectCallback } from "@notra/sites-server/domain-connect";
-import type { NextRequest } from "next/server";
 
 import {
   finishDnsCallback,
@@ -16,7 +15,7 @@ import type {
  * drops `state`. Errors arrive as OAuth-style `error` / `error_description`.
  */
 export async function GET(
-  request: NextRequest,
+  request: Request,
   { params }: SiteDomainConnectRouteContext
 ) {
   const claims = verifyDomainConnectCallback((await params).token);
@@ -33,9 +32,9 @@ export async function GET(
     return loaded;
   }
 
-  const error = request.nextUrl.searchParams.get("error");
+  const error = new URL(request.url).searchParams.get("error");
   const description =
-    request.nextUrl.searchParams.get("error_description") ?? "";
+    new URL(request.url).searchParams.get("error_description") ?? "";
   let outcome: SiteDomainConnectOutcome = "success";
   if (error) {
     outcome =

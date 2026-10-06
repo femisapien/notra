@@ -2,19 +2,19 @@
 
 import { Alert02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
 import {
   Alert,
   AlertDescription,
   AlertTitle,
 } from "@notra/ui/components/ui/alert";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "use-intl";
 
 import { buttonVariants } from "@/components/button";
-import { PageHeader } from "@/components/layout/page-header";
+import Link from "@/components/framework/link";
 import { useSite } from "@/components/sites/site-context";
 import { SiteIntegrationDialog } from "@/components/sites/site-integration-dialog";
 import { SiteIntegrationRow } from "@/components/sites/site-integration-row";
@@ -47,7 +47,7 @@ export function SiteIntegrationsPage() {
   return (
     // Fills the panel so the publish bar can rest at its bottom on short pages.
     <div className="flex flex-1 flex-col gap-6" data-site-fill>
-      <PageHeader description={t("description")} title={t("title")} />
+      <PageHeading description={t("description")} title={t("title")} />
 
       {query.data?.invalid ? (
         <Alert variant="warning">

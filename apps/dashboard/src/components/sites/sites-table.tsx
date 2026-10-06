@@ -2,13 +2,16 @@
 
 import { GitBranchIcon, Github01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import {
+  DataTable,
+  type TableColumn,
+} from "@notra/ui/components/ui/data-table";
+import { useTranslations } from "use-intl";
 
-import { Table, type TableColumn } from "@/components/motion/table";
 import { SiteRelativeTime } from "@/components/sites/site-relative-time";
 import { SiteStatusDot } from "@/components/sites/site-status-dot";
 import { SITE_LIST_TABLE_ROW_HEIGHT } from "@/constants/sites";
+import { useRouter } from "@/lib/navigation";
 import type { SitesTableProps } from "@/types/components/sites";
 import type { SiteListItem } from "@/types/sites";
 import { displayUrl } from "@/utils/site-links";
@@ -140,7 +143,7 @@ export function SitesTable({ organizationSlug, sites }: SitesTableProps) {
   ];
 
   return (
-    <Table
+    <DataTable
       className="rounded-2xl"
       columns={columns}
       data={sites}

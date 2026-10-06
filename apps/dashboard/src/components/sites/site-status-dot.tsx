@@ -1,7 +1,7 @@
 "use client";
 
 import { Shimmer } from "@notra/ui/components/ai-elements/shimmer";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { SITE_STATUS_DOT_STYLES } from "@/constants/sites";
 import { cn } from "@/lib/utils";

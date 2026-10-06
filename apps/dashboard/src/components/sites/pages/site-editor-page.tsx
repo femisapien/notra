@@ -1,13 +1,13 @@
 "use client";
 
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
 import { Editor } from "@pierre/diffs/edit";
 import type { EditorFactory } from "@pierre/diffs/edit";
 import { EditProvider } from "@pierre/diffs/react";
-import { useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
 import { useCallback, useMemo, useState } from "react";
+import { useTranslations } from "use-intl";
 
-import { PageHeader } from "@/components/layout/page-header";
 import { SiteEditorConflictBanner } from "@/components/sites/editor/site-editor-conflict-banner";
 import { SiteEditorEmptyState } from "@/components/sites/editor/site-editor-empty-state";
 import { SiteEditorFilePicker } from "@/components/sites/editor/site-editor-file-picker";
@@ -186,7 +186,7 @@ export function SiteEditorPage() {
 
   return (
     <EditProvider createEditor={createSiteEditor}>
-      <PageHeader description={t("description")} title={t("title")}>
+      <PageHeading description={t("description")} title={t("title")}>
         <SiteEditorHeaderActions
           canCreateFile={canCreateFile}
           draftCount={draftCount}
@@ -194,7 +194,7 @@ export function SiteEditorPage() {
           onPublish={() => setPublishOpen(true)}
           unsaved={unsaved}
         />
-      </PageHeader>
+      </PageHeading>
 
       {conflicts.length > 0 ? (
         <SiteEditorConflictBanner

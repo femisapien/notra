@@ -4,10 +4,10 @@ import { getSite } from "@notra/sites-server/deployments";
 import { refreshSiteDomain } from "@notra/sites-server/domains";
 import type { Site } from "@notra/sites-server/types/sites";
 import { eq } from "drizzle-orm";
-import { after, type NextRequest } from "next/server";
 
 import { SITE_DOMAIN_CONNECT_PARAM } from "@/constants/sites";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
+import { afterResponse } from "@/lib/framework/after-response";
 import { dispatchSiteJobs } from "@/lib/sites/dispatch";
 import type { SiteDomainConnectOutcome } from "@/types/sites";
 
@@ -16,7 +16,7 @@ import type { SiteDomainConnectOutcome } from "@/types/sites";
  * may manage it; otherwise the response to send instead.
  */
 export async function loadDnsCallbackSite(
-  request: NextRequest,
+  request: Request,
   siteId: string
 ): Promise<{ site: Site; userId: string } | Response> {
   const site = await getSite(siteId);
@@ -46,7 +46,7 @@ export async function finishDnsCallback({
   userId,
   outcome,
 }: {
-  request: NextRequest;
+  request: Request;
   site: Site;
   domainId: string;
   userId: string;
@@ -56,7 +56,7 @@ export async function finishDnsCallback({
     try {
       const { rebuildJobId } = await refreshSiteDomain(site, domainId, userId);
       if (rebuildJobId) {
-        after(() => dispatchSiteJobs([rebuildJobId]));
+        afterResponse(() => dispatchSiteJobs([rebuildJobId]));
       }
     } catch (error) {
       console.warn("sites.dns_setup_refresh_failed", {
@@ -75,7 +75,7 @@ export async function finishDnsCallback({
   }
   const target = new URL(
     `/${organization.slug}/sites/${site.id}/domains`,
-    request.nextUrl.origin
+    new URL(request.url).origin
   );
   target.searchParams.set(SITE_DOMAIN_CONNECT_PARAM, outcome);
   return Response.redirect(target, 302);

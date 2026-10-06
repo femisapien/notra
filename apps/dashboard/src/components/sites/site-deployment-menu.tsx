@@ -16,10 +16,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@notra/ui/components/ui/dropdown-menu";
-import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
+import { useRouter } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import type { SiteDeploymentMenuProps } from "@/types/components/sites";
 import { copyTextToClipboard } from "@/utils/copy-to-clipboard";

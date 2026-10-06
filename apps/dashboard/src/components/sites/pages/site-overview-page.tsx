@@ -6,12 +6,12 @@ import {
   RefreshIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { InstrumentSection } from "@notra/ui/components/instrument/instrument-module";
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
+import { useTranslations } from "use-intl";
 
 import { Button, buttonVariants } from "@/components/button";
-import { InstrumentSection } from "@/components/instrument/instrument-module";
-import { PageHeader } from "@/components/layout/page-header";
+import Link from "@/components/framework/link";
 import { useSite } from "@/components/sites/site-context";
 import { SiteDeploymentsTable } from "@/components/sites/site-deployments-table";
 import { SiteOverviewHero } from "@/components/sites/site-overview-hero";
@@ -87,7 +87,7 @@ export function SiteOverviewPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <PageHeading
         description={<UpdatedLine deployment={liveDeployment} />}
         title={site.name}
       >
@@ -109,7 +109,7 @@ export function SiteOverviewPage() {
             </a>
           ) : null}
         </div>
-      </PageHeader>
+      </PageHeading>
       <span aria-live="polite" className="sr-only">
         {latestProduction
           ? tDetail("statusAnnouncement", {

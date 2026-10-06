@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { SitePreviewFrame } from "@/components/sites/site-preview-frame";
 import type { SiteOverviewPreviewProps } from "@/types/components/sites";

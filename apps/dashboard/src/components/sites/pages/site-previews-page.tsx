@@ -8,6 +8,7 @@ import {
   ViewOffIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -27,12 +28,11 @@ import {
 import { Input } from "@notra/ui/components/ui/input";
 import { Label } from "@notra/ui/components/ui/label";
 import { useMutation } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
-import { PageHeader } from "@/components/layout/page-header";
 import { useSite } from "@/components/sites/site-context";
 import { SitePreviewAccessDialog } from "@/components/sites/site-preview-access-dialog";
 import { SitePreviewsTable } from "@/components/sites/site-previews-table";
@@ -142,7 +142,7 @@ export function SitePreviewsPage() {
 
   return (
     <>
-      <PageHeader description={t("description")} title={t("title")}>
+      <PageHeading description={t("description")} title={t("title")}>
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={() => setAccessOpen(true)} variant="outline">
             <HugeiconsIcon
@@ -162,7 +162,7 @@ export function SitePreviewsPage() {
             {t("branchTitle")}
           </Button>
         </div>
-      </PageHeader>
+      </PageHeading>
 
       {site.previewsEnabled ? null : (
         <p className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 text-sm">

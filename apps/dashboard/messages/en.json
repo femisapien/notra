@@ -146,7 +146,9 @@
           "marketingEmails": {
             "description": "Receive emails about new features, tips and announcements"
           }
-        }
+        },
+        "marketingPersonal": "Just for you. Every email also has an unsubscribe link.",
+        "marketingBlocked": "You unsubscribed from all marketing emails through a link in an email. Contact support@usenotra.com to receive them again."
       },
       "billing": {
         "plansDescription": "Change your plan or upgrade.",
@@ -173,6 +175,7 @@
         "period": "Last 30 days",
         "refresh": "Refresh webhook activity",
         "addEndpoint": "Add endpoint",
+        "removeEndpoint": "Remove endpoint {url}",
         "rightNow": "Right now",
         "processing": "Processing",
         "idle": "Idle",
@@ -209,7 +212,8 @@
           "allTitle": "Your events show up here",
           "allDescription": "Add an endpoint, then generate a post. Every delivery and retry gets logged here.",
           "filteredTitle": "No deliveries with this status",
-          "filteredDescription": "Pick another filter to see more of your history."
+          "filteredDescription": "Pick another filter to see more of your history.",
+          "showAll": "Show all deliveries"
         },
         "endpointsEmpty": {
           "title": "Connect your first endpoint",
@@ -244,7 +248,8 @@
           "inFlight": "Sending",
           "payload": "Request payload",
           "payloadCopied": "Payload copied"
-        }
+        },
+        "itemLabel": "deliveries"
       }
     },
     "logs": {
@@ -470,6 +475,7 @@
     "roleLabel": "{role, select, owner {Owner} admin {Admin} member {Member} other {{role}}}",
     "teamMemberLimit": "Team member limit reached on your current plan.",
     "viewPlans": "View plans",
+    "invitationExpired": "Expired",
     "columns": {
       "user": "User"
     },
@@ -482,8 +488,7 @@
       "resendDescription": "We'll send a new invitation link to <strong>{email}</strong>.",
       "resending": "Resending…",
       "cancelTitle": "Cancel invitation?",
-      "cancelDescription": "The invitation sent to {email} will be canceled and can no longer be accepted.",
-      "canceling": "Canceling…"
+      "cancelDescription": "The invitation sent to {email} will be canceled and can no longer be accepted."
     },
     "invite": {
       "sent": "Invitation sent successfully",
@@ -500,8 +505,7 @@
       "selectRole": "Select a role",
       "updateRole": "Update role",
       "removeTitle": "Remove {name}?",
-      "removeDescription": "{name} will be removed from {organization} and lose access to all its content. To rejoin, they'll need a new invitation.",
-      "removing": "Removing…"
+      "removeDescription": "{name} will be removed from {organization} and lose access to all its content. To rejoin, they'll need a new invitation."
     },
     "shared": {
       "resendInvitation": "Resend invitation",
@@ -649,6 +653,11 @@
     }
   },
   "feedback": {
+    "activity": {
+      "title": "Feedback activity",
+      "loadFailed": "Failed to load feedback activity",
+      "seriesLabel": "Feedback"
+    },
     "unspecified": "Unspecified",
     "kind": {
       "bug": "Bug",
@@ -775,7 +784,6 @@
       "or": "Or",
       "emailPlaceholder": "jane@company.com",
       "passwordPlaceholder": "At least 10 characters",
-      "creating": "Creating account…",
       "submit": "Create account",
       "forgotPassword": "Forgot your password? <link>Reset your password</link>",
       "haveAccount": "Already have an account? <link>Log in</link>"
@@ -817,7 +825,6 @@
       "descriptionNoEmail": "We sent a 6-digit code to your email address. Enter it below to continue.",
       "codeLabel": "Verification code",
       "submit": "Verify email",
-      "submitting": "Verifying…",
       "errorFallback": "Verification failed. Please try again."
     },
     "mfaChallenge": {
@@ -831,7 +838,6 @@
       "backupDescription": "Enter one of the backup codes you saved when you set up two-factor authentication. Each code works once.",
       "backupCodeLabel": "Backup code",
       "backupSubmit": "Use backup code",
-      "backupSubmitting": "Checking…",
       "useAuthenticator": "Use my authenticator app instead",
       "issuedCodesTitle": "Your backup codes",
       "issuedCodesDescription": "You're signed in. Save these backup codes now: each one lets you in once if you lose your authenticator app."
@@ -848,7 +854,6 @@
       "passwordPlaceholder": "Your password",
       "lastUsed": "Last used",
       "submit": "Log in",
-      "submitting": "Signing in…",
       "resetPassword": "Reset your password",
       "noAccount": "Don't have an account?",
       "register": "Register",
@@ -995,6 +1000,8 @@
       "branchNotFound": "That branch doesn't exist in the repository",
       "granolaKeyRejected": "Granola couldn't verify this API key. Check the key and its scopes, then try again.",
       "publicUrlInvalid": "Enter a public http or https URL",
+      "websiteDomainNotFound": "Website domain not found. Please check the website address.",
+      "websiteDnsUnavailable": "We couldn't check the website domain right now. Please try again.",
       "mcpAuthorizationFailed": "The MCP server authorization failed. Check the URL and try again.",
       "tooManyConnectionAttempts": "Too many connection attempts. Wait a minute and try again.",
       "selectOneRepository": "Please select exactly one repository",
@@ -1162,7 +1169,6 @@
       "tryingAgain": "Trying again",
       "noSuggestions": "Nothing obvious for {domain}. Search above instead.",
       "showMore": "Show {count} more",
-      "runningFirstScan": "Running your first scan",
       "description": "When AI recommends someone instead of {companyName}, who is it? Pick the brands you want to be measured against.",
       "descriptionFallback": "When AI recommends someone instead of you, who is it? Pick the brands you want to be measured against.",
       "title": "Who do you lose deals to?"
@@ -1186,8 +1192,8 @@
       "startFreeTrial": "Start free trial",
       "selectPlan": "Select {plan}",
       "title": "Choose your plan",
-      "description": "Use feedback for free, or upgrade for AI content and visibility tracking.",
-      "continueFree": "Continue with free feedback",
+      "description": "Pick a plan to unlock AI visibility tracking and content, or close this and look around first.",
+      "close": "Close and go to dashboard",
       "renews": "{interval, select, year {Your plan renews automatically every year until you cancel.} other {Your plan renews automatically every month until you cancel.}}"
     },
     "workspace": {
@@ -1213,26 +1219,17 @@
       "heardAbout": "Where did you hear about Notra?",
       "selectOption": "Select an option",
       "tellUsWhere": "Tell us where",
-      "tellUsWherePlaceholder": "Podcast, community, friend, etc.",
-      "settingUp": "Setting up…"
+      "tellUsWherePlaceholder": "Podcast, community, friend, etc."
     },
     "shared": {
-      "skipOnboarding": "Skip onboarding",
-      "saving": "Saving"
+      "skipOnboarding": "Skip onboarding"
     }
   },
   "shared": {
     "table": {
-      "insertBefore": "Insert before",
-      "insertAfter": "Insert after",
-      "columnOptions": "{column} column options",
-      "rowOptions": "Row {row} options",
       "selectAllRows": "Select all rows",
       "selectRow": "Select row {row}",
-      "reorderColumn": "Reorder {column} column",
-      "renameColumn": "Rename {column} column",
-      "resizeColumn": "Resize {column} column",
-      "cellLabel": "{column} for row {row}"
+      "resizeColumn": "Resize {column} column"
     },
     "checkbox": {
       "partiallySelected": "Partially selected"
@@ -1550,7 +1547,8 @@
         "searchLabel": "Search sitemap URLs",
         "searchPlaceholder": "Search URLs…",
         "noSearchResults": "No URLs match your search.",
-        "emptyView": "No URLs in this view yet."
+        "emptyView": "No URLs in this view yet.",
+        "itemLabel": "pages"
       }
     },
     "references": {
@@ -1834,6 +1832,7 @@
       "year": "year",
       "month": "month",
       "current": "Current",
+      "billingInterval": "Billing interval",
       "monthly": "Monthly",
       "yearly": "Yearly",
       "title": "Title",
@@ -1931,7 +1930,6 @@
       "failedToAddSitemap": "Failed to add sitemap",
       "sitemapOrSiteUrl": "Sitemap or site URL",
       "adding": "Adding…",
-      "removing": "Removing…",
       "url": "URL",
       "links": "Links",
       "today": "Today",
@@ -2459,6 +2457,19 @@
       "customColor": "Pick a custom color",
       "kindHint": "Direct sells what you sell. Indirect solves the same problem differently."
     },
+    "competitorEngineMatrix": {
+      "title": "Recommendations by assistant",
+      "hint": "Share of each assistant's answers that mention the brand in the selected period. Darker cells mean more mentions.",
+      "tableLabel": "Brand mention rate by AI assistant",
+      "brandColumn": "Brand",
+      "you": "You",
+      "noChecks": "No answers",
+      "empty": "No answers in this period yet.",
+      "scanning": "Scanning engines…",
+      "loadFailed": "Couldn't load assistant recommendations.",
+      "cellDetail": "{mentions, number} of {checks, number} answers",
+      "refreshFailed": "Couldn't refresh, showing earlier data"
+    },
     "competitorModal": {
       "description": "How AI engines mention {title} across your tracked prompts"
     },
@@ -2594,9 +2605,7 @@
     },
     "engineRateTable": {
       "columns": {
-        "engineCount": "Engine ({count, number})",
-        "visible": "Visible",
-        "lastChecked": "Last checked"
+        "engineCount": "Engine ({count, number})"
       },
       "hints": {
         "visible": "Answers where you showed up at all: your brand was named, one of your pages was cited as a source or both. Citations are included in this number.",
@@ -2605,6 +2614,7 @@
         "avgPosition": "Average rank of your brand across the answers that named it. Answers that only cited you carry no rank and are left out."
       },
       "visibilityLabel": "{engine} visibility",
+      "visibleCount": "{count, number} visible",
       "readoutScanning": "Scanning now",
       "filterLabel": "Filter engines",
       "filterPlaceholder": "Filter by engine…",
@@ -3057,7 +3067,6 @@
       "archiveDescription": "This persona will be removed from future scans. Its scan history is kept.",
       "nounSingular": "persona",
       "nounPlural": "personas",
-      "archiving": "Archiving…",
       "archiveTitle": "Archive persona?"
     },
     "projectBrandSection": {
@@ -3129,7 +3138,8 @@
       "latestAnswer": "Latest answer from each engine",
       "answerLanguage": "Answer language",
       "noTags": "No tags",
-      "addTag": "Add a tag…"
+      "addTag": "Add a tag…",
+      "lastScan": "Last scan"
     },
     "promptDetailStatus": {
       "loading": "Loading answer…",
@@ -3150,26 +3160,19 @@
       "competitors": "Brands mentioned instead",
       "searches": "Searches the engine ran",
       "sources": "Sources cited",
-      "history": "Scan history"
+      "history": "Scan history",
+      "showAllSources": "Show all {count} sources"
     },
     "promptReceiptHistory": {
       "gainedMention": "Now mentioned",
-      "gainedMentionAt": "at",
       "lostMention": "No longer mentioned",
-      "moved": "Moved",
       "noChange": "No change",
       "firstScan": "First scan",
       "gainedLabel": "Now mentioned at {position}",
       "movedLabel": "Moved {from} → {to}",
-      "moreAria": "{count} more: {names}",
-      "viewAnswer": "View answer",
-      "viewAnswerAria": "View answer · {timestamp}",
-      "singleScan": "Only one scan so far",
       "noHistory": "No scans recorded yet",
-      "columns": {
-        "date": "Scan",
-        "newCompetitors": "New brands"
-      }
+      "newBrands": "New: {names}",
+      "viewAnswer": "View answer"
     },
     "promptReceiptViewSwitch": {
       "groupLabel": "Receipt view",
@@ -3204,10 +3207,7 @@
       "suggestions": "Tags in use"
     },
     "promptsTable": {
-      "pauseAria": "Pause {prompt}",
-      "enableAria": "Enable {prompt}",
       "copiedPrompt": "Copied prompt",
-      "pausePrompt": "Pause prompt",
       "enablePrompt": "Enable prompt",
       "removePrompt": "Remove prompt",
       "removeDescriptionOne": "\"{prompt}\" will no longer be asked in GEO scans. Historical answers stay in your results.",
@@ -3218,7 +3218,8 @@
       "nounPlural": "prompts",
       "tagsCustomOnly": "Tags apply to custom prompts. Auto-generated prompts were skipped.",
       "columns": {
-        "presence": "Presence"
+        "presence": "Presence",
+        "mentionedInstead": "Mentioned instead"
       },
       "filterAria": "Filter prompts",
       "filterPlaceholder": "Filter prompts…",
@@ -3249,7 +3250,6 @@
       "runningWithTotal": "Scanning now, {checks} of {total} answers saved.",
       "running": "Scanning now, {checks} answers saved.",
       "failed": "The last scan stopped early {when}.",
-      "finished": "Answers from the last scan, {when}.",
       "progressLabel": "Saved scan answers",
       "empty": {
         "title": "No answers yet",
@@ -3377,6 +3377,7 @@
         "retry": "Try again"
       },
       "noRatedAnswers": "No rated answers",
+      "ratedAnswers": "{count, plural, one {# rated answer} other {# rated answers}}",
       "deltaLabel": "Sentiment score",
       "deltaHint": "vs. previous period",
       "band": {
@@ -3617,11 +3618,6 @@
         "failedTitle": "Writing failed",
         "failedDescription": "The writer couldn't finish this article. Try again.",
         "starting": "Starting…"
-      }
-    },
-    "instrument": {
-      "instrumentModule": {
-        "moreInfo": "More info"
       }
     },
     "shelf": {
@@ -3979,10 +3975,6 @@
       "searchPlaceholder": "Search competitors",
       "moreHidden": "{count, plural, one {# more competitor} other {# more competitors}}. Search to find {count, plural, one {it} other {them}}.",
       "noMatches": "No competitors match “{query}”."
-    },
-    "liveIndicator": {
-      "label": "Live",
-      "hint": "Updates on its own as new data comes in"
     },
     "webVisitors": {
       "title": "Visitors",
@@ -4652,7 +4644,6 @@
         "updateCredentials": "Update credentials",
         "disconnectTitle": "Disconnect {name}?",
         "disconnectDescription": "Its tools will no longer be available to this organization. You can reconnect it later.",
-        "disconnecting": "Disconnecting…",
         "auth": {
           "none": "No authentication"
         }
@@ -4827,6 +4818,1932 @@
     "signalStatus": {
       "coalesced": "Grouped",
       "processed": "Reviewed"
+    }
+  },
+  "analytics": {
+    "shared": {
+      "interactions": "Interactions",
+      "posted": "Posted",
+      "engagement": "Engagement",
+      "followers": "Followers",
+      "likes": "Likes",
+      "noPostsForThisTime": "No posts for this time frame",
+      "replies": "Replies"
+    },
+    "accountModal": {
+      "description": "Engagement and recent posts for @{handle}"
+    },
+    "summary": {
+      "engagementRate": "Engagement rate",
+      "engagementHint": "{interactions} interactions / {impressions} impressions",
+      "followersHint": "across {count, plural, one {# connected account} other {# connected accounts}}",
+      "impressionsHint": "across all posts, {range}",
+      "interactionsHint": "{posts} posts, {range}"
+    },
+    "ranges": {
+      "today": {
+        "hint": "today"
+      },
+      "yesterday": {
+        "hint": "yesterday"
+      },
+      "7d": {
+        "hint": "last 7 days"
+      },
+      "30d": {
+        "hint": "last 30 days"
+      },
+      "90d": {
+        "hint": "last 90 days"
+      },
+      "mtd": {
+        "label": "Month to date",
+        "compact": "MTD",
+        "hint": "month to date"
+      },
+      "qtd": {
+        "label": "Quarter to date",
+        "compact": "QTD",
+        "hint": "quarter to date"
+      },
+      "ytd": {
+        "compact": "YTD",
+        "hint": "year to date"
+      },
+      "all": {
+        "label": "All time",
+        "hint": "all time"
+      }
+    },
+    "shell": {
+      "description": "How your X and LinkedIn accounts are performing",
+      "emptyDescription": "Connect an X or LinkedIn account to start tracking followers, impressions and engagement.",
+      "emptyTitle": "No connected accounts",
+      "notConfigured": "Analytics ingestion is not configured yet. Connected accounts are shown, but stats will appear once the analytics backend is set up."
+    },
+    "connect": {
+      "connectX": "Connect X",
+      "another": "Connect another platform",
+      "connectLinkedIn": "Connect LinkedIn"
+    },
+    "followers": {
+      "trackingStarted": "tracking started",
+      "noAccounts": "No accounts selected"
+    },
+    "impressionsShare": {
+      "caption": "{account} · {percent}% of impressions",
+      "title": "Impressions share",
+      "empty": "No impression data yet"
+    },
+    "postingPerformance": {
+      "description": "When your posts earn the most engagement",
+      "title": "Best time to post",
+      "highestEngagement": "Highest average engagement ({value} per post)",
+      "activity": {
+        "quiet": "No activity",
+        "low": "Low activity",
+        "medium": "Medium activity",
+        "high": "High activity"
+      },
+      "week": "Week",
+      "empty": "No posting data for this time frame"
+    },
+    "topPosts": {
+      "postCount": "Post ({count})",
+      "title": "Top posts"
+    },
+    "leaderboard": {
+      "stopTrackingAccount": "Stop tracking @{handle}",
+      "empty": "No accounts yet",
+      "filterLabel": "Filter accounts by handle or name",
+      "filterPlaceholder": "Filter by handle or name…",
+      "platformFilter": "Filter by platform",
+      "stopTracking": "Stop tracking {count}",
+      "noMatches": "No accounts match these filters"
+    },
+    "accountDetail": {
+      "metrics": {
+        "reposts": "Reposts",
+        "quotes": "Quotes",
+        "bookmarks": "Bookmarks",
+        "engagementRate": "Eng. rate"
+      },
+      "overTime": "Engagement over time",
+      "notEnoughActivity": "Not enough activity in the last {days} days to chart @{handle}",
+      "recentPosts": "Recent posts",
+      "postCount": "{count, plural, one {{formatted} post} other {{formatted} posts}}",
+      "noPosts": "No tracked posts for @{handle} yet"
+    },
+    "overview": {
+      "joinedNotra": "Joined Notra",
+      "firstNotraPost": "First Notra post",
+      "engagementDescription": "Likes, replies and reposts across your accounts",
+      "engagementEmpty": "No engagement data for this time frame",
+      "impressionsEmpty": "No impression data for this time frame",
+      "volume": "Publishing volume"
+    },
+    "toasts": {
+      "loadAnalyticsOverviewFailed": "Failed to load analytics overview",
+      "loadEngagementDataFailed": "Failed to load engagement data",
+      "loadTopPostsFailed": "Failed to load top posts",
+      "loadFollowerGrowthFailed": "Failed to load follower growth",
+      "loadPostingPerformanceFailed": "Failed to load posting performance",
+      "loadLeaderboardFailed": "Failed to load leaderboard",
+      "loadAdoptionDataFailed": "Failed to load adoption data",
+      "stopTrackingAccountFailed": "Failed to stop tracking account"
+    }
+  },
+  "automation": {
+    "shared": {
+      "failedToUpdateSchedule": "Failed to update schedule",
+      "activeCount": "Active ({count})",
+      "pausedCount": "Paused ({count})",
+      "failedToUpdateTrigger": "Failed to update trigger"
+    },
+    "schedulesMetaTitle": "Automation schedules",
+    "eventsMetaTitle": "Automation events",
+    "brandVoice": {
+      "noIdentity": "No identity",
+      "noIdentityDescription": "No identity has been configured for this workspace yet.",
+      "defaultSuffix": "(Default)",
+      "defaultIdentity": "Default identity"
+    },
+    "suggestions": {
+      "reviewDescription": "Review the recommendation before creating this {kind, select, schedule {schedule} other {event automation}}.",
+      "whyThisFits": "Why this fits",
+      "create": "Create {kind, select, schedule {schedule} other {event automation}}",
+      "dismissFailed": "Couldn't dismiss the suggestion",
+      "dismissLabel": "Dismiss suggestion \"{title}\"",
+      "dismissTooltip": "Dismiss suggestion",
+      "viewDetails": "View details for \"{title}\"",
+      "clickToExpand": "Click to expand"
+    },
+    "outputTypeLabels": {
+      "blog_post": "Blog post",
+      "twitter_post": "Twitter post",
+      "linkedin_post": "LinkedIn post",
+      "investor_update": "Investor update"
+    },
+    "schedules": {
+      "dayPicker": {
+        "dayOfWeek": "Day of week",
+        "dayOfMonth": "Day of month",
+        "dayPlaceholder": "Day",
+        "dayOption": "Day {day}",
+        "skipNotes": {
+          "day31": "Skipped in February, April, June, September and November.",
+          "day30": "Skipped in February.",
+          "day29": "Skipped in February except leap years.",
+          "default": "If a month is shorter than the selected day, the run is skipped that month."
+        }
+      },
+      "interval": {
+        "repeatEvery": "Repeat every",
+        "fewer": "Fewer days",
+        "more": "More days",
+        "days": "days",
+        "invalid": "Pick between {min} and {max} days."
+      },
+      "quickStart": {
+        "description": "Start from a common cadence, then tweak anything before saving.",
+        "presets": {
+          "weekly-changelog": {
+            "label": "Weekly changelog",
+            "description": "Summarize the week's activity every Monday morning."
+          },
+          "daily-twitter": {
+            "label": "Daily X post",
+            "description": "Share a short update from yesterday's activity."
+          },
+          "monthly-blog": {
+            "label": "Monthly blog post",
+            "description": "Turn the month's highlights into a long-form article."
+          },
+          "biweekly-linkedin": {
+            "label": "Bi-weekly LinkedIn post",
+            "description": "Post a professional update every two weeks."
+          }
+        },
+        "createSchedule": "Create {title} schedule"
+      },
+      "summary": {
+        "weekly": "Every {day} at {time}",
+        "monthly": "Monthly on day {day} at {time}",
+        "custom": "Every {days} days at {time}",
+        "daily": "Every day at {time}",
+        "anyMoment": "any moment",
+        "inMinutes": "in {count}m",
+        "inHours": "in {count}h",
+        "inDays": "in {count}d",
+        "nextRun": "Next run: {date} ({relative})"
+      },
+      "outputTypesLower": {
+        "changelog": "changelog entry",
+        "blog_post": "blog post",
+        "linkedin_post": "LinkedIn post",
+        "twitter_post": "tweet",
+        "image": "image"
+      },
+      "autoName": {
+        "custom": "Every {days} days {type}",
+        "frequency": "{frequency, select, daily {Daily} weekly {Weekly} monthly {Monthly} other {Custom}} {type}"
+      },
+      "validation": {
+        "intervalRequired": "Enter how many days between runs",
+        "nameRequired": "Give this schedule a name",
+        "instructionsTooLong": "Keep instructions under {max} characters",
+        "sourcesRequired": "Pick at least one source to continue",
+        "githubRequired": "Schedules need at least one GitHub repository"
+      },
+      "dialog": {
+        "alreadyExists": "Schedule already exists",
+        "createFailed": "Failed to create schedule",
+        "updated": "Schedule updated",
+        "added": "Schedule added",
+        "defaultVoiceName": "{name} (Default)",
+        "defaultVoice": "Default brand voice",
+        "editTitle": "Edit schedule",
+        "newTitle": "New schedule",
+        "description": "Pick a content type and a schedule. We'll handle the rest.",
+        "nameHint": "Just for you, won't appear in any output.",
+        "contentFormat": "Content format",
+        "contentFormatHint": "What should we generate?",
+        "instructions": "Instructions",
+        "instructionsHint": "Tell us what this schedule should write about. Brand voice still applies.",
+        "instructionsPlaceholder": "e.g. Write a tutorial-style post that walks through one feature shipped in this window, with code samples.",
+        "instructionsFooter": "Passed to the writer as extra guidance on every run.",
+        "scheduleHint": "When should this run? Times use UTC.",
+        "time": "Time",
+        "sourcesHint": "Pick which integrations we should pull activity from.",
+        "searchIntegrations": "Search integrations",
+        "noIntegrationsFound": "No integrations found.",
+        "rules": "{type} rules",
+        "rulesHint": "How far back we look and how the post should sound.",
+        "brandVoiceDescription": "Choose which brand voice to use for generated content.",
+        "brandVoiceDefaultDescription": "Use your default brand voice.",
+        "autoPublish": "Auto-publish",
+        "autoPublishHint": "When on, posts are published immediately instead of saved as drafts.",
+        "add": "Add schedule",
+        "sourcesSelected": "{count, plural, one {# source selected} other {# sources selected}}"
+      },
+      "lookbackWindows": {
+        "current_day": "Current day"
+      },
+      "page": {
+        "description": "Configure cron schedules that run daily, weekly or monthly",
+        "create": "Create schedule",
+        "integrationDeleted": "Can't enable this schedule because its integration was deleted. Edit the schedule and pick another integration.",
+        "deleteFailed": "Failed to delete schedule",
+        "removed": "Schedule removed",
+        "triggered": "Schedule triggered. Content will be generated shortly.",
+        "runFailed": "Failed to run schedule",
+        "emptyDescription": "Create your first schedule to automate recurring content.",
+        "emptyTitle": "No schedules yet",
+        "deleteTitle": "Delete schedule?",
+        "deleteDescription": "This will permanently delete <target></target>. This can't be undone.",
+        "runs": "Runs: {value}",
+        "repositories": "Repositories: {value}",
+        "thisSchedule": "this schedule",
+        "untitled": "Untitled schedule",
+        "scheduleFallback": "schedule",
+        "emptyCategory": "No schedules in this category."
+      },
+      "frequencyLabel": {
+        "notSet": "Not set",
+        "weekly": "Weekly - {day} @ {time}",
+        "monthly": "Monthly - Day {day} @ {time}",
+        "custom": "Every {days} days @ {time}",
+        "daily": "Daily @ {time}"
+      }
+    },
+    "events": {
+      "page": {
+        "description": "React to GitHub activity and trigger content generation automatically",
+        "create": "Create trigger",
+        "removed": "Event trigger removed",
+        "deleteFailed": "Failed to delete trigger",
+        "emptyDescription": "Create your first event trigger to react to GitHub activity.",
+        "emptyTitle": "No event triggers yet",
+        "allEvents": "All events",
+        "eventNames": {
+          "push": "Push"
+        },
+        "githubWebhook": "GitHub webhook",
+        "emptyCategory": "No event triggers in this category."
+      },
+      "dialog": {
+        "alreadyExists": "Trigger already exists",
+        "createFailed": "Failed to create trigger",
+        "updated": "Trigger updated",
+        "added": "Trigger added",
+        "editTitle": "Edit event trigger",
+        "newTitle": "New event trigger",
+        "description": "React to GitHub activity and generate content automatically.",
+        "rulesHint": "Voice and publishing behavior for this trigger.",
+        "noRepositoriesSelected": "No repositories selected yet",
+        "repositoriesSelected": "{count, plural, one {# repository selected} other {# repositories selected}}",
+        "add": "Add trigger",
+        "triggerEvent": "Trigger event",
+        "triggerEventHint": "When should this fire?",
+        "includePreReleases": "Include pre-releases",
+        "includePreReleasesHint": "When off, releases marked as pre-release on GitHub will not fire this trigger.",
+        "repositoriesHint": "Pick which repositories should fire this trigger.",
+        "noRepositories": "No GitHub repositories connected yet."
+      },
+      "validation": {
+        "repositoriesRequired": "Select at least one repository",
+        "patternsTooLong": "Must be {max} characters or less",
+        "invalidPatterns": "Invalid patterns"
+      },
+      "eventTypes": {
+        "release": {
+          "description": "Trigger when a new release is published on GitHub."
+        },
+        "push": {
+          "label": "Push to default branch",
+          "description": "Trigger on each push to the repository's default branch."
+        }
+      },
+      "ignorePatterns": {
+        "typeToCheck": "Type a commit message to check it.",
+        "notSkipped": "Not skipped. Nothing matches.",
+        "skipped": "Skipped. Matches <code>{pattern}</code>.",
+        "label": "Ignore commits matching",
+        "addPrefix": "Add a prefix:",
+        "remove": "Remove {pattern}",
+        "add": "Add {pattern}",
+        "placeholder": "e.g. {example} (separated by comma)",
+        "hint": "If every commit in a push matches one of these, the push is skipped. Separate patterns with commas. Case doesn't matter.",
+        "tryLabel": "Try a commit message",
+        "tryPlaceholder": "e.g. chore: bump dependencies"
+      }
+    }
+  },
+  "billing": {
+    "shared": {
+      "currentBalance": "Current balance",
+      "pullRequestCredits": "Pull request credits",
+      "zeroDataRetention": "Zero data retention",
+      "aiAnswers": "AI answers"
+    },
+    "features": {
+      "team_members": "Team members",
+      "long_form_posts": "Long-form posts",
+      "social_posts": "Social posts",
+      "image_generations": "Image generations",
+      "workflows": "Workflows",
+      "log_retention_7_days": "Log retention 7 days",
+      "log_retention_14_days": "Log retention 14 days",
+      "log_retention_30_days": "Log retention 30 days"
+    },
+    "creditSummary": {
+      "included": "of {amount} included",
+      "usedThisPeriod": "Used this period",
+      "inTheLast": "in the last {range, select, 7d {7 days} 30d {30 days} 90d {90 days} other {{range}}}",
+      "ofPlan": "of plan"
+    },
+    "topup": {
+      "description": "Purchase additional AI credits for your workspace",
+      "added": "Credits added successfully",
+      "failed": "Could not process top-up. Please try again.",
+      "includedInPlan": "of {amount} included in plan",
+      "selectAmountLabel": "Select amount",
+      "customPlaceholder": "Custom amount (${min}–${max})",
+      "customInvalid": "Enter a whole number between ${min} and ${max}",
+      "addAmount": "Add ${amount} in credits",
+      "selectAmount": "Select an amount",
+      "feeNotice": "A {percent}% platform fee is added to top-ups. Plan-included credits are charged at cost."
+    },
+    "invoices": {
+      "statusValue": "{status, select, paid {Paid} open {Open} draft {Draft} void {Void} uncollectible {Uncollectible} pending {Pending} other {{status}}}",
+      "empty": "No invoices yet"
+    },
+    "zdrConsent": {
+      "title": "Enable zero data retention?",
+      "body": "Zero data retention routes your prompts and answers only through model hosts covered by a zero-data-retention agreement. Notra routes requests through third-party AI gateways, and their agreements with each model provider are what enforce ZDR. Please read the following before you enable it:",
+      "points": {
+        "availability": "Availability is not guaranteed for every model. ZDR exists only where the gateway we route through holds a zero-data-retention agreement with that model's provider. Notra does not hold these agreements directly and cannot extend them to models they do not cover.",
+        "newModels": "New models usually launch without ZDR. Recently released models are often excluded until the provider and gateway add a zero-data-retention option.",
+        "skipped": "Models without a ZDR host are skipped. They are marked in GEO settings and will not run unless you explicitly approve each one, in which case that provider may retain request data under its own policy.",
+        "termsChange": "Gateway and provider terms can change. If a ZDR agreement is withdrawn for a model, that model is excluded from your scans until an alternative is available."
+      },
+      "footnote": "By enabling, you acknowledge that zero data retention is provided under third-party gateway agreements and applies only to models covered by one at the time of each request.",
+      "cancel": "Not now"
+    },
+    "zdrAddon": {
+      "description": "Only run models on hosts that keep no prompt or answer data. Priced at 20% of your plan.",
+      "unavailable": "Available as an add-on once you're on Starter, Growth or Scale.",
+      "hint": "Not every model offers a ZDR host.",
+      "removeSuccess": "Zero data retention will be removed at the end of your billing cycle.",
+      "removeFailed": "Could not remove zero data retention. Please try again.",
+      "choosePlan": "Choose a plan",
+      "addFor": "Add for {price}/{interval, select, month {month} year {year} other {{interval}}}"
+    },
+    "creditActivity": {
+      "aiChat": "AI chat",
+      "title": "Recent activity",
+      "empty": "No usage events yet",
+      "itemLabel": "events"
+    },
+    "creditUsage": {
+      "creditsUsed": "Credits used",
+      "empty": "No usage data for this period"
+    },
+    "usageBreakdown": {
+      "rangeLabel": "Usage range",
+      "title": "Usage breakdown",
+      "empty": "No AI Answers usage in this period"
+    },
+    "geoUpgrade": {
+      "title": "Upgrade required"
+    },
+    "usageAlerts": {
+      "addAlert": "Add alert",
+      "errors": {
+        "required": "Enter a threshold.",
+        "min": "Enter a threshold of 0 or more.",
+        "percentage": "Enter a percentage between 0 and 100."
+      },
+      "editTitle": "Edit usage alert",
+      "addTitle": "Add usage alert",
+      "formDescription": "Choose when this organization should trigger a usage alert.",
+      "feature": "Feature",
+      "allFeatures": "All features",
+      "allFeaturesHint": "Leave this on all features to apply the alert across every usage balance.",
+      "enabledHint": "Disabled alerts stay saved but do not trigger.",
+      "namePlaceholder": "Optional label for this alert",
+      "thresholdType": "Threshold type",
+      "threshold": "Threshold",
+      "thresholdTypes": {
+        "usage_percentage": {
+          "label": "Usage percentage",
+          "description": "Alert when usage reaches this percentage of the allowance."
+        },
+        "remaining_percentage": {
+          "label": "Remaining percentage",
+          "description": "Alert when the remaining balance falls to this percentage."
+        },
+        "usage": {
+          "label": "Usage (absolute value)",
+          "description": "Alert when usage reaches this amount."
+        },
+        "remaining": {
+          "label": "Remaining (absolute value)",
+          "description": "Alert when the remaining balance falls to this amount."
+        }
+      },
+      "updated": "Usage alerts updated",
+      "updateFailed": "Failed to update usage alerts",
+      "limitToast": "You can configure up to {max} usage alerts.",
+      "changed": "This usage alert changed. Go back and try again.",
+      "empty": "No usage alerts configured.",
+      "columns": {
+        "alert": "Alert"
+      },
+      "rowLabel": "{feature} usage alert",
+      "thresholdValue": "{threshold}{percentage, select, yes {%} other {}} {direction, select, remaining {remaining} other {used}}",
+      "disableLabel": "Disable {label}",
+      "enableLabel": "Enable {label}",
+      "deleteLabel": "Delete {label}",
+      "description": "Trigger an alert when usage or the remaining balance crosses a threshold.",
+      "limitReached": "The limit of {max} usage alerts has been reached. Delete an alert to add another.",
+      "ownerOnly": "Only the organization owner can manage usage alerts."
+    },
+    "usage": {
+      "remainingAria": "{label}: {percent}% remaining",
+      "about": "About {name}",
+      "usedOfCycle": "{used} used of {included} this cycle.",
+      "includedCycle": "{included} included this cycle.",
+      "remainingOf": "{balance} of {included} remaining",
+      "remainingOfUnknown": "of {included} remaining",
+      "logRetention": "Log retention",
+      "logRetentionDescription": "Logs are kept for {days} days.",
+      "days": "{days} days",
+      "noCap": "Included in your plan without a usage cap.",
+      "unlimited": "Unlimited",
+      "resets": "Resets {date}",
+      "remainingPercent": "{percent}% remaining",
+      "remainingPercentResets": "{percent}% remaining · Resets {date}",
+      "ofThisCycle": "of {included} this cycle",
+      "balanceTitle": "Balance",
+      "balanceDescription": "How much of each plan limit you have left this cycle.",
+      "aiAnswersRemaining": "AI answers remaining",
+      "creditsFooter": "Credits extend usage beyond your plan limits.",
+      "creditsRemaining": "Credits remaining",
+      "pullRequestFooter": "What @notra may spend on pull requests. Credits take over once it runs out.",
+      "featureLimits": "Feature limits",
+      "otherQuotas": "Other remaining quotas on your plan.",
+      "quotas": "Remaining quotas on your plan."
+    },
+    "plans": {
+      "renewalTerms": "{kind, select, trial {After your free trial, your base plan renews at {price}/{interval} until canceled. Cancel before the trial ends to avoid charges.} trialRevert {Your free trial ends without automatic billing. A paid base plan renews at {price}/{interval} only if you subscribe.} other {Your base plan renews at {price}/{interval} until canceled.}} Manage or cancel in Billing settings.",
+      "addonExtra": "Selected add-ons cost extra.",
+      "tierDescription": "{tier, select, starter {For founders tracking their first prompts.} growth {For teams tracking prompts across engines and languages.} scale {For agencies and teams running several brands.} other {}}",
+      "features": {
+        "aiAnswers": "{count, number} AI answers tracked / mo",
+        "imageGenerations": "{count, number} image generations / mo",
+        "longFormPosts": "{count, number} long-form posts / mo",
+        "unlimitedSocialPosts": "Unlimited social posts",
+        "pullRequestCredits": "${amount} of pull request credits / mo",
+        "projects": "{count, plural, one {# project} other {# projects}}",
+        "references": "{count, number} references",
+        "referencesOverage": "then ${price} per ref / mo",
+        "standardSupport": "Standard support + Slack",
+        "prioritySupport": "Priority support",
+        "zdrAvailable": "ZDR available (+{percent}%)",
+        "aiCredits": "{amount} AI credits",
+        "unlimitedFeature": "Unlimited {feature}",
+        "includedFeature": "{count, number} {feature}",
+        "includedFeaturePerInterval": "{count, number} {feature} per {interval, select, day {day} week {week} month {month} quarter {quarter} semi_annual {half year} year {year} other {{interval}}}"
+      },
+      "button": "{action, select, trial {Start free trial} purchase {Purchase} scheduled {Plan scheduled} active {Current plan} renew {Renew} upgrade {Upgrade} downgrade {Downgrade} cancel {Cancel plan} other {Get started}}",
+      "invoiceSubscription": "Subscription",
+      "invoiceCreditsTopUp": "AI credits top-up",
+      "addonPrice": "+{price}/{interval, select, month {month} year {year} other {{interval}}}"
+    }
+  },
+  "logs": {
+    "shared": {
+      "success": "Success"
+    },
+    "statusFilters": {
+      "all": "All statuses"
+    },
+    "sources": {
+      "linear": "Linear",
+      "webhook": "Webhook",
+      "search-console": "Search Console"
+    },
+    "statusDescriptions": {
+      "success": "This event completed successfully.",
+      "failed": "This event could not complete. Review the error below before retrying the automation.",
+      "pending": "This event was recorded as pending. Refresh the logs to check for a later result.",
+      "skipped": "No content was generated for this event. Review the reason below and the source activity for this run."
+    },
+    "retention": {
+      "label": "Log retention information",
+      "description": "Log data is retained for {days} days. Older entries are automatically removed."
+    },
+    "filters": {
+      "searchLabel": "Search logs",
+      "searchPlaceholder": "Search by title or error message"
+    },
+    "details": {
+      "errorDetails": "Error details",
+      "reason": "Reason",
+      "runContext": "Run context",
+      "eventMetadata": "Event metadata",
+      "logId": "Log ID",
+      "timestamp": "Timestamp",
+      "sourceId": "Source ID",
+      "referenceId": "Reference ID",
+      "rawPayload": "Raw payload",
+      "contextFields": {
+        "repositoryCount": "Repositories checked",
+        "checks": "Checks run",
+        "mentions": "Mentions found",
+        "prompts": "Prompts scanned",
+        "keywords": "Keywords synced",
+        "suggestionsAdded": "Suggestions created",
+        "stage": "Stage",
+        "runId": "Run ID",
+        "senderLogin": "Commenter",
+        "destinationMode": "Destination",
+        "commentUrl": "Comment URL",
+        "commentSnippet": "Comment",
+        "replySnippet": "Reply",
+        "pullRequestUrl": "Pull request",
+        "mentionStatus": "Mention result",
+        "durationMs": "Duration (ms)"
+      },
+      "title": "Event details",
+      "inspect": "Inspect this integration event.",
+      "loadingContext": "Loading event context…",
+      "retry": "Retry details",
+      "copied": "Event details copied",
+      "copy": "Copy details",
+      "destinations": {
+        "openSchedules": "Open schedules",
+        "openEventTriggers": "Open event triggers",
+        "openGeo": "Open GEO",
+        "openAgentReadiness": "Open agent readiness",
+        "openTraffic": "Open traffic analytics",
+        "openBrandIdentity": "Open brand identity",
+        "openIntegrations": "Open integrations"
+      }
+    }
+  },
+  "nav": {
+    "shared": {
+      "createOrganization": "Create organization"
+    },
+    "badges": {
+      "beta": "Beta"
+    },
+    "groups": {
+      "improve": "Improve",
+      "utility": "Utility"
+    },
+    "modes": {
+      "measureVisibility": "Measure visibility",
+      "createContent": "Create content"
+    },
+    "primaryActions": {
+      "newContent": "New content"
+    },
+    "geoUpgradeTooltip": "Upgrade your plan to use GEO",
+    "recent": "Recent",
+    "recentItem": {
+      "openInNewTab": "Open in new tab",
+      "linkCopied": "Link copied",
+      "linkCopyFailed": "Failed to copy link",
+      "copyLink": "Copy link"
+    },
+    "user": {
+      "signingOut": "Signing out…"
+    },
+    "upgrade": {
+      "upgradeNow": "Upgrade now",
+      "freeDescription": "Feedback is free. Upgrade for AI content and visibility tracking.",
+      "freeHeading": "Get more from Notra",
+      "upgradeToPlan": "Upgrade to {plan}",
+      "paidDescription": "Get more AI answers, projects and higher usage limits."
+    },
+    "sidebar": {
+      "loadingChatHistory": "Loading chat history",
+      "hide": "Hide sidebar",
+      "show": "Show sidebar",
+      "resize": "Resize sidebar",
+      "collapsed": "Collapsed",
+      "widthPixels": "{width} pixels",
+      "resizeHint": "Drag to resize or collapse sidebar. Double-click to reset."
+    },
+    "orgSelector": {
+      "tooltip": "Organization | {name}",
+      "noOrganizations": "No organizations found",
+      "newOrganization": "New organization",
+      "subscribeToCreate": "Subscribe to create more organizations",
+      "scheduleDemo": "Schedule a demo",
+      "upgradeToGrowth": "Upgrade to Growth",
+      "lightMode": "Light mode",
+      "darkMode": "Dark mode"
+    },
+    "onboarding": {
+      "steps": {
+        "brandIdentity": "Set up brand identity",
+        "integration": "Add an integration",
+        "schedule": "Create a schedule",
+        "geoTracking": "Track AI visibility"
+      },
+      "expand": "Expand getting started",
+      "expandShort": "Expand",
+      "title": "Getting started",
+      "titleWithProgress": "Getting started ({completed}/{total})",
+      "description": "Finish these steps to set up Notra.",
+      "percentCompleted": "{percent}% completed"
+    },
+    "createOrg": {
+      "createFailed": "Failed to create organization",
+      "created": "Organization created successfully",
+      "description": "Create a new organization to collaborate with your team.",
+      "nameLabel": "Organization name",
+      "slugLabel": "Organization slug",
+      "slugHint": "Used in URLs: app.usenotra.com/{slug}",
+      "websiteLabel": "Website (optional)",
+      "validation": {
+        "websiteInvalid": "Please enter a valid URL (e.g., https://example.com)"
+      }
+    }
+  },
+  "chat": {
+    "shared": {
+      "sendAMessage": "Send a message",
+      "queueAMessage": "Queue a message…",
+      "countPluralOneChatMessage": "{count, plural, one {# chat message left} other {# chat messages left}}",
+      "chatInputDropArea": "Chat input drop area",
+      "addToolsOrContext": "Add tools or context",
+      "context": "Context",
+      "manageIntegrations": "Manage integrations",
+      "noMatchingIntegrations": "No matching integrations.",
+      "noMatchingToolsOrContext": "No matching tools or context found.",
+      "searchToolsAndContext": "Search tools and context…",
+      "toolsAndContext": "Tools and context"
+    },
+    "promptInput": {
+      "placeholder": "Send a message… (type / for skills)"
+    },
+    "input": {
+      "thinking": {
+        "label": "Thinking effort",
+        "off": "None"
+      },
+      "send": {
+        "stopping": "Stopping…",
+        "queuedPending": "Will send once uploads finish. Click to cancel.",
+        "stopGenerating": "Stop generating",
+        "queueHint": "Enter to queue this message. It will send once the AI finishes.",
+        "sendHint": "Enter to send. Shift+Enter for a new line.",
+        "sendMessage": "Send message",
+        "queueMessage": "Queue message",
+        "noCredits": "No chat credits left."
+      },
+      "contextPicker": {
+        "disabledQueued": "Cancel the pending message before changing tools or context.",
+        "disabledLoading": "Wait for the current response before changing tools or context.",
+        "mcpGroup": "MCP tools"
+      },
+      "mention": {
+        "noneConnected": "No context or MCP tools connected",
+        "noMatches": "No matches found",
+        "connectIntegrations": "Connect integrations"
+      },
+      "options": {
+        "githubRepository": "GitHub repository",
+        "linearTeam": "Linear team",
+        "customMcp": "Custom MCP server · {count, plural, one {# tool} other {# tools}}",
+        "marketplaceMcp": "Marketplace MCP server · {count, plural, one {# tool} other {# tools}}"
+      },
+      "modelPicker": {
+        "searchPlaceholder": "Search models…",
+        "empty": "No models found."
+      },
+      "attach": {
+        "imagesPdfs": "Attach images or PDFs",
+        "imagesPdfsText": "Attach images, PDFs or text"
+      },
+      "upload": {
+        "maxAttachments": "You can attach at most {max} files per message.",
+        "unsupportedText": "{model} only supports image and PDF attachments. Remove text files or choose a Claude model.",
+        "unsupportedType": "Unsupported file type: {name}",
+        "tooLarge": "{name} exceeds the {size}MB limit.",
+        "failed": "Failed to upload {name}: {message}",
+        "someFailed": "Some attachments failed to upload. Remove or retry them before sending."
+      },
+      "editor": {
+        "placeholder": "Send a message… (type @ for tools, / for skills)"
+      },
+      "contextUnavailable": "Context is unavailable right now."
+    },
+    "attachments": {
+      "attachFiles": "Attach files",
+      "dropTitle": "Add Attachment",
+      "dropDescription": "Drop a file here to attach it to your message",
+      "acceptedTypes": "Accepted file types: {types}",
+      "unavailable": "{name} is unavailable",
+      "fallbackAlt": "attachment"
+    },
+    "attachmentPreview": {
+      "loadFailed": "Failed to load ({status})",
+      "imageCopied": "Image copied",
+      "copyFailed": "Failed to copy image",
+      "downloadedFile": "Downloaded file",
+      "copyImage": "Copy image",
+      "unavailableTitle": "Preview isn't available",
+      "unavailableDescription": "Download this file to open it on your device."
+    },
+    "skills": {
+      "noMatches": "No matching skills"
+    },
+    "connectSuggestions": {
+      "heading": "Suggested",
+      "descriptions": {
+        "github": "Add repositories as context",
+        "linear": "Add teams as context",
+        "mcp": "Connect custom tools"
+      }
+    },
+    "slackRelay": {
+      "notice": "This chat is a Slack thread. Replies are sent to Slack as you.",
+      "openInSlack": "Open in Slack"
+    },
+    "queue": {
+      "label": "Queued messages",
+      "edit": "Edit queued message",
+      "cancelSteering": "Cancel steering",
+      "remove": "Remove from queue",
+      "steer": "Steer with this message",
+      "attachments": "{count, plural, one {# attachment} other {# attachments}}: {names}"
+    },
+    "author": {
+      "formerMember": "Former member"
+    },
+    "contextRow": {
+      "removeSelection": "Remove selection",
+      "selectedText": "Selected text",
+      "selectionRange": "From line {startLine}, character {startChar} to line {endLine}, character {endChar}"
+    },
+    "metadata": {
+      "modelWithThinking": "{model} ({thinking})",
+      "tokensPerSecond": "{value} tok/sec",
+      "tokens": "{value} tokens",
+      "timeToFirstToken": "Time to first token: {duration}",
+      "durationMs": "{value} ms",
+      "durationSec": "{value} sec"
+    },
+    "suggestions": {
+      "ariaLabel": "Example prompts",
+      "heading": "Try an example",
+      "dismiss": "Dismiss examples",
+      "items": {
+        "blogPost": {
+          "title": "Write a blog post",
+          "description": "Turn a topic into a well-scoped article",
+          "prompt": "Help me write a blog post. Ask me 1-2 questions about the topic and audience before drafting."
+        },
+        "releaseNotes": {
+          "title": "Draft release notes",
+          "description": "Summarize what shipped and why it matters",
+          "prompt": "Help me draft a changelog. Ask me what changed and which release or repo to reference."
+        },
+        "socialPost": {
+          "title": "Write a social post",
+          "description": "Draft a Twitter or LinkedIn update",
+          "prompt": "Help me write a social post. Ask me whether it's for Twitter or LinkedIn, then the topic and angle before drafting."
+        },
+        "newsletter": {
+          "title": "Outline a newsletter",
+          "description": "Plan the edition before you write it",
+          "prompt": "Help me outline a newsletter. Ask me the audience and what this edition should cover before drafting."
+        },
+        "comparison": {
+          "title": "Compare us vs them",
+          "description": "Frame the difference for a buyer",
+          "prompt": "Help me write a comparison. Ask me who we're comparing against and what the reader is deciding before drafting."
+        },
+        "geoStatus": {
+          "title": "How is GEO going?",
+          "description": "See mention trends across engines",
+          "prompt": "How is our GEO going? Load the overview and mention-rate trend for the last 30 days, then tell me what is improving or slipping."
+        },
+        "geoVisibility": {
+          "title": "Improve GEO visibility",
+          "description": "Tighten how we show up in answers",
+          "prompt": "Help me improve our GEO visibility. Ask me which prompt or topic to focus on, then suggest what to change."
+        },
+        "brandVoice": {
+          "title": "Match our brand voice",
+          "description": "Rewrite a draft so it sounds like us",
+          "prompt": "Help me rewrite copy in our brand voice. Ask me for the draft and where it will run before rewriting."
+        },
+        "thread": {
+          "title": "Turn this into a thread",
+          "description": "Break a point into a social sequence",
+          "prompt": "Help me turn a topic into a social thread. Ask me the platform and the core point before drafting."
+        },
+        "faq": {
+          "title": "Draft an FAQ page",
+          "description": "Answer the questions people actually ask",
+          "prompt": "Help me draft an FAQ. Ask me the product and the questions customers actually ask before writing."
+        }
+      }
+    },
+    "userMessageActions": {
+      "previousVersion": "Previous version",
+      "nextVersion": "Next version",
+      "retryWithSame": "Retry with same",
+      "editMessage": "Edit message",
+      "copyMessage": "Copy message",
+      "editPlaceholder": "Edit your message…"
+    },
+    "page": {
+      "slackMirrorNotice": "Mirrored from a Slack thread.",
+      "working": "Working",
+      "showMoreImages": "Show {count, plural, one {# more attachment} other {# more attachments}}",
+      "loadingProject": "Loading project",
+      "slackSendFailed": "Sending to Slack failed. Try again.",
+      "draftGenerationFailed": "Draft generation failed. The assistant will retry.",
+      "welcome": "Welcome",
+      "responseStopped": "Response stopped by user",
+      "stopping": "Stopping",
+      "waitingForPreviousResponse": "Waiting for the previous response to finish before sending.",
+      "revisePrefill": "Revise \"{title}\": "
+    },
+    "toasts": {
+      "editContentFailed": "Failed to edit content",
+      "renameChatFailed": "Failed to rename chat",
+      "updateChatPinFailed": "Failed to update chat pin",
+      "deleteChatFailed": "Failed to delete chat",
+      "chatDeleted": "Chat deleted"
+    },
+    "errors": {
+      "usageLimit": "You've used all your chat messages this month. Upgrade for more.",
+      "fallback": "Something went wrong while generating a response. Try again."
+    },
+    "models": {
+      "descriptions": {
+        "auto": "Picks the best model for your message",
+        "latestOpus": "Latest Opus for complex work",
+        "everyday": "Everyday work and coding",
+        "fast": "Fast responses",
+        "advancedReasoning": "Advanced reasoning and complex tasks",
+        "fastAffordable": "Fast and affordable",
+        "zdrRoute": "OpenAI model with a ZDR route",
+        "previousOpus": "Previous Opus generation",
+        "previousSonnet": "Previous Sonnet generation",
+        "previousOpenai": "Previous OpenAI model"
+      },
+      "pricing": "${input} input / ${output} output per 1M",
+      "pricingVaries": "Varies by selected model"
+    },
+    "quote": {
+      "quoteSelection": "Quote selected text",
+      "removeQuote": "Remove quote"
+    }
+  },
+  "content": {
+    "shared": {
+      "loadingContent": "Loading content",
+      "pullRequestUpdated": "Pull request updated",
+      "renameCollection": "Rename collection",
+      "createContent": "Create Content",
+      "faq": "FAQ"
+    },
+    "socialPost": {
+      "mockLink": "Mock link (actual: {url})",
+      "more": "…more",
+      "postActions": "Post actions",
+      "closePost": "Close post",
+      "comments": "{count, plural, one {# comment} other {# comments}}",
+      "reposts": "{count, plural, one {# repost} other {# reposts}}",
+      "linkedinPlaceholder": "What do you want to talk about?",
+      "linkedinLike": "Like",
+      "linkedinComment": "Comment",
+      "linkedinRepost": "Repost",
+      "charactersUsed": "{count} of {limit} characters used",
+      "twitterPlaceholder": "What is happening?!"
+    },
+    "create": {
+      "dialog": {
+        "generating": "Generating…",
+        "skipAndStart": "Skip & start creating",
+        "startWithIdentities": "Start creating with {count} {count, plural, one {identity} other {identities}}",
+        "steps": {
+          "formats": {
+            "label": "Formats"
+          }
+        },
+        "toasts": {
+          "previewIssues": "{count} repository preview {count, plural, one {issue was} other {issues were}} detected.",
+          "generationStarted": "{count, plural, one {Content generation started} other {# content generations started}}",
+          "generationPartial": "{succeeded} of {total} content generations started; {failed} failed"
+        },
+        "errors": {
+          "projectLoading": "Project is still loading",
+          "generationFailed": "Failed to start any content generation"
+        },
+        "footer": {
+          "selectFormat": "Select at least one content format",
+          "selectSource": "Select at least one source",
+          "selectEvent": "Select at least one event",
+          "selectFormatBeforeCreating": "Select a content format before creating",
+          "formatsSelected": "{count, plural, one {# format} other {# formats}} selected",
+          "eventsAndSources": "{selected} / {total} events · {sources, plural, one {# source} other {# sources}}",
+          "noIdentities": "No identities selected",
+          "identitiesSelected": "{count, plural, one {# identity} other {# identities}} selected"
+        }
+      },
+      "buttons": {
+        "generateContent": "Generate content"
+      },
+      "formats": {
+        "changelog": {
+          "description": "A concise summary of what shipped and why it matters."
+        },
+        "blog_post": {
+          "description": "A longer-form article explaining the feature in depth."
+        },
+        "linkedin_post": {
+          "description": "A professional update to share with your network."
+        },
+        "twitter_post": {
+          "description": "A short announcement for X / Twitter."
+        },
+        "image": {
+          "description": "A brand-matched social image generated from repo activity."
+        }
+      },
+      "eventTypes": {
+        "PR": "PR"
+      },
+      "lookback": {
+        "current_day": "Current Day",
+        "last_7_days": "Last 7 Days",
+        "last_14_days": "Last 14 Days",
+        "last_30_days": "Last 30 Days"
+      },
+      "stepFormats": {
+        "title": "What do you want to create?",
+        "description": "Select one or more formats. We'll draft each one.",
+        "timeframe": "Timeframe",
+        "timezoneInfoLabel": "Timeframe timezone information",
+        "timezoneInfo": "Activity is gathered in your timezone (<strong>{timezone}</strong>). Today and Yesterday follow your local day. Rolling ranges like Last 7 Days are identical in every timezone.",
+        "timeframeDescription": "How far back to look when gathering activity data.",
+        "selectTimeframe": "Select timeframe",
+        "dataPoints": {
+          "pullRequests": {
+            "label": "Pull Requests",
+            "description": "Merged PR metadata"
+          },
+          "commits": {
+            "label": "Commits",
+            "description": "Commit-level changes"
+          },
+          "releases": {
+            "label": "Releases",
+            "description": "GitHub releases"
+          }
+        }
+      },
+      "stepActivity": {
+        "preRelease": "pre-release",
+        "title": "Pick the activity to include",
+        "description": "Search recent activity and pick the events to package.",
+        "searchPlaceholder": "Search by title, author or label…",
+        "addIntegration": "Add integration",
+        "pickSource": "Pick a source above to load activity.",
+        "loadFailed": "Failed to load events.",
+        "noSearchResults": "No events match your search.",
+        "noEvents": "No events in this timeframe."
+      },
+      "stepIdentities": {
+        "emptyTitle": "No brand identity yet",
+        "emptyDescription": "Drop in your website and we'll learn your tone and audience.",
+        "createButton": "Create brand identity",
+        "title": "Which brand identity should this use?",
+        "description": "Select one or more brand identities, or skip to write for a general audience.",
+        "defaultIdentity": "Default brand identity"
+      }
+    },
+    "createPost": {
+      "created": "Post created",
+      "createFailed": "Failed to create post",
+      "title": "New empty post",
+      "description": "Start from a blank page and write it yourself or with the agent.",
+      "namePlaceholder": "Ship notes for week 11",
+      "slugSavedAs": "Saved as {slug}",
+      "slugHint": "Inferred from the name. Leave empty to set it later.",
+      "submit": "Create post"
+    },
+    "plan": {
+      "subtypes": {
+        "how-to": "How-to",
+        "alternatives": "Alternatives"
+      },
+      "targetPrompt": {
+        "label": "Target prompt",
+        "placeholder": "The question a buyer would ask"
+      },
+      "intent": {
+        "placeholder": "Why someone is searching for this"
+      },
+      "audience": {
+        "label": "Audience",
+        "placeholder": "Who this is for"
+      },
+      "type": {
+        "placeholder": "Choose a type"
+      },
+      "jobToBeDone": {
+        "label": "Job to be done",
+        "placeholder": "What the article should help them do"
+      },
+      "outline": {
+        "title": "Outline",
+        "headingLabel": "Section {index} heading",
+        "headingPlaceholder": "Section heading",
+        "removeSection": "Remove section {index}",
+        "goalLabel": "Section {index} goal",
+        "goalPlaceholder": "What the reader should take away",
+        "addPoint": "Add point",
+        "pointLabel": "Section {section} point {index}",
+        "pointPlaceholder": "A claim this section must make",
+        "removePoint": "Remove point {index}",
+        "addSection": "Add section"
+      },
+      "faq": {
+        "add": "Add a question",
+        "itemLabel": "FAQ {index}",
+        "placeholder": "A question the article should answer",
+        "remove": "Remove question {index}"
+      },
+      "links": {
+        "add": "Add a link",
+        "textLabel": "Link {index} text",
+        "urlLabel": "Link {index} URL",
+        "reasonLabel": "Link {index} reason",
+        "remove": "Remove link {index}",
+        "anchorPlaceholder": "Link text",
+        "whyPlaceholder": "Optional: why this page belongs",
+        "draftUrlLabel": "Link URL"
+      },
+      "checks": {
+        "title": "Must include",
+        "add": "Add a check",
+        "itemLabel": "Check {index}",
+        "placeholder": "Something the finished article must cover",
+        "remove": "Remove check {index}"
+      },
+      "chatPlaceholder": "Refine this plan…"
+    },
+    "editors": {
+      "postSlug": "Post slug",
+      "slugPlaceholder": "add-a-slug",
+      "raw": "Raw",
+      "twitterContentEditor": "Twitter post content editor",
+      "linkedinContentEditor": "LinkedIn post content editor",
+      "imageUnavailable": "Image data is unavailable."
+    },
+    "editor": {
+      "blocks": {
+        "paragraph": "Paragraph",
+        "heading1": "Heading 1",
+        "heading2": "Heading 2",
+        "heading3": "Heading 3",
+        "bulletedList": "Bulleted List",
+        "numberedList": "Numbered List",
+        "quote": "Quote",
+        "codeBlock": "Code Block",
+        "divider": "Divider"
+      },
+      "media": {
+        "addMedia": "Add image or video",
+        "expand": "Expand {label}"
+      },
+      "codeBlock": {
+        "selectLanguage": "Select code language",
+        "plainText": "Plain Text",
+        "copied": "Code copied",
+        "copy": "Copy code",
+        "placeholder": "Enter code here…"
+      },
+      "video": {
+        "pause": "Pause",
+        "play": "Play",
+        "seek": "Seek",
+        "unmute": "Unmute",
+        "mute": "Mute",
+        "exitFullscreen": "Exit full screen",
+        "fullscreen": "Full screen"
+      },
+      "table": {
+        "insertRowAbove": "Insert row above",
+        "insertRowBelow": "Insert row below",
+        "insertColumnBefore": "Insert column before",
+        "insertColumnAfter": "Insert column after",
+        "deleteTable": "Delete table"
+      },
+      "toolbar": {
+        "bold": "Format bold",
+        "boldTitle": "Bold (Ctrl+B)",
+        "italic": "Format italic",
+        "italicTitle": "Italic (Ctrl+I)",
+        "underline": "Format underline",
+        "underlineTitle": "Underline (Ctrl+U)",
+        "strikethrough": "Format strikethrough",
+        "strikethroughTitle": "Strikethrough",
+        "code": "Format code",
+        "codeTitle": "Code",
+        "insertLink": "Insert link",
+        "urlPlaceholder": "Enter URL",
+        "applyLink": "Apply link",
+        "apply": "Apply"
+      },
+      "upload": {
+        "animatedTooLarge": "GIF and AVIF must be {maxMb}MB or smaller",
+        "imageTooLarge": "Image must be {maxMb}MB or smaller",
+        "videoTooLarge": "Video must be {maxMb}MB or smaller",
+        "uploading": "Uploading…"
+      }
+    },
+    "chatActivity": {
+      "attachedContext": "Attached context",
+      "loadingChats": "Loading chats…",
+      "noPreviousChats": "No previous chats",
+      "historyGroups": {
+        "previousSevenDays": "Previous 7 days"
+      },
+      "defaultTitle": "Content Agent",
+      "startNewChat": "Start a new chat",
+      "openHistory": "Open chat history",
+      "history": "Chat history",
+      "openInChat": "Open in Chat",
+      "exitFullscreenTitle": "Exit fullscreen {title}",
+      "openFullscreenTitle": "Open {title} fullscreen",
+      "exitFullscreen": "Exit fullscreen",
+      "expandAgent": "Expand agent",
+      "closeTitle": "Close {title}"
+    },
+    "card": {
+      "nothingWritten": "Nothing written yet",
+      "status": "{status, select, published {Published} draft {Draft} other {{status}}}",
+      "type": "{type, select, changelog {Changelog} blog_post {Blog post} twitter_post {Tweet} linkedin_post {LinkedIn post} investor_update {Investor update} image {Image} other {{fallback}}}",
+      "generating": "Generating content…",
+      "queuedViaApi": "Queued via API"
+    },
+    "toolbar": {
+      "copyFor": "Copy for {target}",
+      "selectExportTarget": "Select export target",
+      "comingSoon": "Coming soon",
+      "updatingPr": "Updating PR…",
+      "saveAndUpdatePr": "Save and update PR",
+      "discardChanges": "Discard changes"
+    },
+    "detail": {
+      "metaTitle": "Content Detail",
+      "metaDescription": "View the details of a specific content item.",
+      "loadingArticle": "Loading article",
+      "backToCollection": "Back to collection",
+      "backToContent": "Back to Content",
+      "notFoundTitle": "Content not found",
+      "notFoundDescription": "This content may have been deleted or you don't have access to it.",
+      "yourOrganization": "Your Organization",
+      "recommendations": "Recommendations",
+      "plan": {
+        "missingTitle": "This content plan no longer exists",
+        "missingDescription": "Start a new plan from GEO to write this article.",
+        "conflictTitle": "This plan changed elsewhere",
+        "conflictDescription": "Your edits are preserved. Choose which version to keep.",
+        "loadLatest": "Load latest",
+        "saveMine": "Save my version",
+        "loadFailedTitle": "Could not load this content plan",
+        "loadFailedDescription": "Try again to continue reviewing or generating this content.",
+        "tryingAgain": "Trying again…"
+      },
+      "source": {
+        "trigger": "{type, select, cron {Schedule} github_webhook {GitHub Webhook} other {{fallback}}}",
+        "lookback": "{window, select, current_day {Current day} yesterday {Yesterday} last_7_days {Last 7 days} last_14_days {Last 14 days} last_30_days {Last 30 days} other {{fallback}}}"
+      },
+      "diff": {
+        "noChanges": "No changes to display",
+        "original": "Original"
+      }
+    },
+    "githubPublish": {
+      "trigger": "Create GitHub PR",
+      "saveBeforePublishing": "Save the {kind, select, changelog {changelog} other {blog post}} before publishing it",
+      "prCreated": "Draft pull request created",
+      "createFailed": "Failed to create draft pull request",
+      "createTitle": "Create a draft pull request",
+      "createDescription": "Notra creates a branch, adds the {kind, select, changelog {changelog} other {blog post}} as Markdown, and opens a draft pull request against the repository's default branch.",
+      "createdDescription": "Notra added the {kind, select, changelog {changelog} other {blog post}} and opened a draft pull request.",
+      "updatedDescription": "Notra updated the {kind, select, changelog {changelog} other {blog post}} in the existing pull request.",
+      "createDraftPr": "Create draft PR",
+      "creatingDraftPr": "Creating draft PR…",
+      "openIntegration": "Open GitHub integration",
+      "reviewOnGitHub": "Review on GitHub",
+      "openPullRequest": "Open pull request",
+      "pathAdded": "Added {path}",
+      "pathUpdated": "Updated {path}",
+      "createdAsDraft": "Created as draft",
+      "openPullRequestAria": "Open pull request #{number} on GitHub",
+      "loadFailed": "Unable to load GitHub repositories.",
+      "loadingRepositories": "Loading repositories…",
+      "selectRepository": "Select a repository",
+      "noConnected": "No enabled GitHub repositories are connected. Open the <link>GitHub integration</link> to connect or enable one.",
+      "publishingOff": "{kind, select, changelog {Changelog} other {Blog post}} publishing is off for this repository. Open the <link>GitHub integration</link> to enable it.",
+      "needsDefaultBranch": "These repositories need a default branch before they can publish to GitHub.",
+      "pausedNote": "Publishing was also paused after three failures. Resume it in the GitHub integration after fixing this.",
+      "recovery": {
+        "github_app_permissions_required": {
+          "title": "GitHub write access needed",
+          "description": "Notra needs write access to Contents and Pull requests. Review the installation on GitHub and accept any pending permission request. Reconnecting the repository does not grant write access."
+        },
+        "github_authentication_required": {
+          "title": "Review the GitHub App connection",
+          "description": "Review the GitHub App installation, then select and save this repository in the GitHub integration settings."
+        },
+        "github_repository_connection_required": {
+          "title": "Connect this repository to publish",
+          "description": "This repository has no saved credentials. Connect the GitHub App, then select and save this repository to publish."
+        },
+        "github_token_authentication_required": {
+          "title": "Update the GitHub token",
+          "description": "The saved personal access token was rejected. Update it in the GitHub integration settings, or connect this repository through the GitHub App."
+        },
+        "github_token_permissions_required": {
+          "title": "GitHub token permissions needed",
+          "description": "Allow the saved personal access token to write repository contents and pull requests, or connect this repository through the GitHub App."
+        },
+        "github_content_publishing_paused": {
+          "title": "GitHub publishing paused",
+          "description": "Publishing was paused after three failed attempts. Review the GitHub integration before resuming."
+        }
+      }
+    },
+    "postSocial": {
+      "postTo": "Post to {platform}",
+      "addedReference": "Added as reference to {name}",
+      "addReferenceFailed": "Failed to add reference",
+      "noBrandIdentity": "No brand identity to save this reference to. Create one on the Brand Identity page first.",
+      "overLimit": "This post is {count, plural, one {# character} other {# characters}} over the {limit, number} character limit for @{username}. Shorten it to post.",
+      "openOn": "Open on {platform}",
+      "postAs": "Post as @{username}",
+      "rejectsDuplicates": "{platform} rejects duplicate posts.",
+      "readDocs": "Read the {platform} docs",
+      "reconnectPrompt": "Have you tried reconnecting?",
+      "reconnectInSettings": "Reconnect in settings",
+      "addAsReference": "Add as reference"
+    },
+    "collections": {
+      "status": "{status, select, generating {Generating} published {Published} draft {Draft} other {Empty}}",
+      "source": "{source, select, manual {Manual} chat {Chat} schedule {Schedule} automation {Automation} api {API} backfill {Backfill} other {{source}}}",
+      "metaGeneratingProgress": "{source} · {ready, number} of {expected, plural, one {# post} other {# posts}} ready",
+      "metaGeneratingCount": "{source} · {count, plural, one {# post} other {# posts}} ready",
+      "metaPartiallyPublished": "{source} · {count, plural, one {# post} other {# posts}} · {published, number} published",
+      "metaSingle": "{source} · Single post",
+      "metaEmpty": "{source} · Empty collection",
+      "metaCount": "{source} · {count, plural, one {# post} other {# posts}}",
+      "formats": "{count, number} formats",
+      "emptyPage": "No content on this page",
+      "items": "{count, plural, one {item} other {items}}",
+      "actions": {
+        "open": "Open",
+        "openInNewTab": "Open in new tab",
+        "copyLink": "Copy link",
+        "linkCopied": "Link copied",
+        "deleteTitle": "Delete content?",
+        "deleteDescription": "This permanently deletes \"{title}\" and all {count, plural, one {# post} other {# posts}} in it. This can't be undone."
+      },
+      "detail": {
+        "metaTitle": "Collection",
+        "metaDescription": "View all posts in a content collection.",
+        "notFoundTitle": "Collection not found",
+        "notFoundDescription": "This collection may have been deleted or you don't have access to it.",
+        "emptyDescription": "This collection has no posts."
+      },
+      "renameDialog": {
+        "description": "Give this collection a name that is easy to recognize. It will not be overwritten by automatic naming.",
+        "renamed": "Collection renamed",
+        "renameFailed": "Failed to rename collection"
+      }
+    },
+    "list": {
+      "description": "Posts and collections in one place.",
+      "loadingDescription": "Every batch of generated content, organized into collections.",
+      "allContent": "All content",
+      "viewToggle": "Content view",
+      "viewGrid": "Grid",
+      "loadFailedTitle": "Couldn't load content",
+      "loadFailedDescription": "Try loading your content again.",
+      "emptyTitle": "No content yet",
+      "emptyDescription": "Start with New post to write from scratch, or Generate content to use your sources."
+    },
+    "toasts": {
+      "contentSaved": "Content saved",
+      "updatePostStatusFailed": "Failed to update post status",
+      "loadLatestPlanFailed": "Failed to load the latest plan",
+      "refreshPlanFailed": "Failed to refresh the plan",
+      "postDeleted": "Post deleted",
+      "collectionDeleted": "Content deleted",
+      "deleteCollectionFailed": "Failed to delete content",
+      "deletePostFailed": "Failed to delete post",
+      "loadContentFailed": "Failed to load content",
+      "loadRecentPostsFailed": "Failed to load recent posts",
+      "loadDashboardContentFailed": "Failed to load dashboard content",
+      "loadActiveGenerationsFailed": "Failed to load active generations",
+      "contentGenerationSkipped": "Content generation skipped",
+      "contentGenerationFailed": "Content generation failed",
+      "loadCollectionsFailed": "Failed to load collections",
+      "loadCollectionFailed": "Failed to load collection",
+      "refreshArticleFailed": "Couldn't refresh the article. Showing the cached content.",
+      "saveContentFailed": "Failed to save content",
+      "updatePullRequestFailed": "Couldn't update the linked pull request",
+      "titledContentGenerated": "\"{title}\" generated",
+      "contentGenerated": "Content generated",
+      "viewLogs": "View logs",
+      "postMovedToDrafts": "Post moved to drafts",
+      "imageExport": {
+        "copyLoading": "Copy is still loading. Try again in a moment.",
+        "imageNotReady": "Image is not ready yet",
+        "figmaCopied": "Copied for Figma. Paste it into your Figma file.",
+        "figmaCopyFailed": "Failed to copy for Figma",
+        "paperCopied": "Copied for Paper. Paste it into your Paper file.",
+        "paperCopyFailed": "Failed to copy for Paper",
+        "downloadFailed": "Failed to download image"
+      }
+    }
+  },
+  "charts": {
+    "download": {
+      "success": "Downloaded chart",
+      "failed": "Failed to download chart"
+    }
+  },
+  "commandPalette": {
+    "description": "Search pages, jump to tools or ask AI.",
+    "placeholder": "Search pages, settings, actions or ask AI…",
+    "forAi": "for AI",
+    "footer": {
+      "navigate": "Navigate"
+    },
+    "sections": {
+      "ai": "AI"
+    },
+    "entitySections": {
+      "brandVoices": "Brand voices"
+    },
+    "entities": {
+      "reference": "Reference"
+    },
+    "ai": {
+      "opening": "Opening…",
+      "openingChat": "Opening chat…",
+      "almostThere": "Hang tight, almost there.",
+      "figuringOut": "Figuring out where to take you for \"{query}\".",
+      "navigate": "Navigate with AI",
+      "askChat": "Ask AI chat",
+      "failed": "AI search failed. Try the chat fallback.",
+      "navigateQuery": "Navigate with AI: \"{query}\"",
+      "askChatAbout": "Ask AI chat about this"
+    },
+    "empty": {
+      "title": "No matches for \"{query}\"",
+      "description": "Let AI navigate for you or open a chat with your question."
+    }
+  },
+  "dashboard": {
+    "header": {
+      "feedbackDescription": "Share your thoughts with us."
+    },
+    "breadcrumbs": {
+      "geo": "Geo",
+      "segments": {
+        "collection": "Collections"
+      },
+      "geoSegments": {
+        "agent-readiness": "Agent readiness",
+        "directions": "Directions",
+        "gaps": "Gaps",
+        "shelf-space": "Shelf space"
+      }
+    },
+    "agent": {
+      "openLabel": "Open agent",
+      "closeLabel": "Close agent",
+      "placeholder": "Ask anything… (type / for skills)",
+      "sendFailed": "Failed to send message",
+      "stopFailed": "Couldn't stop the response. Try again.",
+      "historyLoadFailed": "Failed to load agent chat history. Try again.",
+      "description": "Chat with your dashboard agent.",
+      "loadingTitle": "Loading agent",
+      "loadingDescription": "Loading the dashboard agent."
+    },
+    "overlays": {
+      "commandPalette": "Command palette"
+    },
+    "brandSelector": {
+      "createIdentity": "Create identity"
+    },
+    "contentActivity": {
+      "loadFailed": "Failed to load content activity",
+      "drafts": "{count, plural, one {# draft} other {# drafts}}",
+      "published": "{count} published",
+      "yearSummary": "This year: <strong>{total}</strong> posts (<strong>{drafts}</strong> {draftCount, plural, one {draft} other {drafts}} / <strong>{published}</strong> published)",
+      "level": "Level {level}",
+      "empty": "No content activity data available",
+      "legendLess": "Less"
+    },
+    "chatTitle": {
+      "generating": "Generating title",
+      "emptyTitle": "Title can't be empty",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "deleteTitle": "Delete chat?",
+      "deleteDescriptionFallback": "This will permanently delete this chat. This can't be undone."
+    },
+    "chatHistory": {
+      "options": "Chat options",
+      "pinned": "Pinned",
+      "loadFailed": "Chat history could not be loaded.",
+      "groups": {
+        "lastMonth": "Last month"
+      }
+    },
+    "feedback": {
+      "thanks": "Thanks for the feedback!",
+      "sendFailed": "Failed to send feedback",
+      "label": "Your feedback",
+      "placeholder": "Your feedback…",
+      "sentiments": {
+        "sad_crying": "Very unhappy",
+        "sad": "Unhappy",
+        "happy": "Happy",
+        "excited": "Excited"
+      }
+    },
+    "onboardingBanner": {
+      "running": "We are setting up your workspace",
+      "prompt": "We can set up your workspace for you",
+      "start": "Start setup",
+      "dialogTitle": "Let us set up your workspace",
+      "dialogDescription": "We visit your website, work out what your company does and set Notra up to match. It takes a few minutes.",
+      "pros": {
+        "brandColors": "Brand colors and voice pulled from your website",
+        "writingSkills": "Writing skills matched to your product and audience",
+        "references": "References and examples to guide future content"
+      },
+      "cons": {
+        "skillsOverwritten": "Skills you already edited may be overwritten",
+        "colorsReplaced": "Custom colors and references may be replaced"
+      },
+      "dismiss": "Dismiss workspace setup banner",
+      "startFailed": "Couldn't start the setup agent. Try again later."
+    },
+    "metaTitle": "Dashboard"
+  },
+  "home": {
+    "greeting": "{period, select, morning {Good morning} afternoon {Good afternoon} other {Good evening}}!",
+    "greetingWithName": "{period, select, morning {Good morning} afternoon {Good afternoon} other {Good evening}}, {name}!",
+    "todayTitle": "Today's content",
+    "todayDescription": "Latest items created today",
+    "activityDescription": "Your content creation over the year",
+    "emptyAction": "View content",
+    "emptyDescription": "You have no new posts today. Create one now or review your existing drafts on the content page.",
+    "emptyTitle": "No content created today",
+    "feedbackSetupTitle": "Set up feedback",
+    "feedbackSetupDescription": "Connect your AI agent so it can report bugs, questions and requests about your product. Takes about two minutes.",
+    "feedbackDescription": "What AI agents report about your product."
+  },
+  "ai": {
+    "subagent": {
+      "names": {
+        "codeResearcher": "Code research",
+        "contentWriter": "Content writer",
+        "imageDesigner": "Image designer",
+        "fallback": "Subagent"
+      },
+      "activity": {
+        "codeResearcher": "{state, select, running {Reading the repository} done {Read the repository} skipped {Skipped, no brief} notFound {Feature not found in the code} interrupted {Interrupted} other {Could not read the repository}}",
+        "contentWriter": "{state, select, running {Writing the post} done {Wrote the post} skipped {Skipped the post} notFound {Nothing to write about} interrupted {Interrupted} other {Could not write the post}}",
+        "imageDesigner": "{state, select, running {Designing the image} done {Designed the image} skipped {Skipped the image} notFound {Nothing to design} interrupted {Interrupted} other {Could not design the image}}",
+        "fallback": "{state, select, running {Working} done {Done} skipped {Skipped} notFound {Nothing found} interrupted {Interrupted} other {Failed}}"
+      },
+      "steps": "{count, plural, =0 {no steps} one {# step} other {# steps}}",
+      "result": {
+        "brief": "Brief: {feature}",
+        "draft": "{title, select, none {Saved draft} other {Saved draft: {title}}}",
+        "image": "{title, select, none {Saved image} other {Saved image: {title}}}",
+        "notFound": "{reason, select, none {Feature not found in the code} other {Not found: {reason}}}",
+        "skipped": "{reason, select, none {Skipped} other {Skipped: {reason}}}",
+        "failed": "{reason, select, none {Failed} other {Failed: {reason}}}"
+      }
+    },
+    "toolBlock": {
+      "tools": {
+        "code_mode": "{state, select, running {Executing tools} done {Executed tools} approve {Approve tools} other {Failed tools}}",
+        "searchNotraTools": "{state, select, running {Searching tools} done {Searched tools} approve {Approve tools} other {Failed tools}}",
+        "activateNotraTools": "{state, select, running {Loading tool} done {Loaded tool} approve {Approve tool} other {Failed tool}}",
+        "listActiveNotraTools": "{state, select, running {Checking active tools} done {Checked active tools} approve {Approve active tools} other {Failed active tools}}",
+        "deactivateNotraTools": "{state, select, running {Unloading tools} done {Unloaded tools} approve {Approve tools} other {Failed tools}}",
+        "searchMcpTools": "{state, select, running {Searching MCP tools} done {Searched MCP tools} approve {Approve MCP tools} other {Failed MCP tools}}",
+        "activateMcpTools": "{state, select, running {Loading MCP tool} done {Loaded MCP tool} approve {Approve MCP tool} other {Failed MCP tool}}",
+        "listActiveMcpTools": "{state, select, running {Checking active MCP tools} done {Checked active MCP tools} approve {Approve active MCP tools} other {Failed active MCP tools}}",
+        "deactivateMcpTools": "{state, select, running {Unloading MCP tools} done {Unloaded MCP tools} approve {Approve MCP tools} other {Failed MCP tools}}",
+        "getPullRequests": "{state, select, running {Fetching pull request} done {Fetched pull request} approve {Approve pull request} other {Failed pull request}}",
+        "getReleaseByTag": "{state, select, running {Fetching release} done {Fetched release} approve {Approve release} other {Failed release}}",
+        "getCommitsByTimeframe": "{state, select, running {Fetching commits} done {Fetched commits} approve {Approve commits} other {Failed commits}}",
+        "getLinearIssues": "{state, select, running {Fetching issues} done {Fetched issues} approve {Approve issues} other {Failed issues}}",
+        "getLinearProjects": "{state, select, running {Fetching projects} done {Fetched projects} approve {Approve projects} other {Failed projects}}",
+        "getLinearCycles": "{state, select, running {Fetching cycles} done {Fetched cycles} approve {Approve cycles} other {Failed cycles}}",
+        "viewPost": "{state, select, running {Viewing post} done {Viewed post} approve {Approve post} other {Failed post}}",
+        "updatePost": "{state, select, running {Updating post} done {Updated post} approve {Approve post} other {Failed post}}",
+        "getAvailablePosts": "{state, select, running {Loading posts} done {Loaded posts} approve {Approve posts} other {Failed posts}}",
+        "getPost": "{state, select, running {Loading post} done {Loaded post} approve {Approve post} other {Failed post}}",
+        "createImage": "{state, select, running {Generating image} done {Generated image} approve {Approve image} other {Failed image}}",
+        "createBlogPost": "{state, select, running {Drafting blog post} done {Drafted blog post} approve {Approve blog post} other {Failed blog post}}",
+        "createChangelog": "{state, select, running {Drafting changelog} done {Drafted changelog} approve {Approve changelog} other {Failed changelog}}",
+        "createTwitterPost": "{state, select, running {Drafting Twitter post} done {Drafted Twitter post} approve {Approve Twitter post} other {Failed Twitter post}}",
+        "createLinkedInPost": "{state, select, running {Drafting LinkedIn post} done {Drafted LinkedIn post} approve {Approve LinkedIn post} other {Failed LinkedIn post}}",
+        "createInvestorUpdate": "{state, select, running {Drafting investor update} done {Drafted investor update} approve {Approve investor update} other {Failed investor update}}",
+        "createSchedule": "{state, select, running {Creating schedule} done {Created schedule} approve {Approve schedule} other {Failed schedule}}",
+        "listSchedules": "{state, select, running {Listing schedules} done {Listed schedules} approve {Approve schedules} other {Failed schedules}}",
+        "reviseImage": "{state, select, running {Revising image} done {Revised image} approve {Approve image} other {Failed image}}",
+        "listBrandIdentities": "{state, select, running {Listing brand identities} done {Listed brand identities} approve {Approve brand identities} other {Failed brand identities}}",
+        "getBrandIdentity": "{state, select, running {Loading brand identity} done {Loaded brand identity} approve {Approve brand identity} other {Failed brand identity}}",
+        "searchBrandReferences": "{state, select, running {Searching brand references} done {Searched brand references} approve {Approve brand references} other {Failed brand references}}",
+        "getAvailableIntegrations": "{state, select, running {Checking integrations} done {Checked integrations} approve {Approve integrations} other {Failed integrations}}",
+        "listGeoProjects": "{state, select, running {Listing GEO projects} done {Listed GEO projects} approve {Approve GEO projects} other {Failed GEO projects}}",
+        "getGeoOverview": "{state, select, running {Loading GEO overview} done {Loaded GEO overview} approve {Approve GEO overview} other {Failed GEO overview}}",
+        "getGeoTimeseries": "{state, select, running {Loading GEO trends} done {Loaded GEO trends} approve {Approve GEO trends} other {Failed GEO trends}}",
+        "getGeoPromptResults": "{state, select, running {Loading GEO prompt results} done {Loaded GEO prompt results} approve {Approve GEO prompt results} other {Failed GEO prompt results}}",
+        "getGeoCompetitorShare": "{state, select, running {Loading GEO competitor share} done {Loaded GEO competitor share} approve {Approve GEO competitor share} other {Failed GEO competitor share}}",
+        "getGeoProjectContext": "{state, select, running {Loading GEO project context} done {Loaded GEO project context} approve {Approve GEO project context} other {Failed GEO project context}}",
+        "getSitemapPages": "{state, select, running {Listing sitemap pages} done {Listed sitemap pages} approve {Approve sitemap pages} other {Failed sitemap pages}}",
+        "fetchSitemapPage": "{state, select, running {Fetching sitemap page} done {Fetched sitemap page} approve {Approve sitemap page} other {Failed sitemap page}}",
+        "crawlSitemap": "{state, select, running {Crawling sitemap} done {Crawled sitemap} approve {Approve sitemap} other {Failed sitemap}}",
+        "getMarkdown": "{state, select, running {Reading document} done {Read document} approve {Approve document} other {Failed document}}",
+        "editMarkdown": "{state, select, running {Editing document} done {Edited document} approve {Approve document} other {Failed document}}",
+        "listAvailableSkills": "{state, select, running {Listing skills} done {Listed skills} approve {Approve skills} other {Failed skills}}",
+        "getSkillByName": "{state, select, running {Loading skill} done {Loaded skill} approve {Approve skill} other {Failed skill}}",
+        "fetchWebpage": "{state, select, running {Fetching webpage} done {Fetched webpage} approve {Approve webpage} other {Failed webpage}}",
+        "addMemory": "{state, select, running {Saving memory} done {Saved memory} approve {Approve memory} other {Failed memory}}",
+        "fetchMemory": "{state, select, running {Fetching memory} done {Fetched memory} approve {Approve memory} other {Failed memory}}",
+        "getProfile": "{state, select, running {Checking memory profile} done {Checked memory profile} approve {Approve memory profile} other {Failed memory profile}}",
+        "whoAmI": "{state, select, running {Checking memory account} done {Checked memory account} approve {Approve memory account} other {Failed memory account}}",
+        "documentList": "{state, select, running {Listing memory documents} done {Listed memory documents} approve {Approve memory documents} other {Failed memory documents}}",
+        "documentAdd": "{state, select, running {Saving memory document} done {Saved memory document} approve {Approve memory document} other {Failed memory document}}",
+        "documentDelete": "{state, select, running {Deleting memory document} done {Deleted memory document} approve {Approve memory document} other {Failed memory document}}",
+        "memoryForget": "{state, select, running {Forgetting memory} done {Forgot memory} approve {Approve memory} other {Failed memory}}",
+        "memory": "{state, select, running {Using memory} done {Used memory} approve {Approve memory} other {Failed memory}}",
+        "getBrandReferences": "{state, select, running {Loading brand references} done {Loaded brand references} approve {Approve brand references} other {Failed brand references}}",
+        "webSearch": "{state, select, running {Searching web} done {Searched web} approve {Approve web} other {Failed web}}",
+        "searchMemories": "{state, select, running {Searching memory} done {Searched memory} approve {Approve memory} other {Failed memory}}",
+        "codeResearcher": "{state, select, running {Researching the code} done {Researched the code} approve {Approve code research} other {Failed code research}}",
+        "contentWriter": "{state, select, running {Writing the post} done {Wrote the post} approve {Approve post writing} other {Failed post writing}}",
+        "openRepository": "{state, select, running {Opening repository} done {Opened repository} approve {Approve repository} other {Could not open repository}}",
+        "listRepositoryFiles": "{state, select, running {Listing files} done {Listed files} approve {Approve files} other {Failed files}}",
+        "searchRepository": "{state, select, running {Searching code} done {Searched code} approve {Approve code search} other {Failed code search}}",
+        "readRepositoryFile": "{state, select, running {Reading file} done {Read file} approve {Approve file} other {Failed file}}",
+        "repositoryHistory": "{state, select, running {Reading history} done {Read history} approve {Approve history} other {Failed history}}",
+        "showRepositoryChange": "{state, select, running {Inspecting change} done {Inspected change} approve {Approve change} other {Failed change}}",
+        "createPost": "{state, select, running {Saving draft} done {Saved draft} approve {Approve draft} other {Failed draft}}"
+      },
+      "withSuffix": "{label} {suffix}",
+      "memory": {
+        "view": "{state, select, running {Viewing memory} other {Viewed memory}}",
+        "create": "{state, select, running {Saving memory} other {Saved memory}}",
+        "delete": "{state, select, running {Deleting memory} other {Deleted memory}}",
+        "rename": "{state, select, running {Renaming memory} other {Renamed memory}}",
+        "update": "{state, select, running {Updating memory} other {Updated memory}}",
+        "use": "{state, select, running {Using memory} other {Used memory}}"
+      },
+      "suffix": {
+        "forQuery": "for {query}",
+        "forQueryWithCount": "for {query} ({count, plural, one {# result} other {# results}})",
+        "activeCount": "({count} active)",
+        "lastDays": "from the last {days, plural, one {# day} other {# days}}",
+        "count": {
+          "results": "({count, plural, one {# result} other {# results}})",
+          "tools": "({count, plural, one {# tool} other {# tools}})",
+          "projects": "({count, plural, one {# project} other {# projects}})",
+          "pages": "({count, plural, one {# page} other {# pages}})",
+          "urls": "({count, plural, one {# URL} other {# URLs}})"
+        }
+      },
+      "fallback": {
+        "approve": "Approve {name}",
+        "failed": "Failed to call {name}",
+        "mcpCall": "{state, select, running {Calling {name}} other {Called {name}}}",
+        "run": "{state, select, running {Running {name}} other {Ran {name}}}"
+      },
+      "imageGenerating": "Generating image, usually takes 3–8 minutes",
+      "imageRevising": "Revising image, usually takes 3–8 minutes",
+      "imageLongRunning": "{action, select, revise {Revising} other {Generating}} image. Still working, large repos can take longer",
+      "unableToDisplay": "Unable to display value",
+      "truncated": "… ({count, plural, one {# more character} other {# more characters}} truncated)",
+      "allow": "Allow",
+      "deny": "Deny",
+      "saveDraft": "Save draft",
+      "openInEditor": "Open in editor",
+      "changesIn": "Changes in {filename}",
+      "outputImageAlt": "Tool output image",
+      "chartEmptySeries": "No data points to plot.",
+      "interrupted": "Tool execution interrupted"
+    },
+    "activity": {
+      "steps": {
+        "writingResponse": "Writing response",
+        "waitingForApproval": "Waiting for approval",
+        "searchingWeb": "Searching web",
+        "executingTools": "Executing tools",
+        "runningTool": "Running tool"
+      },
+      "worked": "Worked",
+      "workedFor": "Worked for {duration}",
+      "searchStackRunning": "{count, plural, one {Searching web} other {Running # searches}}",
+      "searchStackDone": "{count, plural, one {Ran # search} other {Ran # searches}}",
+      "searchRowQuery": "{state, select, running {Searching web for {query}} other {Searched web for {query}}}",
+      "searchRow": "{state, select, running {Searching web} other {Searched web}}",
+      "moreSources": "+{count} more"
+    },
+    "preview": {
+      "savingDraft": "Saving draft…",
+      "savedAsDraft": "Saved as draft",
+      "saveDraftFailed": "Failed to save draft",
+      "generatingPostToast": "Generating post…",
+      "generatingPost": "Generating post",
+      "status": {
+        "draft": "draft",
+        "published": "published"
+      },
+      "regeneratePlaceholder": "What should change?",
+      "saveAsDraft": "Save as draft",
+      "saveDraftFailedRetry": "Failed to save draft. Try again.",
+      "saveDraftFailedInline": "Could not save the draft. Try again.",
+      "contentRegion": "{type} content",
+      "askForChanges": "Ask for changes"
+    }
+  },
+  "comments": {
+    "title": "Comments",
+    "loading": "Loading comments",
+    "loadFailed": "Could not load comments.",
+    "saveFailed": "Could not save comment",
+    "copyFailed": "Could not copy comment",
+    "edited": "edited",
+    "editComment": "Edit comment",
+    "addReaction": "Add reaction",
+    "reply": "Reply",
+    "replyToComment": "Reply to comment",
+    "commentActions": "Comment actions",
+    "copyText": "Copy text",
+    "reactionCount": "{label}, {count, plural, one {# reaction} other {# reactions}}",
+    "reactions": {
+      "heart": "Heart",
+      "fire": "Fire",
+      "thumbsUp": "Thumbs up",
+      "thumbsDown": "Thumbs down",
+      "eyes": "Eyes",
+      "crown": "Crown"
+    },
+    "showFewer": "Show fewer comments",
+    "viewMore": "{count, plural, one {View # more comment} other {View # more comments}}",
+    "replyingTo": "Replying to {name}",
+    "cancelReply": "Cancel reply",
+    "replyTo": "Reply to {name}",
+    "writeComment": "Write a comment",
+    "writeCommentPlaceholder": "Write a comment…",
+    "writeReplyPlaceholder": "Write a reply…",
+    "send": "Send comment",
+    "emptyTitle": "No comments yet",
+    "emptyDescription": "Share context or next steps with your team."
+  },
+  "composer": {
+    "preview": "Preview {label}",
+    "steerWith": "Steer with {label}"
+  },
+  "ui": {
+    "completed": "Completed",
+    "incomplete": "Incomplete",
+    "pagination": "Pagination",
+    "goToPreviousPage": "Go to previous page",
+    "goToNextPage": "Go to next page",
+    "morePages": "More pages",
+    "paginationRange": "{start}-{end} of {total}",
+    "paginationRangeOpen": "{start}-{end}",
+    "pageOf": "Page {page} of {total}",
+    "pageNumber": "Page {page}",
+    "showRows": "Show {count}",
+    "rowsPerPage": "Rows per page",
+    "toggleSidebar": "Toggle sidebar",
+    "sidebarTitle": "Sidebar",
+    "sidebarDescription": "Displays the mobile sidebar.",
+    "previousSlide": "Previous slide",
+    "nextSlide": "Next slide",
+    "scrollToEnd": "Scroll to end",
+    "scrollToStart": "Scroll to start",
+    "conversationTurns": "Conversation turns",
+    "previousTurn": "Previous turn",
+    "nextTurn": "Next turn",
+    "commandPaletteDescription": "Search for a command to run…",
+    "chooseOption": "Choose an option",
+    "catalog": "Catalog",
+    "previousBranch": "Previous branch",
+    "nextBranch": "Next branch",
+    "copyTableAsMarkdown": "Copy table as Markdown",
+    "downloadTable": "Download table",
+    "viewTableFullscreen": "View table fullscreen",
+    "tableFormatCsv": "CSV",
+    "tableFormatPlain": "Plain",
+    "removeAttachment": "Remove attachment",
+    "expandImage": "Expand image",
+    "minimizeImage": "Minimize image",
+    "moreInfo": "More info",
+    "breadcrumb": "Breadcrumb",
+    "logoStack": {
+      "additionalItems": "Additional items",
+      "showAdditionalItems": "{count, plural, one {Show # additional item} other {Show # additional items}}"
+    },
+    "colorPicker": {
+      "selection": "Color saturation and lightness",
+      "selectionValue": "Saturation {saturation}%, Lightness {lightness}%",
+      "hue": "Hue",
+      "opacity": "Opacity",
+      "eyeDropper": "Pick a color from the screen"
+    }
+  },
+  "demo": {
+    "start": {
+      "title": "Opening the demo…",
+      "description": "Just a moment.",
+      "errorTitle": "The demo workspace couldn't be created",
+      "errorDescription": "Please try again in a moment.",
+      "retry": "Try again"
+    },
+    "banner": {
+      "title": "Explore the Notra demo.",
+      "titleNamed": "Welcome to the Notra demo, {name}.",
+      "customize": "Customize",
+      "reset": "Reset",
+      "signup": "Create account",
+      "resetTitle": "Reset your demo workspace?",
+      "resetDescription": "Everything you changed is thrown away and the sample data is restored. Your demo ID, API key and customization stay the same.",
+      "cancel": "Cancel",
+      "resetConfirm": "Reset workspace",
+      "resetFailed": "The workspace couldn't be reset. Please try again."
+    },
+    "playground": {
+      "title": "API playground",
+      "description": "Send real requests to the demo API and watch them change this workspace.",
+      "tabs": {
+        "console": "Console",
+        "requests": "Requests",
+        "missions": "Missions"
+      },
+      "toastStatus": "{status}",
+      "toastChanged": "{status} · {label}",
+      "view": "View",
+      "openFeed": "Details",
+      "demoId": "Demo ID {id}",
+      "idCopied": "Demo ID copied"
+    },
+    "console": {
+      "keyLabel": "Your demo API key",
+      "copy": "Copy",
+      "keyCopied": "API key copied",
+      "keyHint": "Works with curl, the Notra CLI and MCP against {url}. It expires with your workspace.",
+      "noKey": "No API key is available for this workspace.",
+      "preset": "Example",
+      "method": "Method",
+      "path": "Path",
+      "body": "Request body (JSON)",
+      "send": "Send request",
+      "sending": "Sending…",
+      "copyCurl": "Copy as curl",
+      "curlCopied": "curl command copied",
+      "seeFeed": "The request also shows up under Requests, and the dashboard updates live.",
+      "presets": {
+        "listPosts": "List recent posts",
+        "createPost": "Create a draft post",
+        "createPrompt": "Track a new GEO prompt",
+        "startScan": "Start a GEO scan",
+        "visibility": "Get AI visibility overview",
+        "traffic": "Get AI traffic overview",
+        "listSchedules": "List schedules",
+        "createSkill": "Create a skill"
+      }
+    },
+    "feed": {
+      "loading": "Loading…",
+      "emptyTitle": "No requests yet",
+      "emptyDescription": "Send a request from the console, use curl, or click around the dashboard. Everything shows up here.",
+      "sources": {
+        "api": "API",
+        "console": "Console",
+        "ui": "UI",
+        "webhook": "Webhook"
+      },
+      "sameViaApi": "Do the same via the API",
+      "copyCurl": "Copy curl",
+      "curlCopied": "curl command copied",
+      "request": "Request",
+      "response": "Response"
+    },
+    "missions": {
+      "progress": "{done} of {total} done",
+      "complete": "Done",
+      "open": "Not done yet",
+      "scan": {
+        "title": "Run a GEO scan",
+        "description": "Click Run scan on the GEO overview and watch new results come in."
+      },
+      "apiPrompt": {
+        "title": "Add a prompt through the API",
+        "description": "Send \"Track a new GEO prompt\" from the console. It appears under GEO › Prompts right away."
+      },
+      "agentPost": {
+        "title": "Write a post, then fetch it via API",
+        "description": "Ask the agent to write a post, then run \"List recent posts\"."
+      },
+      "schedule": {
+        "title": "Automate content",
+        "description": "Create a schedule under Automation or use Run now on one."
+      },
+      "externalClient": {
+        "title": "Call the API from your machine",
+        "description": "Copy a request as curl and run it in your terminal, or connect the CLI or MCP with your demo key."
+      },
+      "finishedTitle": "You've seen it all",
+      "finishedDescription": "Set Notra up for your own brand in a few minutes.",
+      "signup": "Start free",
+      "openConsole": "Open the console"
+    },
+    "customize": {
+      "title": "Customize the Notra demo",
+      "description": "Tell us who you are and the demo is rebuilt around your company: brand, AI visibility, content and team.",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "companyName": "Company name",
+      "note": "Takes a few seconds. What you entered only lives in this demo workspace.",
+      "cancel": "Cancel",
+      "submit": "Customize demo",
+      "saving": "Rebuilding…",
+      "failed": "The demo couldn't be customized. Please try again."
+    },
+    "apiCallout": {
+      "title": "Try the API with your demo key",
+      "description": "Send requests from the playground and watch them change this workspace live. curl, the CLI and MCP work too.",
+      "open": "Open API playground"
     }
   },
   "sites": {
@@ -5587,1923 +7504,6 @@
       "viewAnalytics": "View analytics",
       "errorTitle": "Couldn't load analytics",
       "errorDescription": "Try again in a moment."
-    }
-  },
-  "analytics": {
-    "shared": {
-      "interactions": "Interactions",
-      "posted": "Posted",
-      "engagement": "Engagement",
-      "followers": "Followers",
-      "likes": "Likes",
-      "noPostsForThisTime": "No posts for this time frame",
-      "replies": "Replies"
-    },
-    "accountModal": {
-      "description": "Engagement and recent posts for @{handle}"
-    },
-    "summary": {
-      "engagementRate": "Engagement rate",
-      "engagementHint": "{interactions} interactions / {impressions} impressions",
-      "followersHint": "across {count, plural, one {# connected account} other {# connected accounts}}",
-      "impressionsHint": "across all posts, {range}",
-      "interactionsHint": "{posts} posts, {range}"
-    },
-    "ranges": {
-      "today": {
-        "hint": "today"
-      },
-      "yesterday": {
-        "hint": "yesterday"
-      },
-      "7d": {
-        "hint": "last 7 days"
-      },
-      "30d": {
-        "hint": "last 30 days"
-      },
-      "90d": {
-        "hint": "last 90 days"
-      },
-      "mtd": {
-        "label": "Month to date",
-        "compact": "MTD",
-        "hint": "month to date"
-      },
-      "qtd": {
-        "label": "Quarter to date",
-        "compact": "QTD",
-        "hint": "quarter to date"
-      },
-      "ytd": {
-        "compact": "YTD",
-        "hint": "year to date"
-      },
-      "all": {
-        "label": "All time",
-        "hint": "all time"
-      }
-    },
-    "shell": {
-      "description": "How your X and LinkedIn accounts are performing",
-      "emptyDescription": "Connect an X or LinkedIn account to start tracking followers, impressions and engagement.",
-      "emptyTitle": "No connected accounts",
-      "notConfigured": "Analytics ingestion is not configured yet. Connected accounts are shown, but stats will appear once the analytics backend is set up."
-    },
-    "connect": {
-      "connectX": "Connect X",
-      "another": "Connect another platform",
-      "connectLinkedIn": "Connect LinkedIn"
-    },
-    "followers": {
-      "trackingStarted": "tracking started",
-      "noAccounts": "No accounts selected"
-    },
-    "impressionsShare": {
-      "caption": "{account} · {percent}% of impressions",
-      "title": "Impressions share",
-      "empty": "No impression data yet"
-    },
-    "postingPerformance": {
-      "description": "When your posts earn the most engagement",
-      "title": "Best time to post",
-      "highestEngagement": "Highest average engagement ({value} per post)",
-      "activity": {
-        "quiet": "No activity",
-        "low": "Low activity",
-        "medium": "Medium activity",
-        "high": "High activity"
-      },
-      "week": "Week",
-      "empty": "No posting data for this time frame"
-    },
-    "topPosts": {
-      "postCount": "Post ({count})",
-      "title": "Top posts"
-    },
-    "leaderboard": {
-      "stopTrackingAccount": "Stop tracking @{handle}",
-      "empty": "No accounts yet",
-      "filterLabel": "Filter accounts by handle or name",
-      "filterPlaceholder": "Filter by handle or name…",
-      "platformFilter": "Filter by platform",
-      "stopTracking": "Stop tracking {count}",
-      "noMatches": "No accounts match these filters"
-    },
-    "accountDetail": {
-      "metrics": {
-        "reposts": "Reposts",
-        "quotes": "Quotes",
-        "bookmarks": "Bookmarks",
-        "engagementRate": "Eng. rate"
-      },
-      "overTime": "Engagement over time",
-      "notEnoughActivity": "Not enough activity in the last {days} days to chart @{handle}",
-      "recentPosts": "Recent posts",
-      "postCount": "{count, plural, one {{formatted} post} other {{formatted} posts}}",
-      "noPosts": "No tracked posts for @{handle} yet"
-    },
-    "overview": {
-      "joinedNotra": "Joined Notra",
-      "firstNotraPost": "First Notra post",
-      "engagementDescription": "Likes, replies and reposts across your accounts",
-      "engagementEmpty": "No engagement data for this time frame",
-      "impressionsEmpty": "No impression data for this time frame",
-      "volume": "Publishing volume"
-    },
-    "toasts": {
-      "loadAnalyticsOverviewFailed": "Failed to load analytics overview",
-      "loadEngagementDataFailed": "Failed to load engagement data",
-      "loadTopPostsFailed": "Failed to load top posts",
-      "loadFollowerGrowthFailed": "Failed to load follower growth",
-      "loadPostingPerformanceFailed": "Failed to load posting performance",
-      "loadLeaderboardFailed": "Failed to load leaderboard",
-      "loadAdoptionDataFailed": "Failed to load adoption data",
-      "stopTrackingAccountFailed": "Failed to stop tracking account"
-    }
-  },
-  "automation": {
-    "shared": {
-      "failedToUpdateSchedule": "Failed to update schedule",
-      "activeCount": "Active ({count})",
-      "pausedCount": "Paused ({count})",
-      "failedToUpdateTrigger": "Failed to update trigger"
-    },
-    "schedulesMetaTitle": "Automation schedules",
-    "eventsMetaTitle": "Automation events",
-    "brandVoice": {
-      "noIdentity": "No identity",
-      "noIdentityDescription": "No identity has been configured for this workspace yet.",
-      "defaultSuffix": "(Default)",
-      "defaultIdentity": "Default identity"
-    },
-    "suggestions": {
-      "reviewDescription": "Review the recommendation before creating this {kind, select, schedule {schedule} other {event automation}}.",
-      "whyThisFits": "Why this fits",
-      "create": "Create {kind, select, schedule {schedule} other {event automation}}",
-      "dismissFailed": "Couldn't dismiss the suggestion",
-      "dismissLabel": "Dismiss suggestion \"{title}\"",
-      "dismissTooltip": "Dismiss suggestion",
-      "viewDetails": "View details for \"{title}\"",
-      "clickToExpand": "Click to expand"
-    },
-    "outputTypeLabels": {
-      "blog_post": "Blog post",
-      "twitter_post": "Twitter post",
-      "linkedin_post": "LinkedIn post",
-      "investor_update": "Investor update"
-    },
-    "schedules": {
-      "dayPicker": {
-        "dayOfWeek": "Day of week",
-        "dayOfMonth": "Day of month",
-        "dayPlaceholder": "Day",
-        "dayOption": "Day {day}",
-        "skipNotes": {
-          "day31": "Skipped in February, April, June, September and November.",
-          "day30": "Skipped in February.",
-          "day29": "Skipped in February except leap years.",
-          "default": "If a month is shorter than the selected day, the run is skipped that month."
-        }
-      },
-      "interval": {
-        "repeatEvery": "Repeat every",
-        "fewer": "Fewer days",
-        "more": "More days",
-        "days": "days",
-        "invalid": "Pick between {min} and {max} days."
-      },
-      "quickStart": {
-        "description": "Start from a common cadence, then tweak anything before saving.",
-        "presets": {
-          "weekly-changelog": {
-            "label": "Weekly changelog",
-            "description": "Summarize the week's activity every Monday morning."
-          },
-          "daily-twitter": {
-            "label": "Daily X post",
-            "description": "Share a short update from yesterday's activity."
-          },
-          "monthly-blog": {
-            "label": "Monthly blog post",
-            "description": "Turn the month's highlights into a long-form article."
-          },
-          "biweekly-linkedin": {
-            "label": "Bi-weekly LinkedIn post",
-            "description": "Post a professional update every two weeks."
-          }
-        },
-        "createSchedule": "Create {title} schedule"
-      },
-      "summary": {
-        "weekly": "Every {day} at {time}",
-        "monthly": "Monthly on day {day} at {time}",
-        "custom": "Every {days} days at {time}",
-        "daily": "Every day at {time}",
-        "anyMoment": "any moment",
-        "inMinutes": "in {count}m",
-        "inHours": "in {count}h",
-        "inDays": "in {count}d",
-        "nextRun": "Next run: {date} ({relative})"
-      },
-      "outputTypesLower": {
-        "changelog": "changelog entry",
-        "blog_post": "blog post",
-        "linkedin_post": "LinkedIn post",
-        "twitter_post": "tweet",
-        "image": "image"
-      },
-      "autoName": {
-        "custom": "Every {days} days {type}",
-        "frequency": "{frequency, select, daily {Daily} weekly {Weekly} monthly {Monthly} other {Custom}} {type}"
-      },
-      "validation": {
-        "intervalRequired": "Enter how many days between runs",
-        "nameRequired": "Give this schedule a name",
-        "instructionsTooLong": "Keep instructions under {max} characters",
-        "sourcesRequired": "Pick at least one source to continue",
-        "githubRequired": "Schedules need at least one GitHub repository"
-      },
-      "dialog": {
-        "alreadyExists": "Schedule already exists",
-        "createFailed": "Failed to create schedule",
-        "updated": "Schedule updated",
-        "added": "Schedule added",
-        "defaultVoiceName": "{name} (Default)",
-        "defaultVoice": "Default brand voice",
-        "editTitle": "Edit schedule",
-        "newTitle": "New schedule",
-        "description": "Pick a content type and a schedule. We'll handle the rest.",
-        "nameHint": "Just for you, won't appear in any output.",
-        "contentFormat": "Content format",
-        "contentFormatHint": "What should we generate?",
-        "instructions": "Instructions",
-        "instructionsHint": "Tell us what this schedule should write about. Brand voice still applies.",
-        "instructionsPlaceholder": "e.g. Write a tutorial-style post that walks through one feature shipped in this window, with code samples.",
-        "instructionsFooter": "Passed to the writer as extra guidance on every run.",
-        "scheduleHint": "When should this run? Times use UTC.",
-        "time": "Time",
-        "sourcesHint": "Pick which integrations we should pull activity from.",
-        "searchIntegrations": "Search integrations",
-        "noIntegrationsFound": "No integrations found.",
-        "rules": "{type} rules",
-        "rulesHint": "How far back we look and how the post should sound.",
-        "brandVoiceDescription": "Choose which brand voice to use for generated content.",
-        "brandVoiceDefaultDescription": "Use your default brand voice.",
-        "autoPublish": "Auto-publish",
-        "autoPublishHint": "When on, posts are published immediately instead of saved as drafts.",
-        "add": "Add schedule",
-        "sourcesSelected": "{count, plural, one {# source selected} other {# sources selected}}"
-      },
-      "lookbackWindows": {
-        "current_day": "Current day"
-      },
-      "page": {
-        "description": "Configure cron schedules that run daily, weekly or monthly",
-        "create": "Create schedule",
-        "integrationDeleted": "Can't enable this schedule because its integration was deleted. Edit the schedule and pick another integration.",
-        "deleteFailed": "Failed to delete schedule",
-        "removed": "Schedule removed",
-        "triggered": "Schedule triggered. Content will be generated shortly.",
-        "runFailed": "Failed to run schedule",
-        "emptyDescription": "Create your first schedule to automate recurring content.",
-        "emptyTitle": "No schedules yet",
-        "deleteTitle": "Delete schedule?",
-        "deleteDescription": "This will permanently delete <target></target>. This can't be undone.",
-        "runs": "Runs: {value}",
-        "repositories": "Repositories: {value}",
-        "thisSchedule": "this schedule",
-        "untitled": "Untitled schedule",
-        "scheduleFallback": "schedule",
-        "emptyCategory": "No schedules in this category."
-      },
-      "frequencyLabel": {
-        "notSet": "Not set",
-        "weekly": "Weekly - {day} @ {time}",
-        "monthly": "Monthly - Day {day} @ {time}",
-        "custom": "Every {days} days @ {time}",
-        "daily": "Daily @ {time}"
-      }
-    },
-    "events": {
-      "page": {
-        "description": "React to GitHub activity and trigger content generation automatically",
-        "create": "Create trigger",
-        "removed": "Event trigger removed",
-        "deleteFailed": "Failed to delete trigger",
-        "emptyDescription": "Create your first event trigger to react to GitHub activity.",
-        "emptyTitle": "No event triggers yet",
-        "allEvents": "All events",
-        "eventNames": {
-          "push": "Push"
-        },
-        "githubWebhook": "GitHub webhook",
-        "emptyCategory": "No event triggers in this category."
-      },
-      "dialog": {
-        "alreadyExists": "Trigger already exists",
-        "createFailed": "Failed to create trigger",
-        "updated": "Trigger updated",
-        "added": "Trigger added",
-        "editTitle": "Edit event trigger",
-        "newTitle": "New event trigger",
-        "description": "React to GitHub activity and generate content automatically.",
-        "rulesHint": "Voice and publishing behavior for this trigger.",
-        "noRepositoriesSelected": "No repositories selected yet",
-        "repositoriesSelected": "{count, plural, one {# repository selected} other {# repositories selected}}",
-        "add": "Add trigger",
-        "triggerEvent": "Trigger event",
-        "triggerEventHint": "When should this fire?",
-        "includePreReleases": "Include pre-releases",
-        "includePreReleasesHint": "When off, releases marked as pre-release on GitHub will not fire this trigger.",
-        "repositoriesHint": "Pick which repositories should fire this trigger.",
-        "noRepositories": "No GitHub repositories connected yet."
-      },
-      "validation": {
-        "repositoriesRequired": "Select at least one repository",
-        "patternsTooLong": "Must be {max} characters or less",
-        "invalidPatterns": "Invalid patterns"
-      },
-      "eventTypes": {
-        "release": {
-          "description": "Trigger when a new release is published on GitHub."
-        },
-        "push": {
-          "label": "Push to default branch",
-          "description": "Trigger on each push to the repository's default branch."
-        }
-      },
-      "ignorePatterns": {
-        "typeToCheck": "Type a commit message to check it.",
-        "notSkipped": "Not skipped. Nothing matches.",
-        "skipped": "Skipped. Matches <code>{pattern}</code>.",
-        "label": "Ignore commits matching",
-        "addPrefix": "Add a prefix:",
-        "remove": "Remove {pattern}",
-        "add": "Add {pattern}",
-        "placeholder": "e.g. {example} (separated by comma)",
-        "hint": "If every commit in a push matches one of these, the push is skipped. Separate patterns with commas. Case doesn't matter.",
-        "tryLabel": "Try a commit message",
-        "tryPlaceholder": "e.g. chore: bump dependencies"
-      }
-    }
-  },
-  "billing": {
-    "shared": {
-      "currentBalance": "Current balance",
-      "pullRequestCredits": "Pull request credits",
-      "zeroDataRetention": "Zero data retention",
-      "aiAnswers": "AI answers"
-    },
-    "features": {
-      "team_members": "Team members",
-      "long_form_posts": "Long-form posts",
-      "social_posts": "Social posts",
-      "image_generations": "Image generations",
-      "workflows": "Workflows",
-      "log_retention_7_days": "Log retention 7 days",
-      "log_retention_14_days": "Log retention 14 days",
-      "log_retention_30_days": "Log retention 30 days"
-    },
-    "creditSummary": {
-      "included": "of {amount} included",
-      "usedThisPeriod": "Used this period",
-      "inTheLast": "in the last {range, select, 7d {7 days} 30d {30 days} 90d {90 days} other {{range}}}",
-      "ofPlan": "of plan"
-    },
-    "topup": {
-      "description": "Purchase additional AI credits for your workspace",
-      "added": "Credits added successfully",
-      "failed": "Could not process top-up. Please try again.",
-      "includedInPlan": "of {amount} included in plan",
-      "selectAmountLabel": "Select amount",
-      "customPlaceholder": "Custom amount (${min}–${max})",
-      "customInvalid": "Enter a whole number between ${min} and ${max}",
-      "addAmount": "Add ${amount} in credits",
-      "selectAmount": "Select an amount",
-      "feeNotice": "A {percent}% platform fee is added to top-ups. Plan-included credits are charged at cost."
-    },
-    "invoices": {
-      "statusValue": "{status, select, paid {Paid} open {Open} draft {Draft} void {Void} uncollectible {Uncollectible} pending {Pending} other {{status}}}",
-      "empty": "No invoices yet"
-    },
-    "zdrConsent": {
-      "title": "Enable zero data retention?",
-      "body": "Zero data retention routes your prompts and answers only through model hosts covered by a zero-data-retention agreement. Notra routes requests through third-party AI gateways, and their agreements with each model provider are what enforce ZDR. Please read the following before you enable it:",
-      "points": {
-        "availability": "Availability is not guaranteed for every model. ZDR exists only where the gateway we route through holds a zero-data-retention agreement with that model's provider. Notra does not hold these agreements directly and cannot extend them to models they do not cover.",
-        "newModels": "New models usually launch without ZDR. Recently released models are often excluded until the provider and gateway add a zero-data-retention option.",
-        "skipped": "Models without a ZDR host are skipped. They are marked in GEO settings and will not run unless you explicitly approve each one, in which case that provider may retain request data under its own policy.",
-        "termsChange": "Gateway and provider terms can change. If a ZDR agreement is withdrawn for a model, that model is excluded from your scans until an alternative is available."
-      },
-      "footnote": "By enabling, you acknowledge that zero data retention is provided under third-party gateway agreements and applies only to models covered by one at the time of each request.",
-      "cancel": "Not now"
-    },
-    "zdrAddon": {
-      "description": "Only run models on hosts that keep no prompt or answer data. Priced at 20% of your plan.",
-      "unavailable": "Available as an add-on once you're on Starter, Growth or Scale.",
-      "hint": "Not every model offers a ZDR host.",
-      "removeSuccess": "Zero data retention will be removed at the end of your billing cycle.",
-      "removeFailed": "Could not remove zero data retention. Please try again.",
-      "choosePlan": "Choose a plan",
-      "addFor": "Add for {price}/{interval, select, month {month} year {year} other {{interval}}}"
-    },
-    "creditActivity": {
-      "aiChat": "AI chat",
-      "title": "Recent activity",
-      "empty": "No usage events yet"
-    },
-    "creditUsage": {
-      "creditsUsed": "Credits used",
-      "empty": "No usage data for this period"
-    },
-    "usageBreakdown": {
-      "rangeLabel": "Usage range",
-      "title": "Usage breakdown",
-      "empty": "No AI Answers usage in this period"
-    },
-    "geoUpgrade": {
-      "title": "Upgrade required"
-    },
-    "usageAlerts": {
-      "addAlert": "Add alert",
-      "errors": {
-        "required": "Enter a threshold.",
-        "min": "Enter a threshold of 0 or more.",
-        "percentage": "Enter a percentage between 0 and 100."
-      },
-      "editTitle": "Edit usage alert",
-      "addTitle": "Add usage alert",
-      "formDescription": "Choose when this organization should trigger a usage alert.",
-      "feature": "Feature",
-      "allFeatures": "All features",
-      "allFeaturesHint": "Leave this on all features to apply the alert across every usage balance.",
-      "enabledHint": "Disabled alerts stay saved but do not trigger.",
-      "namePlaceholder": "Optional label for this alert",
-      "thresholdType": "Threshold type",
-      "threshold": "Threshold",
-      "thresholdTypes": {
-        "usage_percentage": {
-          "label": "Usage percentage",
-          "description": "Alert when usage reaches this percentage of the allowance."
-        },
-        "remaining_percentage": {
-          "label": "Remaining percentage",
-          "description": "Alert when the remaining balance falls to this percentage."
-        },
-        "usage": {
-          "label": "Usage (absolute value)",
-          "description": "Alert when usage reaches this amount."
-        },
-        "remaining": {
-          "label": "Remaining (absolute value)",
-          "description": "Alert when the remaining balance falls to this amount."
-        }
-      },
-      "updated": "Usage alerts updated",
-      "updateFailed": "Failed to update usage alerts",
-      "limitToast": "You can configure up to {max} usage alerts.",
-      "changed": "This usage alert changed. Go back and try again.",
-      "empty": "No usage alerts configured.",
-      "columns": {
-        "alert": "Alert"
-      },
-      "rowLabel": "{feature} usage alert",
-      "thresholdValue": "{threshold}{percentage, select, yes {%} other {}} {direction, select, remaining {remaining} other {used}}",
-      "disableLabel": "Disable {label}",
-      "enableLabel": "Enable {label}",
-      "deleteLabel": "Delete {label}",
-      "description": "Trigger an alert when usage or the remaining balance crosses a threshold.",
-      "limitReached": "The limit of {max} usage alerts has been reached. Delete an alert to add another.",
-      "ownerOnly": "Only the organization owner can manage usage alerts."
-    },
-    "usage": {
-      "remainingAria": "{label}: {percent}% remaining",
-      "about": "About {name}",
-      "usedOfCycle": "{used} used of {included} this cycle.",
-      "includedCycle": "{included} included this cycle.",
-      "remainingOf": "{balance} of {included} remaining",
-      "remainingOfUnknown": "of {included} remaining",
-      "logRetention": "Log retention",
-      "logRetentionDescription": "Logs are kept for {days} days.",
-      "days": "{days} days",
-      "noCap": "Included in your plan without a usage cap.",
-      "unlimited": "Unlimited",
-      "resets": "Resets {date}",
-      "remainingPercent": "{percent}% remaining",
-      "remainingPercentResets": "{percent}% remaining · Resets {date}",
-      "ofThisCycle": "of {included} this cycle",
-      "balanceTitle": "Balance",
-      "balanceDescription": "How much of each plan limit you have left this cycle.",
-      "aiAnswersRemaining": "AI answers remaining",
-      "creditsFooter": "Credits extend usage beyond your plan limits.",
-      "creditsRemaining": "Credits remaining",
-      "pullRequestFooter": "What @notra may spend on pull requests. Credits take over once it runs out.",
-      "featureLimits": "Feature limits",
-      "otherQuotas": "Other remaining quotas on your plan.",
-      "quotas": "Remaining quotas on your plan."
-    },
-    "plans": {
-      "renewalTerms": "{kind, select, trial {After your free trial, your base plan renews at {price}/{interval} until canceled. Cancel before the trial ends to avoid charges.} trialRevert {Your free trial ends without automatic billing. A paid base plan renews at {price}/{interval} only if you subscribe.} other {Your base plan renews at {price}/{interval} until canceled.}} Manage or cancel in Billing settings.",
-      "addonExtra": "Selected add-ons cost extra.",
-      "tierDescription": "{tier, select, starter {For founders tracking their first prompts.} growth {For teams tracking prompts across engines and languages.} scale {For agencies and teams running several brands.} other {}}",
-      "features": {
-        "aiAnswers": "{count, number} AI answers tracked / mo",
-        "imageGenerations": "{count, number} image generations / mo",
-        "longFormPosts": "{count, number} long-form posts / mo",
-        "unlimitedSocialPosts": "Unlimited social posts",
-        "pullRequestCredits": "${amount} of pull request credits / mo",
-        "projects": "{count, plural, one {# project} other {# projects}}",
-        "references": "{count, number} references",
-        "referencesOverage": "then ${price} per ref / mo",
-        "standardSupport": "Standard support + Slack",
-        "prioritySupport": "Priority support",
-        "zdrAvailable": "ZDR available (+{percent}%)",
-        "aiCredits": "{amount} AI credits",
-        "unlimitedFeature": "Unlimited {feature}",
-        "includedFeature": "{count, number} {feature}",
-        "includedFeaturePerInterval": "{count, number} {feature} per {interval, select, day {day} week {week} month {month} quarter {quarter} semi_annual {half year} year {year} other {{interval}}}"
-      },
-      "button": "{action, select, trial {Start free trial} purchase {Purchase} scheduled {Plan scheduled} active {Current plan} renew {Renew} upgrade {Upgrade} downgrade {Downgrade} cancel {Cancel plan} other {Get started}}",
-      "invoiceSubscription": "Subscription",
-      "invoiceCreditsTopUp": "AI credits top-up",
-      "addonPrice": "+{price}/{interval, select, month {month} year {year} other {{interval}}}"
-    }
-  },
-  "logs": {
-    "shared": {
-      "success": "Success"
-    },
-    "statusFilters": {
-      "all": "All statuses"
-    },
-    "sources": {
-      "linear": "Linear",
-      "webhook": "Webhook",
-      "search-console": "Search Console"
-    },
-    "statusDescriptions": {
-      "success": "This event completed successfully.",
-      "failed": "This event could not complete. Review the error below before retrying the automation.",
-      "pending": "This event was recorded as pending. Refresh the logs to check for a later result.",
-      "skipped": "No content was generated for this event. Review the reason below and the source activity for this run."
-    },
-    "retention": {
-      "label": "Log retention information",
-      "description": "Log data is retained for {days} days. Older entries are automatically removed."
-    },
-    "filters": {
-      "searchLabel": "Search logs",
-      "searchPlaceholder": "Search by title or error message"
-    },
-    "details": {
-      "errorDetails": "Error details",
-      "reason": "Reason",
-      "runContext": "Run context",
-      "eventMetadata": "Event metadata",
-      "logId": "Log ID",
-      "timestamp": "Timestamp",
-      "sourceId": "Source ID",
-      "referenceId": "Reference ID",
-      "rawPayload": "Raw payload",
-      "contextFields": {
-        "repositoryCount": "Repositories checked",
-        "checks": "Checks run",
-        "mentions": "Mentions found",
-        "prompts": "Prompts scanned",
-        "keywords": "Keywords synced",
-        "suggestionsAdded": "Suggestions created",
-        "stage": "Stage",
-        "runId": "Run ID",
-        "senderLogin": "Commenter",
-        "destinationMode": "Destination",
-        "commentUrl": "Comment URL",
-        "commentSnippet": "Comment",
-        "replySnippet": "Reply",
-        "pullRequestUrl": "Pull request",
-        "mentionStatus": "Mention result",
-        "durationMs": "Duration (ms)"
-      },
-      "title": "Event details",
-      "inspect": "Inspect this integration event.",
-      "loadingContext": "Loading event context…",
-      "retry": "Retry details",
-      "copied": "Event details copied",
-      "copy": "Copy details",
-      "destinations": {
-        "openSchedules": "Open schedules",
-        "openEventTriggers": "Open event triggers",
-        "openGeo": "Open GEO",
-        "openAgentReadiness": "Open agent readiness",
-        "openTraffic": "Open traffic analytics",
-        "openBrandIdentity": "Open brand identity",
-        "openIntegrations": "Open integrations"
-      }
-    }
-  },
-  "nav": {
-    "shared": {
-      "createOrganization": "Create organization"
-    },
-    "badges": {
-      "beta": "Beta"
-    },
-    "groups": {
-      "improve": "Improve",
-      "utility": "Utility"
-    },
-    "modes": {
-      "measureVisibility": "Measure visibility",
-      "createContent": "Create content"
-    },
-    "primaryActions": {
-      "newContent": "New content"
-    },
-    "geoUpgradeTooltip": "Upgrade your plan to use GEO",
-    "recent": "Recent",
-    "recentItem": {
-      "openInNewTab": "Open in new tab",
-      "linkCopied": "Link copied",
-      "linkCopyFailed": "Failed to copy link",
-      "copyLink": "Copy link"
-    },
-    "user": {
-      "signingOut": "Signing out…"
-    },
-    "upgrade": {
-      "upgradeNow": "Upgrade now",
-      "freeDescription": "Feedback is free. Upgrade for AI content and visibility tracking.",
-      "freeHeading": "Get more from Notra",
-      "upgradeToPlan": "Upgrade to {plan}",
-      "paidDescription": "Get more AI answers, projects and higher usage limits."
-    },
-    "sidebar": {
-      "loadingChatHistory": "Loading chat history",
-      "hide": "Hide sidebar",
-      "show": "Show sidebar",
-      "resize": "Resize sidebar",
-      "collapsed": "Collapsed",
-      "widthPixels": "{width} pixels",
-      "resizeHint": "Drag to resize or collapse sidebar. Double-click to reset."
-    },
-    "orgSelector": {
-      "tooltip": "Organization | {name}",
-      "noOrganizations": "No organizations found",
-      "newOrganization": "New organization",
-      "subscribeToCreate": "Subscribe to create more organizations",
-      "scheduleDemo": "Schedule a demo",
-      "upgradeToGrowth": "Upgrade to Growth",
-      "lightMode": "Light mode",
-      "darkMode": "Dark mode"
-    },
-    "onboarding": {
-      "steps": {
-        "brandIdentity": "Set up brand identity",
-        "integration": "Add an integration",
-        "schedule": "Create a schedule",
-        "geoTracking": "Track AI visibility"
-      },
-      "expand": "Expand getting started",
-      "expandShort": "Expand",
-      "title": "Getting started",
-      "titleWithProgress": "Getting started ({completed}/{total})",
-      "description": "Finish these steps to set up Notra.",
-      "percentCompleted": "{percent}% completed"
-    },
-    "createOrg": {
-      "createFailed": "Failed to create organization",
-      "created": "Organization created successfully",
-      "description": "Create a new organization to collaborate with your team.",
-      "nameLabel": "Organization name",
-      "slugLabel": "Organization slug",
-      "slugHint": "Used in URLs: app.usenotra.com/{slug}",
-      "websiteLabel": "Website (optional)",
-      "validation": {
-        "websiteInvalid": "Please enter a valid URL (e.g., https://example.com)"
-      }
-    }
-  },
-  "chat": {
-    "shared": {
-      "sendAMessage": "Send a message",
-      "queueAMessage": "Queue a message…",
-      "countPluralOneChatMessage": "{count, plural, one {# chat message left} other {# chat messages left}}",
-      "chatInputDropArea": "Chat input drop area",
-      "addToolsOrContext": "Add tools or context",
-      "context": "Context",
-      "manageIntegrations": "Manage integrations",
-      "noMatchingIntegrations": "No matching integrations.",
-      "noMatchingToolsOrContext": "No matching tools or context found.",
-      "searchToolsAndContext": "Search tools and context…",
-      "toolsAndContext": "Tools and context"
-    },
-    "promptInput": {
-      "placeholder": "Send a message… (type / for skills)"
-    },
-    "input": {
-      "thinking": {
-        "label": "Thinking effort",
-        "off": "None"
-      },
-      "send": {
-        "stopping": "Stopping…",
-        "queuedPending": "Will send once uploads finish. Click to cancel.",
-        "stopGenerating": "Stop generating",
-        "queueHint": "Enter to queue this message. It will send once the AI finishes.",
-        "sendHint": "Enter to send. Shift+Enter for a new line.",
-        "sendMessage": "Send message",
-        "queueMessage": "Queue message",
-        "noCredits": "No chat credits left."
-      },
-      "contextPicker": {
-        "disabledQueued": "Cancel the pending message before changing tools or context.",
-        "disabledLoading": "Wait for the current response before changing tools or context.",
-        "mcpGroup": "MCP tools"
-      },
-      "mention": {
-        "noneConnected": "No context or MCP tools connected",
-        "noMatches": "No matches found",
-        "connectIntegrations": "Connect integrations"
-      },
-      "options": {
-        "githubRepository": "GitHub repository",
-        "linearTeam": "Linear team",
-        "customMcp": "Custom MCP server · {count, plural, one {# tool} other {# tools}}",
-        "marketplaceMcp": "Marketplace MCP server · {count, plural, one {# tool} other {# tools}}"
-      },
-      "modelPicker": {
-        "searchPlaceholder": "Search models…",
-        "empty": "No models found."
-      },
-      "attach": {
-        "imagesPdfs": "Attach images or PDFs",
-        "imagesPdfsText": "Attach images, PDFs or text"
-      },
-      "upload": {
-        "maxAttachments": "You can attach at most {max} files per message.",
-        "unsupportedText": "{model} only supports image and PDF attachments. Remove text files or choose a Claude model.",
-        "unsupportedType": "Unsupported file type: {name}",
-        "tooLarge": "{name} exceeds the {size}MB limit.",
-        "failed": "Failed to upload {name}: {message}",
-        "someFailed": "Some attachments failed to upload. Remove or retry them before sending."
-      },
-      "editor": {
-        "placeholder": "Send a message… (type @ for tools, / for skills)"
-      },
-      "contextUnavailable": "Context is unavailable right now."
-    },
-    "attachments": {
-      "attachFiles": "Attach files",
-      "dropTitle": "Add Attachment",
-      "dropDescription": "Drop a file here to attach it to your message",
-      "acceptedTypes": "Accepted file types: {types}",
-      "unavailable": "{name} is unavailable",
-      "fallbackAlt": "attachment"
-    },
-    "attachmentPreview": {
-      "loadFailed": "Failed to load ({status})",
-      "imageCopied": "Image copied",
-      "copyFailed": "Failed to copy image",
-      "downloadedFile": "Downloaded file",
-      "copyImage": "Copy image",
-      "unavailableTitle": "Preview isn't available",
-      "unavailableDescription": "Download this file to open it on your device."
-    },
-    "skills": {
-      "noMatches": "No matching skills"
-    },
-    "connectSuggestions": {
-      "heading": "Suggested",
-      "descriptions": {
-        "github": "Add repositories as context",
-        "linear": "Add teams as context",
-        "mcp": "Connect custom tools"
-      }
-    },
-    "slackRelay": {
-      "notice": "This chat is a Slack thread. Replies are sent to Slack as you.",
-      "openInSlack": "Open in Slack"
-    },
-    "queue": {
-      "label": "Queued messages",
-      "edit": "Edit queued message",
-      "cancelSteering": "Cancel steering",
-      "remove": "Remove from queue",
-      "steer": "Steer with this message"
-    },
-    "author": {
-      "formerMember": "Former member"
-    },
-    "contextRow": {
-      "removeSelection": "Remove selection",
-      "selectedText": "Selected text",
-      "selectionRange": "From line {startLine}, character {startChar} to line {endLine}, character {endChar}"
-    },
-    "metadata": {
-      "modelWithThinking": "{model} ({thinking})",
-      "tokensPerSecond": "{value} tok/sec",
-      "tokens": "{value} tokens",
-      "timeToFirstToken": "Time to first token: {duration}",
-      "durationMs": "{value} ms",
-      "durationSec": "{value} sec"
-    },
-    "suggestions": {
-      "ariaLabel": "Example prompts",
-      "heading": "Try an example",
-      "dismiss": "Dismiss examples",
-      "items": {
-        "blogPost": {
-          "title": "Write a blog post",
-          "description": "Turn a topic into a well-scoped article",
-          "prompt": "Help me write a blog post. Ask me 1-2 questions about the topic and audience before drafting."
-        },
-        "releaseNotes": {
-          "title": "Draft release notes",
-          "description": "Summarize what shipped and why it matters",
-          "prompt": "Help me draft a changelog. Ask me what changed and which release or repo to reference."
-        },
-        "socialPost": {
-          "title": "Write a social post",
-          "description": "Draft a Twitter or LinkedIn update",
-          "prompt": "Help me write a social post. Ask me whether it's for Twitter or LinkedIn, then the topic and angle before drafting."
-        },
-        "newsletter": {
-          "title": "Outline a newsletter",
-          "description": "Plan the edition before you write it",
-          "prompt": "Help me outline a newsletter. Ask me the audience and what this edition should cover before drafting."
-        },
-        "comparison": {
-          "title": "Compare us vs them",
-          "description": "Frame the difference for a buyer",
-          "prompt": "Help me write a comparison. Ask me who we're comparing against and what the reader is deciding before drafting."
-        },
-        "geoStatus": {
-          "title": "How is GEO going?",
-          "description": "See mention trends across engines",
-          "prompt": "How is our GEO going? Load the overview and mention-rate trend for the last 30 days, then tell me what is improving or slipping."
-        },
-        "geoVisibility": {
-          "title": "Improve GEO visibility",
-          "description": "Tighten how we show up in answers",
-          "prompt": "Help me improve our GEO visibility. Ask me which prompt or topic to focus on, then suggest what to change."
-        },
-        "brandVoice": {
-          "title": "Match our brand voice",
-          "description": "Rewrite a draft so it sounds like us",
-          "prompt": "Help me rewrite copy in our brand voice. Ask me for the draft and where it will run before rewriting."
-        },
-        "thread": {
-          "title": "Turn this into a thread",
-          "description": "Break a point into a social sequence",
-          "prompt": "Help me turn a topic into a social thread. Ask me the platform and the core point before drafting."
-        },
-        "faq": {
-          "title": "Draft an FAQ page",
-          "description": "Answer the questions people actually ask",
-          "prompt": "Help me draft an FAQ. Ask me the product and the questions customers actually ask before writing."
-        }
-      }
-    },
-    "userMessageActions": {
-      "previousVersion": "Previous version",
-      "nextVersion": "Next version",
-      "retryWithSame": "Retry with same",
-      "editMessage": "Edit message",
-      "copyMessage": "Copy message",
-      "editPlaceholder": "Edit your message…"
-    },
-    "page": {
-      "slackMirrorNotice": "Mirrored from a Slack thread.",
-      "working": "Working",
-      "showMoreImages": "Show {count, plural, one {# more image} other {# more images}}",
-      "loadingProject": "Loading project",
-      "slackSendFailed": "Sending to Slack failed. Try again.",
-      "draftGenerationFailed": "Draft generation failed. The assistant will retry.",
-      "welcome": "Welcome",
-      "responseStopped": "Response stopped by user",
-      "stopping": "Stopping",
-      "waitingForPreviousResponse": "Waiting for the previous response to finish before sending.",
-      "revisePrefill": "Revise \"{title}\": "
-    },
-    "toasts": {
-      "editContentFailed": "Failed to edit content",
-      "renameChatFailed": "Failed to rename chat",
-      "updateChatPinFailed": "Failed to update chat pin",
-      "deleteChatFailed": "Failed to delete chat",
-      "chatDeleted": "Chat deleted"
-    },
-    "errors": {
-      "usageLimit": "You've used all your chat messages this month. Upgrade for more.",
-      "fallback": "Something went wrong while generating a response. Try again."
-    },
-    "models": {
-      "descriptions": {
-        "auto": "Picks the best model for your message",
-        "latestOpus": "Latest Opus for complex work",
-        "everyday": "Everyday work and coding",
-        "fast": "Fast responses",
-        "advancedReasoning": "Advanced reasoning and complex tasks",
-        "fastAffordable": "Fast and affordable",
-        "zdrRoute": "OpenAI model with a ZDR route",
-        "previousOpus": "Previous Opus generation",
-        "previousSonnet": "Previous Sonnet generation",
-        "previousOpenai": "Previous OpenAI model"
-      },
-      "pricing": "${input} input / ${output} output per 1M",
-      "pricingVaries": "Varies by selected model"
-    },
-    "quote": {
-      "quoteSelection": "Quote selected text",
-      "removeQuote": "Remove quote"
-    }
-  },
-  "content": {
-    "shared": {
-      "loadingContent": "Loading content",
-      "pullRequestUpdated": "Pull request updated",
-      "renameCollection": "Rename collection",
-      "createContent": "Create Content",
-      "faq": "FAQ"
-    },
-    "socialPost": {
-      "mockLink": "Mock link (actual: {url})",
-      "more": "…more",
-      "postActions": "Post actions",
-      "closePost": "Close post",
-      "comments": "{count, plural, one {# comment} other {# comments}}",
-      "reposts": "{count, plural, one {# repost} other {# reposts}}",
-      "linkedinPlaceholder": "What do you want to talk about?",
-      "linkedinLike": "Like",
-      "linkedinComment": "Comment",
-      "linkedinRepost": "Repost",
-      "charactersUsed": "{count} of {limit} characters used",
-      "twitterPlaceholder": "What is happening?!"
-    },
-    "create": {
-      "dialog": {
-        "generating": "Generating…",
-        "skipAndStart": "Skip & start creating",
-        "startWithIdentities": "Start creating with {count} {count, plural, one {identity} other {identities}}",
-        "steps": {
-          "formats": {
-            "label": "Formats"
-          }
-        },
-        "toasts": {
-          "previewIssues": "{count} repository preview {count, plural, one {issue was} other {issues were}} detected.",
-          "generationStarted": "{count, plural, one {Content generation started} other {# content generations started}}",
-          "generationPartial": "{succeeded} of {total} content generations started; {failed} failed"
-        },
-        "errors": {
-          "projectLoading": "Project is still loading",
-          "generationFailed": "Failed to start any content generation"
-        },
-        "footer": {
-          "selectFormat": "Select at least one content format",
-          "selectSource": "Select at least one source",
-          "selectEvent": "Select at least one event",
-          "selectFormatBeforeCreating": "Select a content format before creating",
-          "formatsSelected": "{count, plural, one {# format} other {# formats}} selected",
-          "eventsAndSources": "{selected} / {total} events · {sources, plural, one {# source} other {# sources}}",
-          "noIdentities": "No identities selected",
-          "identitiesSelected": "{count, plural, one {# identity} other {# identities}} selected"
-        }
-      },
-      "buttons": {
-        "generateContent": "Generate content"
-      },
-      "formats": {
-        "changelog": {
-          "description": "A concise summary of what shipped and why it matters."
-        },
-        "blog_post": {
-          "description": "A longer-form article explaining the feature in depth."
-        },
-        "linkedin_post": {
-          "description": "A professional update to share with your network."
-        },
-        "twitter_post": {
-          "description": "A short announcement for X / Twitter."
-        },
-        "image": {
-          "description": "A brand-matched social image generated from repo activity."
-        }
-      },
-      "eventTypes": {
-        "PR": "PR"
-      },
-      "lookback": {
-        "current_day": "Current Day",
-        "last_7_days": "Last 7 Days",
-        "last_14_days": "Last 14 Days",
-        "last_30_days": "Last 30 Days"
-      },
-      "stepFormats": {
-        "title": "What do you want to create?",
-        "description": "Select one or more formats. We'll draft each one.",
-        "timeframe": "Timeframe",
-        "timezoneInfoLabel": "Timeframe timezone information",
-        "timezoneInfo": "Activity is gathered in your timezone (<strong>{timezone}</strong>). Today and Yesterday follow your local day. Rolling ranges like Last 7 Days are identical in every timezone.",
-        "timeframeDescription": "How far back to look when gathering activity data.",
-        "selectTimeframe": "Select timeframe",
-        "dataPoints": {
-          "pullRequests": {
-            "label": "Pull Requests",
-            "description": "Merged PR metadata"
-          },
-          "commits": {
-            "label": "Commits",
-            "description": "Commit-level changes"
-          },
-          "releases": {
-            "label": "Releases",
-            "description": "GitHub releases"
-          }
-        }
-      },
-      "stepActivity": {
-        "preRelease": "pre-release",
-        "title": "Pick the activity to include",
-        "description": "Search recent activity and pick the events to package.",
-        "searchPlaceholder": "Search by title, author or label…",
-        "addIntegration": "Add integration",
-        "pickSource": "Pick a source above to load activity.",
-        "loadFailed": "Failed to load events.",
-        "noSearchResults": "No events match your search.",
-        "noEvents": "No events in this timeframe."
-      },
-      "stepIdentities": {
-        "emptyTitle": "No brand identity yet",
-        "emptyDescription": "Drop in your website and we'll learn your tone and audience.",
-        "createButton": "Create brand identity",
-        "title": "Which brand identity should this use?",
-        "description": "Select one or more brand identities, or skip to write for a general audience.",
-        "defaultIdentity": "Default brand identity"
-      }
-    },
-    "createPost": {
-      "created": "Post created",
-      "createFailed": "Failed to create post",
-      "title": "New empty post",
-      "description": "Start from a blank page and write it yourself or with the agent.",
-      "namePlaceholder": "Ship notes for week 11",
-      "slugSavedAs": "Saved as {slug}",
-      "slugHint": "Inferred from the name. Leave empty to set it later.",
-      "submit": "Create post"
-    },
-    "plan": {
-      "subtypes": {
-        "how-to": "How-to",
-        "alternatives": "Alternatives"
-      },
-      "targetPrompt": {
-        "label": "Target prompt",
-        "placeholder": "The question a buyer would ask"
-      },
-      "intent": {
-        "placeholder": "Why someone is searching for this"
-      },
-      "audience": {
-        "label": "Audience",
-        "placeholder": "Who this is for"
-      },
-      "type": {
-        "placeholder": "Choose a type"
-      },
-      "jobToBeDone": {
-        "label": "Job to be done",
-        "placeholder": "What the article should help them do"
-      },
-      "outline": {
-        "title": "Outline",
-        "headingLabel": "Section {index} heading",
-        "headingPlaceholder": "Section heading",
-        "removeSection": "Remove section {index}",
-        "goalLabel": "Section {index} goal",
-        "goalPlaceholder": "What the reader should take away",
-        "addPoint": "Add point",
-        "pointLabel": "Section {section} point {index}",
-        "pointPlaceholder": "A claim this section must make",
-        "removePoint": "Remove point {index}",
-        "addSection": "Add section"
-      },
-      "faq": {
-        "add": "Add a question",
-        "itemLabel": "FAQ {index}",
-        "placeholder": "A question the article should answer",
-        "remove": "Remove question {index}"
-      },
-      "links": {
-        "add": "Add a link",
-        "textLabel": "Link {index} text",
-        "urlLabel": "Link {index} URL",
-        "reasonLabel": "Link {index} reason",
-        "remove": "Remove link {index}",
-        "anchorPlaceholder": "Link text",
-        "whyPlaceholder": "Optional: why this page belongs",
-        "draftUrlLabel": "Link URL"
-      },
-      "checks": {
-        "title": "Must include",
-        "add": "Add a check",
-        "itemLabel": "Check {index}",
-        "placeholder": "Something the finished article must cover",
-        "remove": "Remove check {index}"
-      },
-      "chatPlaceholder": "Refine this plan…"
-    },
-    "editors": {
-      "postSlug": "Post slug",
-      "slugPlaceholder": "add-a-slug",
-      "raw": "Raw",
-      "twitterContentEditor": "Twitter post content editor",
-      "linkedinContentEditor": "LinkedIn post content editor",
-      "imageUnavailable": "Image data is unavailable."
-    },
-    "editor": {
-      "blocks": {
-        "paragraph": "Paragraph",
-        "heading1": "Heading 1",
-        "heading2": "Heading 2",
-        "heading3": "Heading 3",
-        "bulletedList": "Bulleted List",
-        "numberedList": "Numbered List",
-        "quote": "Quote",
-        "codeBlock": "Code Block",
-        "divider": "Divider"
-      },
-      "media": {
-        "addMedia": "Add image or video",
-        "expand": "Expand {label}"
-      },
-      "codeBlock": {
-        "selectLanguage": "Select code language",
-        "plainText": "Plain Text",
-        "copied": "Code copied",
-        "copy": "Copy code",
-        "placeholder": "Enter code here…"
-      },
-      "video": {
-        "pause": "Pause",
-        "play": "Play",
-        "seek": "Seek",
-        "unmute": "Unmute",
-        "mute": "Mute",
-        "exitFullscreen": "Exit full screen",
-        "fullscreen": "Full screen"
-      },
-      "table": {
-        "insertRowAbove": "Insert row above",
-        "insertRowBelow": "Insert row below",
-        "insertColumnBefore": "Insert column before",
-        "insertColumnAfter": "Insert column after",
-        "deleteTable": "Delete table"
-      },
-      "toolbar": {
-        "bold": "Format bold",
-        "boldTitle": "Bold (Ctrl+B)",
-        "italic": "Format italic",
-        "italicTitle": "Italic (Ctrl+I)",
-        "underline": "Format underline",
-        "underlineTitle": "Underline (Ctrl+U)",
-        "strikethrough": "Format strikethrough",
-        "strikethroughTitle": "Strikethrough",
-        "code": "Format code",
-        "codeTitle": "Code",
-        "insertLink": "Insert link",
-        "urlPlaceholder": "Enter URL",
-        "applyLink": "Apply link",
-        "apply": "Apply"
-      },
-      "upload": {
-        "animatedTooLarge": "GIF and AVIF must be {maxMb}MB or smaller",
-        "imageTooLarge": "Image must be {maxMb}MB or smaller",
-        "videoTooLarge": "Video must be {maxMb}MB or smaller",
-        "uploading": "Uploading…"
-      }
-    },
-    "chatActivity": {
-      "attachedContext": "Attached context",
-      "loadingChats": "Loading chats…",
-      "noPreviousChats": "No previous chats",
-      "historyGroups": {
-        "previousSevenDays": "Previous 7 days"
-      },
-      "defaultTitle": "Content Agent",
-      "startNewChat": "Start a new chat",
-      "openHistory": "Open chat history",
-      "history": "Chat history",
-      "openInChat": "Open in Chat",
-      "exitFullscreenTitle": "Exit fullscreen {title}",
-      "openFullscreenTitle": "Open {title} fullscreen",
-      "exitFullscreen": "Exit fullscreen",
-      "expandAgent": "Expand agent",
-      "closeTitle": "Close {title}"
-    },
-    "card": {
-      "nothingWritten": "Nothing written yet",
-      "status": "{status, select, published {Published} draft {Draft} other {{status}}}",
-      "type": "{type, select, changelog {Changelog} blog_post {Blog post} twitter_post {Tweet} linkedin_post {LinkedIn post} investor_update {Investor update} image {Image} other {{fallback}}}",
-      "generating": "Generating content…",
-      "queuedViaApi": "Queued via API"
-    },
-    "toolbar": {
-      "copyFor": "Copy for {target}",
-      "selectExportTarget": "Select export target",
-      "comingSoon": "Coming soon",
-      "updatingPr": "Updating PR…",
-      "saveAndUpdatePr": "Save and update PR",
-      "discardChanges": "Discard changes"
-    },
-    "detail": {
-      "metaTitle": "Content Detail",
-      "metaDescription": "View the details of a specific content item.",
-      "loadingArticle": "Loading article",
-      "backToCollection": "Back to collection",
-      "backToContent": "Back to Content",
-      "notFoundTitle": "Content not found",
-      "notFoundDescription": "This content may have been deleted or you don't have access to it.",
-      "yourOrganization": "Your Organization",
-      "recommendations": "Recommendations",
-      "plan": {
-        "missingTitle": "This content plan no longer exists",
-        "missingDescription": "Start a new plan from GEO to write this article.",
-        "conflictTitle": "This plan changed elsewhere",
-        "conflictDescription": "Your edits are preserved. Choose which version to keep.",
-        "loadLatest": "Load latest",
-        "saveMine": "Save my version",
-        "loadFailedTitle": "Could not load this content plan",
-        "loadFailedDescription": "Try again to continue reviewing or generating this content.",
-        "tryingAgain": "Trying again…"
-      },
-      "source": {
-        "trigger": "{type, select, cron {Schedule} github_webhook {GitHub Webhook} other {{fallback}}}",
-        "lookback": "{window, select, current_day {Current day} yesterday {Yesterday} last_7_days {Last 7 days} last_14_days {Last 14 days} last_30_days {Last 30 days} other {{fallback}}}"
-      },
-      "diff": {
-        "noChanges": "No changes to display",
-        "original": "Original"
-      }
-    },
-    "githubPublish": {
-      "trigger": "Create GitHub PR",
-      "saveBeforePublishing": "Save the {kind, select, changelog {changelog} other {blog post}} before publishing it",
-      "prCreated": "Draft pull request created",
-      "createFailed": "Failed to create draft pull request",
-      "createTitle": "Create a draft pull request",
-      "createDescription": "Notra creates a branch, adds the {kind, select, changelog {changelog} other {blog post}} as Markdown, and opens a draft pull request against the repository's default branch.",
-      "createdDescription": "Notra added the {kind, select, changelog {changelog} other {blog post}} and opened a draft pull request.",
-      "updatedDescription": "Notra updated the {kind, select, changelog {changelog} other {blog post}} in the existing pull request.",
-      "createDraftPr": "Create draft PR",
-      "creatingDraftPr": "Creating draft PR…",
-      "openIntegration": "Open GitHub integration",
-      "reviewOnGitHub": "Review on GitHub",
-      "openPullRequest": "Open pull request",
-      "pathAdded": "Added {path}",
-      "pathUpdated": "Updated {path}",
-      "createdAsDraft": "Created as draft",
-      "openPullRequestAria": "Open pull request #{number} on GitHub",
-      "loadFailed": "Unable to load GitHub repositories.",
-      "loadingRepositories": "Loading repositories…",
-      "selectRepository": "Select a repository",
-      "noConnected": "No enabled GitHub repositories are connected. Open the <link>GitHub integration</link> to connect or enable one.",
-      "publishingOff": "{kind, select, changelog {Changelog} other {Blog post}} publishing is off for this repository. Open the <link>GitHub integration</link> to enable it.",
-      "needsDefaultBranch": "These repositories need a default branch before they can publish to GitHub.",
-      "pausedNote": "Publishing was also paused after three failures. Resume it in the GitHub integration after fixing this.",
-      "recovery": {
-        "github_app_permissions_required": {
-          "title": "GitHub write access needed",
-          "description": "Notra needs write access to Contents and Pull requests. Review the installation on GitHub and accept any pending permission request. Reconnecting the repository does not grant write access."
-        },
-        "github_authentication_required": {
-          "title": "Review the GitHub App connection",
-          "description": "Review the GitHub App installation, then select and save this repository in the GitHub integration settings."
-        },
-        "github_repository_connection_required": {
-          "title": "Connect this repository to publish",
-          "description": "This repository has no saved credentials. Connect the GitHub App, then select and save this repository to publish."
-        },
-        "github_token_authentication_required": {
-          "title": "Update the GitHub token",
-          "description": "The saved personal access token was rejected. Update it in the GitHub integration settings, or connect this repository through the GitHub App."
-        },
-        "github_token_permissions_required": {
-          "title": "GitHub token permissions needed",
-          "description": "Allow the saved personal access token to write repository contents and pull requests, or connect this repository through the GitHub App."
-        },
-        "github_content_publishing_paused": {
-          "title": "GitHub publishing paused",
-          "description": "Publishing was paused after three failed attempts. Review the GitHub integration before resuming."
-        }
-      }
-    },
-    "postSocial": {
-      "postTo": "Post to {platform}",
-      "addedReference": "Added as reference to {name}",
-      "addReferenceFailed": "Failed to add reference",
-      "noBrandIdentity": "No brand identity to save this reference to. Create one on the Brand Identity page first.",
-      "overLimit": "This post is {count, plural, one {# character} other {# characters}} over the {limit, number} character limit for @{username}. Shorten it to post.",
-      "openOn": "Open on {platform}",
-      "postAs": "Post as @{username}",
-      "rejectsDuplicates": "{platform} rejects duplicate posts.",
-      "readDocs": "Read the {platform} docs",
-      "reconnectPrompt": "Have you tried reconnecting?",
-      "reconnectInSettings": "Reconnect in settings",
-      "addAsReference": "Add as reference"
-    },
-    "collections": {
-      "status": "{status, select, generating {Generating} published {Published} draft {Draft} other {Empty}}",
-      "source": "{source, select, manual {Manual} chat {Chat} schedule {Schedule} automation {Automation} api {API} backfill {Backfill} other {{source}}}",
-      "metaGeneratingProgress": "{source} · {ready} of {expected, plural, one {# post} other {# posts}} ready",
-      "metaGeneratingCount": "{source} · {count, plural, one {# post} other {# posts}} ready",
-      "metaPartiallyPublished": "{source} · {count, plural, one {# post} other {# posts}} · {published} published",
-      "metaSingle": "{source} · Single post",
-      "metaEmpty": "{source} · Empty collection",
-      "metaCount": "{source} · {count, plural, one {# post} other {# posts}}",
-      "formats": "{count} formats",
-      "emptyPage": "No content on this page",
-      "items": "items",
-      "actions": {
-        "open": "Open",
-        "openInNewTab": "Open in new tab",
-        "copyLink": "Copy link",
-        "linkCopied": "Link copied",
-        "deleteTitle": "Delete content?",
-        "deleteDescription": "This permanently deletes \"{title}\" and all {count, plural, one {# post} other {# posts}} in it. This can't be undone."
-      },
-      "detail": {
-        "metaTitle": "Collection",
-        "metaDescription": "View all posts in a content collection.",
-        "notFoundTitle": "Collection not found",
-        "notFoundDescription": "This collection may have been deleted or you don't have access to it.",
-        "emptyDescription": "This collection has no posts."
-      },
-      "renameDialog": {
-        "description": "Give this collection a name that is easy to recognize. It will not be overwritten by automatic naming.",
-        "renamed": "Collection renamed",
-        "renameFailed": "Failed to rename collection"
-      }
-    },
-    "list": {
-      "description": "Posts and collections in one place.",
-      "loadingDescription": "Every batch of generated content, organized into collections.",
-      "allContent": "All content",
-      "viewToggle": "Content view",
-      "viewGrid": "Grid",
-      "loadFailedTitle": "Couldn't load content",
-      "loadFailedDescription": "Try loading your content again.",
-      "emptyTitle": "No content yet",
-      "emptyDescription": "Start with New post to write from scratch, or Generate content to use your sources."
-    },
-    "toasts": {
-      "contentSaved": "Content saved",
-      "updatePostStatusFailed": "Failed to update post status",
-      "loadLatestPlanFailed": "Failed to load the latest plan",
-      "refreshPlanFailed": "Failed to refresh the plan",
-      "postDeleted": "Post deleted",
-      "collectionDeleted": "Content deleted",
-      "deleteCollectionFailed": "Failed to delete content",
-      "deletePostFailed": "Failed to delete post",
-      "loadContentFailed": "Failed to load content",
-      "loadRecentPostsFailed": "Failed to load recent posts",
-      "loadDashboardContentFailed": "Failed to load dashboard content",
-      "loadActiveGenerationsFailed": "Failed to load active generations",
-      "contentGenerationSkipped": "Content generation skipped",
-      "contentGenerationFailed": "Content generation failed",
-      "loadCollectionsFailed": "Failed to load collections",
-      "loadCollectionFailed": "Failed to load collection",
-      "refreshArticleFailed": "Couldn't refresh the article. Showing the cached content.",
-      "saveContentFailed": "Failed to save content",
-      "updatePullRequestFailed": "Couldn't update the linked pull request",
-      "titledContentGenerated": "\"{title}\" generated",
-      "contentGenerated": "Content generated",
-      "viewLogs": "View logs",
-      "postMovedToDrafts": "Post moved to drafts",
-      "imageExport": {
-        "copyLoading": "Copy is still loading. Try again in a moment.",
-        "imageNotReady": "Image is not ready yet",
-        "figmaCopied": "Copied for Figma. Paste it into your Figma file.",
-        "figmaCopyFailed": "Failed to copy for Figma",
-        "paperCopied": "Copied for Paper. Paste it into your Paper file.",
-        "paperCopyFailed": "Failed to copy for Paper",
-        "downloadFailed": "Failed to download image"
-      }
-    }
-  },
-  "charts": {
-    "download": {
-      "success": "Downloaded chart",
-      "failed": "Failed to download chart"
-    }
-  },
-  "commandPalette": {
-    "description": "Search pages, jump to tools or ask AI.",
-    "placeholder": "Search pages, settings, actions or ask AI…",
-    "forAi": "for AI",
-    "footer": {
-      "navigate": "Navigate"
-    },
-    "sections": {
-      "ai": "AI"
-    },
-    "entitySections": {
-      "brandVoices": "Brand voices"
-    },
-    "entities": {
-      "reference": "Reference"
-    },
-    "ai": {
-      "opening": "Opening…",
-      "openingChat": "Opening chat…",
-      "almostThere": "Hang tight, almost there.",
-      "figuringOut": "Figuring out where to take you for \"{query}\".",
-      "navigate": "Navigate with AI",
-      "askChat": "Ask AI chat",
-      "failed": "AI search failed. Try the chat fallback.",
-      "navigateQuery": "Navigate with AI: \"{query}\"",
-      "askChatAbout": "Ask AI chat about this"
-    },
-    "empty": {
-      "title": "No matches for \"{query}\"",
-      "description": "Let AI navigate for you or open a chat with your question."
-    }
-  },
-  "dashboard": {
-    "header": {
-      "feedbackDescription": "Share your thoughts with us."
-    },
-    "breadcrumbs": {
-      "geo": "Geo",
-      "segments": {
-        "collection": "Collections"
-      },
-      "geoSegments": {
-        "agent-readiness": "Agent readiness",
-        "directions": "Directions",
-        "gaps": "Gaps",
-        "shelf-space": "Shelf space"
-      }
-    },
-    "agent": {
-      "openLabel": "Open agent",
-      "closeLabel": "Close agent",
-      "placeholder": "Ask anything… (type / for skills)",
-      "sendFailed": "Failed to send message",
-      "stopFailed": "Couldn't stop the response. Try again.",
-      "historyLoadFailed": "Failed to load agent chat history. Try again.",
-      "description": "Chat with your dashboard agent.",
-      "loadingTitle": "Loading agent",
-      "loadingDescription": "Loading the dashboard agent."
-    },
-    "overlays": {
-      "commandPalette": "Command palette"
-    },
-    "brandSelector": {
-      "createIdentity": "Create identity"
-    },
-    "contentActivity": {
-      "loadFailed": "Failed to load content activity",
-      "drafts": "{count, plural, one {# draft} other {# drafts}}",
-      "published": "{count} published",
-      "yearSummary": "This year: <strong>{total}</strong> posts (<strong>{drafts}</strong> {draftCount, plural, one {draft} other {drafts}} / <strong>{published}</strong> published)",
-      "level": "Level {level}",
-      "empty": "No content activity data available",
-      "legendLess": "Less"
-    },
-    "chatTitle": {
-      "generating": "Generating title",
-      "emptyTitle": "Title can't be empty",
-      "pin": "Pin",
-      "unpin": "Unpin",
-      "deleteTitle": "Delete chat?",
-      "deleteDescriptionFallback": "This will permanently delete this chat. This can't be undone."
-    },
-    "chatHistory": {
-      "options": "Chat options",
-      "pinned": "Pinned",
-      "groups": {
-        "lastMonth": "Last month"
-      }
-    },
-    "feedback": {
-      "thanks": "Thanks for the feedback!",
-      "sendFailed": "Failed to send feedback",
-      "label": "Your feedback",
-      "placeholder": "Your feedback…",
-      "sentiments": {
-        "sad_crying": "Very unhappy",
-        "sad": "Unhappy",
-        "happy": "Happy",
-        "excited": "Excited"
-      }
-    },
-    "onboardingBanner": {
-      "running": "We are setting up your workspace",
-      "prompt": "We can set up your workspace for you",
-      "start": "Start setup",
-      "dialogTitle": "Let us set up your workspace",
-      "dialogDescription": "We visit your website, work out what your company does and set Notra up to match. It takes a few minutes.",
-      "pros": {
-        "brandColors": "Brand colors and voice pulled from your website",
-        "writingSkills": "Writing skills matched to your product and audience",
-        "references": "References and examples to guide future content"
-      },
-      "cons": {
-        "skillsOverwritten": "Skills you already edited may be overwritten",
-        "colorsReplaced": "Custom colors and references may be replaced"
-      },
-      "dismiss": "Dismiss workspace setup banner",
-      "startFailed": "Couldn't start the setup agent. Try again later."
-    },
-    "metaTitle": "Dashboard"
-  },
-  "home": {
-    "greeting": "{period, select, morning {Good morning} afternoon {Good afternoon} other {Good evening}}!",
-    "greetingWithName": "{period, select, morning {Good morning} afternoon {Good afternoon} other {Good evening}}, {name}!",
-    "todayTitle": "Today's content",
-    "todayDescription": "Latest items created today",
-    "activityDescription": "Your content creation over the year",
-    "emptyAction": "View content",
-    "emptyDescription": "You have no new posts today. Create one now or review your existing drafts on the content page.",
-    "emptyTitle": "No content created today",
-    "upgradeTitle": "Create with Studio",
-    "upgradeDescription": "Studio is included in paid plans. Upgrade to create content and use AI tools."
-  },
-  "ai": {
-    "subagent": {
-      "names": {
-        "codeResearcher": "Code research",
-        "contentWriter": "Content writer",
-        "imageDesigner": "Image designer",
-        "fallback": "Subagent"
-      },
-      "activity": {
-        "codeResearcher": "{state, select, running {Reading the repository} done {Read the repository} skipped {Skipped, no brief} notFound {Feature not found in the code} interrupted {Interrupted} other {Could not read the repository}}",
-        "contentWriter": "{state, select, running {Writing the post} done {Wrote the post} skipped {Skipped the post} notFound {Nothing to write about} interrupted {Interrupted} other {Could not write the post}}",
-        "imageDesigner": "{state, select, running {Designing the image} done {Designed the image} skipped {Skipped the image} notFound {Nothing to design} interrupted {Interrupted} other {Could not design the image}}",
-        "fallback": "{state, select, running {Working} done {Done} skipped {Skipped} notFound {Nothing found} interrupted {Interrupted} other {Failed}}"
-      },
-      "steps": "{count, plural, =0 {no steps} one {# step} other {# steps}}",
-      "result": {
-        "brief": "Brief: {feature}",
-        "draft": "{title, select, none {Saved draft} other {Saved draft: {title}}}",
-        "image": "{title, select, none {Saved image} other {Saved image: {title}}}",
-        "notFound": "{reason, select, none {Feature not found in the code} other {Not found: {reason}}}",
-        "skipped": "{reason, select, none {Skipped} other {Skipped: {reason}}}",
-        "failed": "{reason, select, none {Failed} other {Failed: {reason}}}"
-      }
-    },
-    "toolBlock": {
-      "tools": {
-        "code_mode": "{state, select, running {Executing tools} done {Executed tools} approve {Approve tools} other {Failed tools}}",
-        "searchNotraTools": "{state, select, running {Searching tools} done {Searched tools} approve {Approve tools} other {Failed tools}}",
-        "activateNotraTools": "{state, select, running {Loading tool} done {Loaded tool} approve {Approve tool} other {Failed tool}}",
-        "listActiveNotraTools": "{state, select, running {Checking active tools} done {Checked active tools} approve {Approve active tools} other {Failed active tools}}",
-        "deactivateNotraTools": "{state, select, running {Unloading tools} done {Unloaded tools} approve {Approve tools} other {Failed tools}}",
-        "searchMcpTools": "{state, select, running {Searching MCP tools} done {Searched MCP tools} approve {Approve MCP tools} other {Failed MCP tools}}",
-        "activateMcpTools": "{state, select, running {Loading MCP tool} done {Loaded MCP tool} approve {Approve MCP tool} other {Failed MCP tool}}",
-        "listActiveMcpTools": "{state, select, running {Checking active MCP tools} done {Checked active MCP tools} approve {Approve active MCP tools} other {Failed active MCP tools}}",
-        "deactivateMcpTools": "{state, select, running {Unloading MCP tools} done {Unloaded MCP tools} approve {Approve MCP tools} other {Failed MCP tools}}",
-        "getPullRequests": "{state, select, running {Fetching pull request} done {Fetched pull request} approve {Approve pull request} other {Failed pull request}}",
-        "getReleaseByTag": "{state, select, running {Fetching release} done {Fetched release} approve {Approve release} other {Failed release}}",
-        "getCommitsByTimeframe": "{state, select, running {Fetching commits} done {Fetched commits} approve {Approve commits} other {Failed commits}}",
-        "getLinearIssues": "{state, select, running {Fetching issues} done {Fetched issues} approve {Approve issues} other {Failed issues}}",
-        "getLinearProjects": "{state, select, running {Fetching projects} done {Fetched projects} approve {Approve projects} other {Failed projects}}",
-        "getLinearCycles": "{state, select, running {Fetching cycles} done {Fetched cycles} approve {Approve cycles} other {Failed cycles}}",
-        "viewPost": "{state, select, running {Viewing post} done {Viewed post} approve {Approve post} other {Failed post}}",
-        "updatePost": "{state, select, running {Updating post} done {Updated post} approve {Approve post} other {Failed post}}",
-        "getAvailablePosts": "{state, select, running {Loading posts} done {Loaded posts} approve {Approve posts} other {Failed posts}}",
-        "getPost": "{state, select, running {Loading post} done {Loaded post} approve {Approve post} other {Failed post}}",
-        "createImage": "{state, select, running {Generating image} done {Generated image} approve {Approve image} other {Failed image}}",
-        "createBlogPost": "{state, select, running {Drafting blog post} done {Drafted blog post} approve {Approve blog post} other {Failed blog post}}",
-        "createChangelog": "{state, select, running {Drafting changelog} done {Drafted changelog} approve {Approve changelog} other {Failed changelog}}",
-        "createTwitterPost": "{state, select, running {Drafting Twitter post} done {Drafted Twitter post} approve {Approve Twitter post} other {Failed Twitter post}}",
-        "createLinkedInPost": "{state, select, running {Drafting LinkedIn post} done {Drafted LinkedIn post} approve {Approve LinkedIn post} other {Failed LinkedIn post}}",
-        "createInvestorUpdate": "{state, select, running {Drafting investor update} done {Drafted investor update} approve {Approve investor update} other {Failed investor update}}",
-        "createSchedule": "{state, select, running {Creating schedule} done {Created schedule} approve {Approve schedule} other {Failed schedule}}",
-        "listSchedules": "{state, select, running {Listing schedules} done {Listed schedules} approve {Approve schedules} other {Failed schedules}}",
-        "reviseImage": "{state, select, running {Revising image} done {Revised image} approve {Approve image} other {Failed image}}",
-        "listBrandIdentities": "{state, select, running {Listing brand identities} done {Listed brand identities} approve {Approve brand identities} other {Failed brand identities}}",
-        "getBrandIdentity": "{state, select, running {Loading brand identity} done {Loaded brand identity} approve {Approve brand identity} other {Failed brand identity}}",
-        "searchBrandReferences": "{state, select, running {Searching brand references} done {Searched brand references} approve {Approve brand references} other {Failed brand references}}",
-        "getAvailableIntegrations": "{state, select, running {Checking integrations} done {Checked integrations} approve {Approve integrations} other {Failed integrations}}",
-        "listGeoProjects": "{state, select, running {Listing GEO projects} done {Listed GEO projects} approve {Approve GEO projects} other {Failed GEO projects}}",
-        "getGeoOverview": "{state, select, running {Loading GEO overview} done {Loaded GEO overview} approve {Approve GEO overview} other {Failed GEO overview}}",
-        "getGeoTimeseries": "{state, select, running {Loading GEO trends} done {Loaded GEO trends} approve {Approve GEO trends} other {Failed GEO trends}}",
-        "getGeoPromptResults": "{state, select, running {Loading GEO prompt results} done {Loaded GEO prompt results} approve {Approve GEO prompt results} other {Failed GEO prompt results}}",
-        "getGeoCompetitorShare": "{state, select, running {Loading GEO competitor share} done {Loaded GEO competitor share} approve {Approve GEO competitor share} other {Failed GEO competitor share}}",
-        "getGeoProjectContext": "{state, select, running {Loading GEO project context} done {Loaded GEO project context} approve {Approve GEO project context} other {Failed GEO project context}}",
-        "getSitemapPages": "{state, select, running {Listing sitemap pages} done {Listed sitemap pages} approve {Approve sitemap pages} other {Failed sitemap pages}}",
-        "fetchSitemapPage": "{state, select, running {Fetching sitemap page} done {Fetched sitemap page} approve {Approve sitemap page} other {Failed sitemap page}}",
-        "crawlSitemap": "{state, select, running {Crawling sitemap} done {Crawled sitemap} approve {Approve sitemap} other {Failed sitemap}}",
-        "getMarkdown": "{state, select, running {Reading document} done {Read document} approve {Approve document} other {Failed document}}",
-        "editMarkdown": "{state, select, running {Editing document} done {Edited document} approve {Approve document} other {Failed document}}",
-        "listAvailableSkills": "{state, select, running {Listing skills} done {Listed skills} approve {Approve skills} other {Failed skills}}",
-        "getSkillByName": "{state, select, running {Loading skill} done {Loaded skill} approve {Approve skill} other {Failed skill}}",
-        "fetchWebpage": "{state, select, running {Fetching webpage} done {Fetched webpage} approve {Approve webpage} other {Failed webpage}}",
-        "addMemory": "{state, select, running {Saving memory} done {Saved memory} approve {Approve memory} other {Failed memory}}",
-        "fetchMemory": "{state, select, running {Fetching memory} done {Fetched memory} approve {Approve memory} other {Failed memory}}",
-        "getProfile": "{state, select, running {Checking memory profile} done {Checked memory profile} approve {Approve memory profile} other {Failed memory profile}}",
-        "whoAmI": "{state, select, running {Checking memory account} done {Checked memory account} approve {Approve memory account} other {Failed memory account}}",
-        "documentList": "{state, select, running {Listing memory documents} done {Listed memory documents} approve {Approve memory documents} other {Failed memory documents}}",
-        "documentAdd": "{state, select, running {Saving memory document} done {Saved memory document} approve {Approve memory document} other {Failed memory document}}",
-        "documentDelete": "{state, select, running {Deleting memory document} done {Deleted memory document} approve {Approve memory document} other {Failed memory document}}",
-        "memoryForget": "{state, select, running {Forgetting memory} done {Forgot memory} approve {Approve memory} other {Failed memory}}",
-        "memory": "{state, select, running {Using memory} done {Used memory} approve {Approve memory} other {Failed memory}}",
-        "getBrandReferences": "{state, select, running {Loading brand references} done {Loaded brand references} approve {Approve brand references} other {Failed brand references}}",
-        "webSearch": "{state, select, running {Searching web} done {Searched web} approve {Approve web} other {Failed web}}",
-        "searchMemories": "{state, select, running {Searching memory} done {Searched memory} approve {Approve memory} other {Failed memory}}",
-        "codeResearcher": "{state, select, running {Researching the code} done {Researched the code} approve {Approve code research} other {Failed code research}}",
-        "contentWriter": "{state, select, running {Writing the post} done {Wrote the post} approve {Approve post writing} other {Failed post writing}}",
-        "openRepository": "{state, select, running {Opening repository} done {Opened repository} approve {Approve repository} other {Could not open repository}}",
-        "listRepositoryFiles": "{state, select, running {Listing files} done {Listed files} approve {Approve files} other {Failed files}}",
-        "searchRepository": "{state, select, running {Searching code} done {Searched code} approve {Approve code search} other {Failed code search}}",
-        "readRepositoryFile": "{state, select, running {Reading file} done {Read file} approve {Approve file} other {Failed file}}",
-        "repositoryHistory": "{state, select, running {Reading history} done {Read history} approve {Approve history} other {Failed history}}",
-        "showRepositoryChange": "{state, select, running {Inspecting change} done {Inspected change} approve {Approve change} other {Failed change}}",
-        "createPost": "{state, select, running {Saving draft} done {Saved draft} approve {Approve draft} other {Failed draft}}"
-      },
-      "withSuffix": "{label} {suffix}",
-      "memory": {
-        "view": "{state, select, running {Viewing memory} other {Viewed memory}}",
-        "create": "{state, select, running {Saving memory} other {Saved memory}}",
-        "delete": "{state, select, running {Deleting memory} other {Deleted memory}}",
-        "rename": "{state, select, running {Renaming memory} other {Renamed memory}}",
-        "update": "{state, select, running {Updating memory} other {Updated memory}}",
-        "use": "{state, select, running {Using memory} other {Used memory}}"
-      },
-      "suffix": {
-        "forQuery": "for {query}",
-        "forQueryWithCount": "for {query} ({count, plural, one {# result} other {# results}})",
-        "activeCount": "({count} active)",
-        "lastDays": "from the last {days, plural, one {# day} other {# days}}",
-        "count": {
-          "results": "({count, plural, one {# result} other {# results}})",
-          "tools": "({count, plural, one {# tool} other {# tools}})",
-          "projects": "({count, plural, one {# project} other {# projects}})",
-          "pages": "({count, plural, one {# page} other {# pages}})",
-          "urls": "({count, plural, one {# URL} other {# URLs}})"
-        }
-      },
-      "fallback": {
-        "approve": "Approve {name}",
-        "failed": "Failed to call {name}",
-        "mcpCall": "{state, select, running {Calling {name}} other {Called {name}}}",
-        "run": "{state, select, running {Running {name}} other {Ran {name}}}"
-      },
-      "imageGenerating": "Generating image, usually takes 3–8 minutes",
-      "imageRevising": "Revising image, usually takes 3–8 minutes",
-      "imageLongRunning": "{action, select, revise {Revising} other {Generating}} image. Still working, large repos can take longer",
-      "unableToDisplay": "Unable to display value",
-      "truncated": "… ({count, plural, one {# more character} other {# more characters}} truncated)",
-      "allow": "Allow",
-      "deny": "Deny",
-      "saveDraft": "Save draft",
-      "openInEditor": "Open in editor",
-      "changesIn": "Changes in {filename}",
-      "outputImageAlt": "Tool output image",
-      "chartEmptySeries": "No data points to plot.",
-      "interrupted": "Tool execution interrupted"
-    },
-    "activity": {
-      "steps": {
-        "writingResponse": "Writing response",
-        "waitingForApproval": "Waiting for approval",
-        "searchingWeb": "Searching web",
-        "executingTools": "Executing tools",
-        "runningTool": "Running tool"
-      },
-      "worked": "Worked",
-      "workedFor": "Worked for {duration}",
-      "searchStackRunning": "{count, plural, one {Searching web} other {Running # searches}}",
-      "searchStackDone": "{count, plural, one {Ran # search} other {Ran # searches}}",
-      "searchRowQuery": "{state, select, running {Searching web for {query}} other {Searched web for {query}}}",
-      "searchRow": "{state, select, running {Searching web} other {Searched web}}",
-      "moreSources": "+{count} more"
-    },
-    "preview": {
-      "savingDraft": "Saving draft…",
-      "savedAsDraft": "Saved as draft",
-      "saveDraftFailed": "Failed to save draft",
-      "generatingPostToast": "Generating post…",
-      "generatingPost": "Generating post",
-      "status": {
-        "draft": "draft",
-        "published": "published"
-      },
-      "regeneratePlaceholder": "What should change?",
-      "saveAsDraft": "Save as draft",
-      "saveDraftFailedRetry": "Failed to save draft. Try again.",
-      "saveDraftFailedInline": "Could not save the draft. Try again.",
-      "contentRegion": "{type} content",
-      "askForChanges": "Ask for changes"
-    }
-  },
-  "comments": {
-    "title": "Comments",
-    "loading": "Loading comments",
-    "loadFailed": "Could not load comments.",
-    "saveFailed": "Could not save comment",
-    "copyFailed": "Could not copy comment",
-    "edited": "edited",
-    "editComment": "Edit comment",
-    "addReaction": "Add reaction",
-    "reply": "Reply",
-    "replyToComment": "Reply to comment",
-    "commentActions": "Comment actions",
-    "copyText": "Copy text",
-    "reactionCount": "{label}, {count, plural, one {# reaction} other {# reactions}}",
-    "reactions": {
-      "heart": "Heart",
-      "fire": "Fire",
-      "thumbsUp": "Thumbs up",
-      "thumbsDown": "Thumbs down",
-      "eyes": "Eyes",
-      "crown": "Crown"
-    },
-    "showFewer": "Show fewer comments",
-    "viewMore": "{count, plural, one {View # more comment} other {View # more comments}}",
-    "replyingTo": "Replying to {name}",
-    "cancelReply": "Cancel reply",
-    "replyTo": "Reply to {name}",
-    "writeComment": "Write a comment",
-    "writeCommentPlaceholder": "Write a comment…",
-    "writeReplyPlaceholder": "Write a reply…",
-    "send": "Send comment",
-    "emptyTitle": "No comments yet",
-    "emptyDescription": "Share context or next steps with your team."
-  },
-  "composer": {
-    "preview": "Preview {label}",
-    "steerWith": "Steer with {label}"
-  },
-  "ui": {
-    "completed": "Completed",
-    "incomplete": "Incomplete",
-    "pagination": "Pagination",
-    "goToPreviousPage": "Go to previous page",
-    "goToNextPage": "Go to next page",
-    "morePages": "More pages",
-    "paginationRange": "{start}-{end} of {total}",
-    "toggleSidebar": "Toggle sidebar",
-    "sidebarTitle": "Sidebar",
-    "sidebarDescription": "Displays the mobile sidebar.",
-    "previousSlide": "Previous slide",
-    "nextSlide": "Next slide",
-    "scrollToEnd": "Scroll to end",
-    "scrollToStart": "Scroll to start",
-    "conversationTurns": "Conversation turns",
-    "previousTurn": "Previous turn",
-    "nextTurn": "Next turn",
-    "commandPaletteDescription": "Search for a command to run…",
-    "chooseOption": "Choose an option",
-    "catalog": "Catalog",
-    "previousBranch": "Previous branch",
-    "nextBranch": "Next branch",
-    "copyTableAsMarkdown": "Copy table as Markdown",
-    "downloadTable": "Download table",
-    "viewTableFullscreen": "View table fullscreen",
-    "tableFormatCsv": "CSV",
-    "tableFormatPlain": "Plain",
-    "removeAttachment": "Remove attachment",
-    "expandImage": "Expand image",
-    "minimizeImage": "Minimize image",
-    "breadcrumb": "Breadcrumb",
-    "logoStack": {
-      "additionalItems": "Additional items",
-      "showAdditionalItems": "{count, plural, one {Show # additional item} other {Show # additional items}}"
-    },
-    "colorPicker": {
-      "selection": "Color saturation and lightness",
-      "selectionValue": "Saturation {saturation}%, Lightness {lightness}%",
-      "hue": "Hue",
-      "opacity": "Opacity",
-      "eyeDropper": "Pick a color from the screen"
-    }
-  },
-  "demo": {
-    "start": {
-      "title": "Opening the demo…",
-      "description": "Just a moment.",
-      "errorTitle": "The demo workspace couldn't be created",
-      "errorDescription": "Please try again in a moment.",
-      "retry": "Try again"
-    },
-    "banner": {
-      "title": "Explore the Notra demo.",
-      "titleNamed": "Welcome to the Notra demo, {name}.",
-      "customize": "Customize",
-      "reset": "Reset",
-      "signup": "Create account",
-      "resetTitle": "Reset your demo workspace?",
-      "resetDescription": "Everything you changed is thrown away and the sample data is restored. Your demo ID, API key and customization stay the same.",
-      "cancel": "Cancel",
-      "resetConfirm": "Reset workspace",
-      "resetting": "Resetting…",
-      "resetFailed": "The workspace couldn't be reset. Please try again."
-    },
-    "playground": {
-      "title": "API playground",
-      "description": "Send real requests to the demo API and watch them change this workspace.",
-      "tabs": {
-        "console": "Console",
-        "requests": "Requests",
-        "missions": "Missions"
-      },
-      "toastStatus": "{status}",
-      "toastChanged": "{status} · {label}",
-      "view": "View",
-      "openFeed": "Details",
-      "demoId": "Demo ID {id}",
-      "idCopied": "Demo ID copied"
-    },
-    "console": {
-      "keyLabel": "Your demo API key",
-      "copy": "Copy",
-      "keyCopied": "API key copied",
-      "keyHint": "Works with curl, the Notra CLI and MCP against {url}. It expires with your workspace.",
-      "noKey": "No API key is available for this workspace.",
-      "preset": "Example",
-      "method": "Method",
-      "path": "Path",
-      "body": "Request body (JSON)",
-      "send": "Send request",
-      "sending": "Sending…",
-      "copyCurl": "Copy as curl",
-      "curlCopied": "curl command copied",
-      "seeFeed": "The request also shows up under Requests, and the dashboard updates live.",
-      "presets": {
-        "listPosts": "List recent posts",
-        "createPost": "Create a draft post",
-        "createPrompt": "Track a new GEO prompt",
-        "startScan": "Start a GEO scan",
-        "visibility": "Get AI visibility overview",
-        "traffic": "Get AI traffic overview",
-        "listSchedules": "List schedules",
-        "createSkill": "Create a skill"
-      }
-    },
-    "feed": {
-      "loading": "Loading…",
-      "emptyTitle": "No requests yet",
-      "emptyDescription": "Send a request from the console, use curl, or click around the dashboard. Everything shows up here.",
-      "sources": {
-        "api": "API",
-        "console": "Console",
-        "ui": "UI",
-        "webhook": "Webhook"
-      },
-      "sameViaApi": "Do the same via the API",
-      "copyCurl": "Copy curl",
-      "curlCopied": "curl command copied",
-      "request": "Request",
-      "response": "Response"
-    },
-    "missions": {
-      "progress": "{done} of {total} done",
-      "complete": "Done",
-      "open": "Not done yet",
-      "scan": {
-        "title": "Run a GEO scan",
-        "description": "Click Run scan on the GEO overview and watch new results come in."
-      },
-      "apiPrompt": {
-        "title": "Add a prompt through the API",
-        "description": "Send \"Track a new GEO prompt\" from the console. It appears under GEO › Prompts right away."
-      },
-      "agentPost": {
-        "title": "Write a post, then fetch it via API",
-        "description": "Ask the agent to write a post, then run \"List recent posts\"."
-      },
-      "schedule": {
-        "title": "Automate content",
-        "description": "Create a schedule under Automation or use Run now on one."
-      },
-      "externalClient": {
-        "title": "Call the API from your machine",
-        "description": "Copy a request as curl and run it in your terminal, or connect the CLI or MCP with your demo key."
-      },
-      "finishedTitle": "You've seen it all",
-      "finishedDescription": "Set Notra up for your own brand in a few minutes.",
-      "signup": "Start free",
-      "openConsole": "Open the console"
-    },
-    "customize": {
-      "title": "Customize the Notra demo",
-      "description": "Tell us who you are and the demo is rebuilt around your company: brand, AI visibility, content and team.",
-      "firstName": "First name",
-      "lastName": "Last name",
-      "companyName": "Company name",
-      "note": "Takes a few seconds. What you entered only lives in this demo workspace.",
-      "cancel": "Cancel",
-      "submit": "Customize demo",
-      "saving": "Rebuilding…",
-      "failed": "The demo couldn't be customized. Please try again."
-    },
-    "apiCallout": {
-      "title": "Try the API with your demo key",
-      "description": "Send requests from the playground and watch them change this workspace live. curl, the CLI and MCP work too.",
-      "open": "Open API playground"
     }
   }
 }

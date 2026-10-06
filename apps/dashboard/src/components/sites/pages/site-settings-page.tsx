@@ -1,16 +1,16 @@
 "use client";
 
 import { Folder01Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
 import { Input } from "@notra/ui/components/ui/input";
 import { Switch } from "@notra/ui/components/ui/switch";
 import { TitleCard } from "@notra/ui/components/ui/title-card";
 import { useMutation } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
-import { PageHeader } from "@/components/layout/page-header";
 import { useSite } from "@/components/sites/site-context";
 import {
   SiteChoiceGroup,
@@ -106,7 +106,7 @@ function SiteSettingsForm({
 
   return (
     <div className="space-y-6">
-      <PageHeader description={tPage("description")} title={tPage("title")} />
+      <PageHeading description={tPage("description")} title={tPage("title")} />
       <form
         className="space-y-6"
         onSubmit={(event) => {

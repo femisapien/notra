@@ -3,7 +3,7 @@ import { db } from "@notra/db/drizzle";
 import { projects, sites } from "@notra/db/schema";
 import {
   GEO_INGEST_IDENTITY_ACTIVE_TTL_SECONDS,
-  GEO_INGEST_IDENTITY_INACTIVE_TTL_SECONDS,
+  GEO_INGEST_SITE_INACTIVE_TTL_SECONDS,
   GEO_INGEST_ORGANIZATION_SITES_CACHE_PREFIX,
   GEO_INGEST_SITE_CACHE_PREFIX,
   GEO_INGEST_SITE_MEMORY_MAX_ENTRIES,
@@ -53,7 +53,7 @@ async function cached<T>(
         {
           ex:
             value === null
-              ? GEO_INGEST_IDENTITY_INACTIVE_TTL_SECONDS
+              ? GEO_INGEST_SITE_INACTIVE_TTL_SECONDS
               : GEO_INGEST_IDENTITY_ACTIVE_TTL_SECONDS,
         }
       )

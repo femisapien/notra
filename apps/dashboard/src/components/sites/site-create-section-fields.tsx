@@ -2,7 +2,7 @@
 
 import { Field, FieldError, FieldLabel } from "@notra/ui/components/ui/field";
 import { Input } from "@notra/ui/components/ui/input";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import {
   SITE_DEFAULT_BLOG_PATH,

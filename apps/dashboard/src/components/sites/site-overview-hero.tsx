@@ -9,10 +9,10 @@ import {
   Link04Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { InstrumentModule } from "@notra/ui/components/instrument/instrument-module";
+import { useTranslations } from "use-intl";
 
-import { InstrumentModule } from "@/components/instrument/instrument-module";
+import Link from "@/components/framework/link";
 import { useSite } from "@/components/sites/site-context";
 import { SiteOverviewDomains } from "@/components/sites/site-overview-domains";
 import { SiteOverviewExternalLink } from "@/components/sites/site-overview-external-link";

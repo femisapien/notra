@@ -2,7 +2,7 @@
 
 import { Label } from "@notra/ui/components/ui/label";
 import { Switch } from "@notra/ui/components/ui/switch";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { useSite } from "@/components/sites/site-context";
 import type { SitePreviewBuildToggleProps } from "@/types/components/site-preview-access";

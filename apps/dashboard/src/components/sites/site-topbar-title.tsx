@@ -5,9 +5,9 @@ import {
   BreadcrumbPage,
 } from "@notra/ui/components/ui/breadcrumb";
 import { useQuery } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { useTranslations } from "use-intl";
 
+import Link from "@/components/framework/link";
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
 import { useSiteDetail } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";

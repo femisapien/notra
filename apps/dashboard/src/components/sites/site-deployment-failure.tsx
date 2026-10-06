@@ -5,7 +5,7 @@ import {
   InformationCircleIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { cn } from "@/lib/utils";
 import type { SiteDeploymentRecordProps } from "@/types/components/sites";

@@ -7,8 +7,8 @@ import {
   GitPullRequestIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { useLocale, useTranslations } from "use-intl";
 
 import { SiteEnvironmentBadge } from "@/components/sites/site-environment-badge";
 import { SitePreviewFrame } from "@/components/sites/site-preview-frame";
