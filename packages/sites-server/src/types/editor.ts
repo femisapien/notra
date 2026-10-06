@@ -1,7 +1,5 @@
 import type { siteDrafts } from "@notra/db/schema";
 
-import type { SiteRepository } from "./github";
-
 export type SiteDraft = typeof siteDrafts.$inferSelect;
 
 export type SiteDraftPublishMode = "direct" | "pull_request";
@@ -23,9 +21,19 @@ export interface SiteSourceFileContent {
   sha: string;
 }
 
-export interface SiteRepositoryReadAccess {
-  repository: SiteRepository;
-  token: string;
+/** A file by its path from the repository root, at `ref`. */
+export interface RepositoryFileRef {
+  path: string;
+  ref: string;
+}
+
+export interface RepositoryBranchInput {
+  name: string;
+  sha: string;
+}
+
+export interface CreateCommitOnBranchResponse {
+  createCommitOnBranch: { commit: { oid: string } };
 }
 
 export interface SaveSiteDraftInput {

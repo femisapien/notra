@@ -2,12 +2,14 @@ import {
   DeleteObjectsCommand,
   GetObjectCommand,
   ListObjectsV2Command,
+  type ListObjectsV2CommandOutput,
   PutObjectCommand,
   S3Client,
   S3ServiceException,
 } from "@aws-sdk/client-s3";
 
 import { getSitesR2Env } from "./env";
+import { R2PreconditionFailedError } from "./errors";
 import type { R2PutOptions, R2TextObject } from "./types/r2";
 
 let client: S3Client | undefined;
@@ -38,8 +40,25 @@ function statusOf(error: unknown): number | undefined {
     : undefined;
 }
 
-export class R2PreconditionFailedError extends Error {
-  readonly name = "R2PreconditionFailedError";
+async function* listPages(
+  prefix: string,
+  delimiter?: string
+): AsyncGenerator<ListObjectsV2CommandOutput> {
+  let continuationToken: string | undefined;
+  do {
+    const page = await getClient().send(
+      new ListObjectsV2Command({
+        Bucket: bucket(),
+        Prefix: prefix,
+        Delimiter: delimiter,
+        ContinuationToken: continuationToken,
+      })
+    );
+    yield page;
+    continuationToken = page.IsTruncated
+      ? page.NextContinuationToken
+      : undefined;
+  } while (continuationToken);
 }
 
 export async function r2GetText(key: string): Promise<R2TextObject | null> {
@@ -52,24 +71,7 @@ export async function r2GetText(key: string): Promise<R2TextObject | null> {
   } catch (error) {
     if (
       statusOf(error) === 404 ||
-      (error as { name?: string }).name === "NoSuchKey"
-    ) {
-      return null;
-    }
-    throw error;
-  }
-}
-
-export async function r2GetBytes(key: string): Promise<Uint8Array | null> {
-  try {
-    const result = await getClient().send(
-      new GetObjectCommand({ Bucket: bucket(), Key: key })
-    );
-    return (await result.Body?.transformToByteArray()) ?? new Uint8Array();
-  } catch (error) {
-    if (
-      statusOf(error) === 404 ||
-      (error as { name?: string }).name === "NoSuchKey"
+      (error instanceof Error && error.name === "NoSuchKey")
     ) {
       return null;
     }
@@ -103,65 +105,41 @@ export async function r2Put(
   }
 }
 
-export async function r2DeletePrefix(prefix: string): Promise<number> {
-  let deleted = 0;
-  let continuationToken: string | undefined;
-  do {
-    const page = await getClient().send(
-      new ListObjectsV2Command({
-        Bucket: bucket(),
-        Prefix: prefix,
-        ContinuationToken: continuationToken,
-      })
-    );
-    const keys = (page.Contents ?? []).flatMap((object) =>
-      object.Key ? [{ Key: object.Key }] : []
-    );
-    if (keys.length > 0) {
-      await getClient().send(
-        new DeleteObjectsCommand({
-          Bucket: bucket(),
-          Delete: { Objects: keys, Quiet: true },
-        })
-      );
-      deleted += keys.length;
-    }
-    continuationToken = page.IsTruncated
-      ? page.NextContinuationToken
-      : undefined;
-  } while (continuationToken);
-  return deleted;
-}
-
-export async function r2DeleteKey(key: string): Promise<void> {
+async function deleteKeys(keys: string[]): Promise<void> {
   await getClient().send(
     new DeleteObjectsCommand({
       Bucket: bucket(),
-      Delete: { Objects: [{ Key: key }], Quiet: true },
+      Delete: { Objects: keys.map((key) => ({ Key: key })), Quiet: true },
     })
   );
 }
 
+export async function r2DeletePrefix(prefix: string): Promise<number> {
+  let deleted = 0;
+  for await (const page of listPages(prefix)) {
+    const keys = (page.Contents ?? []).flatMap((object) =>
+      object.Key ? [object.Key] : []
+    );
+    if (keys.length > 0) {
+      await deleteKeys(keys);
+      deleted += keys.length;
+    }
+  }
+  return deleted;
+}
+
+export async function r2DeleteKey(key: string): Promise<void> {
+  await deleteKeys([key]);
+}
+
 export async function r2ListPrefixes(prefix: string): Promise<string[]> {
   const prefixes: string[] = [];
-  let continuationToken: string | undefined;
-  do {
-    const page = await getClient().send(
-      new ListObjectsV2Command({
-        Bucket: bucket(),
-        Prefix: prefix,
-        Delimiter: "/",
-        ContinuationToken: continuationToken,
-      })
-    );
+  for await (const page of listPages(prefix, "/")) {
     for (const entry of page.CommonPrefixes ?? []) {
       if (entry.Prefix) {
         prefixes.push(entry.Prefix);
       }
     }
-    continuationToken = page.IsTruncated
-      ? page.NextContinuationToken
-      : undefined;
-  } while (continuationToken);
+  }
   return prefixes;
 }

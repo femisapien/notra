@@ -8,8 +8,10 @@ import {
 import { hashBuildTarget } from "@notra/sites-core/utils/build-target";
 import { and, desc, eq, gt, inArray, notInArray, or, sql } from "drizzle-orm";
 
+import { SiteNotBuildableError } from "./errors";
 import type {
   DeploymentExecutor,
+  DeploymentTransitionValues,
   EnqueueDeploymentInput,
   EnqueuedDeployment,
   SiteDeployment,
@@ -17,10 +19,7 @@ import type {
 } from "./types/deployments";
 import type { Site } from "./types/sites";
 import { buildTargetForDeployment } from "./urls";
-
-export class SiteNotBuildableError extends Error {
-  readonly name = "SiteNotBuildableError";
-}
+import { prefixedId } from "./utils/ids";
 
 /**
  * Next generation for a site. Deployments, rollbacks and preview removals all
@@ -51,7 +50,7 @@ export async function allocateGeneration(
 export async function transitionDeployment(
   id: string,
   to: SiteDeploymentStatus,
-  values: Partial<Omit<typeof siteDeployments.$inferInsert, "status">> = {}
+  values: DeploymentTransitionValues = {}
 ): Promise<boolean> {
   const updated = await db
     .update(siteDeployments)
@@ -122,7 +121,7 @@ export async function enqueueSiteDeployment(
     const [deployment] = await tx
       .insert(siteDeployments)
       .values({
-        id: `dep_${crypto.randomUUID().replaceAll("-", "")}`,
+        id: prefixedId("dep"),
         siteId: site.id,
         organizationId: site.organizationId,
         kind: input.kind,
@@ -143,7 +142,7 @@ export async function enqueueSiteDeployment(
     if (!deployment) {
       throw new Error("Could not create deployment");
     }
-    const jobId = `job_${crypto.randomUUID().replaceAll("-", "")}`;
+    const jobId = prefixedId("job");
     await tx.insert(siteJobs).values({
       id: jobId,
       siteId: site.id,
@@ -160,7 +159,7 @@ export async function enqueuePreviewRemoval(
   siteId: string,
   previewKey: string
 ): Promise<string> {
-  const jobId = `job_${crypto.randomUUID().replaceAll("-", "")}`;
+  const jobId = prefixedId("job");
   await db.insert(siteJobs).values({
     id: jobId,
     siteId,
@@ -168,6 +167,25 @@ export async function enqueuePreviewRemoval(
     payload: { previewKey },
   });
   return jobId;
+}
+
+/** Builds a previous deployment's commit again, for the same slot, with the site's current settings. */
+export function redeploymentInput(
+  previous: SiteDeployment,
+  requestedByUserId: string | null
+): EnqueueDeploymentInput {
+  return {
+    siteId: previous.siteId,
+    kind: previous.kind,
+    previewKey: previous.previewKey,
+    trigger: "redeploy",
+    branch: previous.branch,
+    commitSha: previous.commitSha,
+    commitMessage: previous.commitMessage,
+    commitAuthor: previous.commitAuthor,
+    pullRequestNumber: previous.pullRequestNumber,
+    requestedByUserId,
+  };
 }
 
 /**
@@ -178,7 +196,7 @@ export async function enqueuePreviewRemoval(
  */
 export async function hasNewerDeployment(
   deployment: SiteDeployment,
-  branchHead: string | null = null
+  branchHead: string | null
 ): Promise<boolean> {
   const slot =
     deployment.kind === "production"

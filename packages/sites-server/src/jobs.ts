@@ -1,15 +1,28 @@
 import { db } from "@notra/db/drizzle";
 import { siteJobs } from "@notra/db/schema";
 import { SITE_BUILD_LIMITS } from "@notra/sites-core/constants/sites";
-import { and, asc, eq, gt, isNull, lt, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  lt,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import {
   CAPACITY_RETRY_MS,
   DEFAULT_LEASE_MS,
+  DISPATCH_BATCH_SIZE,
   REDISPATCH_AFTER_MS,
   RETRY_BASE_MS,
 } from "./constants/jobs";
-import type { FailSiteJobOptions, SiteJob } from "./types/jobs";
+import type { SiteJob } from "./types/jobs";
+import { errorMessage } from "./utils/errors";
 
 /**
  * Builds wait (instead of failing) when the global or per-site sandbox budget
@@ -51,16 +64,13 @@ export async function reserveBuildCapacity(
  * Claims a job for one worker. A running job whose lease expired (crashed
  * function, lost workflow step) can be claimed again; attempts are capped.
  */
-export async function claimSiteJob(
-  jobId: string,
-  leaseMs = DEFAULT_LEASE_MS
-): Promise<SiteJob | null> {
+export async function claimSiteJob(jobId: string): Promise<SiteJob | null> {
   const [job] = await db
     .update(siteJobs)
     .set({
       status: "running",
       attempts: sql`${siteJobs.attempts} + 1`,
-      leaseUntil: sql`now() + (${leaseMs} * interval '1 millisecond')`,
+      leaseUntil: sql`now() + (${DEFAULT_LEASE_MS} * interval '1 millisecond')`,
     })
     .where(
       and(
@@ -93,18 +103,16 @@ export async function completeSiteJob(jobId: string): Promise<void> {
 export async function failSiteJob(
   job: SiteJob,
   error: unknown,
-  options: FailSiteJobOptions = {}
+  permanent: boolean
 ): Promise<"retrying" | "failed"> {
-  const message = error instanceof Error ? error.message : String(error);
-  const exhausted =
-    options.permanent === true || job.attempts >= job.maxAttempts;
+  const exhausted = permanent || job.attempts >= job.maxAttempts;
   await db
     .update(siteJobs)
     .set({
       status: exhausted ? "failed" : "pending",
       leaseUntil: null,
       dispatchedAt: null,
-      lastError: message.slice(0, 2000),
+      lastError: errorMessage(error).slice(0, 2000),
       availableAt: new Date(
         Date.now() + RETRY_BASE_MS * 2 ** Math.max(0, job.attempts - 1)
       ),
@@ -137,16 +145,17 @@ export async function takeExhaustedSiteJobs(): Promise<SiteJob[]> {
 }
 
 export async function markSiteJobsDispatched(jobIds: string[]): Promise<void> {
-  for (const id of jobIds) {
-    await db
-      .update(siteJobs)
-      .set({ dispatchedAt: new Date() })
-      .where(eq(siteJobs.id, id));
+  if (jobIds.length === 0) {
+    return;
   }
+  await db
+    .update(siteJobs)
+    .set({ dispatchedAt: new Date() })
+    .where(inArray(siteJobs.id, jobIds));
 }
 
 /** Jobs the sweep should (re)dispatch: due and never dispatched, dispatched but unclaimed, or with an expired lease. */
-export async function listDispatchableSiteJobs(limit = 25): Promise<SiteJob[]> {
+export async function listDispatchableSiteJobs(): Promise<SiteJob[]> {
   const staleDispatch = new Date(Date.now() - REDISPATCH_AFTER_MS);
   return await db
     .select()
@@ -171,5 +180,5 @@ export async function listDispatchableSiteJobs(limit = 25): Promise<SiteJob[]> {
       )
     )
     .orderBy(asc(siteJobs.availableAt))
-    .limit(limit);
+    .limit(DISPATCH_BATCH_SIZE);
 }

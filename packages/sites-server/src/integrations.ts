@@ -7,12 +7,13 @@ import {
   readSiteSourceFile,
   saveSiteDraft,
 } from "./editor";
-import { SiteInputError } from "./sites";
+import { SiteInputError } from "./errors";
 import type {
   SaveSiteIntegrationsInput,
   SiteIntegrationsState,
 } from "./types/integrations";
 import type { Site } from "./types/sites";
+import { isRecord, safeJson } from "./utils/json";
 
 /**
  * Integrations live in the repository's notra.json like every other setting.
@@ -31,38 +32,27 @@ async function currentConfig(site: Site) {
   return { file, draft, content };
 }
 
-function parseConfig(content: string | undefined): Record<string, unknown> {
+/** The config as an object; `{}` for an empty file, null when it is not a JSON object. */
+function parseConfig(
+  content: string | undefined
+): Record<string, unknown> | null {
   if (!content?.trim()) {
     return {};
   }
-  try {
-    const parsed: unknown = JSON.parse(content);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>;
-    }
-  } catch {
-    // Handled below: the tab can't safely rewrite a file it can't read.
-  }
-  throw new SiteInputError(
-    `${SITE_CONFIG_FILENAME} isn't valid JSON. Fix it in the editor first.`
-  );
+  const parsed = safeJson(content);
+  return isRecord(parsed) ? parsed : null;
 }
 
 export async function readSiteIntegrations(
   site: Site
 ): Promise<SiteIntegrationsState> {
   const { content, draft } = await currentConfig(site);
-  let integrations: Record<string, unknown> = {};
-  let invalid = false;
-  try {
-    const value = parseConfig(content).integrations;
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      integrations = value as Record<string, unknown>;
-    }
-  } catch {
-    invalid = true;
-  }
-  return { integrations, hasDraft: Boolean(draft), invalid };
+  const config = parseConfig(content);
+  return {
+    integrations: isRecord(config?.integrations) ? config.integrations : {},
+    hasDraft: Boolean(draft),
+    invalid: config === null,
+  };
 }
 
 /**
@@ -76,12 +66,15 @@ export async function saveSiteIntegration(
 ): Promise<SiteIntegrationsState> {
   const { file, draft, content } = await currentConfig(site);
   const config = parseConfig(content);
-  const current =
-    config.integrations &&
-    typeof config.integrations === "object" &&
-    !Array.isArray(config.integrations)
-      ? { ...(config.integrations as Record<string, unknown>) }
-      : {};
+  if (!config) {
+    // The tab can't safely rewrite a file it can't read.
+    throw new SiteInputError(
+      `${SITE_CONFIG_FILENAME} isn't valid JSON. Fix it in the editor first.`
+    );
+  }
+  const current = isRecord(config.integrations)
+    ? { ...config.integrations }
+    : {};
   if (input.settings) {
     current[input.provider] = input.settings;
   } else {

@@ -16,26 +16,46 @@ import {
   findCustomHostname,
   getCustomHostname,
 } from "./cloudflare-saas";
-import { PROBE_TIMEOUT_MS } from "./constants/domains";
-import { getSitesHostingDomain } from "./env";
-import { setSitePublicOrigin, SiteInputError } from "./sites";
+import {
+  CLOUDFLARE_SAAS_MISSING_MESSAGE,
+  DOMAIN_INPUT_PATH,
+  DOMAIN_INPUT_SCHEME,
+  IP_LITERAL,
+  PROBE_TIMEOUT_MS,
+  PROBE_USER_AGENT,
+} from "./constants/domains";
+import { getSitesHostingDomain, siteCnameTarget } from "./env";
+import { SiteInputError } from "./errors";
+import { setSitePublicOrigin } from "./sites";
 import { claimHostRecord, releaseHostRecord } from "./state";
-import type { CloudflareCustomHostname } from "./types/cloudflare-saas";
+import type {
+  CloudflareCustomHostname,
+  CloudflareSaasConfig,
+} from "./types/cloudflare-saas";
 import type {
   AddSiteDomainInput,
-  ProxyProbeResult,
+  DomainCheck,
   RefreshSiteDomainResult,
   SiteDomain,
 } from "./types/domains";
 import type { Site } from "./types/sites";
+import { errorMessage } from "./utils/errors";
+import { prefixedId } from "./utils/ids";
 
-const IP_LITERAL = /^(?:\d{1,3}\.){3}\d{1,3}$|^\[?[0-9a-f:]+\]?$/i;
-
-/** CNAME target customers point their subdomain at. */
-export function siteCnameTarget(): string {
-  return (
-    process.env.SITES_CNAME_TARGET?.trim() || `cname.${getSitesHostingDomain()}`
-  );
+/** A domain of this site, or a SiteInputError when it does not exist. */
+export async function requireSiteDomain(
+  siteId: string,
+  domainId: string
+): Promise<SiteDomain> {
+  const [domain] = await db
+    .select()
+    .from(siteDomains)
+    .where(and(eq(siteDomains.id, domainId), eq(siteDomains.siteId, siteId)))
+    .limit(1);
+  if (!domain) {
+    throw new SiteInputError("Domain not found");
+  }
+  return domain;
 }
 
 function recordsFor(
@@ -80,11 +100,41 @@ function assertPublicHostname(hostname: string) {
   ) {
     throw new SiteInputError("Use a public domain name");
   }
-  if (
-    hostname === getSitesHostingDomain() ||
-    hostname.endsWith(`.${getSitesHostingDomain()}`)
-  ) {
+  const hostingDomain = getSitesHostingDomain();
+  if (hostname === hostingDomain || hostname.endsWith(`.${hostingDomain}`)) {
     throw new SiteInputError("That address is already provided by Notra");
+  }
+}
+
+/**
+ * Cloudflare holds one entry per hostname. An abandoned, unverified claim from
+ * another site may still own it; replace it, since only DNS control decides who verifies.
+ */
+async function claimCustomHostname(
+  config: CloudflareSaasConfig,
+  hostname: string
+): Promise<CloudflareCustomHostname> {
+  try {
+    return await createCustomHostname(config, hostname);
+  } catch (error) {
+    const stale = await findCustomHostname(config, hostname);
+    if (!stale) {
+      throw error;
+    }
+    await deleteCustomHostname(config, stale.id);
+    await db
+      .update(siteDomains)
+      .set({
+        cloudflareHostnameId: null,
+        lastError: "Another site claimed this domain. Add it again to retry.",
+      })
+      .where(
+        and(
+          eq(siteDomains.hostname, hostname),
+          eq(siteDomains.cloudflareHostnameId, stale.id)
+        )
+      );
+    return await createCustomHostname(config, hostname);
   }
 }
 
@@ -96,11 +146,12 @@ export async function addSiteDomain(
   site: Site,
   input: AddSiteDomainInput
 ): Promise<SiteDomain> {
-  const raw = input.value
-    .trim()
-    .replace(/^https?:\/\//, "")
-    .replace(/\/.*$/, "");
-  const hostname = normalizeHostname(raw);
+  const hostname = normalizeHostname(
+    input.value
+      .trim()
+      .replace(DOMAIN_INPUT_SCHEME, "")
+      .replace(DOMAIN_INPUT_PATH, "")
+  );
   if (!hostname) {
     throw new SiteInputError("Enter a domain like blog.acme.com");
   }
@@ -119,50 +170,22 @@ export async function addSiteDomain(
     );
   }
 
-  let custom: CloudflareCustomHostname | null = null;
-  const config = input.kind === "subdomain" ? cloudflareSaasConfig() : null;
-  if (config) {
-    try {
-      custom = await createCustomHostname(config, hostname);
-    } catch (error) {
-      // Cloudflare holds one entry per hostname. An abandoned, unverified claim from another
-      // site may still own it; replace it, since only DNS control decides who verifies.
-      const stale = await findCustomHostname(config, hostname);
-      if (!stale) {
-        throw error;
-      }
-      await deleteCustomHostname(config, stale.id);
-      await db
-        .update(siteDomains)
-        .set({
-          cloudflareHostnameId: null,
-          lastError: "Another site claimed this domain. Add it again to retry.",
-        })
-        .where(
-          and(
-            eq(siteDomains.hostname, hostname),
-            eq(siteDomains.cloudflareHostnameId, stale.id)
-          )
-        );
-      custom = await createCustomHostname(config, hostname);
-    }
-  }
+  const isSubdomain = input.kind === "subdomain";
+  const config = isSubdomain ? cloudflareSaasConfig() : null;
+  const custom = config ? await claimCustomHostname(config, hostname) : null;
   const [domain] = await db
     .insert(siteDomains)
     .values({
-      id: `dom_${crypto.randomUUID().replaceAll("-", "")}`,
+      id: prefixedId("dom"),
       siteId: site.id,
       organizationId: site.organizationId,
       hostname,
       kind: input.kind,
       status: "pending",
       cloudflareHostnameId: custom?.id ?? null,
-      verificationRecords:
-        input.kind === "subdomain" ? recordsFor(hostname, custom) : [],
+      verificationRecords: isSubdomain ? recordsFor(hostname, custom) : [],
       lastError:
-        input.kind === "subdomain" && !config
-          ? "Custom subdomains need Cloudflare for SaaS (CLOUDFLARE_SAAS_ZONE_ID) on this environment."
-          : null,
+        isSubdomain && !config ? CLOUDFLARE_SAAS_MISSING_MESSAGE : null,
     })
     .returning();
   if (!domain) {
@@ -175,53 +198,95 @@ async function fetchWithTimeout(url: string): Promise<Response> {
   return await fetch(url, {
     redirect: "manual",
     signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-    headers: { "User-Agent": "NotraSitesVerifier/1.0" },
+    headers: { "User-Agent": PROBE_USER_AGENT },
   });
 }
 
 /**
  * Checks that the customer's proxy forwards every mount to this site:
  * the probe file must name this site, and the landing page must be served
- * without a noindex header leaking through.
+ * without a noindex header leaking through. Returns the problem, or null.
  */
-export async function probeProxyOrigin(
+async function probeProxyOrigin(
   site: Site,
   origin: string
-): Promise<ProxyProbeResult> {
+): Promise<string | null> {
   for (const { area, mount } of listMountedAreas(site.mounts)) {
     const probeUrl = `${origin}${joinMountPath(mount, "_notra/probe.txt")}`;
     try {
       const probe = await fetchWithTimeout(probeUrl);
       const body = probe.ok ? await probe.text() : "";
       if (!body.includes(`notra-site=${site.id}`)) {
-        return {
-          ok: false,
-          error: `${probeUrl} did not return this site (HTTP ${probe.status}). Check the ${area} rewrite.`,
-        };
+        return `${probeUrl} did not return this site (HTTP ${probe.status}). Check the ${area} rewrite.`;
       }
-      const page = await fetchWithTimeout(
-        `${origin}${mount === "/" ? "/" : mount}`
-      );
+      const page = await fetchWithTimeout(`${origin}${mount}`);
       if (page.status >= 300 && page.status < 400) {
-        return {
-          ok: false,
-          error: `${origin}${mount} redirects to ${page.headers.get("location")}; proxy it instead of redirecting.`,
-        };
+        return `${origin}${mount} redirects to ${page.headers.get("location")}; proxy it instead of redirecting.`;
       }
       if (/noindex/i.test(page.headers.get("x-robots-tag") ?? "")) {
-        return {
-          ok: false,
-          error: `${origin}${mount} is served with X-Robots-Tag: noindex.`,
-        };
+        return `${origin}${mount} is served with X-Robots-Tag: noindex.`;
       }
     } catch (error) {
-      return {
-        ok: false,
-        error: `Could not reach ${probeUrl}: ${(error as Error).message}`,
-      };
+      return `Could not reach ${probeUrl}: ${errorMessage(error)}`;
     }
   }
-  return { ok: true };
+  return null;
+}
+
+async function checkProxyDomain(
+  site: Site,
+  domain: SiteDomain,
+  origin: string
+): Promise<DomainCheck> {
+  const problem = await probeProxyOrigin(site, origin);
+  return {
+    verified: problem === null,
+    lastError: problem,
+    records: domain.verificationRecords,
+  };
+}
+
+/** Verified once Cloudflare has the hostname and its certificate active; then the host is claimed. */
+async function checkSubdomain(
+  site: Site,
+  domain: SiteDomain
+): Promise<DomainCheck> {
+  const config = cloudflareSaasConfig();
+  if (!(config && domain.cloudflareHostnameId)) {
+    return {
+      verified: false,
+      lastError: CLOUDFLARE_SAAS_MISSING_MESSAGE,
+      records: domain.verificationRecords,
+    };
+  }
+  const custom = await getCustomHostname(config, domain.cloudflareHostnameId);
+  const records = recordsFor(domain.hostname, custom);
+  if (custom.status === "active" && custom.ssl?.status === "active") {
+    await claimHostRecord(domain.hostname, { siteId: site.id, kind: "custom" });
+    return { verified: true, lastError: null, records };
+  }
+  const errors = [
+    ...(custom.verification_errors ?? []),
+    ...(custom.ssl?.validation_errors?.map((error) => error.message) ?? []),
+  ];
+  return {
+    verified: false,
+    lastError:
+      errors.join("; ") ||
+      `Waiting for DNS and certificate (status ${custom.status}, certificate ${custom.ssl?.status ?? "pending"})`,
+    records,
+  };
+}
+
+/** A domain that was live and stopped verifying is "failed"; one that never verified is still "verifying". */
+function nextDomainStatus(
+  previous: SiteDomain["status"],
+  verified: boolean
+): SiteDomain["status"] {
+  if (verified) {
+    return "active";
+  }
+  return previous === "active" ? "failed" : "verifying";
 }
 
 /** Re-checks a domain; on success it becomes the site's canonical origin and the site is rebuilt for it. */
@@ -230,58 +295,13 @@ export async function refreshSiteDomain(
   domainId: string,
   userId: string | null
 ): Promise<RefreshSiteDomainResult> {
-  const [domain] = await db
-    .select()
-    .from(siteDomains)
-    .where(and(eq(siteDomains.id, domainId), eq(siteDomains.siteId, site.id)))
-    .limit(1);
-  if (!domain) {
-    throw new SiteInputError("Domain not found");
-  }
+  const domain = await requireSiteDomain(site.id, domainId);
   const origin = `https://${domain.hostname}`;
-  let verified = false;
-  let lastError: string | null = null;
-  let records = domain.verificationRecords;
+  const { verified, lastError, records } =
+    domain.kind === "proxy"
+      ? await checkProxyDomain(site, domain, origin)
+      : await checkSubdomain(site, domain);
 
-  if (domain.kind === "proxy") {
-    const probe = await probeProxyOrigin(site, origin);
-    verified = probe.ok;
-    lastError = probe.ok ? null : probe.error;
-  } else {
-    const config = cloudflareSaasConfig();
-    if (!(config && domain.cloudflareHostnameId)) {
-      lastError =
-        "Custom subdomains need Cloudflare for SaaS (CLOUDFLARE_SAAS_ZONE_ID) on this environment.";
-    } else {
-      const custom = await getCustomHostname(
-        config,
-        domain.cloudflareHostnameId
-      );
-      records = recordsFor(domain.hostname, custom);
-      verified = custom.status === "active" && custom.ssl?.status === "active";
-      lastError = verified
-        ? null
-        : [
-            ...(custom.verification_errors ?? []),
-            ...(custom.ssl?.validation_errors?.map((error) => error.message) ??
-              []),
-          ].join("; ") ||
-          `Waiting for DNS and certificate (status ${custom.status}, certificate ${custom.ssl?.status ?? "pending"})`;
-      if (verified) {
-        await claimHostRecord(domain.hostname, {
-          siteId: site.id,
-          kind: "custom",
-        });
-      }
-    }
-  }
-
-  // A domain that was live and stopped verifying is "failed"; one that never verified is still "verifying".
-  let status: SiteDomain["status"] =
-    domain.status === "active" ? "failed" : "verifying";
-  if (verified) {
-    status = "active";
-  }
   if (verified) {
     const [owner] = await db
       .select({ siteId: siteDomains.siteId })
@@ -301,7 +321,7 @@ export async function refreshSiteDomain(
   const [updated] = await db
     .update(siteDomains)
     .set({
-      status,
+      status: nextDomainStatus(domain.status, verified),
       lastError,
       verificationRecords: records,
       lastCheckedAt: new Date(),
@@ -327,18 +347,13 @@ export async function removeSiteDomain(
   aliasOrigin: string,
   userId: string | null
 ): Promise<string | null> {
-  const [domain] = await db
-    .select()
-    .from(siteDomains)
-    .where(and(eq(siteDomains.id, domainId), eq(siteDomains.siteId, site.id)))
-    .limit(1);
-  if (!domain) {
-    throw new SiteInputError("Domain not found");
-  }
-  await deleteCustomHostnameQuietly(domain.cloudflareHostnameId);
-  if (domain.kind === "subdomain") {
-    await releaseHostRecord(domain.hostname, site.id);
-  }
+  const domain = await requireSiteDomain(site.id, domainId);
+  await Promise.all([
+    deleteCustomHostnameQuietly(domain.cloudflareHostnameId),
+    domain.kind === "subdomain"
+      ? releaseHostRecord(domain.hostname, site.id)
+      : undefined,
+  ]);
   await db.delete(siteDomains).where(eq(siteDomains.id, domain.id));
   // Falling back to the alias rebuilds canonicals/feeds for it.
   return site.publicOrigin === `https://${domain.hostname}`

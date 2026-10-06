@@ -1,46 +1,23 @@
 import { db } from "@notra/db/drizzle";
-import {
-  githubAppInstallations,
-  githubIntegrations,
-  siteDeployments,
-  siteDomains,
-  sites,
-} from "@notra/db/schema";
-import { SITE_DEPLOYMENT_IN_PROGRESS_STATUSES } from "@notra/sites-core/constants/sites";
+import { siteDomains, sites } from "@notra/db/schema";
 import type { SiteMounts } from "@notra/sites-core/types/deployment";
-import { hashBuildTarget } from "@notra/sites-core/utils/build-target";
 import {
-  branchPreviewKey,
   isValidSiteSlug,
   siteAliasHost,
   slugifySiteName,
 } from "@notra/sites-core/utils/hosts";
 import { normalizeSiteMounts } from "@notra/sites-core/utils/mounts";
-import { and, desc, eq, gt, inArray, isNull, or } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-import { readLiveDeployments, restoreProductionDeployment } from "./activation";
 import { deleteCustomHostnameQuietly } from "./cloudflare-saas";
-import {
-  DEPLOYMENT_SETTLE_MS,
-  ROLLBACK_HISTORY,
-} from "./constants/deployments";
-import {
-  enqueuePreviewRemoval,
-  enqueueSiteDeployment,
-  getDeployment,
-  getSite,
-  transitionDeployment,
-} from "./deployments";
+import { DEFAULT_SITE_MOUNTS, SITE_SLUG_ATTEMPTS } from "./constants/sites";
+import { deployBranchHead } from "./deploy";
 import { getSitesHostingDomain } from "./env";
-import {
-  getBranchHead,
-  getRepositorySuggestions,
-  requireSiteRepository,
-  siteRepositoryToken,
-} from "./github";
-import { siteNameRejection } from "./moderation";
+import { SiteInputError } from "./errors";
+import { assertSiteNameAllowed } from "./moderation";
 import { closeAllPreviews } from "./previews";
-import { r2DeletePrefix, r2ListPrefixes } from "./r2";
+import { r2DeletePrefix } from "./r2";
+import { requireOrganizationRepository } from "./repositories";
 import {
   claimHostRecord,
   mutateServingState,
@@ -48,28 +25,28 @@ import {
   setServingPreviewVisibility,
   setServingStatus,
 } from "./state";
-import type { RepositorySuggestions } from "./types/github";
 import type {
-  BranchPreviewResult,
   CreateSiteInput,
   CreateSiteResult,
-  DeployBranchHeadOptions,
   Site,
-  SiteCleanupResult,
-  SiteInputField,
   SiteSettingsPatch,
+  SiteUpdateValues,
   UpdateSiteSettingsResult,
 } from "./types/sites";
-import { buildTargetForDeployment, siteAliasOrigin } from "./urls";
-import { isSafeRootDirectory } from "./utils/root-directory";
+import { siteAliasOrigin } from "./urls";
+import { errorMessage } from "./utils/errors";
+import { prefixedId } from "./utils/ids";
+import { parseRootDirectory } from "./utils/root-directory";
 
-export class SiteInputError extends Error {
-  readonly name = "SiteInputError";
-  readonly field: SiteInputField | null;
+function siteAliasHostname(slug: string): string {
+  return siteAliasHost(slug, getSitesHostingDomain());
+}
 
-  constructor(message: string, options?: { field?: SiteInputField }) {
-    super(message);
-    this.field = options?.field ?? null;
+function parseMounts(mounts: SiteMounts): SiteMounts {
+  try {
+    return normalizeSiteMounts(mounts);
+  } catch (error) {
+    throw new SiteInputError(errorMessage(error), { field: "sections" });
   }
 }
 
@@ -77,7 +54,7 @@ async function uniqueSlug(base: string): Promise<string> {
   const root = isValidSiteSlug(base)
     ? base
     : `site-${base}`.slice(0, 32).replace(/-$/, "");
-  for (let attempt = 0; attempt < 20; attempt += 1) {
+  for (let attempt = 0; attempt < SITE_SLUG_ATTEMPTS; attempt += 1) {
     const candidate =
       attempt === 0
         ? root
@@ -104,90 +81,21 @@ async function uniqueSlug(base: string): Promise<string> {
  * Creates a site bound to a repository the organization already connected
  * through the GitHub App, claims its alias host and queues the first build.
  */
-/** A repository connected through the GitHub App, only if it belongs to the organization. */
-export async function findOrganizationRepository(
-  organizationId: string,
-  repositoryId: string
-) {
-  const [repository] = await db
-    .select({
-      integration: githubIntegrations,
-      installationId: githubAppInstallations.installationId,
-    })
-    .from(githubIntegrations)
-    .innerJoin(
-      githubAppInstallations,
-      eq(githubIntegrations.githubAppInstallationId, githubAppInstallations.id)
-    )
-    .where(
-      and(
-        eq(githubIntegrations.id, repositoryId),
-        eq(githubIntegrations.organizationId, organizationId),
-        eq(githubAppInstallations.organizationId, organizationId)
-      )
-    )
-    .limit(1);
-  return repository;
-}
-
-/** Branch and root-directory suggestions for a repository picked in the new-site form. */
-export async function organizationRepositorySuggestions(params: {
-  organizationId: string;
-  repositoryId: string;
-  ref: string | null;
-}): Promise<RepositorySuggestions> {
-  const repository = await findOrganizationRepository(
-    params.organizationId,
-    params.repositoryId
-  );
-  const { owner, repo } = repository?.integration ?? {};
-  if (!(repository && owner && repo)) {
-    throw new SiteInputError(
-      "Connect the repository through the Notra GitHub App first"
-    );
-  }
-  return await getRepositorySuggestions(
-    { installationId: repository.installationId, owner, repo },
-    params.ref
-  );
-}
-
 export async function createSite(
   input: CreateSiteInput
 ): Promise<CreateSiteResult> {
-  const repository = await findOrganizationRepository(
+  const { integration, repository } = await requireOrganizationRepository(
     input.organizationId,
     input.repositoryId
   );
-  if (
-    !(
-      repository?.integration.owner &&
-      repository.integration.repo &&
-      repository.integration.githubRepositoryId
-    )
-  ) {
+  if (!integration.githubRepositoryId) {
     throw new SiteInputError(
       "Connect the repository through the Notra GitHub App first",
       { field: "repository" }
     );
   }
-  const rootDirectory = (input.rootDirectory ?? "")
-    .trim()
-    .replace(/^\/+|\/+$/g, "");
-  if (!isSafeRootDirectory(rootDirectory)) {
-    throw new SiteInputError(
-      "The root directory may only contain letters, digits, dots, dashes and slashes",
-      { field: "rootDirectory" }
-    );
-  }
-  let mounts: SiteMounts;
-  try {
-    mounts = normalizeSiteMounts(
-      input.mounts ?? { blog: "/blog", changelog: "/changelog" }
-    );
-  } catch (error) {
-    throw new SiteInputError((error as Error).message, { field: "sections" });
-  }
+  const rootDirectory = parseRootDirectory(input.rootDirectory ?? "");
+  const mounts = parseMounts(input.mounts ?? DEFAULT_SITE_MOUNTS);
   const requestedSlug = input.slug?.trim().toLowerCase();
   if (requestedSlug && !isValidSiteSlug(requestedSlug)) {
     throw new SiteInputError(
@@ -197,18 +105,15 @@ export async function createSite(
   }
   const slug =
     requestedSlug ?? (await uniqueSlug(slugifySiteName(input.name) || "site"));
-  const siteId = `site_${crypto.randomUUID().replaceAll("-", "")}`;
-  const aliasHost = siteAliasHost(slug, getSitesHostingDomain());
-  const rejection = await siteNameRejection({
+  const siteId = prefixedId("site");
+  const aliasHost = siteAliasHostname(slug);
+  await assertSiteNameAllowed({
     organizationId: input.organizationId,
     userId: input.userId,
     name: input.name,
     address: aliasHost,
     slug,
   });
-  if (rejection) {
-    throw new SiteInputError(rejection.message, { field: rejection.field });
-  }
 
   // Claim the hostname first: R2's create-only write is the global uniqueness check for hosts.
   await claimHostRecord(aliasHost, { siteId, kind: "alias" });
@@ -222,15 +127,13 @@ export async function createSite(
         projectId: input.projectId ?? null,
         name: input.name.trim(),
         slug,
-        repositoryId: repository.integration.id,
+        repositoryId: integration.id,
         githubInstallationId: repository.installationId,
-        githubRepositoryId: repository.integration.githubRepositoryId,
-        repositoryOwner: repository.integration.owner,
-        repositoryName: repository.integration.repo,
+        githubRepositoryId: integration.githubRepositoryId,
+        repositoryOwner: repository.owner,
+        repositoryName: repository.repo,
         productionBranch:
-          input.productionBranch?.trim() ||
-          repository.integration.defaultBranch ||
-          "main",
+          input.productionBranch?.trim() || integration.defaultBranch || "main",
         rootDirectory,
         publicOrigin: siteAliasOrigin(slug),
         mounts,
@@ -254,137 +157,10 @@ export async function createSite(
     trigger: "manual",
     userId: input.userId,
   }).catch((error: unknown) => {
-    console.warn(
-      "sites.initial_deploy_failed",
-      error instanceof Error ? error.message : error
-    );
+    console.warn("sites.initial_deploy_failed", errorMessage(error));
     return null;
   });
   return { site, jobId };
-}
-
-/** Builds the current head of the production branch (manual deploy / first deploy / config change). */
-export async function deployBranchHead(
-  site: Site,
-  options: DeployBranchHeadOptions
-): Promise<string> {
-  const repository = requireSiteRepository(site);
-  const token = await siteRepositoryToken(repository, { contents: "read" });
-  const branch = options.branch ?? site.productionBranch;
-  const head = await getBranchHead(repository, token, branch);
-  const isPreview = Boolean(options.previewKey);
-  const { jobId } = await enqueueSiteDeployment({
-    siteId: site.id,
-    kind: isPreview ? "preview" : "production",
-    previewKey: options.previewKey ?? null,
-    trigger: options.trigger,
-    branch,
-    commitSha: head.sha,
-    commitMessage: head.message,
-    commitAuthor: head.author,
-    requestedByUserId: options.userId ?? null,
-  });
-  return jobId;
-}
-
-export async function createBranchPreview(
-  site: Site,
-  branch: string,
-  userId: string
-): Promise<BranchPreviewResult> {
-  if (!site.previewsEnabled) {
-    throw new SiteInputError("Previews are turned off for this site");
-  }
-  if (branch === site.productionBranch) {
-    throw new SiteInputError("The production branch is already deployed live");
-  }
-  const previewKey = branchPreviewKey(branch, site.slug);
-  const jobId = await deployBranchHead(site, {
-    trigger: "manual",
-    userId,
-    branch,
-    previewKey,
-  });
-  return { jobId, previewKey };
-}
-
-export async function deletePreview(
-  site: Site,
-  previewKey: string
-): Promise<string> {
-  return await enqueuePreviewRemoval(site.id, previewKey);
-}
-
-/** Redeploys a previous deployment's commit with the site's current settings. */
-export async function redeploy(
-  site: Site,
-  deploymentId: string,
-  userId: string
-): Promise<string> {
-  const [previous] = await db
-    .select()
-    .from(siteDeployments)
-    .where(
-      and(
-        eq(siteDeployments.id, deploymentId),
-        eq(siteDeployments.siteId, site.id)
-      )
-    )
-    .limit(1);
-  if (!previous) {
-    throw new SiteInputError("Deployment not found");
-  }
-  const { jobId } = await enqueueSiteDeployment({
-    siteId: site.id,
-    kind: previous.kind,
-    previewKey: previous.previewKey,
-    trigger: "redeploy",
-    branch: previous.branch,
-    commitSha: previous.commitSha,
-    commitMessage: previous.commitMessage,
-    commitAuthor: previous.commitAuthor,
-    pullRequestNumber: previous.pullRequestNumber,
-    requestedByUserId: userId,
-  });
-  return jobId;
-}
-
-/**
- * Instant rollback to a stored production deployment built for the same URLs.
- * Nothing is rebuilt; see `restoreProductionDeployment`.
- */
-export async function rollbackToDeployment(
-  site: Site,
-  deploymentId: string
-): Promise<void> {
-  const target = await getDeployment(deploymentId);
-  if (
-    !(
-      target &&
-      target.siteId === site.id &&
-      target.kind === "production" &&
-      target.status === "ready"
-    )
-  ) {
-    throw new SiteInputError(
-      "Only finished production deployments can be restored"
-    );
-  }
-  const currentTarget = buildTargetForDeployment({
-    site,
-    kind: "production",
-    previewKey: null,
-  });
-  if ((await hashBuildTarget(currentTarget)) !== target.configHash) {
-    throw new SiteInputError(
-      "This deployment was built for a different domain, path or branding setting. Redeploy its commit instead."
-    );
-  }
-  if ((await restoreProductionDeployment(site, target)) !== "live") {
-    throw new SiteInputError(
-      "This deployment's files were already cleaned up. Redeploy its commit instead."
-    );
-  }
 }
 
 /** Takedown. The worker re-reads state within seconds and fails closed, edge caches included. */
@@ -406,47 +182,27 @@ export async function updateSiteSettings(
   patch: SiteSettingsPatch,
   userId: string
 ): Promise<UpdateSiteSettingsResult> {
-  const values: Partial<typeof sites.$inferInsert> = {};
-  if (patch.name !== undefined && patch.name.trim() !== site.name) {
-    const rejection = await siteNameRejection({
+  const values: SiteUpdateValues = {
+    productionBranch: patch.productionBranch?.trim(),
+    rootDirectory:
+      patch.rootDirectory === undefined
+        ? undefined
+        : parseRootDirectory(patch.rootDirectory),
+    mounts: patch.mounts ? parseMounts(patch.mounts) : undefined,
+    previewsEnabled: patch.previewsEnabled,
+    previewVisibility: patch.previewVisibility,
+    publishMode: patch.publishMode,
+    showBranding: patch.showBranding,
+  };
+  const name = patch.name?.trim();
+  if (name !== undefined && name !== site.name) {
+    await assertSiteNameAllowed({
       organizationId: site.organizationId,
       userId,
-      name: patch.name.trim(),
-      address: siteAliasHost(site.slug, getSitesHostingDomain()),
+      name,
+      address: siteAliasHostname(site.slug),
     });
-    if (rejection) {
-      throw new SiteInputError(rejection.message, { field: rejection.field });
-    }
-    values.name = patch.name.trim();
-  }
-  if (patch.productionBranch !== undefined) {
-    values.productionBranch = patch.productionBranch.trim();
-  }
-  if (patch.rootDirectory !== undefined) {
-    const rootDirectory = patch.rootDirectory.trim().replace(/^\/+|\/+$/g, "");
-    if (!isSafeRootDirectory(rootDirectory)) {
-      throw new SiteInputError("Invalid root directory");
-    }
-    values.rootDirectory = rootDirectory;
-  }
-  if (patch.mounts !== undefined) {
-    try {
-      values.mounts = normalizeSiteMounts(patch.mounts);
-    } catch (error) {
-      throw new SiteInputError((error as Error).message);
-    }
-  }
-  if (patch.previewsEnabled !== undefined) {
-    values.previewsEnabled = patch.previewsEnabled;
-  }
-  if (patch.previewVisibility !== undefined) {
-    values.previewVisibility = patch.previewVisibility;
-  }
-  if (patch.publishMode !== undefined) {
-    values.publishMode = patch.publishMode;
-  }
-  if (patch.showBranding !== undefined) {
-    values.showBranding = patch.showBranding;
+    values.name = name;
   }
   const [updated] = await db
     .update(sites)
@@ -488,10 +244,9 @@ export async function setSitePublicOrigin(
   origin: string,
   userId: string | null
 ): Promise<string> {
-  const normalized = new URL(origin).origin;
   const [updated] = await db
     .update(sites)
-    .set({ publicOrigin: normalized })
+    .set({ publicOrigin: new URL(origin).origin })
     .where(eq(sites.id, site.id))
     .returning();
   if (!updated) {
@@ -500,93 +255,29 @@ export async function setSitePublicOrigin(
   return await deployBranchHead(updated, { trigger: "config", userId });
 }
 
+/** Takes the site offline first, then frees its hostnames and deletes the row and its stored files. */
 export async function deleteSite(site: Site): Promise<void> {
   await setServingStatus(site, "suspended");
-  const domains = await db
-    .select()
+  const subdomains = await db
+    .select({
+      hostname: siteDomains.hostname,
+      cloudflareHostnameId: siteDomains.cloudflareHostnameId,
+    })
     .from(siteDomains)
-    .where(eq(siteDomains.siteId, site.id));
-  await releaseHostRecord(
-    siteAliasHost(site.slug, getSitesHostingDomain()),
-    site.id
-  );
-  for (const domain of domains) {
-    if (domain.kind === "subdomain") {
+    .where(
+      and(eq(siteDomains.siteId, site.id), eq(siteDomains.kind, "subdomain"))
+    );
+  await Promise.all([
+    releaseHostRecord(siteAliasHostname(site.slug), site.id),
+    ...subdomains.map(async (domain) => {
       await releaseHostRecord(domain.hostname, site.id);
       await deleteCustomHostnameQuietly(domain.cloudflareHostnameId);
-    }
-  }
-  await db.delete(sites).where(eq(sites.id, site.id));
-  await r2DeletePrefix(`deployments/${site.id}/`);
-  await r2DeletePrefix(`logs/${site.id}/`);
-  await r2DeletePrefix(`sites/${site.id}/`);
-}
-
-/**
- * Deletes stored deployments nobody can reach anymore. Kept: everything the
- * serving state references (live + open previews), anything still building or
- * finished within the settle window (a build is marked ready before it is
- * activated), and the latest production deployments as rollback history.
- * The serving state is read last, so a build activated while the database
- * was queried is still seen as live.
- */
-export async function cleanupSiteDeployments(
-  siteId: string
-): Promise<SiteCleanupResult> {
-  const site = await getSite(siteId);
-  if (!site) {
-    return { deleted: [] };
-  }
-  const settledBefore = new Date(Date.now() - DEPLOYMENT_SETTLE_MS);
-  const [unsettled, history] = await Promise.all([
-    db
-      .select({ id: siteDeployments.id })
-      .from(siteDeployments)
-      .where(
-        and(
-          eq(siteDeployments.siteId, site.id),
-          or(
-            inArray(siteDeployments.status, [
-              ...SITE_DEPLOYMENT_IN_PROGRESS_STATUSES,
-            ]),
-            and(
-              eq(siteDeployments.status, "ready"),
-              or(
-                isNull(siteDeployments.finishedAt),
-                gt(siteDeployments.finishedAt, settledBefore)
-              )
-            )
-          )
-        )
-      ),
-    db
-      .select({ id: siteDeployments.id })
-      .from(siteDeployments)
-      .where(
-        and(
-          eq(siteDeployments.siteId, site.id),
-          eq(siteDeployments.kind, "production"),
-          eq(siteDeployments.status, "ready")
-        )
-      )
-      .orderBy(desc(siteDeployments.generation))
-      .limit(ROLLBACK_HISTORY),
+    }),
   ]);
-  const { ids: protectedIds } = await readLiveDeployments(site.id);
-  for (const row of [...unsettled, ...history]) {
-    protectedIds.add(row.id);
-  }
-  const deleted: string[] = [];
-  for (const prefix of await r2ListPrefixes(`deployments/${site.id}/`)) {
-    const deploymentId = prefix
-      .slice(`deployments/${site.id}/`.length)
-      .replace(/\/$/, "");
-    if (protectedIds.has(deploymentId)) {
-      continue;
-    }
-    await r2DeletePrefix(prefix);
-    await transitionDeployment(deploymentId, "expired");
-    deleted.push(deploymentId);
-  }
-  return { deleted };
+  await db.delete(sites).where(eq(sites.id, site.id));
+  await Promise.all(
+    ["deployments", "logs", "sites"].map((root) =>
+      r2DeletePrefix(`${root}/${site.id}/`)
+    )
+  );
 }

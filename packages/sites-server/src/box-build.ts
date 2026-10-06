@@ -107,6 +107,16 @@ function followBuildLog(
   };
 }
 
+/** Why a build left no valid result: `timeout` exits with 124 when it kills the build. */
+function crashReason(exitText: string | null, wroteResult: boolean): string {
+  if (exitText?.trim() === "124") {
+    return `The build took longer than ${SITE_BUILD_LIMITS.buildTimeoutSeconds / 60} minutes`;
+  }
+  return wroteResult
+    ? "The build produced an invalid result."
+    : "The build stopped before it produced a result. See the build log.";
+}
+
 /**
  * Builds a customer site inside a fresh Upstash Box restored from the toolchain
  * snapshot. The box has no network access and no credentials: the repository
@@ -181,16 +191,9 @@ export async function runSandboxBuild(
       ? siteBuildResultSchema.safeParse(safeJson(resultText))
       : null;
     if (!parsed?.success) {
-      let crash =
-        "The build stopped before it produced a result. See the build log.";
-      if (exitText?.trim() === "124") {
-        crash = `The build took longer than ${SITE_BUILD_LIMITS.buildTimeoutSeconds / 60} minutes`;
-      } else if (parsed) {
-        crash = "The build produced an invalid result.";
-      }
       return {
         result: null,
-        crash,
+        crash: crashReason(exitText, parsed !== null),
         log,
         outputArchive: null,
         toolchainVersion,

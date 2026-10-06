@@ -1,12 +1,10 @@
 import { gunzipSync } from "node:zlib";
 
 import { TAR_BLOCK_SIZE } from "./constants/build";
-import { SitePermanentBuildError } from "./errors";
+import { UnsafeArchiveError } from "./errors";
 import type { ArchiveFile, ArchiveLimits } from "./types/tar";
 
 const decoder = new TextDecoder();
-
-export class UnsafeArchiveError extends SitePermanentBuildError {}
 
 function readString(block: Uint8Array, offset: number, length: number): string {
   const slice = block.subarray(offset, offset + length);

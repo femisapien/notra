@@ -1,40 +1,42 @@
 import {
+  SITE_HEX_COLOR,
+  SITE_ICON_NAME,
+  SITE_LINK_HREF,
+} from "@notra/sites-core/constants/site-config";
+import {
   SITE_CONTEXTUAL_OPTIONS,
   SITE_NAVBAR_LINK_TYPES,
   SITE_SOCIAL_PLATFORMS,
 } from "@notra/sites-core/constants/site-layout";
 import { z } from "zod";
 
-const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}){1,2}$/;
-const RELATIVE_OR_HTTP_URL = /^(?:\/(?!\/)|https?:\/\/|mailto:)/;
-/** A Lucide icon name (`book-open`); unknown names render no icon. */
-const ICON_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const SITE_PATH = z.string().trim().min(1).max(300);
+/** A repository path or URL; notra.json caps both at 300 characters. */
+export const sitePathSchema = z.string().trim().min(1).max(300);
 
 const href = z
   .string()
   .trim()
-  .regex(RELATIVE_OR_HTTP_URL, "Use an absolute https:// URL or a path");
+  .regex(SITE_LINK_HREF, "Use an absolute https:// URL or a path");
 const icon = z
   .string()
   .trim()
-  .regex(ICON_NAME, "Use a Lucide icon name like book-open");
+  .regex(SITE_ICON_NAME, "Use a Lucide icon name like book-open");
 const colorByMode = z.union([
-  z.string().regex(HEX_COLOR),
+  z.string().regex(SITE_HEX_COLOR),
   z.object({
-    light: z.string().regex(HEX_COLOR),
-    dark: z.string().regex(HEX_COLOR),
+    light: z.string().regex(SITE_HEX_COLOR),
+    dark: z.string().regex(SITE_HEX_COLOR),
   }),
 ]);
 
-export const siteLinkSchema = z.object({
+const siteLinkSchema = z.object({
   label: z.string().trim().min(1).max(60),
   href,
   icon: icon.optional(),
 });
 
 /** A navbar link: a labelled link, or a typed one (`github`, `discord`) that brings its own icon. */
-export const siteNavbarLinkSchema = z.union([
+const siteNavbarLinkSchema = z.union([
   siteLinkSchema,
   z.object({
     type: z.enum(SITE_NAVBAR_LINK_TYPES),
@@ -151,7 +153,7 @@ export const siteSeoSchema = z
         name: z.string().trim().min(1).max(120),
         legalName: z.string().trim().max(160).optional(),
         url: z.url().optional(),
-        logo: SITE_PATH.optional(),
+        logo: sitePathSchema.optional(),
         sameAs: z.array(z.url()).max(12).default([]),
       })
       .optional(),
@@ -177,7 +179,7 @@ export const siteThumbnailsSchema = z
     enabled: z.boolean().default(true),
     appearance: z.enum(["light", "dark"]).default("light"),
     /** A repository image drawn behind the title. */
-    background: SITE_PATH.optional(),
+    background: sitePathSchema.optional(),
     /** Defaults to the heading font. */
     font: z.string().trim().max(80).optional(),
   })
@@ -218,7 +220,7 @@ const blogHeroSchema = z
     /** Small line above the title. */
     eyebrow: z.string().trim().max(60).optional(),
     /** Used by the `image` style. */
-    image: SITE_PATH.optional(),
+    image: sitePathSchema.optional(),
   })
   .default({ style: "wash" });
 

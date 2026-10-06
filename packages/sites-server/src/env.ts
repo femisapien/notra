@@ -1,6 +1,4 @@
-export class SitesNotConfiguredError extends Error {
-  readonly name = "SitesNotConfiguredError";
-}
+import { SitesNotConfiguredError } from "./errors";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -35,6 +33,13 @@ export function getSitesHostingProtocol(): "http" | "https" {
 export function getSitesHostingPortSuffix(): string {
   const port = process.env.SITES_HOSTING_PORT?.trim();
   return port ? `:${port}` : "";
+}
+
+/** CNAME target customers point their subdomain at. */
+export function siteCnameTarget(): string {
+  return (
+    process.env.SITES_CNAME_TARGET?.trim() || `cname.${getSitesHostingDomain()}`
+  );
 }
 
 export function getSitesPreviewSecret(): string {

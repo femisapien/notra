@@ -10,7 +10,8 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { readTarGz, UnsafeArchiveError } from "../src/tar";
+import { UnsafeArchiveError } from "../src/errors";
+import { readTarGz } from "../src/tar";
 
 const limits = {
   maxFiles: 100,

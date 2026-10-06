@@ -1,7 +1,7 @@
 import {
   SITE_CUSTOM_SCRIPT_FILENAME,
   SITE_CUSTOM_SCRIPTS_DIR,
-  SITE_SOURCE_ROOT_ENTRIES,
+  SITE_SOURCE_ROOTS,
 } from "@notra/sites-core/constants/sites";
 
 /**
@@ -18,7 +18,7 @@ export function isCustomScriptPath(path: string): boolean {
   return (
     path === SITE_CUSTOM_SCRIPT_FILENAME ||
     root === SITE_CUSTOM_SCRIPTS_DIR ||
-    !(SITE_SOURCE_ROOT_ENTRIES as readonly string[]).includes(root)
+    !SITE_SOURCE_ROOTS.has(root)
   );
 }
 

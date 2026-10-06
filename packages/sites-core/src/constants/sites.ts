@@ -12,9 +12,6 @@ export const SITE_CONFIG_SCHEMA_URL = "https://usenotra.com/schemas/notra.json";
 
 /** Every built area keeps its own assets below its mount, so a customer proxy only has to forward the mount path. */
 export const SITE_ASSETS_DIR = "_notra/assets";
-export const SITE_INTERNAL_PATH_SEGMENT = "_notra";
-export const SITE_PROBE_FILENAME = "probe.txt";
-export const SITE_ROUTES_FILENAME = "routes.json";
 
 export const SITE_PREVIEW_HOST_SEPARATOR = "--";
 export const SITE_PREVIEW_KEY_MAX_LENGTH = 40;
@@ -100,6 +97,9 @@ export const SITE_SOURCE_ROOT_ENTRIES = [
   ...SITE_CHROME_FILES,
   SITE_SLOTS_DIR,
 ] as const;
+export const SITE_SOURCE_ROOTS: ReadonlySet<string> = new Set(
+  SITE_SOURCE_ROOT_ENTRIES
+);
 
 /** `script.js` and every `.js` file below `scripts/`; copied as-is, never executed by the build. */
 export const SITE_CUSTOM_SCRIPT_FILENAME = "script.js";

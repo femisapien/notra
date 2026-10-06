@@ -1,4 +1,10 @@
 import {
+  SITE_AUTHOR_ID,
+  SITE_DEFAULT_PRIMARY_COLOR,
+  SITE_HEX_COLOR,
+  SITE_LINK_HREF,
+} from "@notra/sites-core/constants/site-config";
+import {
   siteIntegrationsSchema,
   siteSecuritySchema,
 } from "@notra/sites-core/schemas/site-integrations";
@@ -13,34 +19,27 @@ import {
   siteMarkdownSchema,
   siteMetadataSchema,
   siteNavbarSchema,
+  sitePathSchema,
   siteSeoSchema,
   siteThumbnailsSchema,
   siteVariablesSchema,
 } from "@notra/sites-core/schemas/site-layout";
 import { z } from "zod";
 
-const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}){1,2}$/;
-const RELATIVE_OR_HTTP_URL = /^(?:\/(?!\/)|https?:\/\/|mailto:)/;
-
 const redirectSchema = z.object({
   source: z.string().trim().startsWith("/"),
   destination: z
     .string()
     .trim()
-    .regex(RELATIVE_OR_HTTP_URL, "Use an absolute https:// URL or a path"),
+    .regex(SITE_LINK_HREF, "Use an absolute https:// URL or a path"),
   permanent: z.boolean().default(true),
 });
-
-const SITE_PATH = z.string().trim().min(1).max(300);
-
-/** An author's id in notra.json, used as `author: jan` in a post's frontmatter. */
-export const SITE_AUTHOR_ID = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
 
 /**
  * A person posts can name. The links become `sameAs` on the post's Person,
  * which is how search engines and AI answers tie the byline to a real profile.
  */
-export const siteAuthorSchema = z.strictObject({
+const siteAuthorSchema = z.strictObject({
   name: z.string().trim().min(1).max(80),
   /** Role shown under the name, e.g. "Founder". */
   title: z.string().trim().max(80).optional(),
@@ -60,7 +59,10 @@ export const siteAuthorSchema = z.strictObject({
   linkedin: z.url().optional(),
   github: z.url().optional(),
 });
-const imageByModeSchema = z.object({ light: SITE_PATH, dark: SITE_PATH });
+const imageByModeSchema = z.object({
+  light: sitePathSchema,
+  dark: sitePathSchema,
+});
 
 const fontSpecSchema = z.object({
   /** A Google Fonts family name, or the name of the font in `source`. */
@@ -108,23 +110,26 @@ export const siteConfigSchema = z.object({
   description: z.string().trim().max(300).optional(),
   logo: z
     .union([
-      SITE_PATH,
+      sitePathSchema,
       imageByModeSchema.extend({
-        href: z.string().trim().regex(RELATIVE_OR_HTTP_URL).optional(),
+        href: z.string().trim().regex(SITE_LINK_HREF).optional(),
       }),
     ])
     .optional(),
-  favicon: z.union([SITE_PATH, imageByModeSchema]).optional(),
+  favicon: z.union([sitePathSchema, imageByModeSchema]).optional(),
   colors: z
     .object({
       /** Accent in light mode: links, active states, eyebrows. */
-      primary: z.string().regex(HEX_COLOR).default("#8B5CF6"),
+      primary: z
+        .string()
+        .regex(SITE_HEX_COLOR)
+        .default(SITE_DEFAULT_PRIMARY_COLOR),
       /** Accent in dark mode; defaults to `primary`. */
-      light: z.string().regex(HEX_COLOR).optional(),
+      light: z.string().regex(SITE_HEX_COLOR).optional(),
       /** Buttons and hover states; defaults to `primary`. */
-      dark: z.string().regex(HEX_COLOR).optional(),
+      dark: z.string().regex(SITE_HEX_COLOR).optional(),
     })
-    .default({ primary: "#8B5CF6" }),
+    .default({ primary: SITE_DEFAULT_PRIMARY_COLOR }),
   appearance: appearanceSchema,
   fonts: fontSpecSchema
     .partial({ family: true })
@@ -137,11 +142,11 @@ export const siteConfigSchema = z.object({
     .object({
       decoration: z.enum(["none", "grid", "dots", "gradient"]).default("none"),
       /** A repository image behind every page, one per mode or shared. */
-      image: z.union([SITE_PATH, imageByModeSchema]).optional(),
+      image: z.union([sitePathSchema, imageByModeSchema]).optional(),
       color: z
         .object({
-          light: z.string().regex(HEX_COLOR).optional(),
-          dark: z.string().regex(HEX_COLOR).optional(),
+          light: z.string().regex(SITE_HEX_COLOR).optional(),
+          dark: z.string().regex(SITE_HEX_COLOR).optional(),
         })
         .optional(),
     })

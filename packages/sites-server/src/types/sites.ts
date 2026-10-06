@@ -17,6 +17,19 @@ export interface SiteNameRejection {
   field: "name" | "slug";
 }
 
+export interface SiteNameRejectionParams {
+  organizationId: string;
+  userId: string;
+  name: string;
+  /** The site's public hostname, shown to the moderation model. */
+  address: string;
+  /** Only when the address itself is new (create); renames keep their slug. */
+  slug?: string;
+}
+
+/** Columns a settings change writes; `undefined` leaves a column as it is. */
+export type SiteUpdateValues = Partial<typeof sites.$inferInsert>;
+
 export interface CreateSiteInput {
   organizationId: string;
   userId: string;
@@ -29,6 +42,13 @@ export interface CreateSiteInput {
   mounts?: SiteMounts;
   previewVisibility?: Site["previewVisibility"];
   publishMode?: Site["publishMode"];
+}
+
+export interface RepositorySuggestionsParams {
+  organizationId: string;
+  repositoryId: string;
+  /** The branch whose tree is searched; null for the default branch. */
+  ref: string | null;
 }
 
 export interface DeployBranchHeadOptions {

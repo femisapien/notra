@@ -6,13 +6,13 @@ import { CHECK_RUN_NAME } from "./constants/github";
 import {
   completeCheckRun,
   createCheckRun,
-  requireSiteRepository,
-  siteRepositoryToken,
+  siteRepositoryAccess,
 } from "./github";
 import type { DeploymentOutcome, SiteDeployment } from "./types/deployments";
 import type { CheckReport } from "./types/reporting";
 import type { Site } from "./types/sites";
 import { deploymentDashboardUrl, primaryMountUrl } from "./urls";
+import { errorMessage } from "./utils/errors";
 
 /** Reporting never fails a deployment: GitHub being slow or a missing `checks` permission is not a build problem. */
 async function safely<T>(
@@ -22,10 +22,7 @@ async function safely<T>(
   try {
     return await fn();
   } catch (error) {
-    console.warn(
-      `sites.${label}_failed`,
-      error instanceof Error ? error.message : error
-    );
+    console.warn(`sites.${label}_failed`, errorMessage(error));
     return null;
   }
 }
@@ -55,8 +52,9 @@ export async function openCheckRun(
     return deployment;
   }
   const checkRunId = await safely("check_create", async () => {
-    const repository = requireSiteRepository(site);
-    const token = await siteRepositoryToken(repository, { checks: "write" });
+    const { repository, token } = await siteRepositoryAccess(site, {
+      checks: "write",
+    });
     return await createCheckRun(repository, token, {
       name:
         deployment.kind === "production"
@@ -140,8 +138,9 @@ export async function reportOutcome(
   }
   const check = checkFor(deployment, outcome);
   await safely("check_complete", async () => {
-    const repository = requireSiteRepository(site);
-    const token = await siteRepositoryToken(repository, { checks: "write" });
+    const { repository, token } = await siteRepositoryAccess(site, {
+      checks: "write",
+    });
     await completeCheckRun(repository, token, {
       checkRunId,
       conclusion: check.conclusion,

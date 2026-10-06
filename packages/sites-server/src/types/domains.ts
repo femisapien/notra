@@ -1,4 +1,5 @@
 import type { siteDomains } from "@notra/db/schema";
+import type { SiteDomainVerificationRecord } from "@notra/db/types/sites";
 
 export type SiteDomain = typeof siteDomains.$inferSelect;
 
@@ -7,7 +8,12 @@ export interface AddSiteDomainInput {
   value: string;
 }
 
-export type ProxyProbeResult = { ok: true } | { ok: false; error: string };
+/** The outcome of one domain verification attempt. */
+export interface DomainCheck {
+  verified: boolean;
+  lastError: string | null;
+  records: SiteDomainVerificationRecord[];
+}
 
 export interface RefreshSiteDomainResult {
   domain: SiteDomain;

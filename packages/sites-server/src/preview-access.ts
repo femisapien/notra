@@ -13,7 +13,7 @@ import { signSitePreviewToken } from "@notra/sites-core/utils/preview-token";
 import { eq } from "drizzle-orm";
 
 import { getSitesPreviewSecret } from "./env";
-import { SiteInputError } from "./sites";
+import { SiteInputError } from "./errors";
 import { syncServingPreviewAccess } from "./state";
 import type {
   PreviewAccessUrl,

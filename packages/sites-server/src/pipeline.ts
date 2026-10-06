@@ -11,15 +11,16 @@ import {
 import {
   downloadRepositoryTarball,
   getBranchHead,
-  requireSiteRepository,
-  siteRepositoryToken,
+  siteRepositoryAccess,
 } from "./github";
 import { publishDeploymentFiles } from "./publish";
 import { r2Put } from "./r2";
 import { openCheckRun, reportOutcome } from "./reporting";
 import type { DeploymentOutcome, SiteDeployment } from "./types/deployments";
+import type { SiteRepositoryAccess } from "./types/github";
 import type { Site } from "./types/sites";
 import { summarizeDiagnostics } from "./utils/diagnostics";
+import { isNotFoundError } from "./utils/errors";
 
 /** The same object is overwritten while the build runs, so the dashboard can tail it. */
 async function writeBuildLog(
@@ -34,21 +35,17 @@ async function writeBuildLog(
 
 /** The commit `branch` points at now; null when the branch is gone. */
 async function currentBranchHead(
-  site: Site,
-  branch: string,
-  token: string
+  { repository, token }: SiteRepositoryAccess,
+  branch: string
 ): Promise<string | null> {
-  const head = await getBranchHead(
-    requireSiteRepository(site),
-    token,
-    branch
-  ).catch((error: unknown) => {
-    if ((error as { status?: number }).status === 404) {
+  try {
+    return (await getBranchHead(repository, token, branch)).sha;
+  } catch (error) {
+    if (isNotFoundError(error)) {
       return null;
     }
     throw error;
-  });
-  return head?.sha ?? null;
+  }
 }
 
 /**
@@ -60,14 +57,13 @@ async function currentBranchHead(
  * the current head.
  */
 async function whyNotBuild(
-  site: Site,
-  deployment: SiteDeployment,
-  token: string
+  access: SiteRepositoryAccess,
+  deployment: SiteDeployment
 ): Promise<string | null> {
   if (deployment.status !== "queued") {
     return null;
   }
-  const head = await currentBranchHead(site, deployment.branch, token);
+  const head = await currentBranchHead(access, deployment.branch);
   const fromWebhook =
     deployment.trigger === "push" || deployment.trigger === "pull_request";
   if (fromWebhook && head !== deployment.commitSha) {
@@ -97,9 +93,8 @@ async function buildAndPublish(
     });
     return { kind: "skipped", reason: "The site is offline." };
   }
-  const repository = requireSiteRepository(site);
-  const token = await siteRepositoryToken(repository, { contents: "read" });
-  const skipReason = await whyNotBuild(site, deployment, token);
+  const access = await siteRepositoryAccess(site, { contents: "read" });
+  const skipReason = await whyNotBuild(access, deployment);
   if (skipReason) {
     await transitionDeployment(deployment.id, "superseded", {
       finishedAt: new Date(),
@@ -116,8 +111,8 @@ async function buildAndPublish(
   }
 
   const sourceArchive = await downloadRepositoryTarball(
-    repository,
-    token,
+    access.repository,
+    access.token,
     deployment.commitSha
   );
   const build = await runSandboxBuild({
@@ -180,6 +175,16 @@ async function buildAndPublish(
   return ready ? null : CANCELED_OUTCOME;
 }
 
+async function activationOutcome(
+  site: Site,
+  deployment: SiteDeployment
+): Promise<DeploymentOutcome> {
+  const live =
+    site.status === "active" &&
+    (await activateDeployment(site, deployment)) === "live";
+  return live ? { kind: "live" } : { kind: "not_live" };
+}
+
 /**
  * One deployment, start to finish: decide → build → publish → activate → report.
  * Resumable: a deployment that crashed after its upload (`ready`) skips straight to activation.
@@ -194,17 +199,7 @@ export async function runDeploymentPipeline(
       ? null
       : await buildAndPublish(site, deployment);
   const finished = (await getDeployment(deployment.id)) ?? deployment;
-  let outcome: DeploymentOutcome;
-  if (ended) {
-    outcome = ended;
-  } else if (
-    site.status === "active" &&
-    (await activateDeployment(site, finished)) === "live"
-  ) {
-    outcome = { kind: "live" };
-  } else {
-    outcome = { kind: "not_live" };
-  }
+  const outcome = ended ?? (await activationOutcome(site, finished));
   await reportOutcome(site, finished, outcome);
   return outcome;
 }

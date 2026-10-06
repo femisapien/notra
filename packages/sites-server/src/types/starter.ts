@@ -1,5 +1,7 @@
 import type { SITE_SOCIAL_PLATFORMS } from "@notra/sites-core/constants/site-layout";
 
+import type { SiteRepository } from "./github";
+
 export type StarterSocialPlatform = (typeof SITE_SOCIAL_PLATFORMS)[number];
 
 export interface StarterLink {
@@ -66,6 +68,14 @@ export interface SiteStarterScope {
   rootDirectory: string;
 }
 
+/** Where starter files go: a connected repository, its branch and the site root. */
+export interface StarterTarget {
+  repository: SiteRepository;
+  token: string;
+  branch: string;
+  rootDirectory: string;
+}
+
 export interface SiteStarterStatus {
   hasConfig: boolean;
   /** An open starter pull request for this branch, so a reload does not offer a second one. */
@@ -76,4 +86,41 @@ export interface SiteStarterResult {
   pullRequestUrl: string;
   /** False when an open starter pull request already existed and was returned instead. */
   created: boolean;
+}
+
+export interface ResolveLinkUrlOptions {
+  /** Assets the site loads itself must be https. */
+  httpsOnly?: boolean;
+}
+
+/** An open element while reading a landing page. */
+export interface LandingPageFrame {
+  name: string;
+  hidden: boolean;
+}
+
+/** A finished link and where on the page it sat. */
+export interface CapturedAnchor {
+  href: string;
+  label: string;
+  hidden: boolean;
+  menuItem: boolean;
+  inHeader: boolean;
+  inNav: boolean;
+  /** Which <footer> (1-based) the link sat in, if any. */
+  footerIndex: number | null;
+}
+
+/** A link whose text is still being read. */
+export type OpenAnchor = Omit<CapturedAnchor, "label"> & {
+  ariaLabel: string;
+  text: string[];
+  svgTitle: string[];
+};
+
+export interface IconCandidate {
+  href: string;
+  rel: string;
+  type: string;
+  size: number;
 }

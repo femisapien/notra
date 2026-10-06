@@ -5,28 +5,21 @@ import {
   sign,
   timingSafeEqual,
 } from "node:crypto";
-import { Resolver } from "node:dns/promises";
-
-import { db } from "@notra/db/drizzle";
-import { siteDomains } from "@notra/db/schema";
-import { and, eq } from "drizzle-orm";
 
 import {
   CALLBACK_TOKEN_LABEL,
   CALLBACK_TOKEN_SECONDS,
   DOMAIN_CONNECT_CALLBACK_PATH,
   DOMAIN_CONNECT_CNAME_TARGET,
-  DOMAIN_CONNECT_DNS_TIMEOUT_MS,
+  DOMAIN_CONNECT_DISCOVERY_HOST,
   DOMAIN_CONNECT_HTTP_TIMEOUT_MS,
   DOMAIN_CONNECT_OWNERSHIP_VARIABLE,
   DOMAIN_CONNECT_RESERVED_PARAMS,
   OWNERSHIP_RECORD_PREFIX,
   PUBLIC_KEY_CHUNK_LENGTH,
 } from "./constants/domain-connect";
-import { siteCnameTarget } from "./domains";
-import { getDashboardUrl, getSitesPreviewSecret } from "./env";
+import { getDashboardUrl, getSitesPreviewSecret, siteCnameTarget } from "./env";
 import { domainConnectSettingsSchema } from "./schemas/domain-connect";
-import { SiteInputError } from "./sites";
 import type {
   BuildApplyUrlParams,
   DomainConnectCallbackClaims,
@@ -37,6 +30,12 @@ import type {
   DomainConnectResult,
   DomainConnectSettings,
 } from "./types/domain-connect";
+import {
+  createDnsResolver,
+  normalizeDnsName,
+  zoneCandidates,
+} from "./utils/dns";
+import { errorMessage } from "./utils/errors";
 
 /**
  * Domain Connect (synchronous flow, signed requests): the customer's DNS provider
@@ -44,13 +43,8 @@ import type {
  * Spec: https://github.com/Domain-Connect/spec/blob/master/Domain%20Connect%20Spec%20Draft.adoc
  */
 
-const DISCOVERY_HOST = /^[a-z0-9.-]+(?::\d+)?(?:\/[\w.~%/-]*)?$/i;
-
 function defaultDeps(): DomainConnectDeps {
-  const resolver = new Resolver({
-    timeout: DOMAIN_CONNECT_DNS_TIMEOUT_MS,
-    tries: 2,
-  });
+  const resolver = createDnsResolver();
   return {
     resolveTxt: (name) => resolver.resolveTxt(name),
     fetch: globalThis.fetch,
@@ -68,7 +62,7 @@ export function getDomainConnectConfig(): DomainConnectConfig | null {
     privateKey = createPrivateKey(pem.replaceAll("\\n", "\n"));
   } catch (error) {
     console.warn("sites.domain_connect_invalid_key", {
-      error: error instanceof Error ? error.message : error,
+      error: errorMessage(error),
     });
     return null;
   }
@@ -79,19 +73,6 @@ export function getDomainConnectConfig(): DomainConnectConfig | null {
     keyHost: process.env.SITES_DOMAIN_CONNECT_KEY_HOST?.trim() || "_dck1",
     privateKey,
   };
-}
-
-/**
- * Parent zones to try, closest first: `docs.blog.acme.co.uk` → `blog.acme.co.uk`,
- * `acme.co.uk`, `co.uk`. The hostname itself is skipped (its CNAME cannot be a zone apex).
- */
-export function zoneCandidates(hostname: string): string[] {
-  const labels = hostname.toLowerCase().replace(/\.$/, "").split(".");
-  const candidates: string[] = [];
-  for (let start = 1; labels.length - start >= 2; start += 1) {
-    candidates.push(labels.slice(start).join("."));
-  }
-  return candidates;
 }
 
 async function lookupDiscoveryHost(
@@ -106,7 +87,7 @@ async function lookupDiscoveryHost(
         .trim()
         .replace(/^https?:\/\//i, "")
         .replace(/\/+$/, "");
-      if (DISCOVERY_HOST.test(value)) {
+      if (DOMAIN_CONNECT_DISCOVERY_HOST.test(value)) {
         return value;
       }
     }
@@ -138,7 +119,7 @@ export async function discoverDomainConnect(
   hostname: string,
   deps: DomainConnectDeps = defaultDeps()
 ): Promise<DomainConnectSettings | null> {
-  const normalized = hostname.toLowerCase().replace(/\.$/, "");
+  const normalized = normalizeDnsName(hostname);
   for (const zone of zoneCandidates(normalized)) {
     const discoveryHost = await lookupDiscoveryHost(zone, deps);
     if (!discoveryHost) {
@@ -166,10 +147,10 @@ export async function discoverDomainConnect(
 }
 
 /** GET `{urlAPI}/v2/domainTemplates/providers/{providerId}/services/{serviceId}`: 2xx = onboarded. */
-export async function isTemplateSupported(
+async function isTemplateSupported(
   settings: Pick<DomainConnectSettings, "urlAPI">,
   template: Pick<DomainConnectConfig, "providerId" | "serviceId">,
-  deps: Pick<DomainConnectDeps, "fetch"> = { fetch: globalThis.fetch }
+  deps: Pick<DomainConnectDeps, "fetch">
 ): Promise<boolean> {
   const url = `${settings.urlAPI.replace(/\/+$/, "")}/v2/domainTemplates/providers/${encodeURIComponent(template.providerId)}/services/${encodeURIComponent(template.serviceId)}`;
   try {
@@ -297,27 +278,22 @@ export function verifyDomainConnectCallback(
   }
 }
 
+function settingsName(
+  settings: DomainConnectSettings | null
+): string | undefined {
+  return settings?.providerDisplayName ?? settings?.providerName;
+}
+
 /**
  * One-click DNS for an unverified custom subdomain: the same CNAME + ownership TXT
  * the Domains tab lists, applied by the customer's DNS provider when it supports
  * Domain Connect and has onboarded our template.
  */
-export async function domainConnectForDomain(
-  params: DomainConnectForDomainParams
-): Promise<DomainConnectResult> {
-  const [domain] = await db
-    .select()
-    .from(siteDomains)
-    .where(
-      and(
-        eq(siteDomains.id, params.domainId),
-        eq(siteDomains.siteId, params.site.id)
-      )
-    )
-    .limit(1);
-  if (!domain) {
-    throw new SiteInputError("Domain not found");
-  }
+export async function domainConnectForDomain({
+  siteId,
+  domain,
+  deps = defaultDeps(),
+}: DomainConnectForDomainParams): Promise<DomainConnectResult> {
   if (domain.kind !== "subdomain") {
     return { status: "unavailable", reason: "not_subdomain" };
   }
@@ -327,7 +303,6 @@ export async function domainConnectForDomain(
 
   // The provider is worth naming even when one-click setup can't run: the
   // records still go there, and some providers deep-link to their DNS page.
-  const deps = params.deps ?? defaultDeps();
   const settings = await discoverDomainConnect(domain.hostname, deps);
   const manual: DomainConnectResult = {
     status: "unsupported",
@@ -348,14 +323,10 @@ export async function domainConnectForDomain(
   ) {
     return manual;
   }
-  const providerName = settingsName(settings) ?? settings.providerId;
-  const token = signDomainConnectCallback({
-    siteId: params.site.id,
-    domainId: domain.id,
-  });
+  const token = signDomainConnectCallback({ siteId, domainId: domain.id });
   return {
     status: "ready",
-    providerName,
+    providerName: settingsName(settings) ?? settings.providerId,
     applyUrl: buildApplyUrl({
       settings,
       config,
@@ -365,10 +336,4 @@ export async function domainConnectForDomain(
       redirectUri: `${getDashboardUrl()}${DOMAIN_CONNECT_CALLBACK_PATH}/${token}`,
     }),
   };
-}
-
-function settingsName(
-  settings: DomainConnectSettings | null
-): string | undefined {
-  return settings?.providerDisplayName ?? settings?.providerName;
 }

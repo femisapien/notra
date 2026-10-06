@@ -26,3 +26,10 @@ export interface ApplyVercelDnsRecordsParams {
   records: SiteDomainVerificationRecord[];
   deps?: Pick<VercelDnsDeps, "fetch">;
 }
+
+/** POST /v2/oauth/access_token, as far as the setup reads it. */
+export interface VercelTokenResponse {
+  access_token?: string;
+  team_id?: string | null;
+  installation_id?: string;
+}

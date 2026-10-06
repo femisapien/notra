@@ -4,20 +4,12 @@ import type {
   CloudflareCustomHostname,
   CloudflareSaasConfig,
 } from "./types/cloudflare-saas";
+import { errorMessage } from "./utils/errors";
 
 export function cloudflareSaasConfig(): CloudflareSaasConfig | null {
   const zoneId = process.env.CLOUDFLARE_SAAS_ZONE_ID?.trim();
   const apiToken = process.env.CLOUDFLARE_SAAS_API_TOKEN?.trim();
   return zoneId && apiToken ? { zoneId, apiToken } : null;
-}
-
-export class CloudflareApiError extends Error {
-  readonly name = "CloudflareApiError";
-  readonly codes: number[];
-  constructor(message: string, codes: number[]) {
-    super(message);
-    this.codes = codes;
-  }
 }
 
 async function request<T>(
@@ -38,9 +30,8 @@ async function request<T>(
   );
   const body = (await response.json()) as CloudflareApiResponse<T>;
   if (!body.success) {
-    throw new CloudflareApiError(
-      `Cloudflare: ${body.errors?.map((error) => error.message).join("; ") ?? response.status}`,
-      body.errors?.map((error) => error.code) ?? []
+    throw new Error(
+      `Cloudflare: ${body.errors?.map((error) => error.message).join("; ") ?? response.status}`
     );
   }
   return body.result;
@@ -98,7 +89,7 @@ export async function deleteCustomHostnameQuietly(
   await deleteCustomHostname(config, id).catch((error: unknown) => {
     console.warn("sites.custom_hostname_delete_failed", {
       id,
-      error: error instanceof Error ? error.message : error,
+      error: errorMessage(error),
     });
   });
 }

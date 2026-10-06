@@ -1,6 +1,3 @@
-import { Resolver } from "node:dns/promises";
-
-import { DOMAIN_CONNECT_DNS_TIMEOUT_MS } from "./constants/domain-connect";
 import {
   VERCEL_API_URL,
   VERCEL_DNS_CALLBACK_PATH,
@@ -13,7 +10,6 @@ import {
 import {
   signDomainConnectCallback,
   verifyDomainConnectCallback,
-  zoneCandidates,
 } from "./domain-connect";
 import { getDashboardUrl } from "./env";
 import type { DomainConnectCallbackClaims } from "./types/domain-connect";
@@ -22,7 +18,15 @@ import type {
   VercelDnsConfig,
   VercelDnsDeps,
   VercelDnsGrant,
+  VercelTokenResponse,
 } from "./types/vercel-dns";
+import {
+  createDnsResolver,
+  normalizeDnsName,
+  relativeDnsName,
+  zoneCandidates,
+} from "./utils/dns";
+import { errorMessage } from "./utils/errors";
 
 /**
  * One-click DNS for domains on Vercel DNS. Vercel has no Domain Connect, so the
@@ -33,10 +37,7 @@ import type {
  */
 
 function defaultDeps(): VercelDnsDeps {
-  const resolver = new Resolver({
-    timeout: DOMAIN_CONNECT_DNS_TIMEOUT_MS,
-    tries: 2,
-  });
+  const resolver = createDnsResolver();
   return {
     resolveNs: (name) => resolver.resolveNs(name),
     fetch: globalThis.fetch,
@@ -53,7 +54,7 @@ export function getVercelDnsConfig(): VercelDnsConfig | null {
   return { slug, clientId, clientSecret };
 }
 
-export function vercelDnsRedirectUri(): string {
+function vercelDnsRedirectUri(): string {
   return `${getDashboardUrl()}${VERCEL_DNS_CALLBACK_PATH}`;
 }
 
@@ -74,7 +75,7 @@ export async function findVercelZone(
       continue;
     }
     return nameservers.some((ns) =>
-      ns.toLowerCase().replace(/\.$/, "").endsWith(VERCEL_NAMESERVER_SUFFIX)
+      normalizeDnsName(ns).endsWith(VERCEL_NAMESERVER_SUFFIX)
     )
       ? zone
       : null;
@@ -124,11 +125,9 @@ export async function exchangeVercelCode(
     }),
     signal: AbortSignal.timeout(VERCEL_DNS_HTTP_TIMEOUT_MS),
   });
-  const body = (await response.json().catch(() => null)) as {
-    access_token?: string;
-    team_id?: string | null;
-    installation_id?: string;
-  } | null;
+  const body = (await response
+    .json()
+    .catch(() => null)) as VercelTokenResponse | null;
   if (!(response.ok && body?.access_token && body.installation_id)) {
     throw new Error(`Vercel token exchange failed (${response.status})`);
   }
@@ -137,12 +136,6 @@ export async function exchangeVercelCode(
     teamId: body.team_id ?? null,
     configurationId: body.installation_id,
   };
-}
-
-/** `blog.acme.com` in zone `acme.com` → `blog`; the apex is the empty name. */
-function relativeName(name: string, zone: string): string {
-  const host = name.toLowerCase().replace(/\.$/, "");
-  return host === zone ? "" : host.slice(0, -(zone.length + 1));
 }
 
 /**
@@ -165,7 +158,7 @@ export async function applyVercelDnsRecords({
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          name: relativeName(record.name, zone),
+          name: relativeDnsName(record.name, zone),
           type: record.type,
           value: record.value,
           ttl: VERCEL_DNS_RECORD_TTL_SECONDS,
@@ -203,7 +196,7 @@ export async function removeVercelInstallation(
     await response.body?.cancel();
   } catch (error) {
     console.warn("sites.vercel_dns_uninstall_failed", {
-      error: error instanceof Error ? error.message : error,
+      error: errorMessage(error),
     });
   }
 }

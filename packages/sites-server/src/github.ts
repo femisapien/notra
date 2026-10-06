@@ -1,5 +1,6 @@
 import { createScopedGitHubAppInstallationToken } from "@notra/ai/integrations/github";
 import { createOctokit } from "@notra/ai/utils/octokit";
+import { SITE_CONFIG_FILENAME } from "@notra/sites-core/constants/sites";
 
 import {
   BRANCH_SUGGESTION_LIMIT,
@@ -18,11 +19,17 @@ import type {
   RepositorySuggestions,
   RepositoryTreeScan,
   SiteRepository,
+  SiteRepositoryAccess,
   SiteRepositoryColumns,
   SiteRepositoryPermissions,
 } from "./types/github";
+import { readBodyUpTo } from "./utils/read-body";
 
-export class SiteRepositoryNotConnectedError extends SitePermanentBuildError {}
+const EMPTY_TREE_SCAN: RepositoryTreeScan = {
+  directories: [],
+  contentCounts: {},
+  truncated: false,
+};
 
 export function requireSiteRepository(
   site: SiteRepositoryColumns
@@ -30,7 +37,7 @@ export function requireSiteRepository(
   if (
     !(site.githubInstallationId && site.repositoryOwner && site.repositoryName)
   ) {
-    throw new SiteRepositoryNotConnectedError(
+    throw new SitePermanentBuildError(
       "This site has no GitHub repository connected"
     );
   }
@@ -38,6 +45,18 @@ export function requireSiteRepository(
     installationId: site.githubInstallationId,
     owner: site.repositoryOwner,
     repo: site.repositoryName,
+  };
+}
+
+/** The site's repository and a token for it with `permissions`. */
+export async function siteRepositoryAccess(
+  site: SiteRepositoryColumns,
+  permissions: SiteRepositoryPermissions
+): Promise<SiteRepositoryAccess> {
+  const repository = requireSiteRepository(site);
+  return {
+    repository,
+    token: await siteRepositoryToken(repository, permissions),
   };
 }
 
@@ -77,34 +96,14 @@ export async function downloadRepositoryTarball(
     );
   }
   const declared = Number(response.headers.get("content-length") ?? 0);
-  if (declared > MAX_TARBALL_BYTES) {
+  const body =
+    declared > MAX_TARBALL_BYTES
+      ? null
+      : await readBodyUpTo(response, MAX_TARBALL_BYTES);
+  if (!body || body.exceeded) {
     throw new SitePermanentBuildError("The repository is too large to build");
   }
-  const reader = response.body?.getReader();
-  if (!reader) {
-    return new Uint8Array(new ArrayBuffer(0));
-  }
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-    total += value.byteLength;
-    if (total > MAX_TARBALL_BYTES) {
-      await reader.cancel();
-      throw new SitePermanentBuildError("The repository is too large to build");
-    }
-    chunks.push(value);
-  }
-  const bytes = new Uint8Array(new ArrayBuffer(total));
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
+  return body.bytes;
 }
 
 export async function getBranchHead(
@@ -184,6 +183,27 @@ export async function completeCheckRun(
   );
 }
 
+function isSkippedDirectory(directory: string): boolean {
+  return directory
+    .split("/")
+    .some((segment) => CONFIG_SEARCH_SKIPPED_SEGMENTS.has(segment));
+}
+
+export async function getDefaultBranch(
+  repository: SiteRepository,
+  token: string
+): Promise<string> {
+  const { data } = await createOctokit(token).request(
+    "GET /repos/{owner}/{repo}",
+    {
+      owner: repository.owner,
+      repo: repository.repo,
+      headers: GITHUB_API_VERSION_HEADER,
+    }
+  );
+  return data.default_branch;
+}
+
 async function listBranches(
   repository: SiteRepository,
   token: string
@@ -232,36 +252,35 @@ async function listConfigDirectories(
   const directories: string[] = [];
   const contentCounts: Record<string, RepositoryContentCount> = {};
   for (const entry of data.tree) {
+    if (entry.type !== "blob") {
+      continue;
+    }
     const path = entry.path ?? "";
-    const content = entry.type === "blob" ? CONTENT_FILE.exec(path) : null;
+    const content = CONTENT_FILE.exec(path);
     if (content) {
       const [, directory = "", section] = content;
       if (
-        !directory
-          .split("/")
-          .some((segment) => CONFIG_SEARCH_SKIPPED_SEGMENTS.has(segment))
+        (section === "blog" || section === "changelog") &&
+        !isSkippedDirectory(directory)
       ) {
         const count = contentCounts[directory] ?? { blog: 0, changelog: 0 };
-        count[section as keyof RepositoryContentCount] += 1;
+        count[section] += 1;
         contentCounts[directory] = count;
       }
       continue;
     }
     if (
-      entry.type !== "blob" ||
-      !(path === "notra.json" || path.endsWith("/notra.json"))
+      path !== SITE_CONFIG_FILENAME &&
+      !path.endsWith(`/${SITE_CONFIG_FILENAME}`)
     ) {
       continue;
     }
-    const directory = path.slice(0, -"notra.json".length).replace(/\/$/, "");
-    if (
-      directory
-        .split("/")
-        .some((segment) => CONFIG_SEARCH_SKIPPED_SEGMENTS.has(segment))
-    ) {
-      continue;
+    const directory = path
+      .slice(0, -SITE_CONFIG_FILENAME.length)
+      .replace(/\/$/, "");
+    if (!isSkippedDirectory(directory)) {
+      directories.push(directory);
     }
-    directories.push(directory);
   }
   directories.sort((a, b) => a.length - b.length || a.localeCompare(b));
   return { directories, contentCounts, truncated: data.truncated };
@@ -276,30 +295,28 @@ export async function getRepositorySuggestions(
   ref: string | null
 ): Promise<RepositorySuggestions> {
   const token = await siteRepositoryToken(repository, { contents: "read" });
-  const octokit = createOctokit(token);
-  const { data: repo } = await octokit.request("GET /repos/{owner}/{repo}", {
-    owner: repository.owner,
-    repo: repository.repo,
-    headers: GITHUB_API_VERSION_HEADER,
-  });
-  const [branches, config] = await Promise.all([
+  const scanConfig = async () => {
+    const defaultBranch = await getDefaultBranch(repository, token);
+    const config = await listConfigDirectories(
+      repository,
+      token,
+      ref || defaultBranch
+    ).catch(() => EMPTY_TREE_SCAN);
+    return { defaultBranch, config };
+  };
+  const [branches, { defaultBranch, config }] = await Promise.all([
     listBranches(repository, token),
-    listConfigDirectories(repository, token, ref || repo.default_branch).catch(
-      (): RepositoryTreeScan => ({
-        directories: [],
-        contentCounts: {},
-        truncated: false,
-      })
-    ),
+    scanConfig(),
   ]);
-  // The default branch leads; it is almost always the production branch.
-  const ordered = [
-    repo.default_branch,
-    ...branches.filter((branch) => branch !== repo.default_branch),
-  ];
   return {
-    branches: branches.includes(repo.default_branch) ? ordered : branches,
-    defaultBranch: repo.default_branch,
+    // The default branch leads; it is almost always the production branch.
+    branches: branches.includes(defaultBranch)
+      ? [
+          defaultBranch,
+          ...branches.filter((branch) => branch !== defaultBranch),
+        ]
+      : branches,
+    defaultBranch,
     configDirectories: config.directories,
     contentCounts: config.contentCounts,
     truncated: config.truncated,

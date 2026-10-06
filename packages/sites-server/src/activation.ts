@@ -1,5 +1,9 @@
 import { db } from "@notra/db/drizzle";
 import { SITE_R2_KEYS } from "@notra/sites-core/constants/sites";
+import type {
+  PreviewActivationResult,
+  ProductionActivationResult,
+} from "@notra/sites-core/types/serving-state";
 import { referencedDeploymentIds } from "@notra/sites-core/utils/serving-state";
 
 import { allocateGeneration } from "./deployments";
@@ -9,8 +13,31 @@ import {
   activateProductionDeployment,
   readServingState,
 } from "./state";
-import type { LiveDeployments, SiteDeployment } from "./types/deployments";
+import type {
+  ActivationOutcome,
+  LiveDeployments,
+  SiteDeployment,
+} from "./types/deployments";
 import type { Site } from "./types/sites";
+
+/**
+ * Cleanup may have removed the files of a build that sat ready for long;
+ * pointing the state at them would serve errors.
+ */
+async function hasStoredFiles(
+  site: Site,
+  deployment: SiteDeployment
+): Promise<boolean> {
+  return Boolean(
+    await r2GetText(SITE_R2_KEYS.manifest(site.id, deployment.id))
+  );
+}
+
+function liveUnlessSuperseded(
+  outcome: ProductionActivationResult | PreviewActivationResult
+): ActivationOutcome {
+  return outcome.outcome === "superseded" ? "not_live" : "live";
+}
 
 /**
  * Points the serving state at a finished deployment. The R2 state is the only
@@ -20,29 +47,29 @@ import type { Site } from "./types/sites";
 export async function activateDeployment(
   site: Site,
   deployment: SiteDeployment
-): Promise<"live" | "not_live"> {
-  // Cleanup may have removed the files of a build that sat ready for long;
-  // pointing the state at them would serve errors.
-  if (!(await r2GetText(SITE_R2_KEYS.manifest(site.id, deployment.id)))) {
+): Promise<ActivationOutcome> {
+  if (!(await hasStoredFiles(site, deployment))) {
     return "not_live";
   }
   if (deployment.kind === "production") {
-    const outcome = await activateProductionDeployment(site, {
-      deploymentId: deployment.id,
-      generation: deployment.generation,
-    });
-    return outcome.outcome === "superseded" ? "not_live" : "live";
+    return liveUnlessSuperseded(
+      await activateProductionDeployment(site, {
+        deploymentId: deployment.id,
+        generation: deployment.generation,
+      })
+    );
   }
   if (!deployment.previewKey) {
     throw new Error("Preview deployment without a preview key");
   }
-  const outcome = await activatePreviewDeployment(site, deployment.previewKey, {
-    deploymentId: deployment.id,
-    sequence: deployment.generation,
-    visibility: site.previewVisibility,
-    expiresAt: null,
-  });
-  return outcome.outcome === "superseded" ? "not_live" : "live";
+  return liveUnlessSuperseded(
+    await activatePreviewDeployment(site, deployment.previewKey, {
+      deploymentId: deployment.id,
+      sequence: deployment.generation,
+      visibility: site.previewVisibility,
+      expiresAt: null,
+    })
+  );
 }
 
 /**
@@ -52,25 +79,25 @@ export async function activateDeployment(
 export async function restoreProductionDeployment(
   site: Site,
   deployment: SiteDeployment
-): Promise<"live" | "not_live"> {
-  if (!(await r2GetText(SITE_R2_KEYS.manifest(site.id, deployment.id)))) {
+): Promise<ActivationOutcome> {
+  if (!(await hasStoredFiles(site, deployment))) {
     return "not_live";
   }
   const { lastGeneration } = await allocateGeneration(db, site.id);
-  const outcome = await activateProductionDeployment(site, {
-    deploymentId: deployment.id,
-    generation: lastGeneration,
-  });
-  return outcome.outcome === "superseded" ? "not_live" : "live";
+  return liveUnlessSuperseded(
+    await activateProductionDeployment(site, {
+      deploymentId: deployment.id,
+      generation: lastGeneration,
+    })
+  );
 }
 
-/** What the site serves right now: the production deployment and every open preview. */
+/** What the site serves right now: every open preview, and the ids of all referenced deployments. */
 export async function readLiveDeployments(
   siteId: string
 ): Promise<LiveDeployments> {
   const serving = await readServingState(siteId);
   return {
-    productionId: serving?.state.production?.deploymentId ?? null,
     previews: serving?.state.previews ?? {},
     ids: serving ? referencedDeploymentIds(serving.state) : new Set(),
   };

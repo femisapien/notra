@@ -6,14 +6,15 @@ import type {
   SiteManifest,
   SiteManifestFile,
 } from "@notra/sites-core/types/deployment";
+import { sha256Hex } from "@notra/sites-core/utils/hash";
 
 import { UPLOAD_CONCURRENCY } from "./constants/build";
+import { JSON_CONTENT_TYPE } from "./constants/content-types";
 import { r2Put } from "./r2";
 import { readTarGz } from "./tar";
 import type { PublishDeploymentFilesParams } from "./types/deployments";
 import { mapWithConcurrency } from "./utils/concurrency";
 import { contentTypeForPath } from "./utils/content-types";
-import { sha256Hex } from "./utils/hash";
 
 /**
  * Uploads the sandbox output under the deployment's immutable prefix and
@@ -70,9 +71,7 @@ export async function publishDeploymentFiles(
   await r2Put(
     SITE_R2_KEYS.manifest(site.id, deployment.id),
     JSON.stringify(manifest),
-    {
-      contentType: "application/json; charset=utf-8",
-    }
+    { contentType: JSON_CONTENT_TYPE }
   );
   return manifest;
 }

@@ -4,18 +4,17 @@ import { validateSite } from "@notra/sites-compiler/validate";
 import { siteConfigSchema } from "@notra/sites-core/schemas/site-config";
 
 import type { StarterBrandInput } from "../src/types/starter";
+import {
+  extractLandingPage,
+  googleFontFamilies,
+} from "../src/utils/landing-page";
+import { normalizeWebsiteUrl, resolveLinkUrl } from "../src/utils/links";
 import { isAccentColor, normalizeHexColor } from "../src/utils/starter-color";
 import {
   buildSiteStarterFiles,
   buildStarterConfig,
   escapeMdxText,
 } from "../src/utils/starter-files";
-import {
-  extractLandingPage,
-  googleFontFamilies,
-  normalizeWebsiteUrl,
-  resolveLinkUrl,
-} from "../src/utils/starter-html";
 
 const LANDING_HTML = `<!doctype html>
 <html lang="en">

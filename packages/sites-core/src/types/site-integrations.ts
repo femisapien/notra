@@ -5,7 +5,7 @@ import type {
 import type { z } from "zod";
 
 export type SiteIntegrations = z.infer<typeof siteIntegrationsSchema>;
-export type SiteSecurity = z.infer<typeof siteSecuritySchema>;
+type SiteSecurity = z.infer<typeof siteSecuritySchema>;
 
 /**
  * A `<script>` the theme renders in `<head>`. Inline code is final JavaScript:

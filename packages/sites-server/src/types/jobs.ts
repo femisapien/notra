@@ -1,6 +1,7 @@
 import type { siteJobs } from "@notra/db/schema";
 
-import type { DeploymentOutcome } from "./deployments";
+import type { DeploymentOutcome, SiteDeployment } from "./deployments";
+import type { Site } from "./sites";
 
 export type SiteJob = typeof siteJobs.$inferSelect;
 
@@ -9,6 +10,8 @@ export interface SiteJobOutcome {
   outcome?: DeploymentOutcome["kind"];
 }
 
-export interface FailSiteJobOptions {
-  permanent?: boolean;
+/** The deployment a build job is for, with its site. */
+export interface JobDeployment {
+  site: Site;
+  deployment: SiteDeployment;
 }

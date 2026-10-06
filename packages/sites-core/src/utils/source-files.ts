@@ -1,17 +1,14 @@
-import { SITE_SOURCE_ROOT_ENTRIES } from "../constants/sites";
-import { isCustomScriptPath } from "./custom-scripts";
-
-const CONTENT_ROOTS = new Set<string>(SITE_SOURCE_ROOT_ENTRIES);
-const STYLESHEET_EXTENSION = ".css";
+import { SITE_SOURCE_ROOTS } from "@notra/sites-core/constants/sites";
+import { isCustomScriptPath } from "@notra/sites-core/utils/custom-scripts";
 
 /** The known top-level entry a path belongs to (`blog`, `snippets`, `style.css`, …), if any. */
 export function isSiteContentPath(path: string): boolean {
-  return CONTENT_ROOTS.has(path.split("/")[0] ?? "");
+  return SITE_SOURCE_ROOTS.has(path.split("/")[0] ?? "");
 }
 
 /** A stylesheet the site loads on every page, after the theme, wherever it sits. */
 export function isSiteStylesheet(path: string): boolean {
-  return path.toLowerCase().endsWith(STYLESHEET_EXTENSION);
+  return path.toLowerCase().endsWith(".css");
 }
 
 /**

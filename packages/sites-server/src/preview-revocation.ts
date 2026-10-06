@@ -40,11 +40,13 @@ async function revokeOnSites(
   const results = await Promise.allSettled(
     rows.map((site) => revokeOnSite(site, userId, scope))
   );
-  const failed = results.filter((result) => result.status === "rejected");
-  if (failed.length > 0) {
+  const failures = results.flatMap((result) =>
+    result.status === "rejected" ? [result.reason] : []
+  );
+  if (failures.length > 0) {
     throw new AggregateError(
-      failed.map((result) => (result as PromiseRejectedResult).reason),
-      `Could not revoke preview sessions on ${failed.length} site(s)`
+      failures,
+      `Could not revoke preview sessions on ${failures.length} site(s)`
     );
   }
 }

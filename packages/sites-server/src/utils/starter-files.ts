@@ -1,9 +1,14 @@
+import { SITE_DEFAULT_PRIMARY_COLOR } from "@notra/sites-core/constants/site-config";
 import { SITE_CONFIG_FILENAME } from "@notra/sites-core/constants/sites";
 import { siteConfigSchema } from "@notra/sites-core/schemas/site-config";
 
 import {
-  STARTER_DEFAULT_PRIMARY,
+  STARTER_DESCRIPTION_MAX_LENGTH,
+  STARTER_FOOTER_DESCRIPTION_MAX_LENGTH,
+  STARTER_LINK_CLASS,
   STARTER_MAX_URL_LENGTH,
+  STARTER_MDX_SAFE_CHAR,
+  STARTER_NAME_MAX_LENGTH,
   STARTER_SAMPLE_POST_PATH,
   STARTER_SYSTEM_FONTS,
 } from "../constants/starter";
@@ -12,21 +17,14 @@ import type {
   StarterBrandInput,
   StarterLink,
 } from "../types/starter";
+import { resolveLinkUrl } from "./links";
 import { isAccentColor, normalizeHexColor } from "./starter-color";
-import { resolveLinkUrl } from "./starter-html";
-
-const NAME_MAX = 80;
-const DESCRIPTION_MAX = 300;
-/** Letters, digits and plain punctuation stay readable; everything else becomes a character reference. */
-const MDX_SAFE_CHAR = /[\p{L}\p{N} .,:;!?()/'’-]/u;
-const LINK_CLASS =
-  "text-muted-foreground transition-colors hover:text-foreground";
 
 /** Text for MDX children: no `{`, `<`, `*` or `[` can start an expression, a tag or Markdown. */
 export function escapeMdxText(value: string): string {
   let result = "";
   for (const char of value) {
-    result += MDX_SAFE_CHAR.test(char)
+    result += STARTER_MDX_SAFE_CHAR.test(char)
       ? char
       : `&#${char.codePointAt(0) ?? 32};`;
   }
@@ -56,7 +54,7 @@ function httpsAsset(url: string | null | undefined): string | null {
 
 function webFont(family: string | null | undefined): string | null {
   const trimmed = family?.trim() ?? "";
-  if (!trimmed || trimmed.length > NAME_MAX) {
+  if (!trimmed || trimmed.length > STARTER_NAME_MAX_LENGTH) {
     return null;
   }
   return STARTER_SYSTEM_FONTS.has(trimmed.toLowerCase()) ? null : trimmed;
@@ -69,7 +67,7 @@ function resolveColors(input: StarterBrandInput) {
   const primary =
     normalizeHexColor(input.colors.primary) ??
     (landingAccent && isAccentColor(landingAccent) ? landingAccent : null) ??
-    STARTER_DEFAULT_PRIMARY;
+    SITE_DEFAULT_PRIMARY_COLOR;
   const primaryDark = normalizeHexColor(input.colors.primaryDark);
   return { primary, primaryDark };
 }
@@ -122,13 +120,15 @@ function siteName(input: StarterBrandInput): string {
     input.landing?.siteName?.trim() ||
     input.landing?.title?.split(/[|–—-]/)[0]?.trim() ||
     "My site";
-  return truncate(name, NAME_MAX);
+  return truncate(name, STARTER_NAME_MAX_LENGTH);
 }
 
 function siteDescription(input: StarterBrandInput): string | null {
   const description =
     input.description?.trim() || input.landing?.description?.trim() || "";
-  return description ? truncate(description, DESCRIPTION_MAX) : null;
+  return description
+    ? truncate(description, STARTER_DESCRIPTION_MAX_LENGTH)
+    : null;
 }
 
 /**
@@ -178,7 +178,7 @@ export function buildStarterConfig(input: StarterBrandInput) {
     config.footer = { socials };
   }
   config.blog = {
-    title: `${truncate(name, NAME_MAX - 5)} Blog`,
+    title: `${truncate(name, STARTER_NAME_MAX_LENGTH - 5)} Blog`,
     ...(description ? { description } : {}),
   };
 
@@ -191,7 +191,7 @@ export function buildStarterConfig(input: StarterBrandInput) {
 }
 
 function renderLink(link: StarterLink, indent: string): string {
-  return `${indent}<a href="${link.href}" className="${LINK_CLASS}">${escapeMdxText(link.label)}</a>`;
+  return `${indent}<a href="${link.href}" className="${STARTER_LINK_CLASS}">${escapeMdxText(link.label)}</a>`;
 }
 
 function renderLogo(input: StarterBrandInput, name: string): string[] {
@@ -216,7 +216,7 @@ function renderLogo(input: StarterBrandInput, name: string): string[] {
 }
 
 /** header.mdx: logo, name and the landing page's header links, in plain Tailwind. */
-export function buildStarterHeader(input: StarterBrandInput): string {
+function buildStarterHeader(input: StarterBrandInput): string {
   const name = siteName(input);
   const home = homeUrl(input) ?? "/";
   const links = input.landing?.navLinks ?? [];
@@ -256,7 +256,7 @@ export function buildStarterHeader(input: StarterBrandInput): string {
 }
 
 /** footer.mdx: name, description and the landing page's footer links. */
-export function buildStarterFooter(input: StarterBrandInput): string {
+function buildStarterFooter(input: StarterBrandInput): string {
   const name = siteName(input);
   const description = siteDescription(input);
   const home = homeUrl(input) ?? "/";
@@ -269,7 +269,7 @@ export function buildStarterFooter(input: StarterBrandInput): string {
   ];
   if (description) {
     lines.push(
-      `      <p className="text-muted-foreground">${escapeMdxText(truncate(description, 160))}</p>`
+      `      <p className="text-muted-foreground">${escapeMdxText(truncate(description, STARTER_FOOTER_DESCRIPTION_MAX_LENGTH))}</p>`
     );
   }
   lines.push("    </div>");
@@ -289,19 +289,15 @@ export function buildStarterFooter(input: StarterBrandInput): string {
   return lines.join("\n");
 }
 
-function yamlString(value: string): string {
-  // JSON strings are valid YAML double-quoted scalars.
-  return JSON.stringify(value);
-}
-
 /** A first post, so the first build has something to show and the frontmatter has an example. */
-export function buildStarterPost(input: StarterBrandInput, now: Date): string {
+function buildStarterPost(input: StarterBrandInput, now: Date): string {
   const name = siteName(input);
   const date = now.toISOString().slice(0, 10);
   return [
     "---",
-    `title: ${yamlString(`Welcome to the ${name} blog`)}`,
-    `description: ${yamlString(`The first post on the ${name} blog.`)}`,
+    // JSON strings are valid YAML double-quoted scalars.
+    `title: ${JSON.stringify(`Welcome to the ${name} blog`)}`,
+    `description: ${JSON.stringify(`The first post on the ${name} blog.`)}`,
     `date: ${date}`,
     "---",
     "",

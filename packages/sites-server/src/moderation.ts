@@ -9,7 +9,8 @@ import {
   SITE_PROTECTED_SLUG_WORDS,
   SITE_RESERVED_BRAND_SLUGS,
 } from "./constants/moderation";
-import type { SiteNameRejection } from "./types/sites";
+import { SiteInputError } from "./errors";
+import type { SiteNameRejection, SiteNameRejectionParams } from "./types/sites";
 
 /**
  * A reserved address belongs to whoever controls its company's mailboxes: a
@@ -38,44 +39,34 @@ async function ownsReservedDomain(
  * refused (and whether the name or the address has to change), or null when
  * it may be used.
  */
-export async function siteNameRejection(params: {
-  organizationId: string;
-  userId: string;
-  name: string;
-  address: string;
-  slug?: string;
-}): Promise<SiteNameRejection | null> {
-  if (
-    params.slug?.split("-").some((word) => SITE_PROTECTED_SLUG_WORDS.has(word))
-  ) {
-    return {
-      message: SITE_NAME_REJECTION_MESSAGES.impersonation,
-      field: "slug",
-    };
-  }
-  // A hand-granted address belongs to one organization, reserved or not.
-  const grant = params.slug
-    ? await db.query.siteSlugGrants.findFirst({
-        columns: { organizationId: true },
-        where: eq(siteSlugGrants.slug, params.slug),
-      })
-    : undefined;
-  if (grant) {
-    return grant.organizationId === params.organizationId
-      ? null
-      : { message: SITE_NAME_REJECTION_MESSAGES.granted, field: "slug" };
-  }
-  const reservedFor = params.slug
-    ? SITE_RESERVED_BRAND_SLUGS[params.slug]
-    : undefined;
-  if (reservedFor) {
-    // The company's own people pass; nobody else gets its address.
-    return (await ownsReservedDomain(params.userId, reservedFor))
-      ? null
-      : {
-          message: reservedSlugMessage(params.slug ?? "", reservedFor),
-          field: "slug",
-        };
+async function siteNameRejection(
+  params: SiteNameRejectionParams
+): Promise<SiteNameRejection | null> {
+  const { slug } = params;
+  if (slug) {
+    if (slug.split("-").some((word) => SITE_PROTECTED_SLUG_WORDS.has(word))) {
+      return {
+        message: SITE_NAME_REJECTION_MESSAGES.impersonation,
+        field: "slug",
+      };
+    }
+    // A hand-granted address belongs to one organization, reserved or not.
+    const grant = await db.query.siteSlugGrants.findFirst({
+      columns: { organizationId: true },
+      where: eq(siteSlugGrants.slug, slug),
+    });
+    if (grant) {
+      return grant.organizationId === params.organizationId
+        ? null
+        : { message: SITE_NAME_REJECTION_MESSAGES.granted, field: "slug" };
+    }
+    const reservedFor = SITE_RESERVED_BRAND_SLUGS[slug];
+    if (reservedFor) {
+      // The company's own people pass; nobody else gets its address.
+      return (await ownsReservedDomain(params.userId, reservedFor))
+        ? null
+        : { message: reservedSlugMessage(slug, reservedFor), field: "slug" };
+    }
   }
   const organization = await db.query.organizations.findFirst({
     columns: { name: true },
@@ -90,4 +81,14 @@ export async function siteNameRejection(params: {
   return verdict
     ? { message: SITE_NAME_REJECTION_MESSAGES[verdict], field: "name" }
     : null;
+}
+
+/** Throws the reason a site name or address is refused, pointing at the field to change. */
+export async function assertSiteNameAllowed(
+  params: SiteNameRejectionParams
+): Promise<void> {
+  const rejection = await siteNameRejection(params);
+  if (rejection) {
+    throw new SiteInputError(rejection.message, { field: rejection.field });
+  }
 }

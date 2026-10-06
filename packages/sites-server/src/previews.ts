@@ -1,11 +1,42 @@
 import { db } from "@notra/db/drizzle";
 import { siteDeployments } from "@notra/db/schema";
 import { SITE_DEPLOYMENT_IN_PROGRESS_STATUSES } from "@notra/sites-core/constants/sites";
+import { branchPreviewKey } from "@notra/sites-core/utils/hosts";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
 import { readLiveDeployments } from "./activation";
+import { deployBranchHead } from "./deploy";
 import { enqueuePreviewRemoval } from "./deployments";
-import type { Site } from "./types/sites";
+import { SiteInputError } from "./errors";
+import type { BranchPreviewResult, Site } from "./types/sites";
+
+export async function createBranchPreview(
+  site: Site,
+  branch: string,
+  userId: string
+): Promise<BranchPreviewResult> {
+  if (!site.previewsEnabled) {
+    throw new SiteInputError("Previews are turned off for this site");
+  }
+  if (branch === site.productionBranch) {
+    throw new SiteInputError("The production branch is already deployed live");
+  }
+  const previewKey = branchPreviewKey(branch, site.slug);
+  const jobId = await deployBranchHead(site, {
+    trigger: "manual",
+    userId,
+    branch,
+    previewKey,
+  });
+  return { jobId, previewKey };
+}
+
+export async function deletePreview(
+  site: Site,
+  previewKey: string
+): Promise<string> {
+  return await enqueuePreviewRemoval(site.id, previewKey);
+}
 
 /**
  * Turning previews off closes every preview like a closed pull request: it
@@ -35,9 +66,7 @@ export async function closeAllPreviews(site: Site): Promise<string[]> {
       keys.add(row.previewKey);
     }
   }
-  const jobIds: string[] = [];
-  for (const previewKey of keys) {
-    jobIds.push(await enqueuePreviewRemoval(site.id, previewKey));
-  }
-  return jobIds;
+  return await Promise.all(
+    [...keys].map((previewKey) => enqueuePreviewRemoval(site.id, previewKey))
+  );
 }

@@ -14,16 +14,19 @@ import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { readLiveDeployments } from "./activation";
 import {
+  BRANCH_REF_PREFIX,
   PREVIEW_PR_ACTIONS,
   SITES_WEBHOOK_EVENTS,
   WEBHOOK_CLAIM_LEASE_SECONDS,
+  ZERO_SHA,
 } from "./constants/webhooks";
 import {
   enqueuePreviewRemoval,
   enqueueSiteDeployment,
   getDeployment,
-  SiteNotBuildableError,
+  redeploymentInput,
 } from "./deployments";
+import { SiteNotBuildableError } from "./errors";
 import type { EnqueueDeploymentInput } from "./types/deployments";
 import type {
   CheckRunPayload,
@@ -32,8 +35,6 @@ import type {
   SitesWebhookParams,
   SitesWebhookResult,
 } from "./types/webhooks";
-
-const ZERO_SHA = /^0+$/;
 
 /** A suspended site or an exhausted quota skips that site instead of failing (and redelivering) the webhook. */
 async function enqueueOrSkip(
@@ -99,50 +100,44 @@ async function sitesForRepository(
 
 async function handlePush(payload: PushPayload): Promise<string[]> {
   if (
-    !payload.ref.startsWith("refs/heads/") ||
+    !payload.ref.startsWith(BRANCH_REF_PREFIX) ||
     payload.deleted ||
     ZERO_SHA.test(payload.after)
   ) {
     return [];
   }
-  const branch = payload.ref.slice("refs/heads/".length);
+  const branch = payload.ref.slice(BRANCH_REF_PREFIX.length);
+  const commit = {
+    trigger: "push",
+    branch,
+    commitSha: payload.after,
+    commitMessage: payload.head_commit?.message?.split("\n")[0] ?? null,
+    commitAuthor: payload.head_commit?.author?.name ?? null,
+  } as const;
   const jobIds: string[] = [];
   for (const site of await sitesForRepository(
     payload.repository.id,
     payload.installation?.id
   )) {
-    if (branch === site.productionBranch) {
-      const jobId = await enqueueOrSkip({
-        siteId: site.id,
-        kind: "production",
-        previewKey: null,
-        trigger: "push",
-        branch,
-        commitSha: payload.after,
-        commitMessage: payload.head_commit?.message?.split("\n")[0] ?? null,
-        commitAuthor: payload.head_commit?.author?.name ?? null,
-      });
-      if (jobId) {
-        jobIds.push(jobId);
-      }
+    // Manual branch previews follow their branch: a new commit updates the preview.
+    const previewKey =
+      branch === site.productionBranch
+        ? null
+        : branchPreviewKey(branch, site.slug);
+    if (
+      previewKey &&
+      !(site.previewsEnabled && (await isPreviewOpen(site.id, previewKey)))
+    ) {
       continue;
     }
-    // Manual branch previews follow their branch: a new commit updates the preview.
-    const previewKey = branchPreviewKey(branch, site.slug);
-    if (site.previewsEnabled && (await isPreviewOpen(site.id, previewKey))) {
-      const jobId = await enqueueOrSkip({
-        siteId: site.id,
-        kind: "preview",
-        previewKey,
-        trigger: "push",
-        branch,
-        commitSha: payload.after,
-        commitMessage: payload.head_commit?.message?.split("\n")[0] ?? null,
-        commitAuthor: payload.head_commit?.author?.name ?? null,
-      });
-      if (jobId) {
-        jobIds.push(jobId);
-      }
+    const jobId = await enqueueOrSkip({
+      ...commit,
+      siteId: site.id,
+      kind: previewKey ? "preview" : "production",
+      previewKey,
+    });
+    if (jobId) {
+      jobIds.push(jobId);
     }
   }
   return jobIds;
@@ -209,17 +204,7 @@ async function handleCheckRun(payload: CheckRunPayload): Promise<string[]> {
   if (!site) {
     return [];
   }
-  const jobId = await enqueueOrSkip({
-    siteId: site.id,
-    kind: previous.kind,
-    previewKey: previous.previewKey,
-    trigger: "redeploy",
-    branch: previous.branch,
-    commitSha: previous.commitSha,
-    commitMessage: previous.commitMessage,
-    commitAuthor: previous.commitAuthor,
-    pullRequestNumber: previous.pullRequestNumber,
-  });
+  const jobId = await enqueueOrSkip(redeploymentInput(previous, null));
   return jobId ? [jobId] : [];
 }
 

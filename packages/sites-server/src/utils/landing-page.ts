@@ -3,202 +3,24 @@ import {
   STARTER_MAX_FOOTER_LINKS,
   STARTER_MAX_LABEL_LENGTH,
   STARTER_MAX_NAV_LINKS,
-  STARTER_MAX_URL_LENGTH,
-  STARTER_RAW_TEXT_ELEMENTS,
   STARTER_SOCIAL_HOSTS,
-  STARTER_VOID_ELEMENTS,
 } from "../constants/starter";
 import type {
+  CapturedAnchor,
+  IconCandidate,
   LandingPageFacts,
+  LandingPageFrame,
+  OpenAnchor,
   StarterLink,
   StarterSocialPlatform,
 } from "../types/starter";
+import { collapseHtmlText, tokenizeHtml } from "./html";
+import { bareHostname, resolveLinkUrl } from "./links";
 import { normalizeHexColor } from "./starter-color";
 
-/**
- * A deliberately small HTML reader for one landing page: it only needs tags,
- * attributes and text, never a DOM. Malformed markup degrades to fewer facts,
- * not to an error.
- */
-const TAG =
-  /<!--[\s\S]*?-->|<![^>]*>|<\/([a-zA-Z][\w:-]*)\s*>|<([a-zA-Z][\w:-]*)((?:\s+[^\s"'>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*)\s*(\/?)>/g;
-const ATTRIBUTE =
-  /([^\s"'>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
-const ENTITY = /&(?:#(\d+)|#x([0-9a-f]+)|([a-z]+));/gi;
-const WHITESPACE = /\s+/g;
-const NAMED_ENTITIES: Record<string, string> = {
-  amp: "&",
-  lt: "<",
-  gt: ">",
-  quot: '"',
-  apos: "'",
-  nbsp: " ",
-  middot: "·",
-  copy: "©",
-};
-
-type HtmlToken =
-  | { kind: "open"; name: string; attrs: Map<string, string>; void: boolean }
-  | { kind: "close"; name: string }
-  | { kind: "text"; text: string };
-
-interface Frame {
-  name: string;
-  hidden: boolean;
-}
-
-interface CapturedAnchor {
-  href: string;
-  label: string;
-  hidden: boolean;
-  menuItem: boolean;
-  inHeader: boolean;
-  inNav: boolean;
-  footerIndex: number | null;
-}
-
-interface OpenAnchor {
-  href: string;
-  ariaLabel: string;
-  hidden: boolean;
-  menuItem: boolean;
-  text: string[];
-  svgTitle: string[];
-  inHeader: boolean;
-  inNav: boolean;
-  footerIndex: number | null;
-}
-
-interface IconCandidate {
-  href: string;
-  rel: string;
-  type: string;
-  size: number;
-}
-
-export function decodeHtmlEntities(value: string): string {
-  return value.replace(ENTITY, (match, decimal, hex, name) => {
-    if (decimal) {
-      return safeCodePoint(Number.parseInt(decimal, 10)) ?? match;
-    }
-    if (hex) {
-      return safeCodePoint(Number.parseInt(hex, 16)) ?? match;
-    }
-    return NAMED_ENTITIES[String(name).toLowerCase()] ?? match;
-  });
-}
-
-function safeCodePoint(code: number): string | null {
-  return Number.isInteger(code) && code > 0 && code <= 0x10_ff_ff
-    ? String.fromCodePoint(code)
-    : null;
-}
-
-function parseAttributes(source: string): Map<string, string> {
-  const attrs = new Map<string, string>();
-  for (const match of source.matchAll(ATTRIBUTE)) {
-    const name = match[1]?.toLowerCase();
-    if (!name || attrs.has(name)) {
-      continue;
-    }
-    attrs.set(name, decodeHtmlEntities(match[2] ?? match[3] ?? match[4] ?? ""));
-  }
-  return attrs;
-}
-
-export function* tokenizeHtml(html: string): Generator<HtmlToken> {
-  const tag = new RegExp(TAG.source, "g");
-  let last = 0;
-  let match = tag.exec(html);
-  while (match) {
-    if (match.index > last) {
-      yield { kind: "text", text: html.slice(last, match.index) };
-    }
-    last = tag.lastIndex;
-    const [, closeName, openName, rawAttrs, selfClosing] = match;
-    if (closeName) {
-      yield { kind: "close", name: closeName.toLowerCase() };
-    } else if (openName) {
-      const name = openName.toLowerCase();
-      const isVoid = STARTER_VOID_ELEMENTS.has(name) || selfClosing === "/";
-      yield {
-        kind: "open",
-        name,
-        attrs: parseAttributes(rawAttrs ?? ""),
-        void: isVoid,
-      };
-      // Script and style bodies are not markup; jump to their end tag.
-      if (STARTER_RAW_TEXT_ELEMENTS.has(name) && !isVoid) {
-        const end = html.toLowerCase().indexOf(`</${name}`, last);
-        const resume = end === -1 ? html.length : end;
-        last = resume;
-        tag.lastIndex = resume;
-      }
-    }
-    match = tag.exec(html);
-  }
-  if (last < html.length) {
-    yield { kind: "text", text: html.slice(last) };
-  }
-}
-
-function collapse(value: string): string {
-  return decodeHtmlEntities(value).replace(WHITESPACE, " ").trim();
-}
-
-/** An absolute http(s)/mailto URL, or null for anchors, scripts and junk. */
-export function resolveLinkUrl(
-  href: string,
-  baseUrl: string,
-  options: { httpsOnly?: boolean } = {}
-): string | null {
-  const trimmed = href.trim();
-  if (!trimmed || trimmed.startsWith("#")) {
-    return null;
-  }
-  let url: URL;
-  try {
-    url = new URL(trimmed, baseUrl);
-  } catch {
-    return null;
-  }
-  const allowed = options.httpsOnly
-    ? url.protocol === "https:"
-    : ["https:", "http:", "mailto:"].includes(url.protocol);
-  if (!allowed || url.username || url.password) {
-    return null;
-  }
-  url.hash = "";
-  const value = url.href;
-  // Quotes and braces would need escaping in MDX attributes; such URLs are skipped.
-  if (value.length > STARTER_MAX_URL_LENGTH || /["'<>{}`\\]/.test(value)) {
-    return null;
-  }
-  return value;
-}
-
-/** `https://` in front of a bare domain; plain http is upgraded, never fetched. */
-export function normalizeWebsiteUrl(value: string | null): string | null {
-  const trimmed = value?.trim() ?? "";
-  if (!trimmed) {
-    return null;
-  }
-  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
-    ? trimmed.replace(/^http:\/\//i, "https://")
-    : `https://${trimmed}`;
-  try {
-    const url = new URL(withScheme);
-    return url.protocol === "https:" ? url.href : null;
-  } catch {
-    return null;
-  }
-}
-
 function socialPlatform(url: string): StarterSocialPlatform | null {
-  let host: string;
-  try {
-    host = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
-  } catch {
+  const host = bareHostname(url);
+  if (!host) {
     return null;
   }
   for (const [domain, platform] of STARTER_SOCIAL_HOSTS) {
@@ -212,10 +34,8 @@ function socialPlatform(url: string): StarterSocialPlatform | null {
 function isHomeLink(url: string, pageUrl: string): boolean {
   try {
     const target = new URL(url);
-    const page = new URL(pageUrl);
-    const bare = (host: string) => host.replace(/^www\./, "");
     return (
-      bare(target.hostname) === bare(page.hostname) &&
+      bareHostname(url) === bareHostname(pageUrl) &&
       (target.pathname === "/" || target.pathname === "") &&
       !target.search
     );
@@ -322,7 +142,7 @@ export function extractLandingPage(
     socials: {},
   };
   let baseUrl = pageUrl;
-  const stack: Frame[] = [];
+  const stack: LandingPageFrame[] = [];
   const icons: IconCandidate[] = [];
   const anchors: CapturedAnchor[] = [];
   let anchor: OpenAnchor | null = null;
@@ -360,7 +180,7 @@ export function extractLandingPage(
       }
       stack.length = index;
       if (token.name === "title" && titleText) {
-        facts.title ??= collapse(titleText.join("")) || null;
+        facts.title ??= collapseHtmlText(titleText.join("")) || null;
         titleText = null;
       }
       if (svgTitleDepth !== null && stack.length <= svgTitleDepth) {
@@ -371,19 +191,12 @@ export function extractLandingPage(
       }
       if (token.name === "a" && anchor) {
         const label = clampLabel(
-          collapse(anchor.text.join("")) ||
+          collapseHtmlText(anchor.text.join("")) ||
             anchor.ariaLabel ||
-            collapse(anchor.svgTitle.join(""))
+            collapseHtmlText(anchor.svgTitle.join(""))
         );
-        anchors.push({
-          href: anchor.href,
-          label: label ?? "",
-          hidden: anchor.hidden,
-          menuItem: anchor.menuItem,
-          inHeader: anchor.inHeader,
-          inNav: anchor.inNav,
-          footerIndex: anchor.footerIndex,
-        });
+        const { ariaLabel, text, svgTitle, ...captured } = anchor;
+        anchors.push({ ...captured, label: label ?? "" });
         anchor = null;
       }
       if (
@@ -465,7 +278,7 @@ export function extractLandingPage(
       if (href) {
         anchor = {
           href,
-          ariaLabel: collapse(attrs.get("aria-label") ?? ""),
+          ariaLabel: collapseHtmlText(attrs.get("aria-label") ?? ""),
           hidden,
           menuItem: (attrs.get("role") ?? "").startsWith("menuitem"),
           text: [],
@@ -486,7 +299,7 @@ export function extractLandingPage(
 
 function readMeta(attrs: Map<string, string>, facts: LandingPageFacts): void {
   const key = (attrs.get("name") ?? attrs.get("property") ?? "").toLowerCase();
-  const content = collapse(attrs.get("content") ?? "");
+  const content = collapseHtmlText(attrs.get("content") ?? "");
   if (!content) {
     return;
   }

@@ -16,12 +16,18 @@ import type {
   DeploymentDashboardUrlParams,
 } from "./types/urls";
 
+function hostingOrigin(host: string): string {
+  return `${getSitesHostingProtocol()}://${host}${getSitesHostingPortSuffix()}`;
+}
+
 export function siteAliasOrigin(slug: string): string {
-  return `${getSitesHostingProtocol()}://${siteAliasHost(slug, getSitesHostingDomain())}${getSitesHostingPortSuffix()}`;
+  return hostingOrigin(siteAliasHost(slug, getSitesHostingDomain()));
 }
 
 export function sitePreviewOrigin(slug: string, previewKey: string): string {
-  return `${getSitesHostingProtocol()}://${sitePreviewHost(previewKey, slug, getSitesHostingDomain())}${getSitesHostingPortSuffix()}`;
+  return hostingOrigin(
+    sitePreviewHost(previewKey, slug, getSitesHostingDomain())
+  );
 }
 
 /** The first mounted area is the landing URL (`/blog` if both exist). */
@@ -30,22 +36,20 @@ export function primaryMountUrl(origin: string, mounts: SiteMounts): string {
   return `${origin}${first && first.mount !== "/" ? first.mount : "/"}`;
 }
 
-export function buildTargetForDeployment(
-  params: BuildTargetForDeploymentParams
-): SiteBuildTarget {
-  if (params.kind === "preview" && params.previewKey) {
-    return {
-      publicOrigin: sitePreviewOrigin(params.site.slug, params.previewKey),
-      mounts: params.site.mounts,
-      noindex: true,
-      branding: params.site.showBranding,
-    };
-  }
+export function buildTargetForDeployment({
+  site,
+  kind,
+  previewKey,
+}: BuildTargetForDeploymentParams): SiteBuildTarget {
+  const previewOrigin =
+    kind === "preview" && previewKey
+      ? sitePreviewOrigin(site.slug, previewKey)
+      : null;
   return {
-    publicOrigin: params.site.publicOrigin,
-    mounts: params.site.mounts,
-    noindex: false,
-    branding: params.site.showBranding,
+    publicOrigin: previewOrigin ?? site.publicOrigin,
+    mounts: site.mounts,
+    noindex: previewOrigin !== null,
+    branding: site.showBranding,
   };
 }
 

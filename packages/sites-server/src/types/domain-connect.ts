@@ -1,5 +1,6 @@
 import type { KeyObject } from "node:crypto";
 
+import type { SiteDomain } from "./domains";
 import type { Site } from "./sites";
 
 export interface DomainConnectConfig {
@@ -53,8 +54,13 @@ export interface BuildApplyUrlParams {
   state?: string;
 }
 
-export interface DomainConnectForDomainParams {
+export interface DnsSetupForDomainParams {
   site: Pick<Site, "id">;
   domainId: string;
+}
+
+export interface DomainConnectForDomainParams {
+  siteId: string;
+  domain: SiteDomain;
   deps?: DomainConnectDeps;
 }

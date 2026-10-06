@@ -19,18 +19,24 @@ import {
 } from "./jobs";
 import { failDeployment, runDeploymentPipeline } from "./pipeline";
 import { removePreviewDeployment } from "./state";
-import type { SiteJob, SiteJobOutcome } from "./types/jobs";
+import type { JobDeployment, SiteJob, SiteJobOutcome } from "./types/jobs";
+import { errorMessage } from "./utils/errors";
 
-async function runBuildJob(job: SiteJob): Promise<SiteJobOutcome> {
+async function loadJobDeployment(job: SiteJob): Promise<JobDeployment | null> {
   const deployment = job.deploymentId
     ? await getDeployment(job.deploymentId)
     : null;
   const site = deployment ? await getSite(deployment.siteId) : null;
-  if (!(deployment && site && BUILDABLE_STATUSES.has(deployment.status))) {
+  return deployment && site ? { site, deployment } : null;
+}
+
+async function runBuildJob(job: SiteJob): Promise<SiteJobOutcome> {
+  const loaded = await loadJobDeployment(job);
+  if (!(loaded && BUILDABLE_STATUSES.has(loaded.deployment.status))) {
     await completeSiteJob(job.id);
     return { status: "skipped" };
   }
-  const outcome = await runDeploymentPipeline(site, deployment);
+  const outcome = await runDeploymentPipeline(loaded.site, loaded.deployment);
   await completeSiteJob(job.id);
   return { status: "done", outcome: outcome.kind };
 }
@@ -53,12 +59,9 @@ async function runRemovePreviewJob(job: SiteJob): Promise<SiteJobOutcome> {
 }
 
 async function failJobDeployment(job: SiteJob, message: string): Promise<void> {
-  const deployment = job.deploymentId
-    ? await getDeployment(job.deploymentId)
-    : null;
-  const site = deployment ? await getSite(deployment.siteId) : null;
-  if (deployment && site) {
-    await failDeployment(site, deployment, message);
+  const loaded = await loadJobDeployment(job);
+  if (loaded) {
+    await failDeployment(loaded.site, loaded.deployment, message);
   }
 }
 
@@ -88,13 +91,13 @@ export async function runSiteJob(jobId: string): Promise<SiteJobOutcome> {
       ? await runRemovePreviewJob(job)
       : await runBuildJob(job);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     console.error("sites.job_failed", {
       jobId,
       error: error instanceof Error ? error.stack : message,
     });
     const permanent = error instanceof SitePermanentBuildError;
-    const result = await failSiteJob(job, error, { permanent });
+    const result = await failSiteJob(job, error, permanent);
     if (result === "failed") {
       await failJobDeployment(
         job,
@@ -110,11 +113,13 @@ export async function runSiteJob(jobId: string): Promise<SiteJobOutcome> {
 /** Called by the sweep: fails jobs whose worker died on their last attempt. */
 export async function reapExhaustedSiteJobs(): Promise<number> {
   const jobs = await takeExhaustedSiteJobs();
-  for (const job of jobs) {
-    await failJobDeployment(
-      job,
-      "The build stopped responding and ran out of retries. Redeploy to try again."
-    );
-  }
+  await Promise.all(
+    jobs.map((job) =>
+      failJobDeployment(
+        job,
+        "The build stopped responding and ran out of retries. Redeploy to try again."
+      )
+    )
+  );
   return jobs.length;
 }

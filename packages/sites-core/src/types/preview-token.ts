@@ -1,3 +1,5 @@
+import type { SiteServingState } from "@notra/sites-core/types/deployment";
+
 export interface SitePreviewTokenClaims {
   siteId: string;
   /** `null` grants every preview of the site. */
@@ -24,3 +26,5 @@ export interface ReadSitePreviewToken {
 }
 
 export type PreviewRevocationScope = "signed_out" | "access_lost";
+
+export type RevokedPreviewSessions = SiteServingState["revokedSessions"];

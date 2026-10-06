@@ -10,6 +10,18 @@ import type { ParsedSiteHost } from "@notra/sites-core/types/hosts";
 
 const HOST_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const SLUG = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
+const PREVIEW_KEY = /^(?:pr|br)-[a-z0-9-]+$/;
+const NON_SLUG_CHARACTERS = /[^a-z0-9]+/g;
+const EDGE_DASHES = /^-|-$/g;
+const COMBINING_MARKS = /[\u0300-\u036f]/g;
+
+/** Lowercase letters and digits joined by single dashes. */
+function dashCase(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(NON_SLUG_CHARACTERS, "-")
+    .replace(EDGE_DASHES, "");
+}
 
 /** Lowercases, drops a trailing dot and a port. Returns null for anything that is not a plain DNS name. */
 export function normalizeHostname(input: string): string | null {
@@ -39,13 +51,7 @@ export function isValidSiteSlug(slug: string): boolean {
 }
 
 export function slugifySiteName(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/-{2,}/g, "-")
-    .replace(/^-|-$/g, "")
+  return dashCase(name.normalize("NFKD").replace(COMBINING_MARKS, ""))
     .slice(0, SITE_SLUG_MAX_LENGTH)
     .replace(/-$/, "");
 }
@@ -75,16 +81,11 @@ function shortHash(value: string): string {
  * hash of the full branch name to stay unique.
  */
 export function branchPreviewKey(branch: string, siteSlug: string): string {
-  const slug = branch
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/-{2,}/g, "-")
-    .replace(/^-|-$/g, "");
   const maxLength = Math.min(
     SITE_PREVIEW_KEY_MAX_LENGTH,
     DNS_LABEL_MAX_LENGTH - SITE_PREVIEW_HOST_SEPARATOR.length - siteSlug.length
   );
-  const full = `br-${slug}`;
+  const full = `br-${dashCase(branch)}`;
   if (full.length <= maxLength) {
     return full;
   }
@@ -126,7 +127,7 @@ export function parseSiteHost(
   }
   const previewKey = label.slice(0, separator);
   const slug = label.slice(separator + SITE_PREVIEW_HOST_SEPARATOR.length);
-  if (!(isValidSiteSlug(slug) && /^(?:pr|br)-[a-z0-9-]+$/.test(previewKey))) {
+  if (!(isValidSiteSlug(slug) && PREVIEW_KEY.test(previewKey))) {
     return null;
   }
   return { kind: "preview", slug, previewKey };

@@ -1,7 +1,20 @@
+import type { githubIntegrations } from "@notra/db/schema";
+
 export interface SiteRepository {
   installationId: string;
   owner: string;
   repo: string;
+}
+
+/** A repository the organization connected through the GitHub App. */
+export interface OrganizationRepository {
+  integration: typeof githubIntegrations.$inferSelect;
+  repository: SiteRepository;
+}
+
+export interface SiteRepositoryAccess {
+  repository: SiteRepository;
+  token: string;
 }
 
 /** The repository columns of a site row. */

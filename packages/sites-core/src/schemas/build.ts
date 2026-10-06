@@ -32,7 +32,7 @@ export const siteBuildRequestSchema = z.object({
   branding: z.boolean().default(true),
 });
 
-export const siteBuildRedirectSchema = z.object({
+const siteBuildRedirectSchema = z.object({
   source: z.string().startsWith("/").max(500),
   destination: z
     .string()

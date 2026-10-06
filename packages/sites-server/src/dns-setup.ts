@@ -1,10 +1,7 @@
-import { db } from "@notra/db/drizzle";
-import { siteDomains } from "@notra/db/schema";
-import { and, eq } from "drizzle-orm";
-
 import { domainConnectForDomain } from "./domain-connect";
+import { requireSiteDomain } from "./domains";
 import type {
-  DomainConnectForDomainParams,
+  DnsSetupForDomainParams,
   DomainConnectResult,
 } from "./types/domain-connect";
 import {
@@ -19,40 +16,26 @@ import {
  * the Notra integration. Otherwise the provider and zone still label the
  * manual records.
  */
-export async function dnsSetupForDomain(
-  params: DomainConnectForDomainParams
-): Promise<DomainConnectResult> {
-  const result = await domainConnectForDomain(params);
+export async function dnsSetupForDomain({
+  site,
+  domainId,
+}: DnsSetupForDomainParams): Promise<DomainConnectResult> {
+  const domain = await requireSiteDomain(site.id, domainId);
+  const result = await domainConnectForDomain({ siteId: site.id, domain });
   if (result.status !== "unsupported" || result.providerName) {
     return result;
   }
-  const [domain] = await db
-    .select({
-      hostname: siteDomains.hostname,
-      records: siteDomains.verificationRecords,
-    })
-    .from(siteDomains)
-    .where(
-      and(
-        eq(siteDomains.id, params.domainId),
-        eq(siteDomains.siteId, params.site.id)
-      )
-    )
-    .limit(1);
-  const zone = domain ? await findVercelZone(domain.hostname) : null;
-  if (!(domain && zone)) {
+  const zone = await findVercelZone(domain.hostname);
+  if (!zone) {
     return result;
   }
   const config = getVercelDnsConfig();
-  if (!config || domain.records.length === 0) {
+  if (!config || domain.verificationRecords.length === 0) {
     return { status: "unsupported", providerName: "Vercel", zone };
   }
   return {
     status: "ready",
     providerName: "Vercel",
-    applyUrl: vercelInstallUrl(config, {
-      siteId: params.site.id,
-      domainId: params.domainId,
-    }),
+    applyUrl: vercelInstallUrl(config, { siteId: site.id, domainId }),
   };
 }

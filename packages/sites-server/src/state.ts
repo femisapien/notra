@@ -26,17 +26,16 @@ import {
 } from "@notra/sites-core/utils/serving-state";
 import { eq } from "drizzle-orm";
 
-import { CAS_ATTEMPTS, JSON_CONTENT_TYPE } from "./constants/state";
-import { R2PreconditionFailedError, r2DeleteKey, r2GetText, r2Put } from "./r2";
+import { JSON_CONTENT_TYPE } from "./constants/content-types";
+import { CAS_ATTEMPTS, CAS_BACKOFF_MS } from "./constants/state";
+import { R2PreconditionFailedError, SiteHostConflictError } from "./errors";
+import { r2DeleteKey, r2GetText, r2Put } from "./r2";
 import type {
+  ServingPreviewAccess,
   ServingSiteRef,
   ServingStateMutation,
   ServingStateObject,
 } from "./types/state";
-
-export class SiteHostConflictError extends Error {
-  readonly name = "SiteHostConflictError";
-}
 
 /** Field by field: jsonb and the schema order keys differently. */
 function samePreviewPassword(
@@ -61,10 +60,9 @@ function samePreviewPassword(
  * write attempt, so a build that started before an access change never
  * writes the old value back.
  */
-async function readPreviewAccessFromDb(siteId: string): Promise<{
-  previewPassword: SitePreviewPassword | null;
-  previewVisibility: SitePreviewPointer["visibility"] | null;
-}> {
+async function readPreviewAccessFromDb(
+  siteId: string
+): Promise<ServingPreviewAccess> {
   const [row] = await db
     .select({
       previewPassword: sites.previewPassword,
@@ -101,7 +99,7 @@ export async function mutateServingState<T>(
   site: ServingSiteRef,
   mutate: (
     state: SiteServingState,
-    access: { previewVisibility: SitePreviewPointer["visibility"] | null }
+    access: Pick<ServingPreviewAccess, "previewVisibility">
   ) => ServingStateMutation<T>
 ): Promise<T> {
   for (let attempt = 0; attempt < CAS_ATTEMPTS; attempt += 1) {
@@ -145,7 +143,9 @@ export async function mutateServingState<T>(
       if (!(error instanceof R2PreconditionFailedError)) {
         throw error;
       }
-      await new Promise((resolve) => setTimeout(resolve, 50 * 2 ** attempt));
+      await new Promise((resolve) =>
+        setTimeout(resolve, CAS_BACKOFF_MS * 2 ** attempt)
+      );
     }
   }
   throw new Error(
@@ -153,17 +153,22 @@ export async function mutateServingState<T>(
   );
 }
 
+/** Writes the new state only when the activation went through. */
+function writeIfActivated<
+  T extends ProductionActivationResult | PreviewActivationResult,
+>(outcome: T): ServingStateMutation<T> {
+  return outcome.outcome === "activated"
+    ? { write: outcome.state, result: outcome }
+    : { skip: true, result: outcome };
+}
+
 export async function activateProductionDeployment(
   site: ServingSiteRef,
   pointer: ProductionPointerInput
 ) {
-  return await mutateServingState<ProductionActivationResult>(site, (state) => {
-    const outcome = activateProductionInState(state, pointer, new Date());
-    if (outcome.outcome === "activated") {
-      return { write: outcome.state, result: outcome };
-    }
-    return { skip: true, result: outcome };
-  });
+  return await mutateServingState(site, (state) =>
+    writeIfActivated(activateProductionInState(state, pointer, new Date()))
+  );
 }
 
 /**
@@ -175,10 +180,9 @@ export async function activatePreviewDeployment(
   previewKey: string,
   pointer: Omit<SitePreviewPointer, "activatedAt">
 ) {
-  return await mutateServingState<PreviewActivationResult>(
-    site,
-    (state, access) => {
-      const outcome = activatePreviewInState(
+  return await mutateServingState(site, (state, access) =>
+    writeIfActivated(
+      activatePreviewInState(
         state,
         previewKey,
         {
@@ -186,12 +190,8 @@ export async function activatePreviewDeployment(
           visibility: access.previewVisibility ?? pointer.visibility,
         },
         new Date()
-      );
-      if (outcome.outcome === "activated") {
-        return { write: outcome.state, result: outcome };
-      }
-      return { skip: true, result: outcome };
-    }
+      )
+    )
   );
 }
 
@@ -245,6 +245,18 @@ export async function syncServingPreviewAccess(site: ServingSiteRef) {
   await mutateServingState(site, () => ({ skip: true, result: undefined }));
 }
 
+/** The host record stored for `hostname`, or null when there is none (or it is unreadable). */
+async function readHostRecord(
+  hostname: string
+): Promise<SiteHostRecord | null> {
+  const existing = await r2GetText(SITE_R2_KEYS.host(hostname));
+  if (!existing) {
+    return null;
+  }
+  const parsed = siteHostRecordSchema.safeParse(JSON.parse(existing.text));
+  return parsed.success ? parsed.data : null;
+}
+
 /**
  * Host records map a hostname to a site. They are created only once (If-None-Match)
  * so one tenant can never take over a hostname another tenant registered.
@@ -253,13 +265,12 @@ export async function claimHostRecord(
   hostname: string,
   record: Omit<SiteHostRecord, "version">
 ): Promise<void> {
-  const key = SITE_R2_KEYS.host(hostname);
   const body = JSON.stringify({
     version: 1,
     ...record,
   } satisfies SiteHostRecord);
   try {
-    await r2Put(key, body, {
+    await r2Put(SITE_R2_KEYS.host(hostname), body, {
       contentType: JSON_CONTENT_TYPE,
       cacheControl: "no-store",
       ifNoneMatch: "*",
@@ -268,15 +279,8 @@ export async function claimHostRecord(
     if (!(error instanceof R2PreconditionFailedError)) {
       throw error;
     }
-    const existing = await r2GetText(key);
-    const parsed = existing
-      ? siteHostRecordSchema.safeParse(JSON.parse(existing.text))
-      : null;
-    if (
-      parsed?.success &&
-      parsed.data.siteId === record.siteId &&
-      parsed.data.kind === record.kind
-    ) {
+    const existing = await readHostRecord(hostname);
+    if (existing?.siteId === record.siteId && existing.kind === record.kind) {
       return;
     }
     throw new SiteHostConflictError(
@@ -289,13 +293,7 @@ export async function releaseHostRecord(
   hostname: string,
   siteId: string
 ): Promise<void> {
-  const key = SITE_R2_KEYS.host(hostname);
-  const existing = await r2GetText(key);
-  if (!existing) {
-    return;
-  }
-  const parsed = siteHostRecordSchema.safeParse(JSON.parse(existing.text));
-  if (parsed.success && parsed.data.siteId === siteId) {
-    await r2DeleteKey(key);
+  if ((await readHostRecord(hostname))?.siteId === siteId) {
+    await r2DeleteKey(SITE_R2_KEYS.host(hostname));
   }
 }

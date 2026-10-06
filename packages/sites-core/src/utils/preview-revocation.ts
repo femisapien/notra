@@ -2,13 +2,11 @@ import {
   SITE_PREVIEW_MEMBER_RENEW_SECONDS,
   SITE_PREVIEW_SHARE_LINK_SECONDS,
 } from "@notra/sites-core/constants/sites";
-import type { SiteServingState } from "@notra/sites-core/types/deployment";
 import type {
   PreviewRevocationScope,
+  RevokedPreviewSessions,
   SitePreviewTokenClaims,
 } from "@notra/sites-core/types/preview-token";
-
-type RevokedSessions = SiteServingState["revokedSessions"];
 
 /**
  * Records that a member's preview sessions end now. Losing access also ends
@@ -16,13 +14,13 @@ type RevokedSessions = SiteServingState["revokedSessions"];
  * made for other people. Entries whose tokens have all expired are dropped.
  */
 export function revokePreviewSessionsInState(
-  revoked: RevokedSessions,
+  revoked: RevokedPreviewSessions,
   userId: string,
   scope: PreviewRevocationScope,
   nowMs: number
-): RevokedSessions {
+): RevokedPreviewSessions {
   const current = revoked[userId] ?? {};
-  const next: RevokedSessions = {
+  const next: RevokedPreviewSessions = {
     ...revoked,
     [userId]: {
       ...current,
@@ -33,14 +31,14 @@ export function revokePreviewSessionsInState(
   return prunePreviewRevocations(next, nowMs);
 }
 
-export function prunePreviewRevocations(
-  revoked: RevokedSessions,
+function prunePreviewRevocations(
+  revoked: RevokedPreviewSessions,
   nowMs: number
-): RevokedSessions {
+): RevokedPreviewSessions {
   // Expired member tokens can still trigger a silent renewal, so they count until the cookie is gone.
   const sessionsCutoff = nowMs - SITE_PREVIEW_MEMBER_RENEW_SECONDS * 1000;
   const shareCutoff = nowMs - SITE_PREVIEW_SHARE_LINK_SECONDS * 1000;
-  const pruned: RevokedSessions = {};
+  const pruned: RevokedPreviewSessions = {};
   for (const [userId, entry] of Object.entries(revoked)) {
     const kept = {
       ...(entry.sessions !== undefined && entry.sessions > sessionsCutoff
@@ -64,7 +62,7 @@ export function prunePreviewRevocations(
  */
 export function isPreviewTokenRevoked(
   claims: SitePreviewTokenClaims,
-  revoked: RevokedSessions
+  revoked: RevokedPreviewSessions
 ): boolean {
   if (claims.kind === "password") {
     return false;

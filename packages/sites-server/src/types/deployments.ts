@@ -11,6 +11,9 @@ import type { Site } from "./sites";
 export type SiteDeployment = typeof siteDeployments.$inferSelect;
 export type SiteDeploymentStatus = SiteDeployment["status"];
 export type DeploymentExecutor = Pick<typeof db, "update">;
+export type DeploymentTransitionValues = Partial<
+  Omit<typeof siteDeployments.$inferInsert, "status">
+>;
 
 export interface EnqueueDeploymentInput {
   siteId: string;
@@ -39,8 +42,10 @@ export type DeploymentOutcome =
   | { kind: "skipped"; reason: string }
   | { kind: "failed"; summary: string; diagnostics: SiteDiagnostic[] };
 
+/** Whether an activation reached the serving state, or a newer deployment kept it. */
+export type ActivationOutcome = "live" | "not_live";
+
 export interface LiveDeployments {
-  productionId: string | null;
   previews: SiteServingState["previews"];
   ids: Set<string>;
 }

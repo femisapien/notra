@@ -1,4 +1,5 @@
 import type { SiteBuildTarget } from "@notra/sites-core/types/deployment";
+import { sha256Hex } from "@notra/sites-core/utils/hash";
 import { normalizeSiteMounts } from "@notra/sites-core/utils/mounts";
 
 function stableStringify(value: unknown): string {
@@ -14,10 +15,9 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export function normalizeBuildTarget(target: SiteBuildTarget): SiteBuildTarget {
-  const origin = new URL(target.publicOrigin).origin;
+function normalizeBuildTarget(target: SiteBuildTarget): SiteBuildTarget {
   return {
-    publicOrigin: origin,
+    publicOrigin: new URL(target.publicOrigin).origin,
     mounts: normalizeSiteMounts(target.mounts),
     noindex: target.noindex,
     branding: target.branding !== false,
@@ -31,12 +31,8 @@ export async function hashBuildTarget(
   const { branding, ...normalized } = normalizeBuildTarget(target);
   // Only the non-default branding value enters the hash, so deployments from before the setting stay restorable.
   const hashed = branding ? normalized : { ...normalized, branding };
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
+  const digest = await sha256Hex(
     new TextEncoder().encode(stableStringify(hashed))
   );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("")
-    .slice(0, 16);
+  return digest.slice(0, 16);
 }

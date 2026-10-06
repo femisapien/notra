@@ -10,7 +10,7 @@ import type {
 
 const MOUNT_SEGMENT = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
 
-export class SiteMountError extends Error {
+class SiteMountError extends Error {
   readonly name = "SiteMountError";
 }
 
