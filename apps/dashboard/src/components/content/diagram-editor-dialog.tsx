@@ -104,20 +104,20 @@ export function DiagramEditorDialog({
           revision: loaded.revision,
         }),
       });
-      const result = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        droppedTypes?: string[];
-      };
       if (response.status === 409) {
         return { status: "conflict" };
       }
-      if (response.status === 422 && result.error) {
-        return { status: "invalid", reason: result.error };
+      if (response.status === 422) {
+        const { error } = (await response.json()) as { error: string };
+        return { status: "invalid", reason: error };
       }
       if (!response.ok) {
         throw new Error(`Failed to save diagram: ${response.status}`);
       }
-      return { status: "saved", droppedTypes: result.droppedTypes ?? [] };
+      const { droppedTypes } = (await response.json()) as {
+        droppedTypes: string[];
+      };
+      return { status: "saved", droppedTypes };
     },
     onSuccess: async (result) => {
       // Keep the editor open so the drawing is not lost.
