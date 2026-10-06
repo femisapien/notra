@@ -2,6 +2,7 @@
 
 import type { ContentType } from "@notra/ai/schemas/content";
 import type { PostStatus } from "@notra/schemas/dashboard/content";
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
 import { useId } from "react";
 import { useTranslations } from "use-intl";
@@ -10,6 +11,7 @@ import { Button } from "@/components/button";
 import { ContentCard } from "@/components/content/content-card";
 import { ContentSkeletonCard } from "@/components/content/content-skeleton-card";
 import { LazyCreateContentDialog } from "@/components/content/lazy-create-content-dialog";
+import { HomeFeedbackSection } from "@/components/dashboard/home-feedback-section";
 import { LazyContentActivityCard } from "@/components/dashboard/lazy-content-activity-card";
 import { EmptyState } from "@/components/empty-state";
 import { EmptyStateCardsPreview } from "@/components/empty-state-preview";
@@ -126,11 +128,7 @@ export default function PageClient({
   return (
     <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
       <div className="w-full space-y-6 px-4 lg:px-6">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight text-balance @min-[40rem]/main:text-3xl">
-            {greetingText}
-          </h1>
-        </div>
+        <PageHeading title={greetingText} />
 
         <section className="space-y-4">
           <div className="flex flex-col items-start gap-3 @min-[40rem]/main:flex-row @min-[40rem]/main:items-center @min-[40rem]/main:justify-between">
@@ -149,6 +147,12 @@ export default function PageClient({
 
           {todayContent}
         </section>
+
+        <HomeFeedbackSection
+          compact
+          organizationId={organizationId}
+          slug={organizationSlug}
+        />
 
         <section className="space-y-4">
           <div>

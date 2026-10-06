@@ -72,6 +72,11 @@ export interface ChatInputHandle {
   setText: (text: string) => void;
   /** Tags a post from this chat at the caret, or at the end of the draft. */
   insertPostReference: (post: { postId: string; title: string }) => void;
+  /**
+   * Puts files back into the composer, e.g. when a queued message is edited.
+   * Returns false and changes nothing when they would not all fit.
+   */
+  setAttachments: (attachments: ChatAttachment[]) => boolean;
   submit: () => void;
   focus: () => void;
 }

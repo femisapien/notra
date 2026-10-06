@@ -18,11 +18,16 @@ import {
 import { resolveGeoZdrMode } from "@notra/geo-core/utils/geo-engines";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
 import { FadeSwap } from "@notra/ui/components/fade-swap";
+import {
+  InstrumentEmpty,
+  InstrumentModule,
+} from "@notra/ui/components/instrument/instrument-module";
 import { DetailCardContent } from "@notra/ui/components/ui/detail-card";
 import {
   HoverCard,
   HoverCardTrigger,
 } from "@notra/ui/components/ui/hover-card";
+import { Spinner } from "@notra/ui/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -38,11 +43,6 @@ import { Button } from "@/components/button";
 import { EngineFamilySheet } from "@/components/geo/engine-family-sheet";
 import { EngineIcon } from "@/components/geo/engine-icon";
 import { GeoStatDelta } from "@/components/geo/geo-stat-delta";
-import { StatusSpinner } from "@/components/geo/status-spinner";
-import {
-  InstrumentEmpty,
-  InstrumentModule,
-} from "@/components/instrument/instrument-module";
 import { trackEvent } from "@/lib/analytics/posthog-client";
 import {
   useGeoModelCatalog,
@@ -151,7 +151,7 @@ function ProviderRow({
               variant="outline"
             >
               {tracking ? (
-                <StatusSpinner />
+                <Spinner className="size-3.5" />
               ) : (
                 <HugeiconsIcon
                   data-icon="inline-start"

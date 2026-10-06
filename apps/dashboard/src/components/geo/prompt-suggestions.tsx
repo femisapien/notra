@@ -2,27 +2,18 @@
 
 import { Delete02Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  ResponsiveAlertDialog,
-  ResponsiveAlertDialogAction,
-  ResponsiveAlertDialogCancel,
-  ResponsiveAlertDialogContent,
-  ResponsiveAlertDialogDescription,
-  ResponsiveAlertDialogFooter,
-  ResponsiveAlertDialogHeader,
-  ResponsiveAlertDialogTitle,
-} from "@notra/ui/components/shared/responsive-alert-dialog";
+import { ConfirmDialog } from "@notra/ui/components/shared/confirm-dialog";
 import {
   DataTable,
   type TableColumn,
 } from "@notra/ui/components/ui/data-table";
+import { Spinner } from "@notra/ui/components/ui/spinner";
 import { type RefObject, useRef, useState } from "react";
 import { useLocale, useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { PromptSuggestionSheet } from "@/components/geo/prompt-suggestion-sheet";
 import { SearchConsoleToolbar } from "@/components/geo/search-console-card";
-import { StatusSpinner } from "@/components/geo/status-spinner";
 import { TABLE_ROW_HEIGHT } from "@/constants/table";
 import {
   useGeoSuggestionAccept,
@@ -66,7 +57,7 @@ function SuggestionRowActions({
         variant="secondary"
       >
         {accepting ? (
-          <StatusSpinner />
+          <Spinner className="size-3.5" />
         ) : (
           <HugeiconsIcon icon={PlusSignIcon} size={14} />
         )}
@@ -81,7 +72,7 @@ function SuggestionRowActions({
         variant="ghost"
       >
         {dismissing ? (
-          <StatusSpinner />
+          <Spinner className="size-3.5" />
         ) : (
           <HugeiconsIcon icon={Delete02Icon} size={14} />
         )}
@@ -237,40 +228,25 @@ function DismissSuggestionDialog({
   const t = useTranslations("geo.promptSuggestions");
   const tCommon = useTranslations("common.actions");
   return (
-    <ResponsiveAlertDialog
+    <ConfirmDialog
+      className="sm:max-w-md"
+      confirmLabel={tCommon("remove")}
+      description={
+        suggestion
+          ? t("dismissDescription", { prompt: suggestion.prompt })
+          : null
+      }
+      onConfirm={() => {
+        if (suggestion) {
+          onConfirm(suggestion.id);
+        }
+        onOpenChange(false);
+      }}
       onOpenChange={onOpenChange}
       open={suggestion !== null}
-    >
-      <ResponsiveAlertDialogContent className="sm:max-w-md">
-        <ResponsiveAlertDialogHeader>
-          <ResponsiveAlertDialogTitle>
-            {t("dismissTitle")}
-          </ResponsiveAlertDialogTitle>
-          <ResponsiveAlertDialogDescription>
-            {suggestion
-              ? t("dismissDescription", { prompt: suggestion.prompt })
-              : null}
-          </ResponsiveAlertDialogDescription>
-        </ResponsiveAlertDialogHeader>
-        <ResponsiveAlertDialogFooter>
-          <ResponsiveAlertDialogCancel onClick={() => onOpenChange(false)}>
-            {tCommon("cancel")}
-          </ResponsiveAlertDialogCancel>
-          <ResponsiveAlertDialogAction
-            onClick={() => {
-              if (suggestion) {
-                onConfirm(suggestion.id);
-              }
-              onOpenChange(false);
-            }}
-            type="button"
-            variant="destructive"
-          >
-            {tCommon("remove")}
-          </ResponsiveAlertDialogAction>
-        </ResponsiveAlertDialogFooter>
-      </ResponsiveAlertDialogContent>
-    </ResponsiveAlertDialog>
+      title={t("dismissTitle")}
+      variant="destructive"
+    />
   );
 }
 
@@ -285,7 +261,7 @@ function TrackAllButton({ pending, onClick }: TrackAllButtonProps) {
       variant="outline"
     >
       {pending ? (
-        <StatusSpinner />
+        <Spinner className="size-3.5" />
       ) : (
         <HugeiconsIcon icon={PlusSignIcon} size={14} />
       )}
@@ -306,11 +282,11 @@ function SuggestionDetailActions({
   return (
     <>
       <Button disabled={disabled} onClick={onDismiss} variant="outline">
-        {dismissing ? <StatusSpinner /> : null}
+        {dismissing ? <Spinner className="size-3.5" /> : null}
         {tActions("remove")}
       </Button>
       <Button aria-busy={accepting} disabled={disabled} onClick={onAccept}>
-        {accepting ? <StatusSpinner /> : null}
+        {accepting ? <Spinner className="size-3.5" /> : null}
         {tGeoShared("track")}
       </Button>
     </>

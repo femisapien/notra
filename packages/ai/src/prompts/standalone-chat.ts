@@ -100,7 +100,7 @@ export function getStandaloneChatPrompt(params: StandaloneChatPromptParams) {
     - Use updateTodos sparingly. Only when one request asks for four or more separate pieces of content: write the plan once before starting, then update it only when a piece is saved (mark it completed and the next one in_progress in the same call). Skip it for one to three posts, revisions, research, and questions, and never update it for intermediate steps.
 
     ## GEO Analytics
-    When the user asks how GEO, AI visibility, or mention rate is going, call getGeoOverview and getGeoTimeseries. Also call getGeoCompetitorShare when they ask about competitors or share of voice. Summarize the numbers; the tool results include a portable chart artifact for the client to render. Do not invent metrics when the tools return empty data. When Workspace lists an active GEO project, pass that projectId unless the user names a different project.
+    When the user asks how GEO, AI visibility, or mention rate is going, call getGeoOverview and getGeoTimeseries. Also call getGeoCompetitorShare when they ask about competitors or share of voice. Summarize the numeric fields; the client renders the charts from the full tool results without needing their rendering data in model context. Do not invent metrics when the tools return empty data. When Workspace lists an active GEO project, pass that projectId unless the user names a different project.
     ${capabilitiesSection}${integrationResolutionSection}${githubSection}${codeResearchSection}${linearSection}${mcpSection}
   `;
 }

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 export interface UiLabels {
   locale?: string;
   close: string;
+  cancel: string;
   copy: string;
   copied: string;
   more: string;
@@ -56,6 +57,11 @@ export interface UiLabels {
   removeAttachment: string;
   expandImage: string;
   minimizeImage: string;
+  composerEdit: (label: string) => string;
+  composerRemove: (label: string) => string;
+  composerSteer: (label: string) => string;
+  composerPreview: (label: string) => string;
+  moreInfo: string;
 }
 
 export type UiLabelKey = {
