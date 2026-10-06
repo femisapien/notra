@@ -17,8 +17,11 @@ the pipeline; typed failures are mapped to HTTP responses with `Effect.match`.
   Shared Redis keys preserve cache invalidation and the per-organization limit
   across replicas and during the migration.
 
-Events receive `202` only after Tinybird accepts the write, or when the pipeline
-deliberately drops them. Analytics run in the background. SIGTERM stops accepting
+With the default write buffer, tracked events receive `202` after entering RAM,
+before Tinybird accepts the write. A process crash can lose these acknowledged
+events; this is not a durable queue. With buffering disabled or full, `202` waits
+for Tinybird acceptance. Deliberately dropped traffic also receives `202`.
+Analytics run in the background. SIGTERM stops accepting
 requests and waits for active requests and background work before exiting.
 Rate-limit hits return `429`; Redis transport failures and limiter timeouts return
 `502` without writing an event. Redis availability is required for tracked ingestion.
@@ -43,6 +46,51 @@ bun run --filter=ai-traffic-ingest check-types
 
 The root dev command loads the root `.env`. The default local port is `3101`.
 See `.env.example` in this directory for the service-specific variables.
+
+## Isolated latency harness
+
+`bun run --filter=ai-traffic-ingest bench:latency` runs the built HTTP service
+against a local Postgres fixture and mock Redis REST/Tinybird servers. Set
+`INGEST_BENCH_DATABASE_URL` to a disposable database named `notra_ingest_bench`
+on loopback, without URL query parameters or fragments. The harness refuses other
+database names and remote hosts, disables
+the service's automatic `.env` loading, and passes only synthetic credentials
+to the service.
+It requires Bun 1.4.0 or newer and `psql` on `PATH`.
+
+```sh
+createdb notra_ingest_bench
+INGEST_BENCH_DATABASE_URL=postgresql://localhost/notra_ingest_bench \
+  bun run --filter=ai-traffic-ingest bench:latency
+```
+
+The run covers human/AI traffic, a concurrent burst, a request after the pool's
+idle timeout, delayed database connections, host cache misses, revoked tokens,
+Redis timeouts/outages, slow Postgres queries and unbuffered Tinybird writes.
+It also reproduces a low median
+with a high p99 using 98% human traffic and 2% tracked traffic. Each scenario
+reports nearest-rank p50/p95/p99, status counts, foreground Redis commands and
+Tinybird writes, plus new database connections through a local TCP proxy;
+deferred analytics commands are excluded from the Redis count.
+Assertions check status codes, the human zero-I/O path, buffering and shutdown
+flushes. The test write window places its next wall-clock boundary about an hour
+ahead so a scheduled flush cannot race the buffering assertions. The Redis
+fixture allows rate-limit requests rather than implementing
+the sliding-window quota, so this is not a quota correctness test.
+
+Results go to `latency-results.json` and service logs to `latency-service.log`
+in the command's working directory. Override these paths with
+`INGEST_BENCH_OUTPUT` and `INGEST_BENCH_LOGS`. Keep both outside Git. The reported
+upstream-delay scenarios are deliberately injected, not evidence that production
+Redis, Postgres or Tinybird experienced those delays. Run in an isolated sandbox
+(for example Daytona), not against a customer database.
+
+The standalone service retains established Postgres connections up to its
+existing pool maximum instead of discarding them after the default 10-second
+idle timeout. It does not increase the maximum or pre-open connections. This
+avoids recurring connection setup on sparse traffic and later bursts; initial
+connections and database-side reconnects can still be slow. Dashboard and API
+pool settings are unchanged.
 
 ## Railway configuration
 
@@ -150,6 +198,16 @@ Every ingest request, on Railway and on the dashboard fallback, emits one
 `organizationId`, `projectId`, `runtime` (`railway`, `vercel`, `local`),
 `region` and `weight`. Dropped human traffic is sampled at 5%, so always count
 with `sum(weight)` instead of `count()`.
+
+Requests include `payloadMs` for reading and validating the body; this can also
+expose slow uploads rather than backend latency. Tracked requests include
+`admissionMs`, `identityMs`, `hostsMs` and
+`rateLimitMs` for completed stages, including stages that failed. Identity and
+host lookup run concurrently, so do not sum them to derive total duration.
+`identityMs` includes pool wait, connection setup and the token-generation query;
+it does not distinguish those costs internally. Human drops do not run the
+Redis/database stages. These timings preserve the existing authentication and
+admission order.
 
 ```kusto
 // Requests per second

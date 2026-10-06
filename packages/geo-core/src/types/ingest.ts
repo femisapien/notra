@@ -5,6 +5,13 @@ import type { GeoIngestIdentity, GeoVisitorType } from "./geo";
 
 export type GeoIngestDefer = (task: () => Promise<void>) => void;
 
+export type GeoIngestTimings = Partial<
+  Record<
+    "payloadMs" | "admissionMs" | "identityMs" | "hostsMs" | "rateLimitMs",
+    number
+  >
+>;
+
 /** Write buffer between the ingest pipeline and Tinybird. */
 export interface GeoIngestBuffer {
   /**

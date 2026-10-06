@@ -13,8 +13,10 @@ import type {
   GeoIngestBuffer,
   GeoIngestDefer,
   GeoIngestResult,
+  GeoIngestTimings,
 } from "../types/ingest";
 import { geoIngestAdmissionKey } from "../utils/geo-ingest-admission-key";
+import { measureGeoIngestStage } from "../utils/geo-ingest-timing";
 import { logGeoFailure } from "../utils/geo-log";
 import { trackGeoIngestAnalytics } from "./analytics";
 import { classifyVisitor } from "./classify-visitor";
@@ -144,14 +146,18 @@ const ingestEvent = Effect.fn("geoIngest.ingest")(function* (
 const failWithAuthPrecedence = Effect.fn("geoIngest.failWithAuthPrecedence")(
   function* (
     identity: GeoIngestIdentity,
-    error: GeoIngestInvalidPayloadError | GeoIngestUnparseableUrlError
+    error: GeoIngestInvalidPayloadError | GeoIngestUnparseableUrlError,
+    timings?: GeoIngestTimings
   ) {
-    yield* enforceRateLimit(
-      identity.organizationId,
-      geoIngestAdmissionKey(identity)
+    yield* measureGeoIngestStage(
+      timings,
+      "admissionMs",
+      enforceRateLimit(identity.organizationId, geoIngestAdmissionKey(identity))
     );
-    const active = yield* Effect.promise(() =>
-      isGeoIngestIdentityActive(identity)
+    const active = yield* measureGeoIngestStage(
+      timings,
+      "identityMs",
+      Effect.promise(() => isGeoIngestIdentityActive(identity))
     );
     if (!active) {
       return yield* Effect.fail(new GeoIngestInvalidTokenError({}));
@@ -163,19 +169,26 @@ const failWithAuthPrecedence = Effect.fn("geoIngest.failWithAuthPrecedence")(
 export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
   request: Request,
   defer: GeoIngestDefer,
-  buffer?: GeoIngestBuffer
+  buffer?: GeoIngestBuffer,
+  timings?: GeoIngestTimings
 ) {
   const identity = yield* readBearerIdentity(request);
 
-  const payloadResult = yield* Effect.result(readPayload(request));
+  const payloadResult = yield* Effect.result(
+    measureGeoIngestStage(timings, "payloadMs", readPayload(request))
+  );
   if (payloadResult._tag === "Failure") {
-    return yield* failWithAuthPrecedence(identity, payloadResult.failure);
+    return yield* failWithAuthPrecedence(
+      identity,
+      payloadResult.failure,
+      timings
+    );
   }
   const payload = payloadResult.success;
 
   const urlResult = yield* Effect.result(parseUrl(payload.url));
   if (urlResult._tag === "Failure") {
-    return yield* failWithAuthPrecedence(identity, urlResult.failure);
+    return yield* failWithAuthPrecedence(identity, urlResult.failure, timings);
   }
   const url = urlResult.success;
   // Classification is pure CPU on the payload. Run it before any Redis/DB
@@ -196,14 +209,23 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
     } satisfies GeoIngestResult;
   }
 
-  yield* enforceRateLimit(
-    identity.organizationId,
-    geoIngestAdmissionKey(identity)
+  yield* measureGeoIngestStage(
+    timings,
+    "admissionMs",
+    enforceRateLimit(identity.organizationId, geoIngestAdmissionKey(identity))
   );
   const [active, allowedHosts] = yield* Effect.all(
     [
-      Effect.promise(() => isGeoIngestIdentityActive(identity)),
-      Effect.promise(() => loadIngestAllowedHosts(identity)),
+      measureGeoIngestStage(
+        timings,
+        "identityMs",
+        Effect.promise(() => isGeoIngestIdentityActive(identity))
+      ),
+      measureGeoIngestStage(
+        timings,
+        "hostsMs",
+        Effect.promise(() => loadIngestAllowedHosts(identity))
+      ),
     ],
     { concurrency: "unbounded" }
   );
@@ -249,7 +271,11 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
     journey,
   });
 
-  yield* enforceRateLimit(identity.organizationId);
+  yield* measureGeoIngestStage(
+    timings,
+    "rateLimitMs",
+    enforceRateLimit(identity.organizationId)
+  );
   const ingestStartedAt = Date.now();
   // A buffered event is acknowledged before it reaches Tinybird; the batcher
   // retries failed writes and announces rows once written. Without a buffer

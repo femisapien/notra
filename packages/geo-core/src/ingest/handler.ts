@@ -10,6 +10,7 @@ import type {
   GeoIngestBuffer,
   GeoIngestDefer,
   GeoIngestResult,
+  GeoIngestTimings,
 } from "../types/ingest";
 import {
   getGeoIngestRegion,
@@ -73,12 +74,13 @@ export async function handleGeoIngestRequest(
   buffer?: GeoIngestBuffer
 ): Promise<Response> {
   const startedAt = performance.now();
+  const timings: GeoIngestTimings = {};
   let response: Response;
   let fields: IngestLogFields;
 
   try {
     const outcome = await Effect.runPromise(
-      Effect.result(runGeoIngest(request, defer, buffer))
+      Effect.result(runGeoIngest(request, defer, buffer, timings))
     );
     if (outcome._tag === "Failure") {
       response = toGeoIngestErrorResponse(outcome.failure);
@@ -105,6 +107,7 @@ export async function handleGeoIngestRequest(
     geoLog.info({
       event: "geo.ingest",
       ...fields,
+      ...timings,
       status: response.status,
       durationMs: Math.round(performance.now() - startedAt),
       weight: Math.round(1 / sampleRate),

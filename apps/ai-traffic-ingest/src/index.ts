@@ -1,6 +1,7 @@
 import { flushGeoLog } from "@notra/ai/evlog";
 import { logError } from "@notra/ai/utils/server-log";
 import { getGeoTrafficFlushIntervalMs } from "@notra/analytics/utils/geo-flush-interval";
+import { db } from "@notra/db/drizzle";
 import { createGeoEventBatcher } from "@notra/geo-core/ingest/batcher";
 import { announceGeoTrafficRows } from "@notra/geo-core/ingest/live";
 
@@ -19,6 +20,10 @@ const active = new Set<Promise<Response>>();
 const missing = missingIngestEnvironment();
 if (missing.length > 0) {
   console.warn(`[geo-ingest] Missing configuration: ${missing.join(", ")}`);
+}
+if (missing.length === 0) {
+  const pool = db.$client;
+  pool.options.min = pool.options.max;
 }
 
 const flushIntervalMs = getGeoTrafficFlushIntervalMs();
