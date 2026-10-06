@@ -163,7 +163,7 @@ export function buildStandaloneToolSet(
       : "**Content Creation**: Create posts using createChangelog, createBlogPost, createTwitterPost, createLinkedInPost, createInvestorUpdate, plus updatePost, editPost, and viewPost"
   );
   descriptions.push(
-    "**Planning**: Keep a short checklist with updateTodos, only for requests with three or more separate deliverables"
+    "**Planning**: Keep a short checklist with updateTodos, only when one request asks for four or more separate pieces of content"
   );
   descriptions.push(
     "**Organization Data**: Inspect brand identities, brand references, available integrations, and existing posts using listBrandIdentities, getBrandIdentity, getAvailableBrandReferences, getAvailableIntegrations, getAvailablePosts, and getPost"

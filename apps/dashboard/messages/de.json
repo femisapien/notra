@@ -5715,8 +5715,6 @@
     "contentPanel": {
       "title": "Inhalte",
       "toggle": "Inhalte ({count})",
-      "expand": "Vorschau vergrößern",
-      "collapse": "Volle Breite verlassen",
       "close": "Panel einklappen",
       "empty": "Beiträge, die der Agent in diesem Chat schreibt, erscheinen hier.",
       "status": {
@@ -5729,7 +5727,7 @@
     },
     "todos": {
       "label": "Plan",
-      "progress": "{completed} von {total} erledigt"
+      "stopped": "Gestoppt"
     }
   },
   "content": {

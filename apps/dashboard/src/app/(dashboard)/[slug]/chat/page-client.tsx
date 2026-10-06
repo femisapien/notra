@@ -85,6 +85,7 @@ import type { QueuedMessage } from "@/components/chat/chat-queue";
 import {
   ChatQuoteProvider,
   ChatQuoteMessage as Message,
+  useChatQuote,
 } from "@/components/chat/chat-quote";
 import { ChatScrollOnSend } from "@/components/chat/chat-scroll-on-send";
 import { ChatSuggestions } from "@/components/chat/chat-suggestions";
@@ -825,6 +826,19 @@ function StandaloneChatPageClient({
     },
     [tCommon]
   );
+
+  // Quoting text from a post in the preview also tags that post, so the agent
+  // revises the right one.
+  const quoteContext = useChatQuote();
+  const quotedPost = quoteContext?.quotedPost ?? null;
+  const clearQuotedPost = quoteContext?.setQuotedPost;
+  useEffect(() => {
+    if (!quotedPost) {
+      return;
+    }
+    handleAskForPostChanges(quotedPost);
+    clearQuotedPost?.(null);
+  }, [clearQuotedPost, handleAskForPostChanges, quotedPost]);
 
   // While the preview is open it follows the newest post the agent starts.
   const latestPostToolCallId = chatPosts.at(-1)?.toolCallId ?? null;
@@ -2236,11 +2250,16 @@ function StandaloneChatPageClient({
     if (todoParts[0] !== toolPart) {
       return null;
     }
+    // Updates over the per-reply cap come back with accepted: false.
     const latest = todoParts.findLast((part) => {
-      const parsed = chatTodoListSchema.safeParse(
-        isToolUIPart(part) ? part.input : undefined
+      if (!isToolUIPart(part)) {
+        return false;
+      }
+      const output = part.output as { accepted?: boolean } | undefined;
+      return (
+        output?.accepted !== false &&
+        chatTodoListSchema.safeParse(part.input).success
       );
-      return parsed.success;
     });
     const todos = chatTodoListSchema.safeParse(
       latest && isToolUIPart(latest) ? latest.input : undefined
@@ -2248,9 +2267,19 @@ function StandaloneChatPageClient({
     if (!todos.success) {
       return null;
     }
+    const isActive = messageId === chatActivity.activeMessageId;
+    const isLastAssistant =
+      messages.findLast((entry) => entry.role === "assistant")?.id ===
+      messageId;
+    // The last reply knows whether the user stopped it. An older reply that
+    // ended with a step still running was cut off the same way.
+    const isStopped = isLastAssistant
+      ? wasStoppedByUser
+      : todos.data.todos.some((todo) => todo.status === "in_progress");
     return (
       <ChatTodoList
-        isActive={messageId === chatActivity.activeMessageId}
+        isActive={isActive}
+        isStopped={isStopped}
         key={toolPart.toolCallId}
         todos={todos.data.todos}
       />
@@ -3175,6 +3204,7 @@ function StandaloneChatPageClient({
           onAskForChanges={handleAskForPostChanges}
           onCloseTab={closePostPreviewTab}
           onOpenTab={openPostPreview}
+          onReorderTabs={setPreviewTabIds}
           openToolCallIds={previewTabIds}
           organizationId={organizationId}
           organizationSlug={organizationSlug}

@@ -1,9 +1,23 @@
 "use client";
 
 import {
-  ArrowShrink01Icon,
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  type Modifier,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  horizontalListSortingStrategy,
+  SortableContext,
+  useSortable,
+} from "@dnd-kit/sortable";
+import {
   Cancel01Icon,
-  FullScreenIcon,
   PlusSignIcon,
   SidebarRightIcon,
 } from "@hugeicons/core-free-icons";
@@ -16,7 +30,7 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
 } from "@notra/ui/components/shared/responsive-dialog";
-import { Button } from "@notra/ui/components/ui/button";
+import { Button, buttonVariants } from "@notra/ui/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,9 +44,11 @@ import {
   TooltipTrigger,
 } from "@notra/ui/components/ui/tooltip";
 import { cn } from "@notra/ui/lib/utils";
-import { useEffect, useEffectEvent } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "use-intl";
 
+import { useChatQuote } from "@/components/chat/chat-quote";
 import { RightPanel } from "@/components/dashboard/right-panel";
 import { useRightPanel } from "@/components/dashboard/right-panel-context";
 import Link from "@/components/framework/link";
@@ -44,8 +60,18 @@ import type {
   ChatContentPanelDocumentProps,
   ChatContentPanelProps,
   ChatContentPanelTabProps,
+  ChatContentPanelTabSurfaceProps,
 } from "@/types/components/chat-content-panel";
 import { OutputTypeIcon } from "@/utils/output-types";
+
+const TAB_DROP_ANIMATION = {
+  duration: 180,
+  easing: "cubic-bezier(0.23, 1, 0.32, 1)",
+};
+
+function noop() {
+  // The dragged copy is not interactive.
+}
 
 function isSocialPost(post: ChatPostEntry) {
   return (
@@ -64,6 +90,7 @@ function ChatContentPanelDocument({
   const tToolBlock = useTranslations("ai.toolBlock");
   const tPreview = useTranslations("ai.preview");
   const { data: savedPost } = useContent(organizationId, post.postId ?? "");
+  const quoteContext = useChatQuote();
   const title =
     savedPost?.content.title ?? (post.title || tCommon("labels.untitled"));
   const markdown = savedPost?.content.markdown ?? post.markdown;
@@ -88,7 +115,12 @@ function ChatContentPanelDocument({
         // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The scrollable preview must be reachable for keyboard scrolling.
         tabIndex={0}
       >
-        <article className="mx-auto w-full max-w-[42rem]">
+        <article
+          className="mx-auto w-full max-w-[42rem]"
+          data-chat-quote-post-id={postId ?? undefined}
+          data-chat-quote-post-title={postId ? title : undefined}
+          data-chat-quote-source={postId ? quoteContext?.scopeId : undefined}
+        >
           <h1 className="text-foreground mb-4 text-xl leading-snug font-semibold text-balance">
             {title}
           </h1>
@@ -138,12 +170,17 @@ function ChatContentPanelDocument({
   );
 }
 
-function ChatContentPanelTab({
+// The look of one tab, shared by the tab in the bar and the copy that follows
+// the pointer while dragging. Button surfaces without the press scale; only
+// colours animate, so drag transforms never fight a CSS transition.
+function ChatContentPanelTabSurface({
+  dragHandleProps,
   isActive,
+  isOverlay = false,
   onActivate,
   onClose,
   post,
-}: ChatContentPanelTabProps) {
+}: ChatContentPanelTabSurfaceProps) {
   const t = useTranslations("chat.contentPanel");
   const tCommon = useTranslations("common");
   const title = post.title || tCommon("labels.untitled");
@@ -151,39 +188,97 @@ function ChatContentPanelTab({
   return (
     <div
       className={cn(
-        "group/tab flex h-7 w-36 shrink-0 items-center rounded-md text-xs transition-colors",
-        isActive
-          ? "bg-foreground/[0.07] text-foreground ring-border shadow-[inset_0_1px_3px_rgb(0_0_0/0.16)] ring-1 ring-inset"
-          : "text-muted-foreground hover:bg-foreground/[0.03] hover:text-foreground"
+        buttonVariants({
+          variant: isActive ? "secondary" : "ghost",
+          size: "sm",
+        }),
+        "group/tab w-full justify-start gap-0 px-0 text-xs transition-[background-color,color,box-shadow] active:scale-100",
+        !isActive && "text-muted-foreground",
+        isOverlay && "cursor-grabbing shadow-md"
       )}
     >
       <button
         aria-selected={isActive}
-        className="focus-visible:ring-ring flex h-full min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-md pl-2.5 outline-none focus-visible:ring-2"
+        className={cn(
+          "focus-visible:ring-ring flex h-full min-w-0 flex-1 items-center gap-1.5 rounded-[inherit] pl-2.5 outline-none focus-visible:ring-2",
+          isOverlay ? "cursor-grabbing" : "cursor-pointer",
+          // Active tabs keep room for the close button; inactive ones show it
+          // over the title end on hover, which fades out instead of moving.
+          isActive || isOverlay ? "pr-7" : "pr-2.5"
+        )}
         onClick={onActivate}
         role="tab"
+        tabIndex={isOverlay ? -1 : undefined}
         title={title}
         type="button"
+        {...dragHandleProps}
       >
         <OutputTypeIcon
           className="size-3.5 shrink-0"
           outputType={post.contentType}
         />
-        <span className="truncate">{title}</span>
+        <span
+          className={cn(
+            "truncate",
+            !(isActive || isOverlay) &&
+              "group-focus-within/tab:[mask-image:linear-gradient(to_left,transparent_1.25rem,#000_2.5rem)] group-hover/tab:[mask-image:linear-gradient(to_left,transparent_1.25rem,#000_2.5rem)]"
+          )}
+        >
+          {title}
+        </span>
       </button>
       <button
         aria-label={t("closeTab", { title })}
         className={cn(
-          "text-muted-foreground hover:text-foreground focus-visible:ring-ring mr-1 ml-0.5 flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2",
-          isActive
+          "text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute top-1/2 right-1 flex size-5 -translate-y-1/2 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2",
+          isActive || isOverlay
             ? "opacity-100"
             : "opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100"
         )}
         onClick={onClose}
+        tabIndex={isOverlay ? -1 : undefined}
         type="button"
       >
         <HugeiconsIcon className="size-3" icon={Cancel01Icon} strokeWidth={2} />
       </button>
+    </div>
+  );
+}
+
+function ChatContentPanelTab({
+  isActive,
+  onActivate,
+  onClose,
+  post,
+}: ChatContentPanelTabProps) {
+  const { setNodeRef, listeners, transform, transition, isDragging } =
+    useSortable({ id: post.toolCallId });
+
+  return (
+    <div
+      // While dragging, the slot stays as a faint placeholder; the copy in
+      // the overlay follows the pointer.
+      className={cn(
+        // Each tab is as wide as its title within the same bounds, and only
+        // shrinks (and truncates) once the bar runs out of room.
+        "max-w-64 min-w-28 shrink",
+        isDragging && "opacity-35"
+      )}
+      ref={setNodeRef}
+      style={{
+        transform: transform
+          ? `translate3d(${Math.round(transform.x)}px, 0, 0)`
+          : undefined,
+        transition,
+      }}
+    >
+      <ChatContentPanelTabSurface
+        dragHandleProps={listeners}
+        isActive={isActive}
+        onActivate={onActivate}
+        onClose={onClose}
+        post={post}
+      />
     </div>
   );
 }
@@ -194,6 +289,7 @@ export function ChatContentPanel({
   onAskForChanges,
   onCloseTab,
   onOpenTab,
+  onReorderTabs,
   openToolCallIds,
   organizationId,
   organizationSlug,
@@ -202,7 +298,7 @@ export function ChatContentPanel({
   const t = useTranslations("chat.contentPanel");
   const tCommon = useTranslations("common");
   const getOutputTypeLabel = useOutputTypeLabel();
-  const { active, closePanel, expanded, toggleExpanded } = useRightPanel();
+  const { active, closePanel } = useRightPanel();
   const isDesktop = useDesktopBreakpoint();
   const postsById = new Map(posts.map((post) => [post.toolCallId, post]));
   const openPosts = openToolCallIds.flatMap((id) => {
@@ -215,29 +311,124 @@ export function ChatContentPanel({
     (post) => post.toolCallId === activeToolCallId
   );
 
+  // A small threshold keeps a plain click on a tab a click, not a drag.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+  const tablistRef = useRef<HTMLDivElement>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const draggingPost = draggingId ? postsById.get(draggingId) : undefined;
+  // The dragged copy slides along the bar only and never leaves it.
+  const keepInTabBar: Modifier = ({ transform, draggingNodeRect }) => {
+    const bar = tablistRef.current?.getBoundingClientRect();
+    if (!(bar && draggingNodeRect)) {
+      return { ...transform, y: 0 };
+    }
+    const minX = bar.left - draggingNodeRect.left;
+    const maxX = bar.right - draggingNodeRect.right;
+    return {
+      ...transform,
+      x: Math.min(Math.max(transform.x, minX), maxX),
+      y: 0,
+    };
+  };
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    setDraggingId(null);
+    if (!over || active.id === over.id) {
+      return;
+    }
+    const ids = openPosts.map((post) => post.toolCallId);
+    onReorderTabs(
+      arrayMove(
+        ids,
+        ids.indexOf(String(active.id)),
+        ids.indexOf(String(over.id))
+      )
+    );
+  };
+
   // The panel belongs to this chat; leaving it must not leave the slot open.
   const closeOnLeave = useEffectEvent(() => closePanel("preview"));
   useEffect(() => () => closeOnLeave(), []);
 
   const content = (
     <>
-      <header className="flex h-12 shrink-0 items-center gap-1 pr-2 pl-2">
-        <div
-          aria-label={t("title")}
-          className="flex min-w-0 shrink scrollbar-none items-center gap-1 overflow-x-auto"
-          role="tablist"
-        >
-          {openPosts.map((post) => (
-            <ChatContentPanelTab
-              isActive={post.toolCallId === activePost?.toolCallId}
-              key={post.toolCallId}
-              onActivate={() => onActivateTab(post.toolCallId)}
-              onClose={() => onCloseTab(post.toolCallId)}
-              post={post}
-            />
-          ))}
-        </div>
+      <header className="flex h-12 shrink-0 items-center gap-1 px-2">
         <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  onClick={() => closePanel("preview")}
+                  size="icon-sm"
+                  variant="ghost"
+                />
+              }
+            >
+              <span className="sr-only">{t("close")}</span>
+              <HugeiconsIcon
+                className="size-4"
+                icon={SidebarRightIcon}
+                strokeWidth={1.8}
+              />
+            </TooltipTrigger>
+            <TooltipContent>{t("close")}</TooltipContent>
+          </Tooltip>
+          <span
+            aria-hidden="true"
+            className="bg-border mx-1 h-4 w-px shrink-0"
+          />
+          <div
+            aria-label={t("title")}
+            className="flex min-w-0 shrink scrollbar-none items-center gap-1 overflow-x-auto"
+            ref={tablistRef}
+            role="tablist"
+          >
+            <DndContext
+              // The bar scrolling under the pointer clips the dragged tab.
+              autoScroll={false}
+              collisionDetection={closestCenter}
+              onDragCancel={() => setDraggingId(null)}
+              onDragEnd={handleDragEnd}
+              onDragStart={({ active }) => setDraggingId(String(active.id))}
+              sensors={sensors}
+            >
+              <SortableContext
+                items={openPosts.map((post) => post.toolCallId)}
+                strategy={horizontalListSortingStrategy}
+              >
+                {openPosts.map((post) => (
+                  <ChatContentPanelTab
+                    isActive={post.toolCallId === activePost?.toolCallId}
+                    key={post.toolCallId}
+                    onActivate={() => onActivateTab(post.toolCallId)}
+                    onClose={() => onCloseTab(post.toolCallId)}
+                    post={post}
+                  />
+                ))}
+              </SortableContext>
+              {createPortal(
+                <DragOverlay
+                  dropAnimation={TAB_DROP_ANIMATION}
+                  modifiers={[keepInTabBar]}
+                  zIndex={60}
+                >
+                  {draggingPost ? (
+                    <ChatContentPanelTabSurface
+                      isActive={
+                        draggingPost.toolCallId === activePost?.toolCallId
+                      }
+                      isOverlay
+                      onActivate={noop}
+                      onClose={noop}
+                      post={draggingPost}
+                    />
+                  ) : null}
+                </DragOverlay>,
+                document.body
+              )}
+            </DndContext>
+          </div>
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger
@@ -278,53 +469,6 @@ export function ChatContentPanel({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="ml-auto flex shrink-0 items-center gap-0.5">
-            {isDesktop ? (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      aria-pressed={expanded}
-                      onClick={toggleExpanded}
-                      size="icon-sm"
-                      variant="ghost"
-                    />
-                  }
-                >
-                  <span className="sr-only">
-                    {expanded ? t("collapse") : t("expand")}
-                  </span>
-                  <HugeiconsIcon
-                    className="size-4"
-                    icon={expanded ? ArrowShrink01Icon : FullScreenIcon}
-                    strokeWidth={1.8}
-                  />
-                </TooltipTrigger>
-                <TooltipContent>
-                  {expanded ? t("collapse") : t("expand")}
-                </TooltipContent>
-              </Tooltip>
-            ) : null}
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    onClick={() => closePanel("preview")}
-                    size="icon-sm"
-                    variant="ghost"
-                  />
-                }
-              >
-                <span className="sr-only">{t("close")}</span>
-                <HugeiconsIcon
-                  className="size-4"
-                  icon={SidebarRightIcon}
-                  strokeWidth={1.8}
-                />
-              </TooltipTrigger>
-              <TooltipContent>{t("close")}</TooltipContent>
-            </Tooltip>
-          </div>
         </TooltipProvider>
       </header>
       {activePost ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Alert02Icon,
   CheckmarkCircle02Icon,
   CircleIcon,
   Loading03Icon,
@@ -12,37 +13,65 @@ import { useTranslations } from "use-intl";
 
 import type { ChatTodoListProps } from "@/types/components/chat-todo-list";
 
+const ICON_LAYER_CLASSNAME =
+  "absolute inset-0 size-3.5 transition-[opacity,scale] duration-200 ease-out motion-reduce:transition-none";
+
+// All icons stay mounted and crossfade, so a status change never pops.
 function TodoStatusIcon({
   status,
   isActive,
+  isStopped,
 }: {
   status: ChatTodoItem["status"];
   isActive: boolean;
+  isStopped: boolean;
 }) {
-  if (status === "completed") {
-    return (
+  const isCompleted = status === "completed";
+  const isSpinning = status === "in_progress" && isActive;
+  const isInterrupted = status === "in_progress" && !isActive && isStopped;
+  const isOpen = !(isCompleted || isSpinning || isInterrupted);
+
+  return (
+    <span aria-hidden="true" className="relative size-3.5 shrink-0">
       <HugeiconsIcon
-        className="text-success size-3.5 shrink-0"
-        icon={CheckmarkCircle02Icon}
+        className={cn(
+          ICON_LAYER_CLASSNAME,
+          "text-muted-foreground/50",
+          isOpen ? "scale-100 opacity-100" : "scale-75 opacity-0"
+        )}
+        icon={CircleIcon}
         strokeWidth={1.8}
       />
-    );
-  }
-  if (status === "in_progress" && isActive) {
-    return (
       <HugeiconsIcon
-        className="text-foreground size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+        className={cn(
+          ICON_LAYER_CLASSNAME,
+          "text-foreground",
+          isSpinning
+            ? "scale-100 animate-spin opacity-100 motion-reduce:animate-none"
+            : "scale-75 opacity-0"
+        )}
         icon={Loading03Icon}
         strokeWidth={1.8}
       />
-    );
-  }
-  return (
-    <HugeiconsIcon
-      className="text-muted-foreground/60 size-3.5 shrink-0"
-      icon={CircleIcon}
-      strokeWidth={1.8}
-    />
+      <HugeiconsIcon
+        className={cn(
+          ICON_LAYER_CLASSNAME,
+          "text-warning",
+          isInterrupted ? "scale-100 opacity-100" : "scale-75 opacity-0"
+        )}
+        icon={Alert02Icon}
+        strokeWidth={1.8}
+      />
+      <HugeiconsIcon
+        className={cn(
+          ICON_LAYER_CLASSNAME,
+          "text-success",
+          isCompleted ? "scale-100 opacity-100" : "scale-50 opacity-0"
+        )}
+        icon={CheckmarkCircle02Icon}
+        strokeWidth={1.8}
+      />
+    </span>
   );
 }
 
@@ -56,33 +85,58 @@ function withTodoKeys(todos: ChatTodoItem[]) {
   });
 }
 
-export function ChatTodoList({ todos, isActive }: ChatTodoListProps) {
+export function ChatTodoList({
+  todos,
+  isActive,
+  isStopped = false,
+}: ChatTodoListProps) {
   const t = useTranslations("chat.todos");
-  const completed = todos.filter((todo) => todo.status === "completed").length;
+  const showStopped = isStopped && !isActive;
 
   return (
     <section
       aria-label={t("label")}
-      className="border-border bg-background w-full max-w-xl rounded-lg border px-3.5 py-3"
+      className="border-shell-border bg-shell w-full max-w-xl rounded-2xl border p-0.5 pt-0"
     >
-      <h3 className="text-muted-foreground mb-2 flex items-center justify-between text-xs">
-        <span>{t("label")}</span>
-        <span className="tabular-nums">
-          {t("progress", { completed, total: todos.length })}
+      <header className="flex items-center justify-between gap-3 px-2.5 py-2">
+        <h3 className="text-foreground text-xs font-medium">{t("label")}</h3>
+        <span
+          className={cn(
+            "text-warning flex items-center gap-1 text-xs transition-opacity duration-200 motion-reduce:transition-none",
+            showStopped ? "opacity-100" : "opacity-0"
+          )}
+          aria-hidden={!showStopped}
+        >
+          <HugeiconsIcon
+            className="size-3"
+            icon={Alert02Icon}
+            strokeWidth={1.8}
+          />
+          {t("stopped")}
         </span>
-      </h3>
-      <ol className="flex flex-col gap-1.5">
+      </header>
+      <ol className="border-border bg-background flex flex-col gap-1.5 rounded-[14px] border px-3 py-2.5">
         {withTodoKeys(todos).map(({ key, todo }) => (
           <li className="flex items-start gap-2 text-sm leading-5" key={key}>
             <span className="flex h-5 items-center">
-              <TodoStatusIcon isActive={isActive} status={todo.status} />
+              <TodoStatusIcon
+                isActive={isActive}
+                isStopped={showStopped}
+                status={todo.status}
+              />
             </span>
             <span
               className={cn(
-                "min-w-0 text-pretty",
-                todo.status === "completed" &&
-                  "text-muted-foreground line-through decoration-1",
-                todo.status === "in_progress" && "text-foreground font-medium"
+                "min-w-0 text-pretty line-through decoration-1 transition-[color,text-decoration-color] duration-300 ease-out motion-reduce:transition-none",
+                todo.status === "completed"
+                  ? "text-muted-foreground decoration-muted-foreground"
+                  : "decoration-transparent",
+                todo.status === "pending" &&
+                  (showStopped
+                    ? "text-muted-foreground"
+                    : "text-foreground/80"),
+                todo.status === "in_progress" &&
+                  (showStopped ? "text-foreground/80" : "text-foreground")
               )}
             >
               {todo.content}

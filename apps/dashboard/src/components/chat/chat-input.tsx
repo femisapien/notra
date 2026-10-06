@@ -111,6 +111,7 @@ import type { GitHubRepository } from "@/types/integrations";
 import type { SkillSlashOption } from "@/types/skills/slash";
 import { hasIncludedChatPlan } from "@/utils/chat-billing";
 import { contextItemKey, contextItemsEqual } from "@/utils/chat-input";
+import { getPostReferenceValue } from "@/utils/chat-posts";
 import { prependChatQuote } from "@/utils/chat-quote";
 import {
   extractIntegrationReferences,
@@ -1946,6 +1947,16 @@ export function ChatInputAdvanced({
       insertPostReference: (post) => {
         const editor = editorRef.current;
         if (!editor) {
+          return;
+        }
+        // One chip per post: a second quote from it only needs the focus.
+        const existing = Array.from(
+          editor.querySelectorAll<HTMLElement>("[data-integration-reference]")
+        ).some(
+          (chip) => chip.dataset.value === getPostReferenceValue(post.postId)
+        );
+        if (existing) {
+          editor.focus();
           return;
         }
         const selection = window.getSelection();

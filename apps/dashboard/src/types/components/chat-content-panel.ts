@@ -1,3 +1,5 @@
+import type { DraggableSyntheticListeners } from "@dnd-kit/core";
+
 import type { ChatPostEntry } from "@/types/chat-posts";
 
 export interface ChatContentPanelProps {
@@ -8,6 +10,8 @@ export interface ChatContentPanelProps {
   onActivateTab: (toolCallId: string) => void;
   onCloseTab: (toolCallId: string) => void;
   onOpenTab: (toolCallId: string) => void;
+  /** New tab order after a drag. */
+  onReorderTabs: (toolCallIds: string[]) => void;
   organizationId: string;
   organizationSlug: string;
   posts: ChatPostEntry[];
@@ -18,6 +22,13 @@ export interface ChatContentPanelTabProps {
   onActivate: () => void;
   onClose: () => void;
   post: ChatPostEntry;
+}
+
+export interface ChatContentPanelTabSurfaceProps extends ChatContentPanelTabProps {
+  /** Pointer listeners that start a drag from the tab body. */
+  dragHandleProps?: DraggableSyntheticListeners;
+  /** The copy that follows the pointer while dragging. */
+  isOverlay?: boolean;
 }
 
 export interface ChatContentPanelDocumentProps {

@@ -5715,8 +5715,6 @@
     "contentPanel": {
       "title": "Content",
       "toggle": "Content ({count})",
-      "expand": "Expand preview",
-      "collapse": "Exit full width",
       "close": "Collapse panel",
       "empty": "Posts the agent writes in this chat show up here.",
       "status": {
@@ -5729,7 +5727,7 @@
     },
     "todos": {
       "label": "Plan",
-      "progress": "{completed} of {total} done"
+      "stopped": "Stopped"
     }
   },
   "content": {

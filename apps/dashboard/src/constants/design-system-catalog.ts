@@ -62,6 +62,12 @@ export const DESIGN_SYSTEM_CATALOG: DesignSystemCatalogItem[] = [
     level: "section",
   },
   {
+    id: "todo-list",
+    label: "Todo List",
+    href: "/design-system#todo-list",
+    level: "section",
+  },
+  {
     id: "identity",
     label: "Identity & Layout",
     href: "/design-system#identity",

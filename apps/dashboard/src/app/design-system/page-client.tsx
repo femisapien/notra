@@ -237,6 +237,7 @@ import ChatInput from "@/components/chat-input";
 import { DesignSystemChatQueueDemo } from "@/components/design-system/design-system-chat-queue-demo";
 import { DesignSystemFrame } from "@/components/design-system/design-system-frame";
 import { DesignSystemSectionHeader } from "@/components/design-system/design-system-section-header";
+import { DesignSystemTodoListDemo } from "@/components/design-system/design-system-todo-list-demo";
 import { GeoRangePickerDemo } from "@/components/design-system/geo-range-picker-demo";
 import { IntegrationCard } from "@/components/integrations/integration-card";
 import { LinkedInPost } from "@/components/linkedin-post";
@@ -1521,6 +1522,17 @@ export default function DesignSystemClientPage() {
           title="Chat Queue"
         />
         <DesignSystemChatQueueDemo />
+      </section>
+
+      <Separator />
+
+      <section className="scroll-mt-10 space-y-6" id="todo-list">
+        <DesignSystemSectionHeader
+          description="The agent's plan for requests with three or more deliverables. One checklist per reply, updated in place; the in-progress item spins only while the reply runs."
+          id="todo-list"
+          title="Todo List"
+        />
+        <DesignSystemTodoListDemo />
       </section>
 
       <Separator />

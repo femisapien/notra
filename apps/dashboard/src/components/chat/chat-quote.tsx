@@ -29,6 +29,7 @@ import { useTranslations } from "use-intl";
 
 import type {
   ChatQuoteContextValue,
+  ChatQuotePost,
   ChatQuoteSelection,
   ChatQuoteProviderProps,
   ChatQuotePreviewProps,
@@ -48,18 +49,20 @@ export function ChatQuoteProvider({
   const t = useTranslations("chat.quote");
   const scopeId = useId();
   const [quote, setQuote] = useState<string | null>(null);
+  const [quotedPost, setQuotedPost] = useState<ChatQuotePost | null>(null);
   const [selection, setSelection] = useState<ChatQuoteSelection | null>(null);
   const [previousConversationId, setPreviousConversationId] =
     useState(conversationId);
   if (previousConversationId !== conversationId) {
     setPreviousConversationId(conversationId);
     setQuote(null);
+    setQuotedPost(null);
     setSelection(null);
   }
   const buttonRef = useRef<HTMLButtonElement>(null);
   const context = useMemo(
-    () => ({ scopeId, quote, setQuote }),
-    [scopeId, quote]
+    () => ({ scopeId, quote, setQuote, quotedPost, setQuotedPost }),
+    [scopeId, quote, quotedPost]
   );
 
   useEffect(() => {
@@ -98,7 +101,17 @@ export function ChatQuoteProvider({
         setSelection(null);
         return;
       }
-      setSelection({ text, rect: range.getBoundingClientRect() });
+      const postId = start?.getAttribute("data-chat-quote-post-id");
+      setSelection({
+        text,
+        rect: range.getBoundingClientRect(),
+        post: postId
+          ? {
+              postId,
+              title: start?.getAttribute("data-chat-quote-post-title") ?? "",
+            }
+          : undefined,
+      });
     }
     function dismiss() {
       setSelection(null);
@@ -135,6 +148,9 @@ export function ChatQuoteProvider({
       return;
     }
     setQuote(selection.text);
+    if (selection.post) {
+      setQuotedPost(selection.post);
+    }
     setSelection(null);
     window.getSelection()?.removeAllRanges();
     getChatQuoteComposer(scopeId)?.focus();
