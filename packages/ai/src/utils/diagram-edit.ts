@@ -4,7 +4,7 @@ import {
   DIAGRAM_DEFAULT_STROKE,
   DIAGRAM_DEFAULT_STROKE_WIDTH,
   DIAGRAM_ANGLE_TOLERANCE,
-  DIAGRAM_ATTACHMENT_FOCUS_TOLERANCE,
+  DIAGRAM_ATTACHMENT_TOLERANCE,
   DIAGRAM_EDIT_ATTEMPTS,
   DIAGRAM_EDIT_MAX_OUTPUT_TOKENS,
   DIAGRAM_EDIT_MODEL_ID,
@@ -20,11 +20,16 @@ import {
 import { withRouterDefaults } from "@notra/ai/provider-options";
 import { diagramSpecSchema } from "@notra/ai/schemas/excalidraw-diagram";
 import type { AgentTokenUsage } from "@notra/ai/types/agents";
-import type { DiagramSpec } from "@notra/ai/types/excalidraw-diagram";
+import type {
+  DiagramShapeGeometry,
+  DiagramSpec,
+} from "@notra/ai/types/excalidraw-diagram";
 import {
+  boundPoint,
   describeDiagramSpecError,
   isDiagramSpecError,
   readDiagramSpec,
+  shapeCenter,
 } from "@notra/ai/utils/excalidraw-diagram";
 import { findDiagramLayoutIssues } from "@notra/ai/utils/excalidraw-layout-check";
 import { renderDiagram } from "@notra/ai/utils/excalidraw-render";
@@ -103,53 +108,70 @@ function readAngle(element: SceneRecord) {
     : undefined;
 }
 
+function shapeGeometry(shape: SceneRecord): DiagramShapeGeometry | undefined {
+  const type = readString(shape, "type");
+  const width = readNumber(shape, "width") ?? 0;
+  const height = readNumber(shape, "height") ?? 0;
+  if (!(isShapeType(type) && width && height)) {
+    return undefined;
+  }
+  return {
+    type,
+    x: readNumber(shape, "x") ?? 0,
+    y: readNumber(shape, "y") ?? 0,
+    width,
+    height,
+    angle: readNumber(shape, "angle") ?? 0,
+  };
+}
+
 /**
- * A bound arrow end as a spec endpoint. Without an anchor the arrow is rebuilt
- * to meet the edge facing the other end; Excalidraw marks an attachment the
- * user moved elsewhere with a non-zero focus, so that one keeps its position
- * as a fraction of the shape's unrotated box.
+ * A bound arrow end as a spec endpoint. An end where Notra would snap it
+ * anyway (the edge facing `toward`) stays a plain id; one the user moved
+ * elsewhere keeps its position as a fraction of the shape's unrotated box,
+ * plus Excalidraw's focus so the editor keeps it when the shape moves.
  */
 function boundEndpoint(
   element: SceneRecord,
   key: "startBinding" | "endBinding",
   point: [number, number],
+  toward: [number, number],
   shapes: Map<string, SceneRecord>
 ) {
   const binding = element[key];
   const shapeId = isRecord(binding)
     ? readString(binding, "elementId")
     : undefined;
-  const shape = shapeId ? shapes.get(shapeId) : undefined;
+  const shapeRecord = shapeId ? shapes.get(shapeId) : undefined;
+  const shape = shapeRecord ? shapeGeometry(shapeRecord) : undefined;
   if (!(shapeId && shape && isRecord(binding))) {
     return undefined;
   }
-  const focus = readNumber(binding, "focus") ?? 0;
-  const width = readNumber(shape, "width") ?? 0;
-  const height = readNumber(shape, "height") ?? 0;
+  const [snapX, snapY] = boundPoint(shape, undefined, toward);
   if (
-    Math.abs(focus) <= DIAGRAM_ATTACHMENT_FOCUS_TOLERANCE ||
-    !(width && height)
+    Math.hypot(point[0] - snapX, point[1] - snapY) <=
+    DIAGRAM_ATTACHMENT_TOLERANCE
   ) {
     return { id: shapeId };
   }
-  const x = readNumber(shape, "x") ?? 0;
-  const y = readNumber(shape, "y") ?? 0;
-  const angle = readNumber(shape, "angle") ?? 0;
-  const cx = x + width / 2;
-  const cy = y + height / 2;
   // Undo the shape's rotation so the anchor is in its own frame.
-  const cos = Math.cos(-angle);
-  const sin = Math.sin(-angle);
+  const [cx, cy] = shapeCenter(shape);
+  const cos = Math.cos(-shape.angle);
+  const sin = Math.sin(-shape.angle);
   const dx = point[0] - cx;
   const dy = point[1] - cy;
   const localX = cx + dx * cos - dy * sin;
   const localY = cy + dx * sin + dy * cos;
   const fraction = (value: number) =>
     Math.min(2, Math.max(-1, Math.round(value * 1000) / 1000));
+  const focus = readNumber(binding, "focus") ?? 0;
   return {
     id: shapeId,
-    anchor: [fraction((localX - x) / width), fraction((localY - y) / height)],
-    focus: Math.round(focus * 1000) / 1000,
+    anchor: [
+      fraction((localX - shape.x) / shape.width),
+      fraction((localY - shape.y) / shape.height),
+    ],
+    focus: Math.min(1, Math.max(-1, Math.round(focus * 1000) / 1000)),
   };
 }
 
@@ -269,6 +291,24 @@ export function sceneToDiagramSpec(scene: unknown): {
       );
       const first = absolute[0] ?? [x, y];
       const last = absolute.at(-1) ?? first;
+      // Mirror the scene builder: a bound end faces the next point, or the
+      // other end's shape center when there are no waypoints.
+      const boundCenter = (key: "startBinding" | "endBinding") => {
+        const binding = element[key];
+        const shapeId = isRecord(binding)
+          ? readString(binding, "elementId")
+          : undefined;
+        const shape = shapeId ? shapes.get(shapeId) : undefined;
+        const geometry = shape ? shapeGeometry(shape) : undefined;
+        return geometry ? shapeCenter(geometry) : undefined;
+      };
+      const hasVia = absolute.length > 2;
+      const startToward =
+        (hasVia ? absolute[1] : undefined) ?? boundCenter("endBinding") ?? last;
+      const endToward =
+        (hasVia ? absolute.at(-2) : undefined) ??
+        boundCenter("startBinding") ??
+        first;
       const defaultEnd = type === "arrow" ? "arrow" : null;
       const arrowhead = (key: string, fallback: string | null) => {
         const value = element[key] ?? null;
@@ -280,15 +320,27 @@ export function sceneToDiagramSpec(scene: unknown): {
       specElements.push({
         type,
         id,
-        start: boundEndpoint(element, "startBinding", first, shapes) ?? {
+        start: boundEndpoint(
+          element,
+          "startBinding",
+          first,
+          startToward,
+          shapes
+        ) ?? {
           x: first[0],
           y: first[1],
         },
-        end: boundEndpoint(element, "endBinding", last, shapes) ?? {
+        end: boundEndpoint(element, "endBinding", last, endToward, shapes) ?? {
           x: last[0],
           y: last[1],
         },
-        via: absolute.length > 2 ? absolute.slice(1, -1) : undefined,
+        via: hasVia ? absolute.slice(1, -1) : undefined,
+        curved:
+          hasVia &&
+          element.roundness !== null &&
+          element.roundness !== undefined
+            ? true
+            : undefined,
         label: labelFor(id),
         startArrowhead: arrowhead("startArrowhead", null),
         endArrowhead: arrowhead("endArrowhead", defaultEnd),

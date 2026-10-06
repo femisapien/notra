@@ -16,6 +16,12 @@ export type DiagramLinearSpec = Extract<
   { type: "arrow" | "line" }
 >;
 
+/** What edge-snapping needs to know about a shape. */
+export type DiagramShapeGeometry = Pick<
+  ExcalidrawShapeElement,
+  "type" | "x" | "y" | "width" | "height" | "angle"
+>;
+
 export type ExcalidrawArrowhead = "arrow" | "triangle" | "dot" | "bar" | null;
 
 export interface ExcalidrawBinding {

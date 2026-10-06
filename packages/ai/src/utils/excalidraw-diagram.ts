@@ -20,6 +20,7 @@ import {
 import { diagramSpecSchema } from "@notra/ai/schemas/excalidraw-diagram";
 import type {
   DiagramLinearSpec,
+  DiagramShapeGeometry,
   DiagramShapeSpec,
   DiagramSpec,
   DiagramSpecElement,
@@ -218,7 +219,7 @@ function buildShape(
   return { shape, label };
 }
 
-function shapeCenter(shape: ExcalidrawShapeElement): Point {
+export function shapeCenter(shape: DiagramShapeGeometry): Point {
   return [shape.x + shape.width / 2, shape.y + shape.height / 2];
 }
 
@@ -259,8 +260,8 @@ function rotatePoint([px, py]: Point, [cx, cy]: Point, angle: number): Point {
 }
 
 /** Where an arrow bound to `shape` starts or ends: its anchor, or the edge facing `toward`. */
-function boundPoint(
-  shape: ExcalidrawShapeElement,
+export function boundPoint(
+  shape: DiagramShapeGeometry,
   anchor: [number, number] | undefined,
   toward: Point
 ): Point {
@@ -278,7 +279,7 @@ function boundPoint(
 }
 
 /** Point where the ray from the shape center toward `toward` leaves the outline, plus a gap. */
-function edgePoint(shape: ExcalidrawShapeElement, toward: Point): Point {
+function edgePoint(shape: DiagramShapeGeometry, toward: Point): Point {
   const [cx, cy] = shapeCenter(shape);
   const dx = toward[0] - cx;
   const dy = toward[1] - cy;
@@ -396,9 +397,12 @@ function buildLinear(
       height: Math.max(...ys) - Math.min(...ys),
     }),
     type: spec.type,
-    // Sharp elbows: the layout check and label placement follow the straight
-    // segments, so a curve through \`via\` points could leave the checked route.
-    roundness: null,
+    // Sharp elbows unless the user curved the arrow by hand: the layout check
+    // and label placement follow straight segments between \`via\` points.
+    roundness:
+      spec.curved && via.length > 0
+        ? { type: EXCALIDRAW_ROUNDNESS_PROPORTIONAL }
+        : null,
     points,
     startBinding: startShape
       ? {

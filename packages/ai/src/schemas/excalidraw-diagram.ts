@@ -81,6 +81,8 @@ const linearSchema = z.object({
     .max(12)
     .optional(),
   label: labelSchema.optional(),
+  // Set when the user curved the arrow in the editor; Notra draws sharp elbows.
+  curved: z.boolean().optional(),
   startArrowhead: arrowheadSchema,
   endArrowhead: arrowheadSchema,
 });

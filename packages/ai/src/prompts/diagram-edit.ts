@@ -19,7 +19,7 @@ ${DIAGRAM_RULES}
 - Return the whole diagram, not a diff. Output only the JSON object, no prose and no code fence.
 - Make the smallest change that satisfies the request. Keep ids, positions, sizes, colors, and labels of everything the request does not touch.
 - When you add or move shapes, keep the layout inside the 1100 x 530 box, keep gaps of at least 80px, and make sure arrow labels still fit between the shapes they connect.
-- Keep \`angle\` and \`anchor\` fields the user set by hand unless the request is about them. Drop an arrow end's \`anchor\` when you move that arrow to a different shape.
+- Keep \`angle\`, \`anchor\`, and \`curved\` fields the user set by hand unless the request is about them. Drop an arrow end's \`anchor\` when you move that arrow to a different shape.
 - Keep every arrow's start and end id pointing at a shape that still exists. If you remove a shape, remove or reconnect its arrows.`;
 }
 

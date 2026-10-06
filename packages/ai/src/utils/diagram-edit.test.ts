@@ -205,6 +205,42 @@ describe("sceneToDiagramSpec", () => {
   });
 });
 
+test("keeps an end moved without a focus change and a curved arrow", () => {
+  const scene = sceneOf(flow);
+  const retry = scene.elements.find((element) => element.id === "retry");
+  if (!(retry && "points" in retry)) {
+    throw new Error("missing arrow");
+  }
+  // Elbow arrows bind by fixed point and leave focus at 0, so only the
+  // position shows the user moved the end.
+  const moved = retry.points.map(([px, py], index) =>
+    index === retry.points.length - 1
+      ? ([px + 40, py] as [number, number])
+      : ([px, py] as [number, number])
+  );
+  const edited = {
+    ...scene,
+    elements: scene.elements.map((element) =>
+      element.id === "retry"
+        ? { ...retry, points: moved, roundness: { type: 2 } }
+        : element
+    ),
+  };
+
+  const { spec } = sceneToDiagramSpec(edited);
+  const rebuilt = buildExcalidrawScene(spec, measurer);
+  const arrow = rebuilt.elements.find((element) => element.id === "retry");
+  const [lastX = 0, lastY = 0] = moved.at(-1) ?? [];
+
+  expect(arrow && "roundness" in arrow && arrow.roundness).not.toBeNull();
+  expect(
+    arrow && "points" in arrow && arrow.x + (arrow.points.at(-1)?.[0] ?? 0)
+  ).toBeCloseTo(retry.x + lastX, 0);
+  expect(
+    arrow && "points" in arrow && arrow.y + (arrow.points.at(-1)?.[1] ?? 0)
+  ).toBeCloseTo(retry.y + lastY, 0);
+});
+
 describe("findDiagramLayoutIssues", () => {
   test("a tidy diagram has no issues", () => {
     expect(findDiagramLayoutIssues(sceneOf(flow))).toEqual([]);

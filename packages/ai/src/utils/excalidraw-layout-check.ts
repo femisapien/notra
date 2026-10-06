@@ -111,10 +111,14 @@ function describe(element: ExcalidrawElement, labels: Map<string, string>) {
 export function findDiagramLayoutIssues(scene: ExcalidrawScene): string[] {
   const issues: string[] = [];
   // A quarter-turned element is checked by its rotated box, which is exact.
-  // Other angles only come from hand edits; leave those elements out of the
-  // overlap and crossing checks rather than flag problems that aren't there.
-  const checked = scene.elements.flatMap((element) => {
-    if (isLinear(element) || element.angle === 0) {
+  // Other angles and curved arrows only come from hand edits; leave them out
+  // of the overlap and crossing checks rather than flag problems that the
+  // straight-segment geometry here cannot see correctly.
+  const checked = scene.elements.flatMap((element): ExcalidrawElement[] => {
+    if (isLinear(element)) {
+      return element.roundness ? [] : [element];
+    }
+    if (element.angle === 0) {
       return [element];
     }
     return isQuarterTurn(element.angle)

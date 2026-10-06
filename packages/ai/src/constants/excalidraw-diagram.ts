@@ -26,7 +26,8 @@ export const DIAGRAM_CANVAS_PADDING = 48;
 export const DIAGRAM_LAYOUT_TOLERANCE = 6;
 // Hand-edited angles and arrow focus below these are noise and not kept.
 export const DIAGRAM_ANGLE_TOLERANCE = 0.001;
-export const DIAGRAM_ATTACHMENT_FOCUS_TOLERANCE = 0.05;
+// An arrow end this close to where Notra would snap it counts as not moved.
+export const DIAGRAM_ATTACHMENT_TOLERANCE = 2;
 export const DIAGRAM_ROUNDED_CORNER_RADIUS = 32;
 export const DIAGRAM_ROUNDED_CORNER_RATIO = 0.25;
 export const DIAGRAM_ARROWHEAD_LENGTH = 16;

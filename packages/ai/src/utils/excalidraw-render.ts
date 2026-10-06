@@ -299,7 +299,10 @@ function renderLinear(
     ([px, py]) => [element.x + px, element.y + py] as Point
   );
   const options = roughOptions(element);
-  const body = generator.linearPath(absolute, options);
+  const body =
+    element.roundness && absolute.length > 2
+      ? generator.curve(absolute, options)
+      : generator.linearPath(absolute, options);
   let svg = drawableToSvg(generator, body, dashArray(element));
 
   const last = absolute.at(-1);
