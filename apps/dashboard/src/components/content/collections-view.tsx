@@ -12,9 +12,12 @@ import {
   ResponsiveAlertDialogHeader,
   ResponsiveAlertDialogTitle,
 } from "@notra/ui/components/shared/responsive-alert-dialog";
-import { TablePagination } from "@notra/ui/components/shared/table-pagination";
 import { TruncateWithTooltip } from "@notra/ui/components/shared/truncate-with-tooltip";
 import { Badge } from "@notra/ui/components/ui/badge";
+import {
+  DataTable,
+  type TableColumn,
+} from "@notra/ui/components/ui/data-table";
 import {
   Tooltip,
   TooltipContent,
@@ -22,18 +25,17 @@ import {
   TooltipTrigger,
 } from "@notra/ui/components/ui/tooltip";
 import { formatDistanceToNowStrict } from "date-fns";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useNow, useTranslations } from "use-intl";
 
 import {
   CollectionActionsMenu,
   CollectionMenuItems,
 } from "@/components/content/collection-menu-items";
+import Link from "@/components/framework/link";
 import { StatusSpinner } from "@/components/geo/status-spinner";
-import { Table, type TableColumn } from "@/components/motion/table";
 import {
+  COLLECTION_JUST_NOW_MS,
   COLLECTION_TABLE_ROW_HEIGHT,
   COLLECTION_TABLE_TOOLTIP_DELAY_MS,
   COLLECTION_TYPE_STACK_LIMIT,
@@ -43,7 +45,7 @@ import { useOutputTypeLabel } from "@/lib/hooks/use-output-type-label";
 import { usePostActions } from "@/lib/hooks/use-post-actions";
 import { useDateFnsLocale } from "@/lib/i18n/date-fns";
 import { useLogoStackLabels } from "@/lib/i18n/use-logo-stack-labels";
-import { cn } from "@/lib/utils";
+import { useRouter } from "@/lib/navigation";
 import type {
   CollectionStatus,
   CollectionsViewProps,
@@ -214,11 +216,18 @@ export function CollectionsView({
   );
   const dateFnsLocale = useDateFnsLocale();
   const formatDate = useLocalDateFormat();
-  const formatRelativeDate = (dateString: string) =>
-    formatDistanceToNowStrict(new Date(dateString), {
+  const now = useNow({ updateInterval: 60_000 });
+  const formatRelativeDate = (dateString: string) => {
+    const date = new Date(dateString);
+    // date-fns has no "just now"; it would print "0 seconds ago".
+    if (Math.abs(now.getTime() - date.getTime()) < COLLECTION_JUST_NOW_MS) {
+      return tCommon("time.justNow");
+    }
+    return formatDistanceToNowStrict(date, {
       addSuffix: true,
       locale: dateFnsLocale,
     });
+  };
   const collectionColumns: TableColumn<PostCollectionSummary>[] = [
     {
       key: "types",
@@ -297,12 +306,19 @@ export function CollectionsView({
   // One shared tooltip glides between the cells instead of reopening.
   return (
     <TooltipProvider delay={COLLECTION_TABLE_TOOLTIP_DELAY_MS}>
-      <Table
-        className="rounded-xl"
+      <DataTable
         columns={columns}
         data={collections}
         emptyState={t("emptyPage")}
-        footer={<TablePagination {...pagination} itemLabel={t("items")} />}
+        pagination={{
+          mode: "server",
+          page: pagination.page,
+          pageSize: pagination.pageSize,
+          totalItems: pagination.totalItems,
+          onPageChange: pagination.setPage,
+          onPageSizeChange: pagination.onPageSizeChange,
+          itemLabel: t("items", { count: pagination.totalItems }),
+        }}
         getRowId={(collection) => collection.id}
         height={paginatedTableHeightFor(
           pagination.pageRowCount,

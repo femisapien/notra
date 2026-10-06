@@ -77,7 +77,6 @@
     "NOTRA_API_KEY",
     "WORKFLOW_BASE_URL",
     "NOTRA_DEMO_*",
-    "NEXT_OUTPUT_STANDALONE",
     "LINEAR_CLIENT_ID",
     "LINEAR_CLIENT_SECRET",
     "AXIOM_TOKEN",
@@ -116,27 +115,32 @@
     "API_VERCEL_PROJECT_NAME",
     "BEACON_INGEST_SECRET",
     "GEO_INGEST_SECRET",
+    "GEO_INGEST_URL",
     "FEEDBACK_INGEST_SECRET",
     "FEEDBACK_API_URL",
     "NOTRA_GEO_TOKEN",
     "WEBHOOK_ENCRYPTION_KEY"
   ],
   "envMode": "strict",
-  "globalPassThroughEnv": ["TURBO_TASKS_AVAILABLE_PARALLELISM"],
   "tasks": {
+    "dashboard#build": {
+      "dependsOn": ["transit"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "env": ["NITRO_PRESET", "NEXT_PUBLIC_*"],
+      "outputs": [".output/**", ".vercel/output/**"]
+    },
+    "dashboard#dev": {
+      "cache": false,
+      "persistent": true,
+      "env": ["NEXT_PUBLIC_*"]
+    },
     "transit": {
       "dependsOn": ["^transit"]
     },
     "build": {
       "dependsOn": ["transit"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [
-        ".next/**",
-        "!.next/cache/**",
-        "!.next/dev/**",
-        "dist/**",
-        ".vercel/**"
-      ]
+      "outputs": ["dist/**", ".vercel/**"]
     },
     "web#build": {
       "dependsOn": ["transit"],

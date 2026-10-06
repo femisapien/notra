@@ -1,18 +1,11 @@
 import type { PostCollectionSummary } from "@notra/schemas/dashboard/content";
-import type { useTranslations } from "next-intl";
+import type { useTranslations } from "use-intl";
 
 import type { TablePaginationState } from "@/types/table";
 
 export type CollectionsTranslator = ReturnType<
   typeof useTranslations<"content.collections">
 >;
-
-export interface CollectionPageProps {
-  params: Promise<{
-    slug: string;
-    id: string;
-  }>;
-}
 
 export interface RenameCollectionDialogProps {
   collectionId: string;

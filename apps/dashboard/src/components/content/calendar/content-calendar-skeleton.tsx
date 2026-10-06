@@ -1,5 +1,5 @@
 import { Skeleton } from "@notra/ui/components/ui/skeleton";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 /**
  * Stands in for the calendar while its chunk loads. No dates: it also renders

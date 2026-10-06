@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { SOCIAL_PLATFORM_LABELS } from "@/constants/social-connect";
 import type { ScheduleDestinationMarkProps } from "@/types/content/schedule";

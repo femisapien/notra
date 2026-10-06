@@ -8,11 +8,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@notra/ui/components/ui/tooltip";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
 import type { DragEvent } from "react";
+import { useTranslations } from "use-intl";
 
 import { ScheduledPublicationStatus } from "@/components/content/schedule/scheduled-publication-status";
+import Link from "@/components/framework/link";
 import { CONTENT_CALENDAR_DRAG_MIME } from "@/constants/content-calendar";
 import { useLocalDateFormat } from "@/lib/hooks/use-local-date-format";
 import { useScheduleDestinationName } from "@/lib/hooks/use-schedule-destination-name";

@@ -10,8 +10,8 @@ import {
   identifyServerGroup,
   setServerPersonProperties,
 } from "@notra/posthog/server";
-import { after } from "next/server";
 
+import { afterResponse } from "@/lib/framework/after-response";
 import type {
   IdentifyOrganizationGroupInput,
   IdentifyProjectGroupInput,
@@ -21,8 +21,8 @@ import type {
 } from "@/types/analytics/posthog";
 
 function scheduleCapture(capture: () => void): void {
-  // Capture itself can start network work. Keep both capture and delivery in
-  // Next's supported lifetime, including during prerendering. Workflows use
+  // Capture itself can start network work, so both capture and delivery run
+  // after the response (outside a request they run right away). Workflows use
   // trackServerEventAndFlush instead of relying on a request context.
   const deliver = async () => {
     try {
@@ -33,10 +33,8 @@ function scheduleCapture(capture: () => void): void {
     }
   };
   try {
-    after(deliver);
+    afterResponse(deliver);
   } catch {
-    // CLI/background callers have no Next lifetime to extend. Delivery is
-    // best effort there; neither a capture throw nor a rejection escapes.
     void deliver();
   }
 }

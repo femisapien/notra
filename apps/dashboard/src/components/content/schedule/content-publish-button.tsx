@@ -17,8 +17,8 @@ import {
   SplitButton,
   SplitButtonTrigger,
 } from "@notra/ui/components/ui/split-button";
-import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { ScheduleContentDialog } from "@/components/content/schedule/schedule-content-dialog";

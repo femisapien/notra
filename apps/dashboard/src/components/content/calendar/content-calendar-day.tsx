@@ -6,8 +6,8 @@ import {
   PopoverTrigger,
 } from "@notra/ui/components/ui/popover";
 import { isToday, startOfDay } from "date-fns";
-import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { ContentCalendarItemChip } from "@/components/content/calendar/content-calendar-item-chip";
 import {

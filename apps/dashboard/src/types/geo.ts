@@ -61,16 +61,15 @@ import type {
   GeoPromptTranslationLanguagePlan,
   GeoPromptTranslationEntry,
 } from "@notra/geo-core/types/geo";
-import type { useTranslations } from "next-intl";
+import type { TableColumn } from "@notra/ui/components/ui/data-table";
 import type {
   ComponentProps,
   ComponentPropsWithoutRef,
-  PointerEventHandler,
   ReactNode,
 } from "react";
+import type { useTranslations } from "use-intl";
 
 import type { Button } from "@/components/button";
-import type { TableColumn } from "@/components/motion/table";
 import type { GeoPromptDetailSurface } from "@/types/analytics/geo-events";
 import type { ChartConfig, ChartSeriesColors } from "@/types/charts";
 import type { GeoPromptDetailState } from "@/types/geo-prompt-detail";
@@ -173,21 +172,9 @@ export interface GeoTrafficSkeletonProps {
   geoRange?: GeoRangeControl;
 }
 
-export interface GeoLayoutProps {
-  children: ReactNode;
-  modal: ReactNode;
-  params: Promise<{ slug: string }>;
-}
-
 export interface GeoProjectScopeProps {
   slug: string;
   children: ReactNode;
-}
-
-export interface GeoLiveContextValue {
-  connected: boolean;
-  /** Live announcements received for the viewed scope so far. */
-  updates: number;
 }
 
 export interface GeoLiveProviderProps {
@@ -326,7 +313,7 @@ export interface TabIndicatorBox {
   height: number;
 }
 
-export interface PromptsPageTabIconProps {
+export interface SlideInTabIconProps {
   children: ReactNode;
   pinned?: boolean;
 }
@@ -989,16 +976,6 @@ export interface GeoTrafficPurposeTotal {
   members: string[];
 }
 
-export interface TrafficBreakdownCardProps {
-  icon: ReactNode;
-  title: string;
-  aside?: ReactNode;
-  align?: "start" | "center" | "end";
-  children: ReactNode;
-  onPointerEnter?: PointerEventHandler<HTMLDivElement>;
-  onPointerLeave?: PointerEventHandler<HTMLDivElement>;
-}
-
 export interface TrafficSourceGroupIconProps {
   group: GeoTrafficSourceGroupDefinition;
   className?: string;
@@ -1044,9 +1021,31 @@ export interface CodeSnippetProps {
   className?: string;
   filename?: string;
   headerEnd?: ReactNode;
+  /** Variant switcher shown in the header (e.g. `CodeSnippetTabs`). */
+  tabs?: ReactNode;
   variant?: "command" | "panel";
   label?: string;
   onCopy?: () => void;
+}
+
+export interface CodeSnippetTabOption {
+  value: string;
+  label: string;
+  icon?: ReactNode;
+}
+
+export interface CodeSnippetTabsProps {
+  label: string;
+  value: string;
+  options: readonly CodeSnippetTabOption[];
+  onValueChange: (value: string) => void;
+}
+
+export interface CopyPromptButtonProps {
+  prompt: string;
+  disabled?: boolean;
+  onCopy?: () => void;
+  className?: string;
 }
 
 export interface CopyCodeButtonProps {
@@ -1641,11 +1640,6 @@ export interface GeoSectionSkeletonProps {
   action?: ReactNode;
   children: ReactNode;
   className?: string;
-}
-
-export interface GeoTableSkeletonProps {
-  rows: number;
-  toolbar?: ReactNode;
 }
 
 export interface GeoSettingsSkeletonSectionProps {

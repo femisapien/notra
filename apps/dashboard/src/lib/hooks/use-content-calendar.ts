@@ -5,9 +5,9 @@ import type {
   PostScheduleView,
 } from "@notra/ai/types/scheduled-publications";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "use-intl";
 
 import {
   CONTENT_CALENDAR_POLL_MS,

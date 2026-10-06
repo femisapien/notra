@@ -16,14 +16,14 @@ import {
   schedulePostInputSchema,
   scheduledPublicationIdInputSchema,
 } from "@notra/schemas/dashboard/content-calendar";
-import { getTranslations } from "next-intl/server";
-import { after } from "next/server";
 
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
 import { assertActiveSubscription } from "@/lib/billing/subscription";
 import { openScheduledPullRequestAhead } from "@/lib/content/scheduled-publication-destinations";
 import { runScheduledPublicationSweep } from "@/lib/content/scheduled-publication-sweep";
+import { afterResponse } from "@/lib/framework/after-response";
+import { getTranslations } from "@/lib/i18n/server";
 
 import { baseProcedure } from "../base";
 import { badRequest, conflict, notFound } from "../utils/errors";
@@ -57,7 +57,7 @@ async function toScheduleError(reason: SchedulePostFailureReason) {
 
 /** Runs the sweep for one post right after the response, best effort. */
 function publishDueNow(postId: string) {
-  after(async () => {
+  afterResponse(async () => {
     try {
       await runScheduledPublicationSweep({ postId });
     } catch (error) {
@@ -135,7 +135,7 @@ export const contentCalendarRouter = {
           (destination) => destination.destination === "github"
         );
         if (github?.destination === "github") {
-          after(() =>
+          afterResponse(() =>
             openScheduledPullRequestAhead({
               organizationId: input.organizationId,
               postId: input.contentId,

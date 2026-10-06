@@ -172,24 +172,27 @@ export const publishSocialPost = Effect.fn("publishSocialPost")(function* (
           }),
   });
 
-  let postResult: SocialPostResult | null = null;
-  const pollAttempts = params.resultPollAttempts ?? RESULT_POLL_ATTEMPTS;
-  for (let attempt = 0; attempt < pollAttempts; attempt += 1) {
-    yield* Effect.sleep(RESULT_POLL_DELAY);
-    const results = yield* Effect.tryPromise({
-      try: () => client.socialPostResults.list({ post_id: [post.id] }),
-      catch: (cause) =>
-        new SocialConnectRequestError({
-          message: "Failed to load published post",
-          cause,
-        }),
-    }).pipe(Effect.catch(() => Effect.succeed(null)));
-
-    postResult = results?.data.at(0) ?? null;
-    if (postResult) {
-      break;
-    }
-  }
+  // The platform publishes asynchronously; poll until it reports a result.
+  const postResult = yield* Effect.sleep(RESULT_POLL_DELAY).pipe(
+    Effect.andThen(
+      Effect.tryPromise({
+        try: () => client.socialPostResults.list({ post_id: [post.id] }),
+        catch: (cause) =>
+          new SocialConnectRequestError({
+            message: "Failed to load published post",
+            cause,
+          }),
+      })
+    ),
+    Effect.map(
+      (results): SocialPostResult | null => results.data.at(0) ?? null
+    ),
+    Effect.catch(() => Effect.succeed(null)),
+    Effect.repeat({
+      until: (result) => result !== null,
+      times: (params.resultPollAttempts ?? RESULT_POLL_ATTEMPTS) - 1,
+    })
+  );
 
   if (postResult && !postResult.success) {
     return yield* Effect.fail(

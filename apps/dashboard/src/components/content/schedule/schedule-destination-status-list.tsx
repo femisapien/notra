@@ -3,7 +3,7 @@
 import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ScheduledPublicationView } from "@notra/ai/types/scheduled-publications";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { ScheduleDestinationMark } from "@/components/content/schedule/schedule-destination-mark";

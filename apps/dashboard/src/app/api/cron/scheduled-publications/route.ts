@@ -1,7 +1,5 @@
 import { runScheduledPublicationSweep } from "@/lib/content/scheduled-publication-sweep";
 
-export const maxDuration = 60;
-
 /**
  * Vercel Cron safety net for scheduled publishing, every five minutes. Due
  * times normally arrive as QStash wakes; this sweep picks up whatever a lost

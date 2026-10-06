@@ -4,11 +4,11 @@ import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { isSameDay, startOfDay } from "date-fns";
-import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useMemo } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
+import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { ContentCalendarGrid } from "@/components/content/calendar/content-calendar-grid";

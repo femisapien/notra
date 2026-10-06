@@ -9,9 +9,9 @@ import {
   ResponsiveDialogTitle,
 } from "@notra/ui/components/shared/responsive-dialog";
 import { startOfDay } from "date-fns";
-import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "use-intl";
 
 import { ScheduleWhereSection } from "@/components/content/schedule/schedule-destination-fields";
 import { ScheduleDestinationStatusList } from "@/components/content/schedule/schedule-destination-status-list";

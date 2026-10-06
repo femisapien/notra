@@ -1,7 +1,7 @@
 "use client";
 
-import { type DateTimeFormatOptions, useFormatter } from "next-intl";
 import { useCallback } from "react";
+import { type DateTimeFormatOptions, useFormatter } from "use-intl";
 
 import { getLocalTimezone } from "@/utils/schedule-summary";
 

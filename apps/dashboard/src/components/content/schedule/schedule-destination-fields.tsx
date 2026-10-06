@@ -9,12 +9,12 @@ import {
   SelectValue,
 } from "@notra/ui/components/ui/select";
 import { Switch } from "@notra/ui/components/ui/switch";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
 import { type ReactNode, useId } from "react";
+import { useTranslations } from "use-intl";
 
 import { GitHubPublishRepositoryField } from "@/components/content/github-publish-repository-field";
 import { ScheduleDestinationMark } from "@/components/content/schedule/schedule-destination-mark";
+import Link from "@/components/framework/link";
 import type {
   ScheduleDestinationToggleRowProps,
   ScheduleGitHubDestinationProps,

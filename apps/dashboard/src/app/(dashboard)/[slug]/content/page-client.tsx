@@ -3,19 +3,20 @@
 import { Calendar03Icon, ListViewIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Tabs, TabsList, TabsTrigger } from "@notra/ui/components/ui/tabs";
-import { useTranslations } from "next-intl";
-import dynamic from "next/dynamic";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useState } from "react";
+import { useTranslations } from "use-intl";
 
 import { ContentCalendarSkeleton } from "@/components/content/calendar/content-calendar-skeleton";
 import { ContentCollectionsSection } from "@/components/content/content-collections-section";
 import { LazyCreateContentDialog } from "@/components/content/lazy-create-content-dialog";
 import { PageContainer } from "@/components/layout/container";
+import { PageHeading } from "@/components/layout/page-heading";
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
 import { CONTENT_CALENDAR_DATE_PARAM } from "@/constants/content-calendar";
 import { CONTENT_LIST_VIEWS } from "@/constants/content-collections";
 import type { ContentListPageClientProps } from "@/types/content/collection";
+import dynamic from "@/utils/lazy-component";
 
 // Days, "today" and times depend on the browser's time zone, so the
 // calendar renders on the client only.
@@ -54,21 +55,16 @@ export default function PageClient({
   return (
     <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
       <div className="w-full space-y-6 px-4 lg:px-6">
-        <header className="flex flex-col items-start gap-3 @min-[40rem]/main:flex-row @min-[40rem]/main:items-center @min-[40rem]/main:justify-between">
-          <div className="min-w-0 space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {tCommon2("labels.content")}
-            </h1>
-            <p className="text-muted-foreground max-w-2xl text-sm text-pretty">
-              {t("description")}
-            </p>
-          </div>
+        <PageHeading
+          description={t("description")}
+          title={tCommon2("labels.content")}
+        >
           <LazyCreateContentDialog
             entry="content_list"
             organizationId={organizationId}
             organizationSlug={organizationSlug}
           />
-        </header>
+        </PageHeading>
 
         <div className="space-y-3">
           <Tabs

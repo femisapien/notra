@@ -7,8 +7,6 @@ import { SCHEDULED_PUBLICATION_WAKE_EARLY_TOLERANCE_MS } from "@/constants/conte
 import { runScheduledPublicationSweep } from "@/lib/content/scheduled-publication-sweep";
 import { verifyQstashSignature } from "@/lib/workflows/qstash-verify";
 
-export const maxDuration = 60;
-
 /**
  * QStash calls this when one post's schedule is due, and it claims whatever
  * of that post is due. A stale wake (rescheduled, canceled, already

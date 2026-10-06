@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/framework/link";
 
 const LINKS = [
   { href: "/design-system#colors", label: "UI kit" },
@@ -17,6 +17,8 @@ const LINKS = [
   { href: "/design-system#opencode-session", label: "OpenCode TUI" },
   { href: "/design-system/geo-traffic", label: "GEO traffic" },
   { href: "/design-system/scan-filters", label: "Scans table" },
+  { href: "/design-system/webhooks", label: "Webhooks" },
+  { href: "/design-system/break-ui", label: "Break UI" },
 ] as const;
 
 export function DesignSystemNav() {
