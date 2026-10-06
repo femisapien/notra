@@ -13,6 +13,12 @@ import { projects, sites } from "@notra/db/schema";
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 
+import {
+  WEB_BREAKDOWN_LIMIT,
+  WEB_DEFAULT_DAYS,
+  WEB_PAGES_LIMIT,
+  WEB_SOURCES_LIMIT,
+} from "../constants/web-analytics";
 import { rememberVisitorTracking } from "../ingest/web-tracking";
 import type {
   GeoWindowInput,
@@ -22,16 +28,12 @@ import type {
   WebAnalyticsScope,
 } from "../types/geo";
 import { trafficLogHostFilter } from "../utils/geo-project-domains";
+import { urlHost } from "../utils/url-host";
 import { geoDb, geoQuery } from "./effect";
 import { GeoProjectNotFoundError } from "./errors";
 import { loadAiTraffic } from "./programs";
-import { geoScopeParams, resolveGeoScope } from "./projects";
+import { resolveGeoScope } from "./projects";
 import { geoTrafficWindowParams } from "./window";
-
-const WEB_DEFAULT_DAYS = 30;
-const WEB_PAGES_LIMIT = 50;
-const WEB_SOURCES_LIMIT = 25;
-const WEB_BREAKDOWN_LIMIT = 8;
 
 /** The selected domain as the hosts filter; it matches subdomains (www too). */
 export function webHostFilter(host: string | undefined): string[] {
@@ -48,7 +50,7 @@ function toBreakdown(
   }));
 }
 
-export const loadWebAnalyticsForScope = Effect.fn("web.analytics")(function* (
+const loadWebAnalyticsForScope = Effect.fn("web.analytics")(function* (
   scope: WebAnalyticsScope,
   window: GeoWindowInput,
   tracking: { tracking: boolean; trackVisitors: boolean }
@@ -167,7 +169,6 @@ export const loadWebAnalytics = Effect.fn("web.projectAnalytics")(function* (
   host: string | undefined
 ) {
   const scope = yield* resolveGeoScope(input);
-  const params = geoScopeParams(scope);
   const tracking = yield* geoDb("visitor tracking lookup failed", async () => {
     if (!scope.projectId) {
       return { tracking: false, trackVisitors: false };
@@ -189,13 +190,7 @@ export const loadWebAnalytics = Effect.fn("web.projectAnalytics")(function* (
     return { tracking: trackVisitors || site !== undefined, trackVisitors };
   });
   return yield* loadWebAnalyticsForScope(
-    {
-      organizationId: params.organization_id,
-      projectId: scope.projectId,
-      includeUnassigned: scope.includeUnassigned,
-      siteId: "",
-      hosts: webHostFilter(host),
-    },
+    { ...scope, siteId: "", hosts: webHostFilter(host) },
     window,
     tracking
   );
@@ -243,7 +238,7 @@ export const loadSiteAnalytics = Effect.fn("web.siteAnalytics")(function* (
   },
   window: GeoWindowInput
 ) {
-  const host = siteOriginHost(site.publicOrigin);
+  const host = urlHost(site.publicOrigin);
   const [web, traffic] = yield* Effect.all(
     [
       loadWebAnalyticsForScope(
@@ -271,11 +266,3 @@ export const loadSiteAnalytics = Effect.fn("web.siteAnalytics")(function* (
   const response: SiteAnalyticsResponse = { web, traffic };
   return response;
 });
-
-function siteOriginHost(publicOrigin: string): string | null {
-  try {
-    return new URL(publicOrigin).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
-}

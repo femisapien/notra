@@ -38,7 +38,6 @@ import type {
   WebTimeseriesRow,
   WebPagesRow,
   WebSourcesRow,
-  WebCampaignsRow,
   WebAudienceRow,
   WebHostsRow,
   WebAiOutcomesRow,
@@ -84,7 +83,6 @@ import {
 import {
   webAiOutcomes,
   webAudience,
-  webCampaigns,
   webHosts,
   webOverview,
   webPages,
@@ -149,7 +147,6 @@ function createTinybirdClient(fetch?: typeof globalThis.fetch) {
       webTimeseries,
       webPages,
       webSources,
-      webCampaigns,
       webAudience,
       webHosts,
       webAiOutcomes,
@@ -556,18 +553,6 @@ export function queryWebSources(
     params,
     params.organization_id,
     (client) => client.webSources.query(params)
-  );
-}
-
-export function queryWebCampaigns(
-  params: InferParams<typeof webCampaigns>
-): Promise<QueryResult<WebCampaignsRow> | null> {
-  return cachedPipeQuery(
-    "geo",
-    "web_campaigns",
-    params,
-    params.organization_id,
-    (client) => client.webCampaigns.query(params)
   );
 }
 

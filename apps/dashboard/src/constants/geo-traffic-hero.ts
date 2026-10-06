@@ -17,3 +17,9 @@ export const TRAFFIC_HERO_METRIC_CELL_CLASS =
 
 export const TRAFFIC_HERO_METRIC_VALUE_CLASS =
   "min-w-0 text-2xl leading-none font-semibold tracking-tight tabular-nums @4xl/hero:text-3xl";
+
+export const TRAFFIC_HERO_CHART_OPTIONS = {
+  grid: { left: 4, right: 8, top: 8, bottom: 4, containLabel: true },
+};
+
+export const TRAFFIC_HERO_TREND_STROKE_WIDTH = 1.5;

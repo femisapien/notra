@@ -14,6 +14,7 @@ import type {
   GeoIngestSite,
   GeoIngestSitePrefix,
 } from "@notra/geo-core/types/geo";
+import { urlHost } from "@notra/geo-core/utils/url-host";
 import { listMountedAreas } from "@notra/sites-core/utils/mounts";
 import { eq } from "drizzle-orm";
 
@@ -23,15 +24,6 @@ import { eq } from "drizzle-orm";
  * dropped human traffic stays free of I/O.
  */
 const memory = new Map<string, { site: GeoIngestSite | null; until: number }>();
-
-/** Sites live on one host each; the worker reports every page under its public origin. */
-function originHost(publicOrigin: string): string | null {
-  try {
-    return new URL(publicOrigin).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
-}
 
 async function cached<T>(
   key: string,
@@ -97,7 +89,7 @@ function lookupIngestSite(siteId: string): Promise<GeoIngestSite | null> {
       },
       where: eq(sites.id, siteId),
     });
-    const host = site ? originHost(site.publicOrigin) : null;
+    const host = site ? urlHost(site.publicOrigin) : null;
     if (!(site && host) || site.status !== "active") {
       return null;
     }
@@ -136,7 +128,7 @@ export async function loadOrganizationSitePrefixes(
           .where(eq(sites.organizationId, organizationId));
         const prefixes: GeoIngestSitePrefix[] = [];
         for (const row of rows) {
-          const host = originHost(row.publicOrigin);
+          const host = urlHost(row.publicOrigin);
           if (host) {
             prefixes.push({
               host,

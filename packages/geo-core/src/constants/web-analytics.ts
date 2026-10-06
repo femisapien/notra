@@ -3,6 +3,13 @@ export const WEB_SESSION_TTL_SECONDS = 30 * 60;
 export const WEB_SESSION_KEY_PREFIX = "web:session";
 export const WEB_VISITOR_ID_LENGTH = 16;
 
+/** Dashboard window when the request names no range. */
+export const WEB_DEFAULT_DAYS = 30;
+export const WEB_PAGES_LIMIT = 50;
+export const WEB_SOURCES_LIMIT = 25;
+/** Rows per country and device breakdown. */
+export const WEB_BREAKDOWN_LIMIT = 8;
+
 /** How long the per-project "count visitors" switch is cached in Redis. */
 export const WEB_TRACKING_CACHE_TTL_SECONDS = 60;
 /**

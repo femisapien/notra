@@ -201,7 +201,7 @@ export function AiTrafficCard({
     }
 
     return next;
-  }, [isMobile, locale, seriesByGroup, t]);
+  }, [isMobile, locale, seriesByGroup, t, tCommon, tShared]);
 
   if (sources.length === 0) {
     return (

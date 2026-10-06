@@ -13,7 +13,10 @@ import {
   verifyGeoIngestToken,
 } from "@notra/geo-core/geo/ingest";
 import { geoRequestPayloadSchema } from "@notra/geo-core/schemas/geo";
-import type { GeoIngestIdentity } from "@notra/geo-core/types/geo";
+import type {
+  GeoIngestIdentity,
+  GeoVisitorType,
+} from "@notra/geo-core/types/geo";
 import { isTrackedGeoVisitorType } from "@notra/geo-core/utils/ai-traffic";
 import { acceptsIngestHost } from "@notra/geo-core/utils/geo-project-domains";
 import { isServedBySite } from "@notra/geo-core/utils/ingest-sites";
@@ -23,6 +26,7 @@ import { GEO_INGEST_TINYBIRD_TIMEOUT_MS } from "../constants/ingest";
 import type {
   GeoIngestBuffer,
   GeoIngestDefer,
+  GeoIngestDropReason,
   GeoIngestResult,
 } from "../types/ingest";
 import { geoIngestAdmissionKey } from "../utils/geo-ingest-admission-key";
@@ -144,11 +148,6 @@ const parseUrl = Effect.fn("geoIngest.parseUrl")(function* (value: string) {
   });
 });
 
-/**
- * Buffers a human page view, or writes it when there is no buffer. A failed
- * write or an exhausted web budget never fails the request: AI traffic in the
- * same request still has to be stored.
- */
 /** Fails open: an unavailable limiter must not cost a page view. */
 const admitWebPageView = Effect.fn("geoIngest.admitWebPageView")(function* (
   admissionKey: string
@@ -161,6 +160,11 @@ const admitWebPageView = Effect.fn("geoIngest.admitWebPageView")(function* (
   );
 });
 
+/**
+ * Buffers a human page view, or writes it when there is no buffer. A failed
+ * write never fails the request: AI traffic in the same request still has to
+ * be stored.
+ */
 const storeWebPageView = Effect.fn("geoIngest.storeWebPageView")(function* (
   row: WebPageViewRow,
   buffer: GeoIngestBuffer | undefined
@@ -242,6 +246,22 @@ const failWithAuthPrecedence = Effect.fn("geoIngest.failWithAuthPrecedence")(
   }
 );
 
+function droppedResult(
+  identity: GeoIngestIdentity,
+  visitorType: GeoVisitorType,
+  reason: GeoIngestDropReason,
+  host?: string
+): GeoIngestResult {
+  return {
+    outcome: "dropped",
+    reason,
+    organizationId: identity.organizationId,
+    projectId: identity.projectId,
+    visitorType,
+    ...(host === undefined ? {} : { host }),
+  };
+}
+
 export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
   request: Request,
   defer: GeoIngestDefer,
@@ -279,13 +299,7 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
       isVisitorTrackingEnabled(identity).catch(() => false)
     ));
   if (!(isAi || countsVisitors)) {
-    return {
-      outcome: "dropped",
-      reason: "visitor_type",
-      organizationId: identity.organizationId,
-      projectId: identity.projectId,
-      visitorType: classification.visitorType,
-    } satisfies GeoIngestResult;
+    return droppedResult(identity, classification.visitorType, "visitor_type");
   }
 
   // AI requests share the admission limit. People have their own, larger
@@ -297,23 +311,21 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
       geoIngestAdmissionKey(identity)
     );
   } else if (!(yield* admitWebPageView(geoIngestAdmissionKey(identity)))) {
-    return {
-      outcome: "dropped",
-      reason: "web_rate_limited",
-      organizationId: identity.organizationId,
-      projectId: identity.projectId,
-      visitorType: classification.visitorType,
-    } satisfies GeoIngestResult;
+    return droppedResult(
+      identity,
+      classification.visitorType,
+      "web_rate_limited"
+    );
   }
   const [active, allowedHosts, sitePrefixes] = yield* Effect.all(
     [
       Effect.promise(() => isGeoIngestIdentityActive(identity)),
       Effect.promise(() => loadIngestAllowedHosts(identity)),
-      Effect.promise(() =>
-        identity.site
-          ? Promise.resolve(null)
-          : loadOrganizationSitePrefixes(identity.organizationId)
-      ),
+      identity.site
+        ? Effect.succeed(null)
+        : Effect.promise(() =>
+            loadOrganizationSitePrefixes(identity.organizationId)
+          ),
     ],
     { concurrency: "unbounded" }
   );
@@ -330,24 +342,20 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
     );
   }
   if (!acceptsIngestHost(url.hostname, allowedHosts)) {
-    return {
-      outcome: "dropped",
-      reason: "host",
-      organizationId: identity.organizationId,
-      projectId: identity.projectId,
-      visitorType: classification.visitorType,
-      host: url.hostname,
-    } satisfies GeoIngestResult;
+    return droppedResult(
+      identity,
+      classification.visitorType,
+      "host",
+      url.hostname
+    );
   }
   if (sitePrefixes && isServedBySite(url, sitePrefixes)) {
-    return {
-      outcome: "dropped",
-      reason: "site",
-      organizationId: identity.organizationId,
-      projectId: identity.projectId,
-      visitorType: classification.visitorType,
-      host: url.hostname,
-    } satisfies GeoIngestResult;
+    return droppedResult(
+      identity,
+      classification.visitorType,
+      "site",
+      url.hostname
+    );
   }
 
   const capturedAt = toCapturedDate(payload.timestamp);

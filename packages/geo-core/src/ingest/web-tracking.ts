@@ -26,33 +26,25 @@ export async function isVisitorTrackingEnabled(
   if (!projectId) {
     return false;
   }
-  const key = `${WEB_TRACKING_CACHE_PREFIX}:${projectId}`;
+  const key = trackingCacheKey(projectId);
   const hit = memory.get(key);
   if (hit && hit.until > Date.now()) {
     return hit.value;
   }
-  let value: boolean | null = null;
-  const client = redis;
-  if (client) {
-    const cached = await client.get<{ value: boolean }>(key).catch(() => null);
-    if (cached && typeof cached === "object" && "value" in cached) {
-      value = cached.value;
-    }
+  const cached = await redis?.get<{ value: boolean }>(key).catch(() => null);
+  if (typeof cached?.value === "boolean") {
+    rememberInMemory(key, cached.value);
+    return cached.value;
   }
-  if (value === null) {
-    const project = await db.query.projects.findFirst({
-      columns: { trackVisitors: true },
-      where: and(
-        eq(projects.id, projectId),
-        eq(projects.organizationId, identity.organizationId)
-      ),
-    });
-    value = project?.trackVisitors ?? false;
-    await client
-      ?.set(key, { value }, { ex: WEB_TRACKING_CACHE_TTL_SECONDS })
-      .catch(() => null);
-  }
-  memory.set(key, { value, until: Date.now() + WEB_TRACKING_MEMORY_TTL_MS });
+  const project = await db.query.projects.findFirst({
+    columns: { trackVisitors: true },
+    where: and(
+      eq(projects.id, projectId),
+      eq(projects.organizationId, identity.organizationId)
+    ),
+  });
+  const value = project?.trackVisitors ?? false;
+  await rememberVisitorTracking(projectId, value);
   return value;
 }
 
@@ -65,9 +57,17 @@ export async function rememberVisitorTracking(
   projectId: string,
   value: boolean
 ): Promise<void> {
-  const key = `${WEB_TRACKING_CACHE_PREFIX}:${projectId}`;
-  memory.set(key, { value, until: Date.now() + WEB_TRACKING_MEMORY_TTL_MS });
+  const key = trackingCacheKey(projectId);
+  rememberInMemory(key, value);
   await redis
     ?.set(key, { value }, { ex: WEB_TRACKING_CACHE_TTL_SECONDS })
     .catch(() => null);
+}
+
+function trackingCacheKey(projectId: string): string {
+  return `${WEB_TRACKING_CACHE_PREFIX}:${projectId}`;
+}
+
+function rememberInMemory(key: string, value: boolean): void {
+  memory.set(key, { value, until: Date.now() + WEB_TRACKING_MEMORY_TTL_MS });
 }

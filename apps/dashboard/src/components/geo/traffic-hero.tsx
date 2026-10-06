@@ -20,6 +20,7 @@ import { GeoStatDelta } from "@/components/geo/geo-stat-delta";
 import { TrafficProviderLegend } from "@/components/geo/traffic-provider-legend";
 import { CHART_PRIMARY_COLOR, CHART_SECONDARY_COLOR } from "@/constants/charts";
 import {
+  TRAFFIC_HERO_CHART_OPTIONS,
   TRAFFIC_HERO_CHART_SURFACE_CLASS,
   TRAFFIC_HERO_FRAME_CLASS,
   TRAFFIC_HERO_METRIC_CELL_CLASS,
@@ -27,6 +28,7 @@ import {
   TRAFFIC_HERO_METRICS_GRID_CLASS,
   TRAFFIC_HERO_METRICS_STANDALONE_CLASS,
   TRAFFIC_HERO_METRICS_SURFACE_CLASS,
+  TRAFFIC_HERO_TREND_STROKE_WIDTH,
 } from "@/constants/geo-traffic-hero";
 import { cn } from "@/lib/utils";
 import type { ChartConfig, TooltipRowGroup } from "@/types/charts";
@@ -47,12 +49,6 @@ import { formatFullDayLabel } from "@/utils/analytics-charts";
 import { seriesColors } from "@/utils/chart-colors";
 import { engineIconHtml } from "@/utils/engine-icon-html";
 import { formatChartInteger } from "@/utils/geo-charts";
-
-const HERO_CHART_OPTIONS = {
-  grid: { left: 4, right: 8, top: 8, bottom: 4, containLabel: true },
-};
-
-const TRAFFIC_TREND_STROKE_WIDTH = 1.5;
 
 function metricDelta(
   current: number | null,
@@ -249,7 +245,7 @@ export function TrafficHero({
           </div>
           <EChartsAreaChart
             animation={false}
-            chartOptions={HERO_CHART_OPTIONS}
+            chartOptions={TRAFFIC_HERO_CHART_OPTIONS}
             className="h-52 w-full cursor-crosshair @md/hero:h-72"
             config={config}
             curveType="monotone"
@@ -263,7 +259,7 @@ export function TrafficHero({
               dataKey={GEO_TRAFFIC_TREND_CRAWLER_KEY}
               enableBufferLine={markIncompleteTail}
               strokeVariant="solid"
-              strokeWidth={TRAFFIC_TREND_STROKE_WIDTH}
+              strokeWidth={TRAFFIC_HERO_TREND_STROKE_WIDTH}
               variant="gradient"
               visible={anyVisible}
             >
@@ -277,7 +273,7 @@ export function TrafficHero({
               dataKey={GEO_TRAFFIC_TREND_REFERRAL_KEY}
               enableBufferLine={markIncompleteTail}
               strokeVariant="solid"
-              strokeWidth={TRAFFIC_TREND_STROKE_WIDTH}
+              strokeWidth={TRAFFIC_HERO_TREND_STROKE_WIDTH}
               variant="gradient"
               visible={anyVisible}
             >

@@ -16,6 +16,7 @@ import {
   WEB_VISITOR_ID_LENGTH,
 } from "@notra/geo-core/constants/web-analytics";
 import { getGeoIngestSecret } from "@notra/geo-core/geo/ingest";
+import { urlHost } from "@notra/geo-core/utils/url-host";
 
 import type {
   WebPageViewInput,
@@ -128,15 +129,15 @@ export function classifyWebReferrer(
   pageHost: string,
   aiSource: string | null
 ): WebReferrer {
+  const host = referer ? (urlHost(referer) ?? "") : "";
   if (aiSource) {
     return {
-      host: referer ? safeHost(referer) : "",
+      host,
       group: "ai",
       source: aiSource,
       aiProduct: WEB_AI_PRODUCTS[aiSource] ?? aiSource,
     };
   }
-  const host = referer ? safeHost(referer) : "";
   if (!host) {
     return { host: "", group: "direct", source: "", aiProduct: "" };
   }
@@ -153,14 +154,6 @@ export function classifyWebReferrer(
     return { host, group: "social", source: social, aiProduct: "" };
   }
   return { host, group: "other", source: bare, aiProduct: "" };
-}
-
-function safeHost(value: string): string {
-  try {
-    return new URL(value).hostname.toLowerCase();
-  } catch {
-    return "";
-  }
 }
 
 function firstMatch(

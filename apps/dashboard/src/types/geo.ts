@@ -3,6 +3,7 @@ import type { GeoWriterBrief } from "@notra/ai/types/geo-writer";
 import type { GeoWriterSourceKind } from "@notra/db/types/geo-writer";
 import type {
   AiTrafficResponse,
+  WebAnalyticsOutcome,
   WebAnalyticsResponse,
   GeoAnswerSource,
   GeoChangeEvent,
@@ -1843,6 +1844,16 @@ export interface WebVisitorsSectionProps {
   web: WebAnalyticsResponse;
   traffic: AiTrafficResponse | undefined;
   range?: GeoRangeQuery;
+}
+
+export interface WebMetricProps {
+  label: string;
+  value: number;
+  previous: number;
+}
+
+export interface WebOutcomesTableProps {
+  outcomes: readonly WebAnalyticsOutcome[];
 }
 
 export interface WebBreakdownRow {

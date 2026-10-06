@@ -2,8 +2,10 @@ import type {
   GeoTrafficPoint,
   WebAnalyticsPoint,
   WebAnalyticsResponse,
+  WebAnalyticsSource,
 } from "@notra/geo-core/types/geo";
 import {
+  formatGeoSource,
   trafficDayKey,
   trafficSparklineDays,
 } from "@notra/geo-core/utils/ai-traffic";
@@ -11,6 +13,9 @@ import { formatDayLabel } from "@notra/geo-core/utils/day-label";
 import { trafficLogHostFilter } from "@notra/geo-core/utils/geo-project-domains";
 
 import {
+  WEB_SOURCE_LABELS,
+  WEB_TABLE_MIN_ROWS,
+  WEB_TABLE_ROW_HEIGHT,
   WEB_TREND_AGENTS_KEY,
   WEB_TREND_PEOPLE_KEY,
 } from "@/constants/web-analytics";
@@ -121,4 +126,22 @@ export function hasWebAnalytics(
     return webHostsForSelect(web).includes(selected);
   }
   return web.tracking;
+}
+
+export function webSourceName(
+  source: WebAnalyticsSource,
+  directLabel: string
+): string {
+  if (source.group === "direct") {
+    return directLabel;
+  }
+  if (source.group === "ai") {
+    return formatGeoSource(source.source);
+  }
+  return WEB_SOURCE_LABELS[source.source] ?? source.source;
+}
+
+/** Header plus rows, never shorter than the minimum. */
+export function webTableHeight(rowCount: number): number {
+  return (Math.max(rowCount, WEB_TABLE_MIN_ROWS) + 1) * WEB_TABLE_ROW_HEIGHT;
 }

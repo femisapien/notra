@@ -47,12 +47,15 @@ function readGeo(headers: Headers): GeoLocation | undefined {
 
 const TRACING_HEADERS = ["traceparent", "b3", "x-b3-traceid"];
 
+const PREFETCH_PURPOSE_HEADERS = ["sec-purpose", "purpose", "x-moz"];
+
 /** Browsers send Sec-Purpose / Purpose; Next.js marks its router prefetches. */
 function isPrefetch(headers: Headers): boolean {
-  const purpose = `${headers.get("sec-purpose") ?? ""} ${headers.get("purpose") ?? ""} ${headers.get("x-moz") ?? ""}`;
   return (
-    purpose.toLowerCase().includes("prefetch") ||
-    headers.has("next-router-prefetch")
+    headers.has("next-router-prefetch") ||
+    PREFETCH_PURPOSE_HEADERS.some((name) =>
+      headers.get(name)?.toLowerCase().includes("prefetch")
+    )
   );
 }
 
