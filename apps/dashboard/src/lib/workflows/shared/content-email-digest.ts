@@ -1,8 +1,7 @@
-import { redis } from "@notra/ai/utils/redis";
-
 import "@/workflows/runtime";
+import { redis } from "@notra/ai/utils/redis";
 import { logWarn } from "@notra/ai/utils/server-log";
-import { getResend } from "@notra/email/utils/resend";
+import type { EmailResult } from "@notra/email/types/brew";
 
 import { CONTENT_EMAIL_DIGEST_TTL_SECONDS } from "@/constants/workflows";
 import {
@@ -11,7 +10,6 @@ import {
   sendScheduledContentFailedEmail,
   sendScheduledContentSkippedEmail,
 } from "@/lib/email/send";
-import type { EmailResult } from "@/types/email/send";
 import type {
   ContentEmailDigestEvent,
   ContentEmailDigestKind,
@@ -170,11 +168,6 @@ export async function flushContentEmailDigest({
     return;
   }
 
-  const resend = getResend();
-  if (!resend) {
-    throw new Error("Resend API key not configured");
-  }
-
   const firstEvent = events[0];
   if (!firstEvent) {
     return;
@@ -193,7 +186,7 @@ export async function flushContentEmailDigest({
     )?.limitLabel;
 
     assertEmailSent({
-      result: await sendAiCreditsDepletedEmail(resend, {
+      result: await sendAiCreditsDepletedEmail({
         recipientEmail,
         organizationName: firstEvent.organizationName,
         organizationSlug: firstEvent.organizationSlug,
@@ -226,7 +219,7 @@ export async function flushContentEmailDigest({
     );
 
     assertEmailSent({
-      result: await sendScheduledContentCreatedEmail(resend, {
+      result: await sendScheduledContentCreatedEmail({
         recipientEmail,
         organizationName: firstCreatedEvent.organizationName,
         organizationSlug: firstCreatedEvent.organizationSlug,
@@ -257,7 +250,7 @@ export async function flushContentEmailDigest({
     }
 
     assertEmailSent({
-      result: await sendScheduledContentFailedEmail(resend, {
+      result: await sendScheduledContentFailedEmail({
         recipientEmail,
         organizationName: firstFailedEvent.organizationName,
         organizationSlug: firstFailedEvent.organizationSlug,
@@ -288,7 +281,7 @@ export async function flushContentEmailDigest({
   }
 
   assertEmailSent({
-    result: await sendScheduledContentSkippedEmail(resend, {
+    result: await sendScheduledContentSkippedEmail({
       recipientEmail,
       organizationName: firstSkippedEvent.organizationName,
       organizationSlug: firstSkippedEvent.organizationSlug,

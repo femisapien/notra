@@ -4,8 +4,10 @@ import { organizationIdInputSchema } from "@notra/schemas/dashboard/auth/organiz
 import { updateNotificationSettingsInputSchema } from "@notra/schemas/dashboard/notification-settings";
 import { eq } from "drizzle-orm";
 
+import { runAfterResponse } from "@/lib/after-response";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
 import { assertActiveSubscription } from "@/lib/billing/subscription";
+import { syncBrewContactsForOrganizationOwners } from "@/lib/email/brew-contacts";
 import { getTranslations } from "@/lib/i18n/server";
 import { authorizedProcedure } from "@/lib/orpc/base";
 
@@ -98,6 +100,10 @@ export const notificationsRouter = {
           target: organizationNotificationSettings.organizationId,
         })
         .returning();
+
+      runAfterResponse("[BrewContacts] Sync failed", () =>
+        syncBrewContactsForOrganizationOwners(input.organizationId)
+      );
 
       return { settings: updated };
     }),
