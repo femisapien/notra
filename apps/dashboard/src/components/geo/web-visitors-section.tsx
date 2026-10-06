@@ -8,6 +8,7 @@ import {
   trafficVisitDelta,
 } from "@notra/geo-core/utils/ai-traffic";
 import { todayIsoDate } from "@notra/geo-core/utils/day-label";
+import { trafficLogHostFilter } from "@notra/geo-core/utils/geo-project-domains";
 import { AnimatedNumber } from "@notra/ui/components/animated-number";
 import { TruncateWithTooltip } from "@notra/ui/components/shared/truncate-with-tooltip";
 import { useLocale, useTranslations } from "next-intl";
@@ -275,11 +276,22 @@ export function WebVisitorsSection({
       ? t("domainReadout", { tracked: trackedDomains, total: domainCount })
       : null;
 
+  // The same path on two domains is two pages; name the domain when it matters.
+  const showPageHost = new Set(web.pages.map((page) => page.host)).size > 1;
   const pageRows: WebBarListRow[] = web.pages
     .slice(0, WEB_LIST_LIMIT)
     .map((page) => ({
       key: `${page.host}${page.path}`,
-      label: <TruncateWithTooltip>{page.path}</TruncateWithTooltip>,
+      label: (
+        <TruncateWithTooltip tooltip={`${page.host}${page.path}`}>
+          {showPageHost ? (
+            <span className="text-muted-foreground">
+              {trafficLogHostFilter(page.host)}
+            </span>
+          ) : null}
+          {page.path}
+        </TruncateWithTooltip>
+      ),
       value: page.views,
       detail:
         page.aiVisitors > 0
