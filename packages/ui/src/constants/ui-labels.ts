@@ -2,6 +2,7 @@ import type { UiLabels } from "@notra/ui/types/ui-labels";
 
 export const DEFAULT_UI_LABELS: UiLabels = {
   close: "Close",
+  cancel: "Cancel",
   copy: "Copy",
   copied: "Copied",
   more: "More",
@@ -55,4 +56,9 @@ export const DEFAULT_UI_LABELS: UiLabels = {
   removeAttachment: "Remove attachment",
   expandImage: "Expand image",
   minimizeImage: "Minimize image",
+  composerEdit: (label) => `Edit ${label}`,
+  composerRemove: (label) => `Remove ${label}`,
+  composerSteer: (label) => `Steer with ${label}`,
+  composerPreview: (label) => `Preview ${label}`,
+  moreInfo: "More info",
 };
