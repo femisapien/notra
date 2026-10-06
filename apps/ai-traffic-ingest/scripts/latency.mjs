@@ -169,6 +169,7 @@ async function startService(flushIntervalMs = Date.now() + 3_600_000) {
         PATH: process.env.PATH,
         NODE_ENV: "production",
         PORT: "0",
+        GEO_INGEST_HOST: "127.0.0.1",
         DATABASE_URL: serviceDatabase.toString(),
         GEO_INGEST_SECRET: secret,
         UPSTASH_REDIS_REST_URL: `http://127.0.0.1:${upstream.port}`,
@@ -200,6 +201,7 @@ async function startService(flushIntervalMs = Date.now() + 3_600_000) {
       output += text;
       const match = output.match(/Listening on port (\d+)/);
       if (match) {
+        assert.ok(output.includes(`Listening on port ${match[1]} (127.0.0.1)`));
         resolveReady(`http://127.0.0.1:${match[1]}`);
       }
     }

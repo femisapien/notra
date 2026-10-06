@@ -55,7 +55,8 @@ against a local Postgres fixture and mock Redis REST/Tinybird servers. Set
 on loopback, without URL query parameters or fragments. The harness refuses other
 database names and remote hosts, disables
 the service's automatic `.env` loading, and passes only synthetic credentials
-to the service.
+to the service. The child HTTP service, mock endpoints and TCP proxy bind to
+`127.0.0.1`, and the harness verifies the child service's reported listener.
 It requires Bun 1.4.0 or newer and `psql` on `PATH`.
 
 ```sh
