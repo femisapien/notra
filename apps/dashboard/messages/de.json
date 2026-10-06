@@ -6283,6 +6283,7 @@
     "chatHistory": {
       "options": "Chat-Optionen",
       "pinned": "Angeheftet",
+      "loadFailed": "Chatverlauf konnte nicht geladen werden.",
       "groups": {
         "lastMonth": "Letzter Monat"
       }
