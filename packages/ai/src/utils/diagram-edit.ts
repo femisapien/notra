@@ -96,10 +96,6 @@ const STYLE_DEFAULTS: Record<string, string | number> = {
   opacity: 100,
 };
 
-function round(value: number | undefined) {
-  return value === undefined ? undefined : Math.round(value);
-}
-
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
