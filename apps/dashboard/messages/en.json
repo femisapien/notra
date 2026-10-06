@@ -3986,10 +3986,8 @@
       "people": "People",
       "agentsSeries": "AI agents",
       "share": "{share}%",
-      "domainReadout": "From {tracked} of {total} domains",
       "topPages": "Top pages",
       "page": "Page",
-      "aiVisitorsDetail": "{count} from AI",
       "sources": "Sources",
       "direct": "Direct",
       "sessions": "Sessions",
@@ -4010,7 +4008,13 @@
       "trackOn": "Visitor tracking is on",
       "trackOnDescription": "People show up here within a minute of their first visit.",
       "trackSiteTitle": "Count people on your other domains",
-      "trackSiteDescription": "Your Notra Site already counts its visitors. Switch this on to count people on the domains that use the SDK too."
+      "trackSiteDescription": "Your Notra Site already counts its visitors. Switch this on to count people on the domains that use the SDK too.",
+      "columnViews": "Views",
+      "columnFromAi": "From AI",
+      "columnSource": "Source",
+      "columnCountry": "Country",
+      "columnDevice": "Device",
+      "referrers": "Referrers"
     }
   },
   "integrations": {

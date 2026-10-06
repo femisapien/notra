@@ -48,6 +48,7 @@ export function AiTrafficCard({
   range,
   settingsHref,
   isPending = false,
+  showHero = true,
 }: AiTrafficCardProps) {
   const t = useTranslations("geo.aiTrafficCard");
   const tCommon = useTranslations("common");
@@ -215,14 +216,16 @@ export function AiTrafficCard({
 
   return (
     <div className="flex flex-col gap-6">
-      <TrafficHero
-        groups={groups}
-        points={points}
-        previousTotals={previousTotals}
-        rows={trendRows}
-        settingsHref={settingsHref}
-        totals={totals}
-      />
+      {showHero ? (
+        <TrafficHero
+          groups={groups}
+          points={points}
+          previousTotals={previousTotals}
+          rows={trendRows}
+          settingsHref={settingsHref}
+          totals={totals}
+        />
+      ) : null}
       <InstrumentSection eyebrow={tCommon("labels.sources")}>
         <TrafficSourcesStack
           collapsed={collapsed}

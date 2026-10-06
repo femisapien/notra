@@ -661,6 +661,8 @@ export interface AiTrafficCardProps {
   pages: readonly GeoTrafficPage[];
   settingsHref: string;
   isPending?: boolean;
+  /** Off when the visitors section above already shows the one traffic chart. */
+  showHero?: boolean;
 }
 
 export interface GeoTrafficPageSource {
@@ -1841,22 +1843,25 @@ export interface WebVisitorsSectionProps {
   web: WebAnalyticsResponse;
   traffic: AiTrafficResponse | undefined;
   range?: GeoRangeQuery;
-  /** Hosts the domain selector offers; the readout says how many count people. */
-  domainCount: number;
 }
 
-export interface WebBarListRow {
+export interface WebBreakdownRow {
   key: string;
   label: ReactNode;
+  /** Plain text for sorting and the tooltip. */
+  sortLabel: string;
   value: number;
-  /** Shown after the value, e.g. AI visitors on a page. */
-  detail?: ReactNode;
+  /** AI-referred visitors, for tables that show them. */
+  fromAi?: number;
 }
 
-export interface WebBarListProps {
-  rows: readonly WebBarListRow[];
-  emptyMessage: string;
-  valueLabel: string;
+export interface WebBreakdownTableProps {
+  title: string;
+  nameHeader: string;
+  valueHeader: string;
+  rows: readonly WebBreakdownRow[];
+  /** Adds a "From AI" column. */
+  showFromAi?: boolean;
 }
 
 export interface TrafficDomainSelectProps {

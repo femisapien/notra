@@ -59,7 +59,6 @@ export function SiteAnalyticsPage() {
       ) : null}
       {data !== undefined && !isEmpty ? (
         <WebVisitorsSection
-          domainCount={1}
           range={geoRange.query}
           traffic={data.traffic}
           web={data.web}

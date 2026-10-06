@@ -121,7 +121,6 @@ function TrafficPageView({
         <div className="flex flex-col gap-6">
           {showVisitors && web ? (
             <WebVisitorsSection
-              domainCount={trafficHost ? 0 : knownHosts.length}
               range={geoRange.query}
               traffic={traffic}
               web={web}
@@ -135,6 +134,7 @@ function TrafficPageView({
               geoSettingsPath(organizationSlug),
               projectId
             )}
+            showHero={!(showVisitors && web)}
             traffic={traffic}
           />
           <TrafficPagesCard isPending={isPagesPending} pages={trafficPages} />

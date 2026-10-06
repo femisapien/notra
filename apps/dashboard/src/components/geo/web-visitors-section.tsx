@@ -1,7 +1,10 @@
 "use client";
 
 import { GEO_EMPTY_TRAFFIC_RESPONSE } from "@notra/geo-core/constants/geo";
-import type { WebAnalyticsSource } from "@notra/geo-core/types/geo";
+import type {
+  WebAnalyticsOutcome,
+  WebAnalyticsSource,
+} from "@notra/geo-core/types/geo";
 import {
   formatGeoSource,
   toGeoTrafficPreviousTotals,
@@ -10,11 +13,13 @@ import {
 import { todayIsoDate } from "@notra/geo-core/utils/day-label";
 import { trafficLogHostFilter } from "@notra/geo-core/utils/geo-project-domains";
 import { AnimatedNumber } from "@notra/ui/components/animated-number";
-import {
-  InstrumentEmpty,
-  InstrumentModule,
-} from "@notra/ui/components/instrument/instrument-module";
+import { GeoBar } from "@notra/ui/components/geo/geo-bar";
+import { InstrumentSection } from "@notra/ui/components/instrument/instrument-module";
 import { TruncateWithTooltip } from "@notra/ui/components/shared/truncate-with-tooltip";
+import {
+  DataTable,
+  type TableColumn,
+} from "@notra/ui/components/ui/data-table";
 import type { CSSProperties } from "react";
 import { useLocale, useTranslations } from "use-intl";
 
@@ -33,13 +38,16 @@ import {
 } from "@/constants/geo-traffic-hero";
 import {
   WEB_LIST_LIMIT,
+  WEB_SOURCE_LABELS,
+  WEB_TABLE_MIN_ROWS,
+  WEB_TABLE_ROW_HEIGHT,
   WEB_TREND_AGENTS_KEY,
   WEB_TREND_PEOPLE_KEY,
 } from "@/constants/web-analytics";
 import type { ChartConfig } from "@/types/charts";
 import type {
-  WebBarListProps,
-  WebBarListRow,
+  WebBreakdownRow,
+  WebBreakdownTableProps,
   WebVisitorsSectionProps,
 } from "@/types/geo";
 import { formatFullDayLabel } from "@/utils/analytics-charts";
@@ -56,7 +64,6 @@ const CHART_OPTIONS = {
   grid: { left: 4, right: 8, top: 8, bottom: 4, containLabel: true },
 };
 const TREND_STROKE_WIDTH = 1.5;
-const PERCENT = 100;
 
 function webSourceName(
   source: WebAnalyticsSource,
@@ -65,7 +72,10 @@ function webSourceName(
   if (source.group === "direct") {
     return directLabel;
   }
-  return source.group === "ai" ? formatGeoSource(source.source) : source.source;
+  if (source.group === "ai") {
+    return formatGeoSource(source.source);
+  }
+  return WEB_SOURCE_LABELS[source.source] ?? source.source;
 }
 
 function WebMetric({
@@ -98,46 +108,79 @@ function WebMetric({
   );
 }
 
-function WebBarList({ rows, emptyMessage, valueLabel }: WebBarListProps) {
+function webTableHeight(rowCount: number): number {
+  return (Math.max(rowCount, WEB_TABLE_MIN_ROWS) + 1) * WEB_TABLE_ROW_HEIGHT;
+}
+
+/** Name, an optional "from AI" count, and the value with its bar. */
+function WebBreakdownTable({
+  title,
+  nameHeader,
+  valueHeader,
+  rows,
+  showFromAi = false,
+}: WebBreakdownTableProps) {
+  const t = useTranslations("geo.webVisitors");
   const locale = useLocale();
-  if (rows.length === 0) {
-    return (
-      <InstrumentEmpty
-        className="min-h-40"
-        message={emptyMessage}
-        seed={valueLabel}
-      />
-    );
-  }
   const max = Math.max(...rows.map((row) => row.value), 1);
+  const columns: TableColumn<WebBreakdownRow>[] = [
+    {
+      key: "name",
+      header: nameHeader,
+      width: "1fr",
+      sortable: true,
+      cell: (row) => (
+        <span className="flex min-w-0 items-center gap-2 text-sm">
+          {row.label}
+        </span>
+      ),
+      sortValue: (row) => row.sortLabel,
+    },
+  ];
+  if (showFromAi) {
+    columns.push({
+      key: "fromAi",
+      header: t("columnFromAi"),
+      width: "5.5rem",
+      align: "right",
+      sortable: true,
+      collapsePriority: 1,
+      cell: (row) => (
+        <span className="text-muted-foreground text-sm tabular-nums">
+          {row.fromAi ? formatChartInteger(row.fromAi, locale) : "-"}
+        </span>
+      ),
+      sortValue: (row) => row.fromAi ?? 0,
+    });
+  }
+  columns.push({
+    key: "value",
+    header: valueHeader,
+    width: "9rem",
+    sortable: true,
+    cell: (row) => (
+      <span className="flex items-center gap-2">
+        <GeoBar className="w-14 shrink-0" max={max} value={row.value} />
+        <span className="text-sm tabular-nums">
+          {formatChartInteger(row.value, locale)}
+        </span>
+      </span>
+    ),
+    sortValue: (row) => row.value,
+  });
   return (
-    <ul aria-label={valueLabel} className="flex flex-col gap-1">
-      {rows.map((row) => (
-        <li
-          className="relative flex h-8 min-w-0 items-center gap-3 overflow-hidden rounded-lg px-2.5 text-sm"
-          key={row.key}
-        >
-          <span
-            aria-hidden="true"
-            className="bg-muted absolute inset-y-0 left-0 w-(--bar) rounded-lg"
-            style={
-              { "--bar": `${(row.value / max) * PERCENT}%` } as CSSProperties
-            }
-          />
-          <span className="relative flex min-w-0 flex-1 items-center gap-2">
-            {row.label}
-          </span>
-          {row.detail ? (
-            <span className="text-muted-foreground relative shrink-0 text-xs tabular-nums">
-              {row.detail}
-            </span>
-          ) : null}
-          <span className="relative shrink-0 tabular-nums">
-            {formatChartInteger(row.value, locale)}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <InstrumentSection eyebrow={title}>
+      <DataTable
+        columns={columns}
+        data={rows}
+        defaultSort={{ key: "value", direction: "desc" }}
+        emptyState={t("noData")}
+        getRowId={(row) => row.key}
+        height={webTableHeight(rows.length)}
+        rowHeight={WEB_TABLE_ROW_HEIGHT}
+        scrollFade={false}
+      />
+    </InstrumentSection>
   );
 }
 
@@ -187,31 +230,7 @@ function WebTrend({
 
   return (
     <div className={TRAFFIC_HERO_CHART_SURFACE_CLASS}>
-      <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-medium">{t("trendTitle")}</h3>
-        <ul className="flex items-center gap-4 text-xs">
-          {legend.map((entry) => (
-            <li className="flex items-center gap-1.5" key={entry.key}>
-              <span
-                aria-hidden="true"
-                className="size-2 rounded-full bg-(--dot-light) dark:bg-(--dot-dark)"
-                style={
-                  {
-                    "--dot-light": entry.color.light,
-                    "--dot-dark": entry.color.dark,
-                  } as CSSProperties
-                }
-              />
-              <span>{entry.label}</span>
-              {entry.share === undefined ? null : (
-                <span className="text-muted-foreground tabular-nums">
-                  {t("share", { share: formatWebShare(entry.share) })}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
+      <h3 className="mb-3 text-sm font-medium">{t("trendTitle")}</h3>
       <EChartsAreaChart
         animation={false}
         chartOptions={CHART_OPTIONS}
@@ -247,6 +266,28 @@ function WebTrend({
           valueFormatter={(value: number) => formatChartInteger(value, locale)}
         />
       </EChartsAreaChart>
+      <ul className="border-border mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-3 text-xs">
+        {legend.map((entry) => (
+          <li className="flex items-center gap-1.5" key={entry.key}>
+            <span
+              aria-hidden="true"
+              className="size-2 rounded-full bg-(--dot-light) dark:bg-(--dot-dark)"
+              style={
+                {
+                  "--dot-light": entry.color.light,
+                  "--dot-dark": entry.color.dark,
+                } as CSSProperties
+              }
+            />
+            <span>{entry.label}</span>
+            {entry.share === undefined ? null : (
+              <span className="text-muted-foreground tabular-nums">
+                {t("share", { share: formatWebShare(entry.share) })}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -260,7 +301,6 @@ export function WebVisitorsSection({
   web,
   traffic,
   range,
-  domainCount,
 }: WebVisitorsSectionProps) {
   const t = useTranslations("geo.webVisitors");
   const locale = useLocale();
@@ -270,15 +310,10 @@ export function WebVisitorsSection({
     aiTraffic.sources,
     aiTraffic.previousConversions
   );
-  const trackedDomains = web.hosts.length;
-  const readout =
-    domainCount > 1 && trackedDomains > 0 && trackedDomains < domainCount
-      ? t("domainReadout", { tracked: trackedDomains, total: domainCount })
-      : null;
 
   // The same path on two domains is two pages; name the domain when it matters.
   const showPageHost = new Set(web.pages.map((page) => page.host)).size > 1;
-  const pageRows: WebBarListRow[] = web.pages
+  const pageRows: WebBreakdownRow[] = web.pages
     .slice(0, WEB_LIST_LIMIT)
     .map((page) => ({
       key: `${page.host}${page.path}`,
@@ -292,13 +327,11 @@ export function WebVisitorsSection({
           {page.path}
         </TruncateWithTooltip>
       ),
+      sortLabel: `${page.host}${page.path}`,
       value: page.views,
-      detail:
-        page.aiVisitors > 0
-          ? t("aiVisitorsDetail", { count: page.aiVisitors })
-          : undefined,
+      fromAi: page.aiVisitors,
     }));
-  const sourceRows: WebBarListRow[] = web.sources
+  const sourceRows: WebBreakdownRow[] = web.sources
     .slice(0, WEB_LIST_LIMIT)
     .map((source) => {
       const name = webSourceName(source, t("direct"));
@@ -312,10 +345,11 @@ export function WebVisitorsSection({
             <span className="truncate">{name}</span>
           </>
         ),
+        sortLabel: name,
         value: source.sessions,
       };
     });
-  const countryRows: WebBarListRow[] = web.countries.map((row) => ({
+  const countryRows: WebBreakdownRow[] = web.countries.map((row) => ({
     key: row.value || "unknown",
     label: row.value ? (
       <>
@@ -325,6 +359,7 @@ export function WebVisitorsSection({
     ) : (
       <span className="truncate">{t("unknownCountry")}</span>
     ),
+    sortLabel: row.value ? countryName(row.value, locale) : t("unknownCountry"),
     value: row.visitors,
   }));
   const deviceLabels: Record<string, string> = {
@@ -332,14 +367,61 @@ export function WebVisitorsSection({
     mobile: t("deviceMobile"),
     tablet: t("deviceTablet"),
   };
-  const deviceRows: WebBarListRow[] = web.devices.map((row) => ({
+  const deviceRows: WebBreakdownRow[] = web.devices.map((row) => ({
     key: row.value,
     label: (
       <span className="truncate">{deviceLabels[row.value] ?? row.value}</span>
     ),
+    sortLabel: deviceLabels[row.value] ?? row.value,
     value: row.visitors,
   }));
   const outcomeRows = web.outcomes.filter((row) => row.sessions > 0);
+  const outcomeColumns: TableColumn<WebAnalyticsOutcome>[] = [
+    {
+      key: "source",
+      header: t("columnSource"),
+      width: "1fr",
+      cell: (row) => (
+        <span className="flex min-w-0 items-center gap-2 text-sm">
+          {row.source ? (
+            <EngineIcon className="size-3.5" engine={row.source} />
+          ) : null}
+          <span className="truncate">
+            {row.source ? formatGeoSource(row.source) : t("outcomesAll")}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: "pages",
+      header: t("pagesPerSession"),
+      width: "6rem",
+      align: "right",
+      cell: (row) => (
+        <span className="text-sm tabular-nums">
+          {row.pagesPerSession.toLocaleString(locale, {
+            maximumFractionDigits: 1,
+          })}
+        </span>
+      ),
+    },
+    {
+      key: "engaged",
+      header: t("engagedRate"),
+      width: "8rem",
+      cell: (row) => (
+        <span className="flex items-center gap-2">
+          <GeoBar className="w-10 shrink-0" value={row.engagedRate} />
+          <span className="text-sm tabular-nums">
+            {row.engagedRate.toLocaleString(locale, {
+              style: "percent",
+              maximumFractionDigits: 0,
+            })}
+          </span>
+        </span>
+      ),
+    },
+  ];
 
   return (
     <section className="flex flex-col gap-6">
@@ -369,99 +451,47 @@ export function WebVisitorsSection({
           />
         </div>
         <WebTrend range={range} traffic={traffic} web={web} />
-        {readout ? (
-          <p className="text-muted-foreground mt-2 text-xs">{readout}</p>
-        ) : null}
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
-        <InstrumentModule eyebrow={t("topPages")} variant="panel">
-          <WebBarList
-            emptyMessage={t("noData")}
-            rows={pageRows}
-            valueLabel={t("topPages")}
-          />
-        </InstrumentModule>
-        <InstrumentModule eyebrow={t("sources")} variant="panel">
-          <WebBarList
-            emptyMessage={t("noData")}
-            rows={sourceRows}
-            valueLabel={t("sources")}
-          />
-        </InstrumentModule>
+        <WebBreakdownTable
+          nameHeader={t("page")}
+          rows={pageRows}
+          showFromAi
+          title={t("topPages")}
+          valueHeader={t("columnViews")}
+        />
+        <WebBreakdownTable
+          nameHeader={t("columnSource")}
+          rows={sourceRows}
+          title={t("referrers")}
+          valueHeader={t("sessions")}
+        />
       </div>
-      <div className="grid gap-4 lg:grid-cols-3">
-        <InstrumentModule eyebrow={t("countries")} variant="panel">
-          <WebBarList
-            emptyMessage={t("noData")}
-            rows={countryRows}
-            valueLabel={t("countries")}
-          />
-        </InstrumentModule>
-        <InstrumentModule eyebrow={t("devices")} variant="panel">
-          <WebBarList
-            emptyMessage={t("noData")}
-            rows={deviceRows}
-            valueLabel={t("devices")}
-          />
-        </InstrumentModule>
-        <InstrumentModule eyebrow={t("outcomesTitle")} variant="panel">
-          {outcomeRows.length === 0 ? (
-            <InstrumentEmpty
-              className="min-h-40"
-              message={t("noData")}
-              seed="web-outcomes"
-            />
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-muted-foreground text-xs">
-                  <th className="pb-2 text-left font-normal" scope="col">
-                    <span className="sr-only">{t("sources")}</span>
-                  </th>
-                  <th className="pb-2 text-right font-normal" scope="col">
-                    {t("pagesPerSession")}
-                  </th>
-                  <th className="pb-2 text-right font-normal" scope="col">
-                    {t("engagedRate")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {outcomeRows.map((row) => (
-                  <tr className="h-8" key={row.source || "all"}>
-                    <th className="text-left font-normal" scope="row">
-                      <span className="flex min-w-0 items-center gap-2">
-                        {row.source ? (
-                          <EngineIcon
-                            className="size-3.5"
-                            engine={row.source}
-                          />
-                        ) : null}
-                        <span className="truncate">
-                          {row.source
-                            ? formatGeoSource(row.source)
-                            : t("outcomesAll")}
-                        </span>
-                      </span>
-                    </th>
-                    <td className="text-right tabular-nums">
-                      {row.pagesPerSession.toLocaleString(locale, {
-                        maximumFractionDigits: 1,
-                      })}
-                    </td>
-                    <td className="text-right tabular-nums">
-                      {row.engagedRate.toLocaleString(locale, {
-                        style: "percent",
-                        maximumFractionDigits: 0,
-                      })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </InstrumentModule>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <WebBreakdownTable
+          nameHeader={t("columnCountry")}
+          rows={countryRows}
+          title={t("countries")}
+          valueHeader={t("visitors")}
+        />
+        <WebBreakdownTable
+          nameHeader={t("columnDevice")}
+          rows={deviceRows}
+          title={t("devices")}
+          valueHeader={t("visitors")}
+        />
       </div>
+      <InstrumentSection eyebrow={t("outcomesTitle")}>
+        <DataTable
+          columns={outcomeColumns}
+          data={outcomeRows}
+          emptyState={t("noData")}
+          getRowId={(row) => row.source || "all"}
+          height={webTableHeight(outcomeRows.length)}
+          rowHeight={WEB_TABLE_ROW_HEIGHT}
+          scrollFade={false}
+        />
+      </InstrumentSection>
     </section>
   );
 }
