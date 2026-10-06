@@ -18,6 +18,7 @@ import {
   uploadGeneratedHtmlAsset,
   uploadGeneratedImageAsset,
 } from "@notra/ai/utils/image-assets";
+import { logError, logInfo } from "@notra/ai/utils/server-log";
 import { db } from "@notra/db/drizzle";
 import { postCollections, posts } from "@notra/db/schema";
 import { buildPostCollectionName } from "@notra/db/utils/post-collections";
@@ -122,7 +123,7 @@ export async function trackImageGenerationUsage(params: {
     params.useMarkup ?? false
   );
 
-  console.info("[Autumn] Marketing asset usage cost comparison", {
+  logInfo("[Autumn] Marketing asset usage cost comparison", {
     organizationId: params.organizationId,
     postId: params.postId,
     model: params.usage.modelId ?? IMAGE_GEN_MODEL_ID,
@@ -180,10 +181,9 @@ export async function trackImageGenerationUsage(params: {
     });
     await flushPostHogServer();
   } catch (error) {
-    console.error("[Autumn] Track error after marketing asset generation:", {
+    logError("[Autumn] Track error after marketing asset generation", error, {
       customerId: params.organizationId,
       postId: params.postId,
-      error,
     });
   }
 }

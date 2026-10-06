@@ -16,6 +16,7 @@ import {
   trackImageGenerationUsage,
 } from "@notra/ai/utils/image-post-service";
 import { redis } from "@notra/ai/utils/redis";
+import { logError } from "@notra/ai/utils/server-log";
 import { db } from "@notra/db/drizzle";
 import { posts } from "@notra/db/schema";
 import { and, eq } from "drizzle-orm";
@@ -163,10 +164,9 @@ export function createReviseImageTool() {
           );
 
         await deleteRepoImageSnapshot(previousSnapshot).catch((error) => {
-          console.error("[repo-image] Failed to delete previous snapshot", {
+          logError("Failed to delete previous repo image snapshot", error, {
             postId,
             snapshotId: previousSnapshot.snapshotId,
-            error,
           });
         });
 

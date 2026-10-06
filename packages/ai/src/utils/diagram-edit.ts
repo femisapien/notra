@@ -39,6 +39,7 @@ import {
   uploadGeneratedImageAsset,
 } from "@notra/ai/utils/image-assets";
 import { trackImageGenerationUsage } from "@notra/ai/utils/image-post-service";
+import { logWarn } from "@notra/ai/utils/server-log";
 import { toAgentTokenUsage } from "@notra/ai/utils/token-usage";
 import { db } from "@notra/db/drizzle";
 import { posts } from "@notra/db/schema";
@@ -485,9 +486,13 @@ export async function editDiagramSpecWithAi(params: {
       }
       error = describeDiagramSpecError(caught);
     }
-    console.warn(
-      `[diagram-edit] attempt ${attempt}/${DIAGRAM_EDIT_ATTEMPTS} (finish: ${result.finishReason}, ${result.text.length} chars): ${error}`
-    );
+    logWarn("[diagram-edit] Edit attempt rejected", {
+      attempt,
+      maxAttempts: DIAGRAM_EDIT_ATTEMPTS,
+      finishReason: result.finishReason,
+      outputChars: result.text.length,
+      error,
+    });
   }
 
   if (best) {

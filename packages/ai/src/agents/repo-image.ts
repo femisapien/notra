@@ -62,6 +62,7 @@ import {
   injectHumanizerSkill,
 } from "@notra/ai/utils/repo-image-skills";
 import { extractRepoImageUsage } from "@notra/ai/utils/repo-image-usage";
+import { logError, logInfo, logWarn } from "@notra/ai/utils/server-log";
 import { withLongFetchTimeouts } from "@notra/ai/utils/undici-dispatcher";
 import type { BoxConfig, Runtime, VercelModel } from "@upstash/box";
 import { Agent, Box } from "@upstash/box";
@@ -151,7 +152,7 @@ async function cloneRepositoryToBox(params: {
     }
     await params.box.cd(params.repo);
   } catch (error) {
-    console.error("[repo-image] repository clone failed", {
+    logError("[repo-image] Repository clone failed", undefined, {
       owner: params.owner,
       repo: params.repo,
       branch: params.branch,
@@ -167,7 +168,7 @@ async function cloneRepositoryToBox(params: {
       await params.box.exec
         .command(`rm -f ${shellQuote(REPO_CLONE_TOKEN_PATH)}`)
         .catch((error: unknown) => {
-          console.warn("[repo-image] failed to remove temporary clone token", {
+          logWarn("[repo-image] Failed to remove temporary clone token", {
             error: getErrorMessage(error),
           });
         });
@@ -192,13 +193,17 @@ async function runRepoImageAgentStream(params: {
 
   for await (const chunk of stream) {
     if (chunk.type === "tool-call") {
-      console.log(`[repo-image] ${params.label} tool: ${chunk.toolName}`);
+      logInfo("[repo-image] Agent tool call", {
+        label: params.label,
+        toolName: chunk.toolName,
+      });
     }
   }
 
-  console.log(
-    `[repo-image] ${params.label} stream completed in ${Date.now() - startedAt}ms`
-  );
+  logInfo("[repo-image] Agent stream completed", {
+    label: params.label,
+    durationMs: Date.now() - startedAt,
+  });
 
   return {
     cost:
@@ -218,9 +223,11 @@ async function runRepoImageAgentStreamAllowTimeout(
       throw error;
     }
 
-    console.warn(
-      `[repo-image] ${params.label} stream timed out after ${params.timeout}ms; checking for ${REPO_IMAGE_OUTPUT_HTML_PATH}`
-    );
+    logWarn("[repo-image] Agent stream timed out; checking for output", {
+      label: params.label,
+      timeoutMs: params.timeout,
+      outputPath: REPO_IMAGE_OUTPUT_HTML_PATH,
+    });
     return null;
   }
 }
@@ -519,9 +526,11 @@ async function runDiagramAgent(params: {
     !("rendered" in outcome) && attempt <= DIAGRAM_RENDER_RECOVERY_ATTEMPTS;
     attempt++
   ) {
-    console.warn(
-      `[repo-image] diagram not renderable (${outcome.error ?? "missing"}); recovery attempt ${attempt}/${DIAGRAM_RENDER_RECOVERY_ATTEMPTS}`
-    );
+    logWarn("[repo-image] Diagram not renderable; running recovery attempt", {
+      error: outcome.error ?? "missing",
+      attempt,
+      maxAttempts: DIAGRAM_RENDER_RECOVERY_ATTEMPTS,
+    });
     const recoveryRun = await runRepoImageAgentStreamAllowTimeout({
       box,
       prompt: buildDiagramMissingOutputPrompt(outcome.error),
@@ -546,9 +555,10 @@ async function runDiagramAgent(params: {
   // Deterministic geometry checks first; the vision review only runs on a
   // layout that already passes them.
   const layoutIssues = findDiagramLayoutIssues(rendered.scene);
-  console.log(
-    `[repo-image] diagram layout check: ${layoutIssues.length} issue(s)${layoutIssues.length > 0 ? `\n- ${layoutIssues.join("\n- ")}` : ""}`
-  );
+  logInfo("[repo-image] Diagram layout check", {
+    issueCount: layoutIssues.length,
+    issues: layoutIssues,
+  });
   let review: z.infer<typeof diagramReviewSchema> | null =
     layoutIssues.length > 0
       ? {
@@ -565,14 +575,16 @@ async function runDiagramAgent(params: {
         organizationId: input.organizationId,
       });
     } catch (error) {
-      console.warn("[repo-image] diagram review skipped after error", error);
+      logWarn("[repo-image] Diagram review skipped after error", {
+        error: getErrorMessage(error),
+      });
     }
   }
 
   if (review?.needsRevision && review.revisionPrompt) {
-    console.log(
-      `[repo-image] diagram review requested revision: ${review.reason}`
-    );
+    logInfo("[repo-image] Diagram review requested revision", {
+      reason: review.reason,
+    });
     const reviewRun = await runRepoImageAgentStreamAllowTimeout({
       box,
       prompt: buildDiagramRevisionPrompt({ prompt: review.revisionPrompt }),
@@ -589,8 +601,9 @@ async function runDiagramAgent(params: {
     } else {
       // Keep the reviewed-but-renderable version, and put it back so later
       // revisions start from a file that renders.
-      console.warn(
-        `[repo-image] diagram review revision not renderable (${revised.error ?? "missing"}); keeping previous diagram`
+      logWarn(
+        "[repo-image] Diagram review revision not renderable; keeping previous diagram",
+        { error: revised.error ?? "missing" }
       );
       await withBoxRetry(() =>
         box.files.write({ path: DIAGRAM_SPEC_PATH, content: raw })
@@ -636,9 +649,11 @@ async function runMarketingAgent(params: {
       attempt <= MISSING_OUTPUT_RECOVERY_ATTEMPTS;
       attempt++
     ) {
-      console.warn(
-        `[repo-image] missing ${REPO_IMAGE_OUTPUT_HTML_PATH}; recovery attempt ${attempt}/${MISSING_OUTPUT_RECOVERY_ATTEMPTS}`
-      );
+      logWarn("[repo-image] Missing output; running recovery attempt", {
+        outputPath: REPO_IMAGE_OUTPUT_HTML_PATH,
+        attempt,
+        maxAttempts: MISSING_OUTPUT_RECOVERY_ATTEMPTS,
+      });
       const recoveryRun = await runRepoImageAgentStreamAllowTimeout({
         box,
         prompt: buildMarketingAssetMissingOutputPrompt(),
@@ -662,10 +677,10 @@ async function runMarketingAgent(params: {
         `pwd 2>&1; echo ---; ls -la 2>&1 | head -50; echo ---; find . /workspace/home -maxdepth 4 -name "output.html" 2>/dev/null`
       )
     );
-    console.error(
-      "[repo-image] missing output.html, cwd contents:\n",
-      diag.result
-    );
+    logError("[repo-image] Missing output after recovery", undefined, {
+      outputPath: REPO_IMAGE_OUTPUT_HTML_PATH,
+      cwdContents: diag.result,
+    });
     throw new RepoImageError(
       "agent_failed",
       `Agent did not produce ${REPO_IMAGE_OUTPUT_HTML_PATH}`
@@ -686,7 +701,9 @@ async function runMarketingAgent(params: {
       organizationId: input.organizationId,
     });
   } catch (error) {
-    console.warn("[repo-image] logo review skipped after error", error);
+    logWarn("[repo-image] Logo review skipped after error", {
+      error: getErrorMessage(error),
+    });
   }
 
   if (review?.needsRevision) {
@@ -694,9 +711,9 @@ async function runMarketingAgent(params: {
       review.revisionPrompt ??
       "Review the rendered image for unofficial or fabricated company logos. Replace any questionable logos with official assets from the brand-logos skill or real repo assets, or remove them if no official source is available. Preserve the current layout as much as possible.";
 
-    console.log(
-      `[repo-image] logo review requested revision: ${review.reason}`
-    );
+    logInfo("[repo-image] Logo review requested revision", {
+      reason: review.reason,
+    });
 
     const reviewRevisionRun = await runRepoImageAgentStream({
       box,
@@ -847,7 +864,9 @@ export async function generateRepoImage(params: {
       try {
         await cleanupRepoImageSandbox({ box });
       } catch (error) {
-        console.warn("[repo-image] sandbox cleanup skipped after error", error);
+        logWarn("[repo-image] Sandbox cleanup skipped after error", {
+          error: getErrorMessage(error),
+        });
       }
 
       if (restoreSnapshotId && !input.format) {
@@ -911,7 +930,7 @@ export async function generateRepoImage(params: {
       );
     } finally {
       await box.delete().catch((error: unknown) => {
-        console.error("Failed to delete repo-image box", error);
+        logError("[repo-image] Failed to delete box", error);
       });
     }
 
