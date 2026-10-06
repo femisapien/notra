@@ -1,3 +1,4 @@
+import { logError } from "@notra/ai/utils/server-log";
 import { Effect } from "effect";
 
 import {
@@ -51,7 +52,7 @@ export async function runSocialConnect<A>(
     throw serviceUnavailable(tCommonErrors("generic"));
   }
 
-  console.error(`${options.logLabel}:`, error);
+  logError(options.logLabel, error);
   const tErrors = await getTranslations("errors.socialAccounts");
   if (error._tag === "SocialConnectDeliveryUnknownError") {
     // "Try again" here could post twice.

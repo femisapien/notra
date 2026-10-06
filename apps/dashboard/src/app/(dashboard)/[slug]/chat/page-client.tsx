@@ -11,7 +11,6 @@ import type {
   ChatMessagePart,
   ChatUIMessage,
   ContextItem,
-  ExternalChannelId,
   MirrorChatStatus,
 } from "@notra/ai/types/chat";
 import { linkSavedChatPosts } from "@notra/ai/utils/chat-post";
@@ -70,6 +69,7 @@ import { ChatToolBlock } from "@/components/ai/chat-tool-block";
 import { getMcpToolServerId } from "@/components/ai/chat-tool-block/mcp/utils";
 import { AssistantMetadataHover } from "@/components/chat/assistant-metadata-hover";
 import { AttachmentPreviewDialog } from "@/components/chat/attachment-preview";
+import { ChatFileAttachment } from "@/components/chat/chat-file-attachment";
 import { ChatImageAttachment } from "@/components/chat/chat-image-attachment";
 import {
   ChatInputAdvanced,
@@ -145,6 +145,7 @@ import {
   shouldContinueAfterApprovalResponse,
 } from "@/utils/chat-approvals";
 import { handleStandaloneChatError } from "@/utils/chat-error";
+import { chatHistoryQueryOptions } from "@/utils/chat-history-query";
 import {
   resolveChatMessageAuthor,
   shouldShowChatAuthorAvatars,
@@ -532,6 +533,12 @@ function StandaloneChatPageClient({
     crypto.randomUUID()
   );
   const stableChatId = initialChatId ?? generatedChatId;
+  const [initialMessages] = useState(
+    () =>
+      queryClient.getQueryData(
+        chatHistoryQueryOptions(organizationId, initialChatId).queryKey
+      )?.messages ?? []
+  );
 
   const [context, setContext] = useState<ContextItem[]>([]);
   const [hasCustomizedContext, setHasCustomizedContext] = useState(false);
@@ -665,6 +672,20 @@ function StandaloneChatPageClient({
       isDisconnect,
     }) => {
       messagesRef.current = finishedMessages;
+      if (!isError && !isDisconnect) {
+        queryClient.setQueryData(
+          chatHistoryQueryOptions(organizationId, stableChatId).queryKey,
+          (current) =>
+            current
+              ? {
+                  ...current,
+                  messages: finishedMessages,
+                  lastResponseStopped: isAbort || wasStoppedByUserRef.current,
+                  activeStreamId: null,
+                }
+              : current
+        );
+      }
       const pinnedModel = getPinnedModelFromAutoMetadata(message.metadata);
       if (pinnedModel) {
         selectedModelRef.current = pinnedModel;
@@ -721,7 +742,7 @@ function StandaloneChatPageClient({
       }
       finishQueue();
     },
-    [organizationId, queryClient]
+    [organizationId, queryClient, stableChatId]
   );
 
   const {
@@ -733,6 +754,7 @@ function StandaloneChatPageClient({
     stop,
   } = useChat<ChatUIMessage>({
     id: stableChatId,
+    messages: initialMessages,
     resume: Boolean(
       initialChatId && historyStreamId && pendingMessageId === historyStreamId
     ),
@@ -891,33 +913,7 @@ function StandaloneChatPageClient({
     data: chatHistoryData,
     isLoading: isChatHistoryLoading,
     isPending: isChatHistoryPending,
-  } = useQuery<{
-    messages: ChatUIMessage[] | null;
-    lastResponseStopped: boolean;
-    activeStreamId: string | null;
-    externalChannelId: ExternalChannelId | null;
-    slackThreadUrl: string | null;
-  } | null>({
-    queryKey: ["chat-history", organizationId, initialChatId],
-    queryFn: async () => {
-      if (!initialChatId) {
-        return null;
-      }
-      const data = await dashboardOrpcClient.chat.sessions.get({
-        organizationId,
-        chatId: initialChatId,
-      });
-      return {
-        messages: data.messages,
-        lastResponseStopped: data.lastResponseStopped,
-        activeStreamId: data.activeStreamId,
-        externalChannelId: data.externalChannelId,
-        slackThreadUrl: data.slackThreadUrl,
-      };
-    },
-    enabled: Boolean(initialChatId) && Boolean(organizationId),
-    staleTime: 1000 * 60 * 5,
-  });
+  } = useQuery(chatHistoryQueryOptions(organizationId, initialChatId));
 
   const isSlackMirrored =
     chatHistoryData?.externalChannelId?.source === "slack";
@@ -1620,15 +1616,13 @@ function StandaloneChatPageClient({
         return;
       }
       if (isSendingRef.current || isLoading || isWaitingForActiveStream) {
-        if (attachments.length > 0) {
-          return;
-        }
         const next = [
           ...queuedMessagesRef.current,
           {
             id: nanoid(10),
             text,
             authorUserId: currentAuthorUserId,
+            ...(attachments.length > 0 ? { attachments } : {}),
           },
         ];
         queuedMessagesRef.current = next;
@@ -1737,6 +1731,13 @@ function StandaloneChatPageClient({
   }, []);
 
   const handleEditQueued = useCallback((message: QueuedMessage) => {
+    // Restore files first: if they don't fit, the message stays queued.
+    if (
+      message.attachments?.length &&
+      !chatInputRef.current?.setAttachments(message.attachments)
+    ) {
+      return;
+    }
     if (steerAfterStopRef.current?.id === message.id) {
       steerAfterStopRef.current = null;
       updateWasStoppedByUser(true, wasStoppedByUserRef, setWasStoppedByUser);
@@ -1757,7 +1758,7 @@ function StandaloneChatPageClient({
       setQueuedMessages(taken.remaining);
       isDrainingRef.current = true;
       updateWasStoppedByUser(false, wasStoppedByUserRef, setWasStoppedByUser);
-      dispatchMessage(message.text).catch((error) => {
+      dispatchMessage(message.text, message.attachments).catch((error) => {
         console.error("[Chat] Failed to steer queued message:", error);
         isSendingRef.current = false;
         isDrainingRef.current = false;
@@ -1892,7 +1893,7 @@ function StandaloneChatPageClient({
       const remaining = queue.slice(1);
       queuedMessagesRef.current = remaining;
       setQueuedMessages(remaining);
-      dispatchMessage(next.text).catch((error) => {
+      dispatchMessage(next.text, next.attachments).catch((error) => {
         console.error("[Chat] Failed to drain queued message:", error);
         isSendingRef.current = false;
         isDrainingRef.current = false;
@@ -2222,17 +2223,12 @@ function StandaloneChatPageClient({
         );
       }
       return (
-        <a
-          className="border-border bg-muted/40 text-foreground hover:bg-accent my-1 inline-flex max-w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs no-underline transition-colors"
-          href={url}
+        <ChatFileAttachment
+          filename={filename}
           key={fileKey}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <span className="truncate">
-            {filename ?? mediaType ?? tCommon("labels.attachment")}
-          </span>
-        </a>
+          mediaType={mediaType}
+          url={url}
+        />
       );
     }
 
@@ -2753,21 +2749,9 @@ function StandaloneChatPageClient({
                       const userContentParts = isUser
                         ? message.parts.filter((part) => part.type !== "file")
                         : message.parts;
-                      const userImageParts = isUser
-                        ? message.parts.filter(
-                            (part) =>
-                              part.type === "file" &&
-                              typeof part.mediaType === "string" &&
-                              isImageMimeType(part.mediaType)
-                          )
-                        : [];
-                      const userFileParts = isUser
-                        ? message.parts.filter(
-                            (part) =>
-                              part.type === "file" &&
-                              (typeof part.mediaType !== "string" ||
-                                !isImageMimeType(part.mediaType))
-                          )
+                      // Images and other files share one tile grid above the bubble.
+                      const userAttachmentParts = isUser
+                        ? message.parts.filter((part) => part.type === "file")
                         : [];
                       const branches = isUser
                         ? messageBranches[message.id]
@@ -2812,16 +2796,15 @@ function StandaloneChatPageClient({
                                 }}
                               >
                                 <div className="flex w-full min-w-0 flex-col items-end gap-2">
-                                  {userImageParts.length > 0 && (
+                                  {userAttachmentParts.length > 0 && (
                                     <UserImageGrid>
-                                      {userImageParts.map((part, index) =>
+                                      {userAttachmentParts.map((part, index) =>
                                         renderPart(part, message.id, index)
                                       )}
                                     </UserImageGrid>
                                   )}
                                   {(isEditing ||
-                                    userContentParts.length > 0 ||
-                                    userFileParts.length > 0) && (
+                                    userContentParts.length > 0) && (
                                     <UserMessageTextBubble
                                       initialText={toDisplayText(
                                         getUserMessageText(message)
@@ -2834,13 +2817,6 @@ function StandaloneChatPageClient({
                                     >
                                       {userContentParts.map((part, index) =>
                                         renderPart(part, message.id, index)
-                                      )}
-                                      {userFileParts.length > 0 && (
-                                        <div className="flex max-w-full flex-wrap justify-end gap-2">
-                                          {userFileParts.map((part, index) =>
-                                            renderPart(part, message.id, index)
-                                          )}
-                                        </div>
                                       )}
                                     </UserMessageTextBubble>
                                   )}

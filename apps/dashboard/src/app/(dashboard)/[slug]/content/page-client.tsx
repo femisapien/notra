@@ -2,6 +2,7 @@
 
 import { Calendar03Icon, ListViewIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { PageHeading } from "@notra/ui/components/shared/page-heading";
 import { Tabs, TabsList, TabsTrigger } from "@notra/ui/components/ui/tabs";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useState } from "react";
@@ -11,7 +12,6 @@ import { ContentCalendarSkeleton } from "@/components/content/calendar/content-c
 import { ContentCollectionsSection } from "@/components/content/content-collections-section";
 import { LazyCreateContentDialog } from "@/components/content/lazy-create-content-dialog";
 import { PageContainer } from "@/components/layout/container";
-import { PageHeading } from "@/components/layout/page-heading";
 import { useOrganizationsContext } from "@/components/providers/organization-provider";
 import { CONTENT_CALENDAR_DATE_PARAM } from "@/constants/content-calendar";
 import { CONTENT_LIST_VIEWS } from "@/constants/content-collections";

@@ -2,19 +2,14 @@ import type { DailySummaryEmailItem } from "@notra/email/types/daily-summary";
 import type { FeedbackSentiment } from "@notra/email/types/feedback";
 import type { ScheduledPublicationFailedEmailProps } from "@notra/email/types/scheduled-publication-failed";
 import type { WorkflowPausedReason } from "@notra/email/types/workflow-paused";
-import type { Resend } from "resend";
 
-export interface EmailResult {
-  data: { id: string } | null;
-  error: { name: string; message: string } | null;
+/**
+ * Digest emails are keyed by the exact batch they flush, so a retried workflow
+ * step replays the Brew fire instead of sending twice.
+ */
+interface DigestEmailProps {
+  digestBatchKey: string;
 }
-
-export interface EmailRetryFailure {
-  result: EmailResult;
-  retryable: boolean;
-}
-
-export type EmailPayload = Parameters<Resend["emails"]["send"]>[0];
 
 export interface SendFeedbackEmailProps {
   to: string;
@@ -28,7 +23,7 @@ export interface SendFeedbackEmailProps {
   userAgent?: string;
 }
 
-export interface SendScheduledContentFailedEmailProps {
+export interface SendScheduledContentFailedEmailProps extends DigestEmailProps {
   recipientEmail: string;
   organizationName: string;
   organizationSlug: string;
@@ -38,12 +33,12 @@ export interface SendScheduledContentFailedEmailProps {
 }
 
 export interface SendScheduledPublicationFailedEmailProps extends ScheduledPublicationFailedEmailProps {
-  recipientEmails: string[];
+  recipientEmail: string;
   /** One email per failure: row id plus failure time. */
   failureKey: string;
 }
 
-export interface SendScheduledContentSkippedEmailProps {
+export interface SendScheduledContentSkippedEmailProps extends DigestEmailProps {
   recipientEmail: string;
   organizationName: string;
   organizationSlug: string;
@@ -52,7 +47,7 @@ export interface SendScheduledContentSkippedEmailProps {
   subject?: string;
 }
 
-export interface SendAiCreditsDepletedEmailProps {
+export interface SendAiCreditsDepletedEmailProps extends DigestEmailProps {
   recipientEmail: string;
   organizationName: string;
   organizationSlug: string;
@@ -67,7 +62,7 @@ export interface SendWorkflowPausedEmailProps {
   organizationSlug: string;
   automationName: string;
   reason: WorkflowPausedReason;
-  pauseEventId?: string;
+  pauseEventId: string;
   subject?: string;
 }
 
@@ -76,7 +71,7 @@ export interface ScheduledCreatedContentItem {
   contentLink: string;
 }
 
-export interface SendScheduledContentCreatedEmailProps {
+export interface SendScheduledContentCreatedEmailProps extends DigestEmailProps {
   recipientEmail: string;
   organizationName: string;
   organizationSlug: string;

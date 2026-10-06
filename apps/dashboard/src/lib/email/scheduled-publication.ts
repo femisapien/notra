@@ -9,7 +9,6 @@ import {
 } from "@notra/db/schema";
 import type { ScheduledPublicationDestinationConfig } from "@notra/db/types/scheduled-publications";
 import { EMAIL_CONFIG } from "@notra/email/utils/config";
-import { getResend } from "@notra/email/utils/resend";
 import { socialConnectPlatformSchema } from "@notra/schemas/dashboard/social-accounts";
 import { and, eq } from "drizzle-orm";
 
@@ -69,8 +68,8 @@ function formatScheduledFor(scheduledAt: Date, timeZone: string) {
  * Emails that one destination gave up, gated by the organization's
  * "scheduled content failed" setting like the other failure notices. It goes
  * to the member who scheduled the post, or to the owners when it came from
- * the API or that person left the organization. The Resend idempotency key
- * makes a retried step send at most once.
+ * the API or that person left the organization. The Brew idempotency key
+ * makes a retried step send at most once per recipient.
  */
 export async function notifyScheduledPublicationFailed(
   scheduledPublicationId: string
@@ -116,17 +115,7 @@ export async function notifyScheduledPublicationFailed(
     return;
   }
 
-  const resend = getResend();
-  if (!resend) {
-    console.warn(
-      "[ScheduledPublication] Resend is not configured, skipping failure email",
-      { scheduledPublicationId }
-    );
-    return;
-  }
-
-  const result = await sendScheduledPublicationFailedEmail(resend, {
-    recipientEmails,
+  const email = {
     // A row that fails again after a manual retry is a new failure.
     failureKey: `${row.id}:${row.failedAt.getTime()}`,
     organizationName: notification.organizationName,
@@ -139,10 +128,16 @@ export async function notifyScheduledPublicationFailed(
     scheduledFor: formatScheduledFor(row.scheduledAt, row.timeZone),
     reason: row.lastError ?? "Unknown error",
     postLink: `${EMAIL_CONFIG.getAppUrl()}/${notification.organizationSlug}/content/${row.postId}`,
-  });
-  if (result.error) {
+  };
+  const results = await Promise.all(
+    recipientEmails.map((recipientEmail) =>
+      sendScheduledPublicationFailedEmail({ ...email, recipientEmail })
+    )
+  );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) {
     throw new Error(
-      `Failed to send scheduled publication failure email: ${result.error.message}`
+      `Failed to send scheduled publication failure email: ${failed.error.message}`
     );
   }
 }

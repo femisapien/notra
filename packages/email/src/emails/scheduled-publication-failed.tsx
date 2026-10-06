@@ -1,21 +1,11 @@
-import {
-  Body,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Link,
-  Preview,
-  Section,
-  Tailwind,
-  Text,
-} from "react-email";
-
-import { EmailButton } from "../components/button";
-import { EmailFooter } from "../components/footer";
-import { EmailLogo } from "../components/logo";
+import { EmailButtonFallbackLink } from "../components/button-fallback-link";
+import { EmailCtaButton } from "../components/cta-button";
+import { EmailDetailRow } from "../components/detail-row";
+import { EmailLayout } from "../components/layout";
+import { EmailNotificationSettingsNote } from "../components/notification-settings-note";
+import { EmailTitleCard } from "../components/title-card";
 import type { ScheduledPublicationFailedEmailProps } from "../types/scheduled-publication-failed";
-import { EMAIL_CONFIG } from "../utils/config";
+import { toPreviewText } from "../utils/preview";
 
 export const ScheduledPublicationFailedEmail = ({
   organizationName = "Acme Inc",
@@ -26,57 +16,29 @@ export const ScheduledPublicationFailedEmail = ({
   reason = "The pull request could not be merged: required status checks are failing.",
   postLink = `https://app.usenotra.com/${organizationSlug}/content/abc123`,
 }: ScheduledPublicationFailedEmailProps) => (
-  <Html>
-    <Head />
-    <Preview>A scheduled post could not be published</Preview>
-    <Tailwind>
-      <Body className="mx-auto my-auto bg-white px-2 font-sans">
-        <Container className="mx-auto my-[40px] max-w-[465px] rounded p-[20px]">
-          <EmailLogo />
+  <EmailLayout
+    heading="Scheduled publishing failed"
+    preview={toPreviewText(`${postTitle}: ${reason}`)}
+    subtext={
+      <>
+        <strong>{postTitle}</strong> in <strong>{organizationName}</strong>{" "}
+        could not be published to {destinationLabel}.
+      </>
+    }
+  >
+    <EmailTitleCard heading="Details">
+      <EmailDetailRow first label="Scheduled for">
+        {scheduledFor}
+      </EmailDetailRow>
+      <EmailDetailRow label="Destination">{destinationLabel}</EmailDetailRow>
+      <EmailDetailRow label="Reason">{reason}</EmailDetailRow>
+    </EmailTitleCard>
 
-          <Heading className="my-6 text-center text-2xl font-medium text-black">
-            Scheduled publishing failed
-          </Heading>
-
-          <Text className="text-center text-base leading-relaxed text-[#737373]">
-            <strong>{postTitle}</strong> in <strong>{organizationName}</strong>{" "}
-            was scheduled for {scheduledFor}, but publishing to{" "}
-            {destinationLabel} did not go through.
-          </Text>
-
-          <Section className="mt-8">
-            <Text className="m-0 text-[12px] tracking-wide text-[#666666] uppercase">
-              Reason:
-            </Text>
-            <Text className="mt-2 mb-0 text-[14px] leading-[22px] text-black">
-              {reason}
-            </Text>
-          </Section>
-
-          <Section className="my-8 text-center">
-            <EmailButton href={postLink}>Open post</EmailButton>
-          </Section>
-
-          <Text className="text-[14px] leading-[24px] text-black">
-            If the button does not work, copy and paste this URL into your
-            browser: <Link href={postLink}>{postLink}</Link>
-          </Text>
-
-          <Section className="mt-8">
-            <Text className="m-0 text-center text-[12px] tracking-wide text-[#666666] uppercase">
-              If you don't want to receive these emails, you can click{" "}
-              <Link
-                href={`${EMAIL_CONFIG.getAppUrl()}/${organizationSlug}/settings/notifications`}
-              >
-                here
-              </Link>{" "}
-              to update your notification settings.
-            </Text>
-          </Section>
-
-          <EmailFooter />
-        </Container>
-      </Body>
-    </Tailwind>
-  </Html>
+    <EmailCtaButton href={postLink}>Open post</EmailCtaButton>
+    <EmailButtonFallbackLink href={postLink} />
+    <EmailNotificationSettingsNote
+      organizationName={organizationName}
+      organizationSlug={organizationSlug}
+    />
+  </EmailLayout>
 );

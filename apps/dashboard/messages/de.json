@@ -146,7 +146,9 @@
           "marketingEmails": {
             "description": "E-Mails zu neuen Funktionen, Tipps und Ankündigungen erhalten"
           }
-        }
+        },
+        "marketingPersonal": "Gilt nur für dich. Jede E-Mail enthält außerdem einen Abmeldelink.",
+        "marketingBlocked": "Du hast dich über einen Link in einer E-Mail von allen Marketing-E-Mails abgemeldet. Schreib an support@usenotra.com, um sie wieder zu erhalten."
       },
       "billing": {
         "plansDescription": "Wechsle deinen Tarif oder mach ein Upgrade.",
@@ -486,8 +488,7 @@
       "resendDescription": "Wir senden einen neuen Einladungslink an <strong>{email}</strong>.",
       "resending": "Wird gesendet…",
       "cancelTitle": "Einladung zurückziehen?",
-      "cancelDescription": "Die an {email} gesendete Einladung wird zurückgezogen und kann danach nicht mehr angenommen werden.",
-      "canceling": "Wird zurückgezogen…"
+      "cancelDescription": "Die an {email} gesendete Einladung wird zurückgezogen und kann danach nicht mehr angenommen werden."
     },
     "invite": {
       "sent": "Einladung erfolgreich gesendet",
@@ -504,8 +505,7 @@
       "selectRole": "Rolle auswählen",
       "updateRole": "Rolle aktualisieren",
       "removeTitle": "{name} entfernen?",
-      "removeDescription": "{name} wird aus {organization} entfernt, verliert den Zugriff auf alle Inhalte der Organisation und muss für einen erneuten Beitritt wieder eingeladen werden.",
-      "removing": "Wird entfernt…"
+      "removeDescription": "{name} wird aus {organization} entfernt, verliert den Zugriff auf alle Inhalte der Organisation und muss für einen erneuten Beitritt wieder eingeladen werden."
     },
     "shared": {
       "resendInvitation": "Einladung erneut senden",
@@ -653,6 +653,11 @@
     }
   },
   "feedback": {
+    "activity": {
+      "title": "Feedback-Aktivität",
+      "loadFailed": "Feedback-Aktivität konnte nicht geladen werden",
+      "seriesLabel": "Feedback"
+    },
     "unspecified": "Nicht angegeben",
     "kind": {
       "bug": "Bug",
@@ -779,7 +784,6 @@
       "or": "Oder",
       "emailPlaceholder": "jane@firma.de",
       "passwordPlaceholder": "Mindestens 10 Zeichen",
-      "creating": "Konto wird erstellt…",
       "submit": "Konto erstellen",
       "forgotPassword": "Passwort vergessen? <link>Passwort zurücksetzen</link>",
       "haveAccount": "Du hast schon ein Konto? <link>Anmelden</link>"
@@ -821,7 +825,6 @@
       "descriptionNoEmail": "Wir haben einen 6-stelligen Code an deine E-Mail-Adresse gesendet. Gib ihn unten ein, um fortzufahren.",
       "codeLabel": "Bestätigungscode",
       "submit": "E-Mail bestätigen",
-      "submitting": "Wird geprüft…",
       "errorFallback": "Bestätigung fehlgeschlagen. Bitte versuch es nochmal."
     },
     "mfaChallenge": {
@@ -835,7 +838,6 @@
       "backupDescription": "Gib einen der Backup-Codes ein, die du beim Einrichten der Zwei-Faktor-Authentifizierung gespeichert hast. Jeder Code funktioniert einmal.",
       "backupCodeLabel": "Backup-Code",
       "backupSubmit": "Backup-Code verwenden",
-      "backupSubmitting": "Wird geprüft…",
       "useAuthenticator": "Stattdessen meine Authenticator-App verwenden",
       "issuedCodesTitle": "Deine Backup-Codes",
       "issuedCodesDescription": "Du bist angemeldet. Speichere jetzt diese Backup-Codes: Mit jedem kommst du einmal rein, falls du deine Authenticator-App verlierst."
@@ -852,7 +854,6 @@
       "passwordPlaceholder": "Dein Passwort",
       "lastUsed": "Zuletzt verwendet",
       "submit": "Anmelden",
-      "submitting": "Anmeldung läuft…",
       "resetPassword": "Passwort zurücksetzen",
       "noAccount": "Noch kein Konto?",
       "register": "Registrieren",
@@ -1181,7 +1182,6 @@
       "tryingAgain": "Neuer Versuch",
       "noSuggestions": "Nichts Offensichtliches für {domain}. Nutze stattdessen die Suche oben.",
       "showMore": "{count} weitere anzeigen",
-      "runningFirstScan": "Dein erster Scan läuft",
       "description": "Wenn KI statt {companyName} jemand anderen empfiehlt, wer ist das? Wähle die Marken, mit denen du dich messen willst.",
       "descriptionFallback": "Wenn KI statt dir jemand anderen empfiehlt, wer ist das? Wähle die Marken, mit denen du dich messen willst.",
       "title": "An wen verlierst du Deals?"
@@ -1205,8 +1205,8 @@
       "startFreeTrial": "Kostenlos testen",
       "selectPlan": "Tarif {plan} auswählen",
       "title": "Wähle deinen Tarif",
-      "description": "Nutze Feedback kostenlos oder upgrade für KI-Inhalte und Sichtbarkeits-Tracking.",
-      "continueFree": "Mit kostenlosem Feedback fortfahren",
+      "description": "Wähle einen Plan für KI-Sichtbarkeits-Tracking und Content oder schließe das hier und sieh dich erst um.",
+      "close": "Schließen und zum Dashboard",
       "renews": "{interval, select, year {Dein Tarif verlängert sich jedes Jahr automatisch, bis du kündigst.} other {Dein Tarif verlängert sich jeden Monat automatisch, bis du kündigst.}}"
     },
     "workspace": {
@@ -1232,12 +1232,10 @@
       "heardAbout": "Wo hast du von Notra gehört?",
       "selectOption": "Option auswählen",
       "tellUsWhere": "Verrate uns, wo",
-      "tellUsWherePlaceholder": "Podcast, Community, Freunde usw.",
-      "settingUp": "Wird eingerichtet…"
+      "tellUsWherePlaceholder": "Podcast, Community, Freunde usw."
     },
     "shared": {
-      "skipOnboarding": "Onboarding überspringen",
-      "saving": "Wird gespeichert"
+      "skipOnboarding": "Onboarding überspringen"
     }
   },
   "shared": {
@@ -1847,6 +1845,7 @@
       "year": "Jahr",
       "month": "Monat",
       "current": "Aktuell",
+      "billingInterval": "Abrechnungszeitraum",
       "monthly": "Monatlich",
       "yearly": "Jährlich",
       "title": "Titel",
@@ -1944,7 +1943,6 @@
       "failedToAddSitemap": "Sitemap konnte nicht hinzugefügt werden",
       "sitemapOrSiteUrl": "Sitemap- oder Website-URL",
       "adding": "Wird hinzugefügt…",
-      "removing": "Wird entfernt…",
       "url": "URL",
       "links": "Links",
       "today": "Heute",
@@ -2470,6 +2468,19 @@
       "useColor": "{color} verwenden",
       "customColor": "Eigene Farbe wählen",
       "kindHint": "Direkt verkauft, was du verkaufst. Indirekt löst dasselbe Problem auf andere Weise."
+    },
+    "competitorEngineMatrix": {
+      "title": "Empfehlungen nach Assistent",
+      "hint": "Anteil der Antworten jedes Assistenten im ausgewählten Zeitraum, die die Marke erwähnen. Dunklere Zellen bedeuten mehr Erwähnungen.",
+      "tableLabel": "Erwähnungsrate der Marken nach KI-Assistent",
+      "brandColumn": "Marke",
+      "you": "Du",
+      "noChecks": "Keine Antworten",
+      "empty": "Noch keine Antworten in diesem Zeitraum.",
+      "scanning": "Engines werden gescannt…",
+      "loadFailed": "Empfehlungen nach Assistent konnten nicht geladen werden.",
+      "cellDetail": "{mentions, number} von {checks, number} Antworten",
+      "refreshFailed": "Aktualisierung fehlgeschlagen, ältere Daten"
     },
     "competitorModal": {
       "description": "Wie KI-Engines {title} in deinen getrackten Prompts erwähnen"
@@ -3068,7 +3079,6 @@
       "archiveDescription": "Diese Persona wird aus zukünftigen Scans entfernt. Ihr bisheriger Scan-Verlauf bleibt erhalten.",
       "nounSingular": "Persona",
       "nounPlural": "Personas",
-      "archiving": "Wird archiviert…",
       "archiveTitle": "Persona archivieren?"
     },
     "projectBrandSection": {
@@ -3140,7 +3150,8 @@
       "latestAnswer": "Neueste Antwort jeder KI-Engine",
       "answerLanguage": "Antwortsprache",
       "noTags": "Keine Tags",
-      "addTag": "Tag hinzufügen…"
+      "addTag": "Tag hinzufügen…",
+      "lastScan": "Letzter Scan"
     },
     "promptDetailStatus": {
       "loading": "Antwort wird geladen…",
@@ -3161,26 +3172,19 @@
       "competitors": "Stattdessen erwähnte Marken",
       "searches": "Suchen der KI-Engine",
       "sources": "Zitierte Quellen",
-      "history": "Scan-Verlauf"
+      "history": "Scan-Verlauf",
+      "showAllSources": "Alle {count} Quellen anzeigen"
     },
     "promptReceiptHistory": {
       "gainedMention": "Jetzt erwähnt",
-      "gainedMentionAt": "auf",
       "lostMention": "Nicht mehr erwähnt",
-      "moved": "Verschoben",
       "noChange": "Keine Änderung",
       "firstScan": "Erster Scan",
       "gainedLabel": "Jetzt erwähnt auf {position}",
       "movedLabel": "Verschoben {from} → {to}",
-      "moreAria": "{count} weitere: {names}",
-      "viewAnswer": "Antwort ansehen",
-      "viewAnswerAria": "Antwort ansehen · {timestamp}",
-      "singleScan": "Bisher nur ein Scan",
       "noHistory": "Noch keine Scans aufgezeichnet",
-      "columns": {
-        "date": "Scan",
-        "newCompetitors": "Neue Marken"
-      }
+      "newBrands": "Neu: {names}",
+      "viewAnswer": "Antwort ansehen"
     },
     "promptReceiptViewSwitch": {
       "groupLabel": "Ansicht",
@@ -3215,10 +3219,7 @@
       "suggestions": "Verwendete Tags"
     },
     "promptsTable": {
-      "pauseAria": "{prompt} pausieren",
-      "enableAria": "{prompt} aktivieren",
       "copiedPrompt": "Prompt kopiert",
-      "pausePrompt": "Prompt pausieren",
       "enablePrompt": "Prompt aktivieren",
       "removePrompt": "Prompt entfernen",
       "removeDescriptionOne": "„{prompt}“ wird in GEO-Scans nicht mehr abgefragt. Bisherige Antworten bleiben in deinen Ergebnissen.",
@@ -3229,7 +3230,8 @@
       "nounPlural": "Prompts",
       "tagsCustomOnly": "Tags gelten nur für eigene Prompts. Automatisch erzeugte Prompts wurden übersprungen.",
       "columns": {
-        "presence": "Präsenz"
+        "presence": "Präsenz",
+        "mentionedInstead": "Stattdessen genannt"
       },
       "filterAria": "Prompts filtern",
       "filterPlaceholder": "Prompts filtern…",
@@ -3628,11 +3630,6 @@
         "failedTitle": "Schreiben fehlgeschlagen",
         "failedDescription": "Der Writer konnte diesen Artikel nicht fertigstellen. Versuch es nochmal.",
         "starting": "Wird gestartet…"
-      }
-    },
-    "instrument": {
-      "instrumentModule": {
-        "moreInfo": "Mehr Infos"
       }
     },
     "shelf": {
@@ -4619,7 +4616,6 @@
         "updateCredentials": "Zugangsdaten aktualisieren",
         "disconnectTitle": "{name} trennen?",
         "disconnectDescription": "Die Tools stehen dieser Organisation dann nicht mehr zur Verfügung. Du kannst die Integration später wieder verbinden.",
-        "disconnecting": "Wird getrennt…",
         "auth": {
           "none": "Keine Authentifizierung"
         }
@@ -5597,7 +5593,8 @@
       "edit": "Eingereihte Nachricht bearbeiten",
       "cancelSteering": "Steuerung abbrechen",
       "remove": "Aus Warteschlange entfernen",
-      "steer": "Mit dieser Nachricht steuern"
+      "steer": "Mit dieser Nachricht steuern",
+      "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}: {names}"
     },
     "author": {
       "formerMember": "Ehemaliges Mitglied"
@@ -5683,7 +5680,7 @@
     "page": {
       "slackMirrorNotice": "Aus einem Slack-Thread gespiegelt.",
       "working": "Wird bearbeitet",
-      "showMoreImages": "{count, plural, one {# weiteres Bild} other {# weitere Bilder}} anzeigen",
+      "showMoreImages": "{count, plural, one {# weiteren Anhang} other {# weitere Anhänge}} anzeigen",
       "loadingProject": "Projekt wird geladen",
       "slackSendFailed": "Senden an Slack fehlgeschlagen. Versuch es noch einmal.",
       "draftGenerationFailed": "Entwurf konnte nicht erstellt werden. Der Assistent versucht es erneut.",
@@ -6384,6 +6381,7 @@
     "chatHistory": {
       "options": "Chat-Optionen",
       "pinned": "Angeheftet",
+      "loadFailed": "Chatverlauf konnte nicht geladen werden.",
       "groups": {
         "lastMonth": "Letzter Monat"
       }
@@ -6429,8 +6427,9 @@
     "emptyAction": "Inhalte ansehen",
     "emptyDescription": "Du hast heute noch keine neuen Beiträge. Erstelle jetzt einen oder sieh dir deine Entwürfe auf der Inhaltsseite an.",
     "emptyTitle": "Heute noch keine Inhalte erstellt",
-    "upgradeTitle": "Mit Studio Inhalte erstellen",
-    "upgradeDescription": "Studio ist in den kostenpflichtigen Plänen enthalten. Upgrade, um Inhalte zu erstellen und KI-Tools zu nutzen."
+    "feedbackSetupTitle": "Feedback einrichten",
+    "feedbackSetupDescription": "Verbinde deinen KI-Agenten, damit er Bugs, Fragen und Wünsche zu deinem Produkt meldet. Dauert etwa zwei Minuten.",
+    "feedbackDescription": "Was KI-Agenten über dein Produkt melden."
   },
   "ai": {
     "subagent": {
@@ -6679,6 +6678,7 @@
     "removeAttachment": "Anhang entfernen",
     "expandImage": "Bild vergrößern",
     "minimizeImage": "Bild verkleinern",
+    "moreInfo": "Mehr Infos",
     "breadcrumb": "Brotkrumennavigation",
     "logoStack": {
       "additionalItems": "Weitere Einträge",
@@ -6710,7 +6710,6 @@
       "resetDescription": "Alle deine Änderungen werden verworfen und die Beispieldaten wiederhergestellt. Demo-ID, API-Key und Anpassung bleiben gleich.",
       "cancel": "Abbrechen",
       "resetConfirm": "Workspace zurücksetzen",
-      "resetting": "Wird zurückgesetzt…",
       "resetFailed": "Der Workspace konnte nicht zurückgesetzt werden. Bitte versuch es erneut."
     },
     "playground": {

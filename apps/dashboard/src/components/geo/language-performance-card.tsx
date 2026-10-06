@@ -13,20 +13,13 @@ import {
   trackedGeoLanguages,
 } from "@notra/geo-core/utils/geo-language-rows";
 import { GeoBar } from "@notra/ui/components/geo/geo-bar";
-import {
-  ResponsiveAlertDialog,
-  ResponsiveAlertDialogAction,
-  ResponsiveAlertDialogCancel,
-  ResponsiveAlertDialogContent,
-  ResponsiveAlertDialogDescription,
-  ResponsiveAlertDialogFooter,
-  ResponsiveAlertDialogHeader,
-  ResponsiveAlertDialogTitle,
-} from "@notra/ui/components/shared/responsive-alert-dialog";
+import { InstrumentSection } from "@notra/ui/components/instrument/instrument-module";
+import { ConfirmDialog } from "@notra/ui/components/shared/confirm-dialog";
 import {
   DataTable,
   type TableColumn,
 } from "@notra/ui/components/ui/data-table";
+import { Spinner } from "@notra/ui/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -38,9 +31,7 @@ import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
 import { GeoRateSparkline } from "@/components/geo/geo-rate-sparkline";
-import { StatusSpinner } from "@/components/geo/status-spinner";
 import { Twemoji } from "@/components/geo/twemoji";
-import { InstrumentSection } from "@/components/instrument/instrument-module";
 import { LANGUAGE_FLAGS } from "@/constants/language-flags";
 import { TABLE_ROW_HEIGHT } from "@/constants/table";
 import { useGeoSettingsLanguageAdd } from "@/lib/hooks/use-geo";
@@ -94,7 +85,7 @@ function LanguageAddButton({
   const languageLabel = useLanguageLabel();
   const tCommon2 = useTranslations("common");
   const content = pending ? (
-    <StatusSpinner />
+    <Spinner className="size-3.5" />
   ) : (
     <HugeiconsIcon className="size-3.5" icon={PlusSignIcon} />
   );
@@ -154,7 +145,6 @@ export function LanguagePerformanceCard({
   const t = useTranslations("geo.languagePerformanceCard");
   const tCommon2 = useTranslations("common");
   const tGeoShared = useTranslations("geo.shared");
-  const tCommon = useTranslations("common.actions");
   const [languageToAdd, setLanguageToAdd] = useState<string>();
   const addLanguage = useGeoSettingsLanguageAdd(organizationId);
   const savedExtras = trackedGeoLanguages(settings.languages);
@@ -279,33 +269,18 @@ export function LanguagePerformanceCard({
           rowHeight={TABLE_ROW_HEIGHT}
         />
       </InstrumentSection>
-      <ResponsiveAlertDialog
+      <ConfirmDialog
+        confirmLabel={t("addLanguage")}
+        description={t("confirmDescription", { language: languageToAdd ?? "" })}
+        onConfirm={handleConfirmAddLanguage}
         onOpenChange={(open) => {
           if (!open) {
             setLanguageToAdd(undefined);
           }
         }}
         open={Boolean(languageToAdd)}
-      >
-        <ResponsiveAlertDialogContent>
-          <ResponsiveAlertDialogHeader>
-            <ResponsiveAlertDialogTitle>
-              {t("confirmTitle", { language: languageToAdd ?? "" })}
-            </ResponsiveAlertDialogTitle>
-            <ResponsiveAlertDialogDescription>
-              {t("confirmDescription", { language: languageToAdd ?? "" })}
-            </ResponsiveAlertDialogDescription>
-          </ResponsiveAlertDialogHeader>
-          <ResponsiveAlertDialogFooter>
-            <ResponsiveAlertDialogCancel>
-              {tCommon("cancel")}
-            </ResponsiveAlertDialogCancel>
-            <ResponsiveAlertDialogAction onClick={handleConfirmAddLanguage}>
-              {t("addLanguage")}
-            </ResponsiveAlertDialogAction>
-          </ResponsiveAlertDialogFooter>
-        </ResponsiveAlertDialogContent>
-      </ResponsiveAlertDialog>
+        title={t("confirmTitle", { language: languageToAdd ?? "" })}
+      />
     </>
   );
 }
