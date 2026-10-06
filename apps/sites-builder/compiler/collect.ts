@@ -2,17 +2,19 @@ import { lstat, readdir } from "node:fs/promises";
 import { extname, join } from "node:path";
 
 import type { SiteSourceFile } from "@notra/sites-compiler/types/diagnostics";
-import {
-  SITE_BUILD_LIMITS,
-  SITE_SOURCE_ROOT_ENTRIES,
-} from "@notra/sites-core/constants/sites";
+import { SITE_BUILD_LIMITS } from "@notra/sites-core/constants/sites";
 import type { SiteDiagnostic } from "@notra/sites-core/types/build";
+import {
+  isSiteContentPath,
+  isSiteSourcePath,
+} from "@notra/sites-core/utils/source-files";
 
 import { ALLOWED_EXTENSIONS, SAFE_SEGMENT } from "./constants/source";
 import type { CollectedSource, Inspected } from "./types/source";
 
 /**
- * Lists the files a site may use. Only the known top-level entries are read;
+ * Lists the files a site may use: the known top-level entries in full, and
+ * stylesheets and plain scripts anywhere else;
  * symlinks, dotfiles and unknown extensions are skipped so nothing outside the
  * site (or an `.env` someone committed) ever reaches the build.
  */
@@ -28,6 +30,12 @@ export async function collectSiteSource(
   async function inspect(relativePath: string): Promise<Inspected> {
     const name = relativePath.slice(relativePath.lastIndexOf("/") + 1);
     if (name.startsWith(".") || name === "node_modules") {
+      return { kind: "skip" };
+    }
+    // Outside the content folders only stylesheets and plain scripts count;
+    // everything else there is the rest of the repository, skipped quietly.
+    const content = isSiteContentPath(relativePath);
+    if (!(content || SAFE_SEGMENT.test(name))) {
       return { kind: "skip" };
     }
     if (!SAFE_SEGMENT.test(name)) {
@@ -59,7 +67,8 @@ export async function collectSiteSource(
     }
     if (
       !stats.isFile() ||
-      !ALLOWED_EXTENSIONS.has(extname(name).toLowerCase())
+      !ALLOWED_EXTENSIONS.has(extname(name).toLowerCase()) ||
+      !isSiteSourcePath(relativePath)
     ) {
       return { kind: "skip" };
     }
@@ -98,17 +107,8 @@ export async function collectSiteSource(
     await visit(entries.map((name) => `${relativeDir}/${name}`));
   }
 
-  // Only the known top-level entries are read; a missing one is simply absent.
-  const roots = await Promise.all(
-    SITE_SOURCE_ROOT_ENTRIES.map(async (rootEntry: string) =>
-      (await lstat(join(siteRoot, rootEntry)).catch(() => null))
-        ? rootEntry
-        : null
-    )
-  );
-  await visit(
-    roots.filter((rootEntry): rootEntry is string => rootEntry !== null)
-  );
+  // The content folders in full; elsewhere only stylesheets and plain scripts.
+  await visit(await readdir(siteRoot));
 
   if (files.length > SITE_BUILD_LIMITS.maxSourceFiles) {
     diagnostics.push({

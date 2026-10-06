@@ -6,6 +6,7 @@ import type { SiteEntry } from "@notra/sites-compiler/types/diagnostics";
 import { isTextSourceFile, validateSite } from "@notra/sites-compiler/validate";
 import { SITE_ASSETS_DIR } from "@notra/sites-core/constants/sites";
 import { sortCustomScriptPaths } from "@notra/sites-core/utils/custom-scripts";
+import { isSiteStylesheet } from "@notra/sites-core/utils/source-files";
 
 import { collectSiteSource } from "./collect";
 import type { PreparedSite, PrepareSiteParams } from "./types/source";
@@ -81,13 +82,10 @@ export async function prepareSite(
       )
   );
 
-  // Customer CSS (`style.css`, `styles/*.css`), imported after the theme so it can override it.
+  // Every customer stylesheet (`style.css`, `buttons.css`, `styles/*.css`,
+  // `snippets/button.css`), imported after the theme so it can override it.
   const customCss = collected.files
-    .filter(
-      (file) =>
-        file.path.endsWith(".css") &&
-        (file.path === "style.css" || file.path.startsWith("styles/"))
-    )
+    .filter((file) => isSiteStylesheet(file.path))
     .map(
       (file) =>
         `@import ${JSON.stringify(join(params.workDir, "site", file.path))};`

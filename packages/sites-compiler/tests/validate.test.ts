@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 
 import { validateSite } from "../src/validate";
 
+const DOCS_BUTTON_SNIPPET = new URL(
+  "../../../apps/docs/snippets/button.jsx",
+  import.meta.url
+);
 const CONFIG = JSON.stringify({ name: "Acme" });
 const post = (body: string, frontmatter = "title: Hello\ndate: 2026-10-01") =>
   `---\n${frontmatter}\n---\n\n${body}\n`;
@@ -21,6 +26,25 @@ const errors = (result: ReturnType<typeof run>) =>
     );
 
 describe("site contract", () => {
+  test("a docs button snippet works as written in the docs repo", () => {
+    const button = readFileSync(DOCS_BUTTON_SNIPPET, "utf8");
+    const result = run({
+      "snippets/button.jsx": button,
+      "blog/launch.mdx": post(
+        [
+          'import { DocsButton } from "/snippets/button.jsx"',
+          "",
+          '<DocsButton href="https://app.usenotra.com">Open dashboard</DocsButton>',
+          '<DocsButton href="/quickstart" variant="outline">Get started</DocsButton>',
+        ].join("\n")
+      ),
+    });
+    expect(errors(result)).toEqual([]);
+    expect(result.outputs.get("blog/launch.mdx")).toContain(
+      'from "@site/snippets/button.jsx"'
+    );
+  });
+
   test("snippets, inline components and built-ins compile", () => {
     const result = run({
       "snippets/counter.jsx":

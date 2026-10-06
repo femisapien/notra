@@ -14,8 +14,8 @@ changelog/*.mdx         # changelog entries, one file per release
 snippets/*.mdx          # reusable content
 snippets/*.jsx          # your own React components
 public/                 # images and other static files
-style.css, styles/*.css # custom CSS
-script.js, scripts/*.js # custom JavaScript, see Analytics and scripts
+*.css                   # custom CSS, any file name, loaded on every page
+*.js                    # custom JavaScript outside the content folders, see Analytics and scripts
 ```
 
 Files and folders starting with `_` are never published as pages. Everything else in `blog/` and `changelog/` becomes a page; the file path is the URL (`blog/2026/launch.mdx` → `/blog/2026/launch`).
@@ -69,7 +69,32 @@ Sites use the `notra` theme, with a light and a dark mode. Change it to fit your
 
 ### Custom CSS
 
-Add a `style.css` (or any `.css` file in `styles/`) to the site root. It loads on every page after the theme, so it can override anything. Tailwind classes also work inside your MDX and components.
+Every `.css` file in the site (`style.css`, `buttons.css`, `styles/brand.css`, a stylesheet next to a snippet) loads on every page after the theme, so it can override anything. Tailwind classes also work inside your MDX and components.
+
+### Styling hooks
+
+Stable IDs and class names to target from your CSS:
+
+| ID | Element |
+| --- | --- |
+| `#banner` | Announcement banner above the navbar |
+| `#navbar` | Top navigation bar |
+| `#topbar-cta-button` | Call-to-action button in the navbar (`#topbar-cta-button > a`) |
+| `#mobile-nav`, `#mobile-nav-content` | Mobile menu and its links |
+| `#body-content` | The page body |
+| `#content-area`, `#content` | Main area and its inner content |
+| `#header`, `#page-title` | A post's header and its `<h1>` |
+| `#table-of-contents` | "On this page" navigation |
+| `#pagination` | Previous and next post links |
+| `#footer` | Page footer |
+
+Components carry these classes: `callout`, `card`, `card-group`, `columns`, `accordion`, `accordion-group`, `tabs`, `tab`, `steps`, `step`, `frame`, `update`, `code-group`, `code-block`, `code-block-copy-button`, `mdx-content` and `eyebrow`.
+
+```css style.css
+#navbar { border-bottom: 1px solid #e5e7eb; }
+.callout { border-radius: 1rem; }
+.code-block-copy-button { display: none; }
+```
 
 For JavaScript and analytics, see [Analytics and scripts](/sites/analytics-and-scripts).
 

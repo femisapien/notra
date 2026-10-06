@@ -34,11 +34,12 @@ Previews use the same integrations as your live site. To keep previews out of yo
 
 ## Custom scripts
 
-Add a `script.js` to the site root, or any number of `.js` files to a `scripts/` folder. They work like [custom CSS](/sites/repository#custom-css), but for JavaScript.
+Every `.js` file outside the content folders runs on every page: `script.js`, a `scripts/` folder, or a file like `analytics.js` at the root. They work like [custom CSS](/sites/repository#custom-css), but for JavaScript. A `.js` file in `snippets/`, `blog/` or `changelog/` is a component you import instead.
 
 ```text
 script.js               # runs first
-scripts/chat-widget.js  # then scripts/, sorted by path
+analytics.js            # then every other script, sorted by path
+scripts/chat-widget.js
 scripts/tracking/hotjar.js
 ```
 

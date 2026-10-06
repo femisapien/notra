@@ -19,6 +19,7 @@ const hasMenu = links.length > 0 || Boolean(cta) || Boolean(primary);
 ---
 
 <header
+  id="navbar"
   data-site-header
   class="sticky top-0 z-30 border-b border-transparent bg-[color-mix(in_oklab,var(--page-background)_88%,transparent)] backdrop-blur-lg transition-[border-color] duration-200 ease-out data-scrolled:border-border"
 >
@@ -75,14 +76,17 @@ const hasMenu = links.length > 0 || Boolean(cta) || Boolean(primary);
       }
       {
         cta && (
-          <a href={cta.href} class="btn btn-primary btn-sm ml-2 hidden md:inline-flex">
-            {cta.label}
-          </a>
+          /* Same hook as hosted docs: `#topbar-cta-button > a` restyles it from the site CSS. */
+          <div id="topbar-cta-button" class="ml-2 hidden md:flex">
+            <a href={cta.href} class="btn btn-primary btn-sm">
+              {cta.label}
+            </a>
+          </div>
         )
       }
       {
         hasMenu && (
-          <button type="button" popovertarget="site-menu" aria-label="Menu" class="btn btn-ghost btn-icon md:hidden">
+          <button type="button" popovertarget="mobile-nav" aria-label="Menu" class="btn btn-ghost btn-icon md:hidden">
             <Icon name="menu" size={16} class="site-menu-open" />
             <Icon name="close" size={16} class="site-menu-close" />
           </button>
@@ -93,8 +97,8 @@ const hasMenu = links.length > 0 || Boolean(cta) || Boolean(primary);
 
   {
     hasMenu && (
-      <div id="site-menu" popover class="site-menu md:hidden">
-        <nav aria-label="Main" class="flex flex-col px-5 py-2 sm:px-6">
+      <div id="mobile-nav" popover class="site-menu md:hidden">
+        <nav id="mobile-nav-content" aria-label="Main" class="flex flex-col px-5 py-2 sm:px-6">
           {links.map((link) => (
             <a href={link.href} class="flex h-11 items-center gap-2.5 border-b border-border text-[0.9375rem] last:border-b-0">
               <LinkIcon icon={link.icon} size={16} class="shrink-0 text-muted-foreground" />

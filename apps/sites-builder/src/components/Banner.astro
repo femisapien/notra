@@ -9,7 +9,7 @@ interface Props {
 const { banner } = Astro.props;
 ---
 
-<div data-site-banner class="site-banner relative text-sm" style={`--banner-light:${banner.light};--banner-dark:${banner.dark};--banner-foreground:${banner.foreground}`}>
+<div id="banner" data-site-banner class="site-banner relative text-sm" style={`--banner-light:${banner.light};--banner-dark:${banner.dark};--banner-foreground:${banner.foreground}`}>
   <div class:list={["mx-auto flex min-h-10 items-center justify-center px-5 py-2 text-center sm:px-6", banner.dismissible && "pr-12"]}>
     <p class="banner-content text-pretty" set:html={banner.html} />
   </div>

@@ -14,7 +14,7 @@ const external = href ? /^https?:\/\//.test(href) : false;
 <Element
   href={href}
   rel={external ? "noopener" : undefined}
-  class:list={["not-prose group flex flex-col overflow-hidden rounded-lg border border-border transition-colors", href && "hover:bg-muted/50"]}
+  class:list={["card not-prose group flex flex-col overflow-hidden rounded-lg border border-border transition-colors", href && "hover:bg-muted/50"]}
 >
   {img && <img src={img} alt="" class="aspect-[16/9] w-full border-b border-border object-cover" loading="lazy" />}
   <div class="flex flex-1 flex-col p-4">

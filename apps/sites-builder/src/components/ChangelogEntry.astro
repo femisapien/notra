@@ -53,12 +53,12 @@ const summary = layout === "compact" ? (entry.data.description ?? excerpt(entry.
         {entry.data.version && (layout === "cards" && !standalone ? <span class="rounded-full border border-border px-2 py-0.5 text-xs">{entry.data.version}</span> : <p class="mt-0.5">{entry.data.version}</p>)}
       </div>
       <div class="min-w-0">
-        <Heading class:list={["font-semibold tracking-[-0.02em] text-balance", standalone ? "text-[1.75rem] leading-tight" : layout === "cards" ? "font-heading text-xl font-medium" : "text-lg"]}>
+        <Heading id={standalone ? "page-title" : undefined} class:list={["font-semibold tracking-[-0.02em] text-balance", standalone ? "text-[1.75rem] leading-tight" : layout === "cards" ? "font-heading text-xl font-medium" : "text-lg"]}>
           {standalone ? entry.data.title : <a href={href(entry.id)} class="underline-offset-4 hover:underline">{entry.data.title}</a>}
           {entry.data.draft && <span class="ml-2 align-middle text-sm font-normal tracking-normal text-warning">Draft</span>}
         </Heading>
         {image && <img src={image} alt="" class="mt-5 w-full rounded-lg border border-border" loading="lazy" />}
-        <div class="prose prose-notra mt-4 max-w-none" data-md-root={standalone ? "" : undefined}>
+        <div class="mdx-content prose prose-notra mt-4 max-w-none" data-md-root={standalone ? "" : undefined}>
           <Content />
         </div>
       </div>

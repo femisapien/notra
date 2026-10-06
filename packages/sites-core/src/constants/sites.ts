@@ -90,6 +90,7 @@ export const SITE_SOURCE_ROOT_ENTRIES = [
   "snippets",
   "public",
   // Custom CSS, loaded on every page after the theme so it can override it.
+  // Any other `.css` file in the site counts too (see isSiteStylesheet).
   "style.css",
   "styles",
   // Custom JavaScript, loaded on every page with `defer`.

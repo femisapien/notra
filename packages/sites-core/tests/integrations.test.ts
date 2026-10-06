@@ -128,18 +128,23 @@ describe("head scripts", () => {
     ]);
   });
 
-  test("custom scripts: script.js first, then scripts/ by path", () => {
+  test("custom scripts: script.js first, then every plain script by path", () => {
     expect(
       sortCustomScriptPaths([
         "scripts/b.js",
         "snippets/a.js",
+        "blog/widget.js",
         "scripts/A.js",
         "script.js",
+        "databuddy.js",
+        "assets/track.js",
         "scripts/nested/c.js",
         "scripts/readme.txt",
       ])
     ).toEqual([
       "script.js",
+      "assets/track.js",
+      "databuddy.js",
       "scripts/A.js",
       "scripts/b.js",
       "scripts/nested/c.js",

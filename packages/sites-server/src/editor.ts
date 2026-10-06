@@ -6,8 +6,8 @@ import { validateSite } from "@notra/sites-compiler/validate";
 import {
   SITE_CONFIG_FILENAME,
   SITE_SOURCE_EXTENSIONS,
-  SITE_SOURCE_ROOT_ENTRIES,
 } from "@notra/sites-core/constants/sites";
+import { isSiteSourcePath } from "@notra/sites-core/utils/source-files";
 import { and, eq } from "drizzle-orm";
 
 import { MAX_DRAFT_BYTES } from "./constants/editor";
@@ -48,9 +48,7 @@ function repoPath(site: Site, sitePath: string): string {
 /** Only files the site actually uses are editable, and never anything outside the site root. */
 export function assertEditablePath(path: string): void {
   const segments = path.split("/");
-  const allowedRoot = (SITE_SOURCE_ROOT_ENTRIES as readonly string[]).includes(
-    segments[0] ?? ""
-  );
+  const allowedRoot = isSiteSourcePath(path);
   const allowedExtension = (SITE_SOURCE_EXTENSIONS as readonly string[]).some(
     (extension) => path.toLowerCase().endsWith(extension)
   );
@@ -116,8 +114,7 @@ export async function listSiteSourceFiles(
       continue;
     }
     const path = entry.path.slice(prefix.length);
-    const root = path.split("/")[0] ?? "";
-    if (!(SITE_SOURCE_ROOT_ENTRIES as readonly string[]).includes(root)) {
+    if (!isSiteSourcePath(path)) {
       continue;
     }
     files.push({ path, sha: entry.sha, size: entry.size ?? 0 });

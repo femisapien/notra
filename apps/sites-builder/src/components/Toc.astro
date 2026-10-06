@@ -10,7 +10,7 @@ const items = Astro.props.headings.filter((heading) => heading.depth === 2 || he
 
 {
   items.length > 1 && (
-    <nav aria-label="On this page" data-toc>
+    <nav id="table-of-contents" aria-label="On this page" data-toc>
       <p class="mb-3 text-sm font-medium">On this page</p>
       <ul class="flex flex-col border-l border-border">
         {items.map((item) => (

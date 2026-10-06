@@ -121,12 +121,12 @@ const customFooter = Boolean(chromeComponent("footer"));
       )
     }
   </head>
-  <body class="flex min-h-dvh flex-col font-sans text-foreground">
-    <a href="#content" class="skip-link">Skip to content</a>
+  <body id="body-content" class="flex min-h-dvh flex-col font-sans text-foreground">
+    <a href="#content-area" class="skip-link">Skip to content</a>
     {banner && <Banner banner={banner} />}
     {customHeader ? <CustomChrome part="header" /> : <Header />}
-    <main id="content" tabindex="-1" class="w-full flex-1 px-4 pt-4 pb-24 outline-none sm:px-6 sm:pt-6">
-      <slot />
+    <main id="content-area" tabindex="-1" class="w-full flex-1 px-4 pt-4 pb-24 outline-none sm:px-6 sm:pt-6">
+      <div id="content"><slot /></div>
     </main>
     {customFooter ? <CustomChrome part="footer" /> : <Footer />}
     <CodeBlocks />
