@@ -71,13 +71,7 @@ function resolveColors(input: StarterBrandInput) {
     (landingAccent && isAccentColor(landingAccent) ? landingAccent : null) ??
     STARTER_DEFAULT_PRIMARY;
   const primaryDark = normalizeHexColor(input.colors.primaryDark);
-  const backgroundLight =
-    normalizeHexColor(input.colors.backgroundLight) ??
-    normalizeHexColor(landing?.themeColorLight);
-  const backgroundDark =
-    normalizeHexColor(input.colors.backgroundDark) ??
-    normalizeHexColor(landing?.themeColorDark);
-  return { primary, primaryDark, backgroundLight, backgroundDark };
+  return { primary, primaryDark };
 }
 
 /** Fonts the page already loads from Google Fonts are known to work; brand fonts are the fallback. */
@@ -178,15 +172,6 @@ export function buildStarterConfig(input: StarterBrandInput) {
             heading: { family: fonts.heading },
             body: { family: fonts.body },
           };
-  }
-  if (colors.backgroundLight || colors.backgroundDark) {
-    config.background = {
-      decoration: "none",
-      color: {
-        ...(colors.backgroundLight ? { light: colors.backgroundLight } : {}),
-        ...(colors.backgroundDark ? { dark: colors.backgroundDark } : {}),
-      },
-    };
   }
   const socials = input.landing?.socials ?? {};
   if (Object.keys(socials).length > 0) {

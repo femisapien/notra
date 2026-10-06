@@ -19,9 +19,6 @@ export interface LandingPageFacts {
   iconUrl: string | null;
   /** A non-media `theme-color`. */
   themeColor: string | null;
-  /** `theme-color` per `prefers-color-scheme`, usually the page background. */
-  themeColorLight: string | null;
-  themeColorDark: string | null;
   /** Google Fonts family names, in the order the page loads them. */
   fontFamilies: string[];
   navLinks: StarterLink[];
@@ -46,8 +43,6 @@ export interface StarterBrandInput {
   colors: {
     primary: string | null;
     primaryDark: string | null;
-    backgroundLight: string | null;
-    backgroundDark: string | null;
   };
   fonts: { heading: string | null; body: string | null };
   landing: LandingPageFacts | null;

@@ -70,8 +70,6 @@ const EMPTY_BRAND: Omit<StarterBrandInput, "landing"> = {
   colors: {
     primary: null,
     primaryDark: null,
-    backgroundLight: null,
-    backgroundDark: null,
   },
   fonts: { heading: null, body: null },
 };
@@ -91,8 +89,6 @@ describe("extractLandingPage", () => {
     expect(facts.description).toBe("Acme helps teams ship.");
     expect(facts.iconUrl).toBe("https://acme.com/icon.svg");
     expect(facts.themeColor).toBe("#2563eb");
-    expect(facts.themeColorLight).toBe("#fafafa");
-    expect(facts.themeColorDark).toBe("#0a0a0a");
     expect(facts.fontFamilies).toEqual(["Inter", "Space Grotesk"]);
   });
 
@@ -204,10 +200,8 @@ describe("buildSiteStarterFiles", () => {
     );
     expect(config.name).toBe("Acme");
     expect(config.colors.primary).toBe("#2563eb");
-    expect(config.background.color).toEqual({
-      light: "#fafafa",
-      dark: "#0a0a0a",
-    });
+    // The page's per-scheme theme-color is its background; the site keeps the theme's white and dark.
+    expect(config.background.color).toBeUndefined();
     expect(config.fonts?.family).toBe("Inter");
     expect(config.favicon).toBe("https://acme.com/icon.svg");
     expect(config.footer.socials.x).toBe("https://x.com/acme");
@@ -226,8 +220,6 @@ describe("buildSiteStarterFiles", () => {
         colors: {
           primary: "#FF5500",
           primaryDark: "#ff8844",
-          backgroundLight: null,
-          backgroundDark: null,
         },
         fonts: { heading: "Space Grotesk", body: "Helvetica" },
         landing,

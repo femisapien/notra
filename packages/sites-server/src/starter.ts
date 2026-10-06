@@ -244,7 +244,6 @@ export async function loadStarterBrand(
   const colorFor = (role: (typeof colors)[number]["role"]) =>
     colors.find((color) => color.role === role);
   const primary = colorFor("primary") ?? colorFor("accent");
-  const background = colorFor("background");
   const fontFor = (role: (typeof fonts)[number]["role"]) =>
     fonts.find((font) => font.role === role)?.family ?? null;
   // A mark next to the name reads best in a header; a wordmark replaces the name.
@@ -275,8 +274,6 @@ export async function loadStarterBrand(
     colors: {
       primary: primary?.lightValue ?? null,
       primaryDark: primary?.darkValue ?? null,
-      backgroundLight: background?.lightValue ?? null,
-      backgroundDark: background?.darkValue ?? null,
     },
     fonts: { heading: fontFor("heading"), body: fontFor("body") },
   };

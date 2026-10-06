@@ -315,8 +315,6 @@ export function extractLandingPage(
     headerLogoUrl: null,
     iconUrl: null,
     themeColor: null,
-    themeColorLight: null,
-    themeColorDark: null,
     fontFamilies: [],
     navLinks: [],
     cta: null,
@@ -492,15 +490,11 @@ function readMeta(attrs: Map<string, string>, facts: LandingPageFacts): void {
   if (!content) {
     return;
   }
+  // A theme-color per color scheme is the page background; the site keeps
+  // the theme's own white and dark, so only a plain one can be an accent.
   if (key === "theme-color") {
-    const color = normalizeHexColor(content);
-    const media = (attrs.get("media") ?? "").toLowerCase();
-    if (media.includes("dark")) {
-      facts.themeColorDark ??= color;
-    } else if (media.includes("light")) {
-      facts.themeColorLight ??= color;
-    } else {
-      facts.themeColor ??= color;
+    if (!attrs.has("media")) {
+      facts.themeColor ??= normalizeHexColor(content);
     }
   } else if (key === "og:site_name" || key === "application-name") {
     facts.siteName ??= content;
