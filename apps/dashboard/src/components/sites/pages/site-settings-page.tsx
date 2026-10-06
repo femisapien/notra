@@ -2,6 +2,7 @@
 
 import { Folder01Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
 import { Input } from "@notra/ui/components/ui/input";
+import { Switch } from "@notra/ui/components/ui/switch";
 import { TitleCard } from "@notra/ui/components/ui/title-card";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
@@ -22,6 +23,7 @@ import { SiteSettingsSaveBar } from "@/components/sites/site-settings-save-bar";
 import { SiteSuggestInput } from "@/components/sites/site-suggest-input";
 import { useRepositorySuggestions } from "@/lib/hooks/use-repository-suggestions";
 import { useSitePublishModeOptions } from "@/lib/hooks/use-site-choice-options";
+import { useSiteRootDirectoryToggle } from "@/lib/hooks/use-site-root-directory-toggle";
 import { useInvalidateSites } from "@/lib/hooks/use-sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SiteSettingsFormProps } from "@/types/components/sites";
@@ -81,6 +83,9 @@ function SiteSettingsForm({
     key: K,
     value: SiteSettingsFormValues[K]
   ) => setForm((current) => ({ ...current, [key]: value }));
+  const subdirectory = useSiteRootDirectoryToggle(form.rootDirectory, (value) =>
+    update("rootDirectory", value)
+  );
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -136,20 +141,35 @@ function SiteSettingsForm({
               />
             </SiteSettingsRow>
             <SiteSettingsRow
-              description={tNew("rootDirectoryHint")}
-              htmlFor={`${id}-root`}
-              label={tNew("rootDirectory")}
+              description={tNew("subdirectoryHint")}
+              htmlFor={`${id}-subdirectory`}
+              label={tNew("subdirectory")}
             >
-              <SiteSuggestInput
-                emptyLabel={tNew("noDirectoryMatch")}
-                icon={Folder01Icon}
-                id={`${id}-root`}
-                onValueChange={(value) => update("rootDirectory", value)}
-                placeholder={tNew("rootDirectoryPlaceholder")}
-                suggestions={suggestions.configDirectories.filter(Boolean)}
-                value={form.rootDirectory}
-              />
+              <div className="flex lg:h-full lg:items-center lg:justify-end">
+                <Switch
+                  checked={subdirectory.checked}
+                  id={`${id}-subdirectory`}
+                  onCheckedChange={subdirectory.onCheckedChange}
+                />
+              </div>
             </SiteSettingsRow>
+            {subdirectory.checked ? (
+              <SiteSettingsRow
+                description={tNew("rootDirectoryPathHint")}
+                htmlFor={`${id}-root`}
+                label={tNew("rootDirectoryPath")}
+              >
+                <SiteSuggestInput
+                  emptyLabel={tNew("noDirectoryMatch")}
+                  icon={Folder01Icon}
+                  id={`${id}-root`}
+                  onValueChange={(value) => update("rootDirectory", value)}
+                  placeholder={tNew("rootDirectoryPlaceholder")}
+                  suggestions={suggestions.configDirectories.filter(Boolean)}
+                  value={form.rootDirectory}
+                />
+              </SiteSettingsRow>
+            ) : null}
           </div>
         </TitleCard>
 

@@ -2,8 +2,15 @@
 
 import { Folder01Icon, GitBranchIcon } from "@hugeicons/core-free-icons";
 import { slugifySiteName } from "@notra/sites-core/utils/hosts";
-import { Field, FieldError, FieldLabel } from "@notra/ui/components/ui/field";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@notra/ui/components/ui/field";
 import { Input } from "@notra/ui/components/ui/input";
+import { Switch } from "@notra/ui/components/ui/switch";
 import { m } from "motion/react";
 import { useTranslations } from "next-intl";
 
@@ -12,6 +19,7 @@ import { SiteCreateSectionFields } from "@/components/sites/site-create-section-
 import { SiteCreateStarter } from "@/components/sites/site-create-starter";
 import { SiteSuggestInput } from "@/components/sites/site-suggest-input";
 import { SITE_CREATE_ROW_VARIANTS } from "@/constants/site-create";
+import { useSiteRootDirectoryToggle } from "@/lib/hooks/use-site-root-directory-toggle";
 import type { SiteCreateSourceFieldsProps } from "@/types/components/sites";
 
 /**
@@ -35,6 +43,9 @@ export function SiteCreateSourceFields({
 }: SiteCreateSourceFieldsProps) {
   const t = useTranslations("sites.new");
   const slugMessage = errors.slug ?? (slugInvalid ? t("addressInvalid") : null);
+  const subdirectory = useSiteRootDirectoryToggle(form.rootDirectory, (value) =>
+    update("rootDirectory", value)
+  );
 
   return (
     <>
@@ -72,7 +83,7 @@ export function SiteCreateSourceFields({
         </Field>
       </m.div>
       <m.div
-        className="grid gap-4 sm:grid-cols-2"
+        className="flex flex-col gap-4"
         variants={SITE_CREATE_ROW_VARIANTS}
       >
         <Field>
@@ -87,28 +98,48 @@ export function SiteCreateSourceFields({
             value={form.branch}
           />
         </Field>
-        <Field data-invalid={errors.rootDirectory ? true : undefined}>
-          <FieldLabel htmlFor={`${id}-root`}>
-            {t("rootDirectory")}
-            <span className="text-muted-foreground font-normal">
-              {t("optional")}
-            </span>
-          </FieldLabel>
-          <SiteSuggestInput
-            describedBy={errors.rootDirectory ? `${id}-root-error` : undefined}
-            emptyLabel={t("noDirectoryMatch")}
-            icon={Folder01Icon}
-            id={`${id}-root`}
-            invalid={Boolean(errors.rootDirectory)}
-            onValueChange={(value) => update("rootDirectory", value)}
-            placeholder={t("rootDirectoryPlaceholder")}
-            suggestions={suggestions.configDirectories.filter(Boolean)}
-            value={form.rootDirectory}
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldLabel htmlFor={`${id}-subdirectory`}>
+              {t("subdirectory")}
+            </FieldLabel>
+            <FieldDescription>{t("subdirectoryHint")}</FieldDescription>
+          </FieldContent>
+          <Switch
+            checked={subdirectory.checked}
+            id={`${id}-subdirectory`}
+            onCheckedChange={subdirectory.onCheckedChange}
           />
-          <FieldError id={`${id}-root-error`}>
-            {errors.rootDirectory}
-          </FieldError>
         </Field>
+        {subdirectory.checked ? (
+          <Field data-invalid={errors.rootDirectory ? true : undefined}>
+            <FieldLabel htmlFor={`${id}-root`}>
+              {t("rootDirectoryPath")}
+            </FieldLabel>
+            <SiteSuggestInput
+              describedBy={
+                errors.rootDirectory ? `${id}-root-error` : `${id}-root-hint`
+              }
+              emptyLabel={t("noDirectoryMatch")}
+              icon={Folder01Icon}
+              id={`${id}-root`}
+              invalid={Boolean(errors.rootDirectory)}
+              onValueChange={(value) => update("rootDirectory", value)}
+              placeholder={t("rootDirectoryPlaceholder")}
+              suggestions={suggestions.configDirectories.filter(Boolean)}
+              value={form.rootDirectory}
+            />
+            {errors.rootDirectory ? (
+              <FieldError id={`${id}-root-error`}>
+                {errors.rootDirectory}
+              </FieldError>
+            ) : (
+              <FieldDescription id={`${id}-root-hint`}>
+                {t("rootDirectoryPathHint")}
+              </FieldDescription>
+            )}
+          </Field>
+        ) : null}
       </m.div>
       {form.repositoryId ? (
         <SiteCreateStarter

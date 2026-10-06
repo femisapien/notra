@@ -340,8 +340,8 @@ export interface SiteDeploymentsTableProps {
   /** Glow rows that arrive after the first render, e.g. a build that just started. */
   highlightNewRows?: boolean;
   emptyHeight?: number;
-  /** Grow with the rows and let the page scroll, instead of scrolling inside the table. */
-  fitRows?: boolean;
+  /** Rows per page; the table grows with the page and pages below it. */
+  pageSize: number;
 }
 
 export interface SiteDeploymentDetailPageProps {
@@ -649,4 +649,9 @@ export interface SiteCreateStarterProps {
   /** The starter pull request opened from this page, if any. */
   pullRequestUrl: string | null;
   onPullRequestOpened: (url: string) => void;
+}
+
+export interface SiteRootDirectoryToggleProps {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
 }

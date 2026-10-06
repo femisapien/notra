@@ -1,6 +1,6 @@
 "use client";
 
-import { Rocket01Icon } from "@hugeicons/core-free-icons";
+import { RefreshIcon, Rocket01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Empty,
@@ -25,6 +25,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { useSite } from "@/components/sites/site-context";
 import { SiteDeploymentsTable } from "@/components/sites/site-deployments-table";
 import {
+  SITE_DEPLOYMENTS_PAGE_SIZE,
   SITE_DEPLOYMENT_ENVIRONMENT_FILTERS,
   SITE_DEPLOYMENT_NO_FILTERS,
   SITE_DEPLOYMENT_STATUS_FILTERS,
@@ -77,7 +78,7 @@ export function SiteDeploymentsPage() {
       size={variant === "default" ? "default" : "sm"}
       variant={variant}
     >
-      <HugeiconsIcon icon={Rocket01Icon} size={16} strokeWidth={1.5} />
+      <HugeiconsIcon icon={RefreshIcon} size={16} strokeWidth={1.5} />
       {tDetail("deployLatest")}
     </Button>
   );
@@ -188,10 +189,10 @@ export function SiteDeploymentsPage() {
       <SiteDeploymentsTable
         deployments={visible}
         emptyState={<div className="text-foreground w-full">{emptyState}</div>}
-        fitRows
         highlightNewRows
         organizationId={organizationId}
         organizationSlug={organizationSlug}
+        pageSize={SITE_DEPLOYMENTS_PAGE_SIZE}
         siteId={siteId}
         withActions
       />

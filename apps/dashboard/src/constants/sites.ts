@@ -1,10 +1,12 @@
 import {
+  Analytics01Icon,
   DashboardSquare01Icon,
   FileEditIcon,
-  AnalyticsUpIcon,
+  PlugSocketIcon,
   GitPullRequestIcon,
   Globe02Icon,
   Rocket01Icon,
+  RefreshIcon,
   Settings01Icon,
   ViewIcon,
 } from "@hugeicons/core-free-icons";
@@ -14,6 +16,7 @@ import type {
   SiteDeploymentFilters,
   SiteDeploymentKind,
   SiteDeploymentStatus,
+  SiteDeploymentTrigger,
   SiteDomainChipStatus,
   SiteSectionConfig,
 } from "@/types/sites";
@@ -23,12 +26,16 @@ export const SITES_NAV_LINK = "/sites";
 /** Polling while a build is queued or running, so status changes show up quickly. */
 export const SITE_ACTIVE_POLL_INTERVAL_MS = 2000;
 export const SITE_IDLE_POLL_INTERVAL_MS = 15_000;
+export const SITE_ANALYTICS_POLL_INTERVAL_MS = 60_000;
+/** The overview card looks back a week; the Analytics tab has the range picker. */
+export const SITE_OVERVIEW_ANALYTICS_DAYS = 7;
 
 export const SITE_DEPLOYMENT_IN_PROGRESS_STATUSES: ReadonlySet<SiteDeploymentStatus> =
   new Set(["queued", "building", "uploading"]);
 
 export const SITE_DETAIL_TABS = [
   "overview",
+  "analytics",
   "deployments",
   "previews",
   "domains",
@@ -40,15 +47,17 @@ export const SITE_DETAIL_TABS = [
 /** A site's pages, in sidebar order; each is its own route below /sites/[siteId]. */
 export const SITE_SECTIONS: readonly SiteSectionConfig[] = [
   { section: "overview", path: "", icon: DashboardSquare01Icon },
+  { section: "analytics", path: "/analytics", icon: Analytics01Icon },
   { section: "deployments", path: "/deployments", icon: Rocket01Icon },
   { section: "previews", path: "/previews", icon: ViewIcon },
   { section: "domains", path: "/domains", icon: Globe02Icon },
   { section: "editor", path: "/editor", icon: FileEditIcon },
-  { section: "integrations", path: "/integrations", icon: AnalyticsUpIcon },
+  { section: "integrations", path: "/integrations", icon: PlugSocketIcon },
   { section: "settings", path: "/settings", icon: Settings01Icon },
 ];
 
 export const SITE_RECENT_DEPLOYMENTS_LIMIT = 5;
+export const SITE_DEPLOYMENTS_PAGE_SIZE = 20;
 export const SITE_OVERVIEW_PREVIEWS_LIMIT = 5;
 /** Content-sized site tables: this only sizes the empty state, which holds an icon, copy and a button. */
 export const SITE_TABLE_EMPTY_HEIGHT = 340;
@@ -100,6 +109,15 @@ export const SITE_DOMAIN_STATUS_DOTS: Record<SiteDomainChipStatus, string> = {
   failed: "bg-destructive",
 };
 
+/** Deployments nobody pushed for get their trigger next to the commit, so a manual update reads as one. */
+export const SITE_MANUAL_TRIGGER_ICONS: Partial<
+  Record<SiteDeploymentTrigger, IconSvgElement>
+> = {
+  manual: RefreshIcon,
+  redeploy: RefreshIcon,
+  config: Settings01Icon,
+};
+
 /** One status language everywhere: building amber, ready green, failed red, the rest grey. */
 export const SITE_STATUS_DOT_STYLES: Record<SiteDeploymentStatus, string> = {
   queued: "bg-muted-foreground/50",
@@ -114,15 +132,6 @@ export const SITE_STATUS_DOT_STYLES: Record<SiteDeploymentStatus, string> = {
 
 /** Same row height as the feedback table: a title line and a detail line. */
 export const SITE_DEPLOYMENT_ROW_HEIGHT = 48;
-
-/** Environment pills, tinted like the feedback kind pills. */
-export const SITE_ENVIRONMENT_PILL_CLASS =
-  "inline-flex h-6 max-w-full items-center gap-1.5 rounded-full border px-2 text-xs font-medium";
-
-export const SITE_ENVIRONMENT_PILL_TONE: Record<SiteDeploymentKind, string> = {
-  production: "border-success/25 bg-success/10 text-foreground",
-  preview: "border-info/25 bg-info/10 text-foreground",
-};
 
 export const SITE_ENVIRONMENT_ICONS: Record<
   SiteDeploymentKind,

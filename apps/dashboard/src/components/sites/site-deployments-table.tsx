@@ -1,20 +1,20 @@
 "use client";
 
 import { HugeiconsIcon } from "@hugeicons/react";
+import { TablePagination } from "@notra/ui/components/shared/table-pagination";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Table, type TableColumn } from "@/components/motion/table";
 import { SiteDeploymentMenu } from "@/components/sites/site-deployment-menu";
+import { SiteEnvironmentBadge } from "@/components/sites/site-environment-badge";
 import { SiteRelativeTime } from "@/components/sites/site-relative-time";
 import { SiteRollbackDialog } from "@/components/sites/site-rollback-dialog";
 import { SiteStatusDot } from "@/components/sites/site-status-dot";
 import {
   SITE_DEPLOYMENT_ROW_HEIGHT,
-  SITE_ENVIRONMENT_ICONS,
-  SITE_ENVIRONMENT_PILL_CLASS,
-  SITE_ENVIRONMENT_PILL_TONE,
+  SITE_MANUAL_TRIGGER_ICONS,
   SITE_TABLE_EMPTY_HEIGHT,
 } from "@/constants/sites";
 import { useNow } from "@/lib/hooks/use-now";
@@ -30,7 +30,6 @@ import {
   shortSha,
 } from "@/utils/site-deployments";
 import { siteDeploymentHref } from "@/utils/site-links";
-import { tableHeightFor } from "@/utils/table";
 
 /**
  * Deployments as rows, laid out like the feedback table: commit, environment
@@ -47,10 +46,9 @@ export function SiteDeploymentsTable({
   withActions = false,
   highlightNewRows = false,
   emptyHeight = SITE_TABLE_EMPTY_HEIGHT,
-  fitRows = false,
+  pageSize,
 }: SiteDeploymentsTableProps) {
   const t = useTranslations("sites.deploymentsPage");
-  const tKinds = useTranslations("sites.kinds");
   const tTriggers = useTranslations("sites.triggers");
   const tDeployments = useTranslations("sites.deployments");
   const router = useRouter();
@@ -65,13 +63,19 @@ export function SiteDeploymentsTable({
   const href = (deployment: SiteDeployment) =>
     siteDeploymentHref(organizationSlug, siteId, deployment.id);
 
-  let tableHeight = emptyHeight;
-  if (deployments.length > 0) {
-    // The header takes one row's height.
-    tableHeight = fitRows
-      ? (deployments.length + 1) * SITE_DEPLOYMENT_ROW_HEIGHT
-      : tableHeightFor(deployments.length, SITE_DEPLOYMENT_ROW_HEIGHT);
-  }
+  const [requestedPage, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(deployments.length / pageSize));
+  // Filters can shrink the list under the current page.
+  const page = Math.min(requestedPage, pageCount);
+  const pageRowCount = Math.min(
+    pageSize,
+    deployments.length - (page - 1) * pageSize
+  );
+  // The table grows with the page's rows; the header takes one row's height.
+  const tableHeight =
+    deployments.length > 0
+      ? (pageRowCount + 1) * SITE_DEPLOYMENT_ROW_HEIGHT
+      : emptyHeight;
 
   const columns: TableColumn<SiteDeployment>[] = [
     {
@@ -83,6 +87,7 @@ export function SiteDeploymentsTable({
       sortValue: (deployment) => commitTitle(deployment.commitMessage) ?? "",
       cell: (deployment) => {
         const title = commitTitle(deployment.commitMessage);
+        const triggerIcon = SITE_MANUAL_TRIGGER_ICONS[deployment.trigger];
         return (
           <span className="flex min-w-0 flex-col gap-0.5">
             <span
@@ -102,6 +107,20 @@ export function SiteDeploymentsTable({
               <span className="truncate font-mono" title={deployment.branch}>
                 {deployment.branch}
               </span>
+              {triggerIcon ? (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span className="flex shrink-0 items-center gap-1">
+                    <HugeiconsIcon
+                      aria-hidden="true"
+                      className="size-3"
+                      icon={triggerIcon}
+                      strokeWidth={2}
+                    />
+                    {tTriggers(deployment.trigger)}
+                  </span>
+                </>
+              ) : null}
             </span>
           </span>
         );
@@ -115,22 +134,11 @@ export function SiteDeploymentsTable({
       sortable: true,
       sortValue: (deployment) => deployment.kind,
       cell: (deployment) => (
-        <span
-          className={cn(
-            SITE_ENVIRONMENT_PILL_CLASS,
-            SITE_ENVIRONMENT_PILL_TONE[deployment.kind]
-          )}
-        >
-          <HugeiconsIcon
-            aria-hidden
-            className="size-3.5 shrink-0"
-            icon={SITE_ENVIRONMENT_ICONS[deployment.kind]}
-            strokeWidth={2}
-          />
-          <span className="truncate">
-            {deployment.previewKey ?? tKinds(deployment.kind)}
-          </span>
-        </span>
+        <SiteEnvironmentBadge
+          kind={deployment.kind}
+          live={deployment.live}
+          previewKey={deployment.previewKey}
+        />
       ),
     },
     {
@@ -229,9 +237,25 @@ export function SiteDeploymentsTable({
         defaultSort={{ key: "created", direction: "desc" }}
         getRowId={(deployment) => deployment.id}
         height={tableHeight}
+        footer={
+          deployments.length > 0 ? (
+            <TablePagination
+              page={page}
+              pageCount={pageCount}
+              pageRowCount={pageRowCount}
+              pageSize={pageSize}
+              setPage={(next) =>
+                setPage(Math.min(Math.max(1, next), pageCount))
+              }
+              totalItems={deployments.length}
+            />
+          ) : undefined
+        }
         onRowClick={(deployment) => router.push(href(deployment))}
         onRowPointerEnter={(deployment) => router.prefetch(href(deployment))}
         resizable
+        page={page}
+        pageSize={pageSize}
         rowHeight={SITE_DEPLOYMENT_ROW_HEIGHT}
         scrollFade={false}
       />
