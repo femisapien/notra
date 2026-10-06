@@ -372,6 +372,7 @@ async function publishToGitHub(
         pullRequestNumber: previous.pullRequestNumber,
         pullRequestUrl: previous.pullRequestUrl,
         headSha: previous.headSha ?? null,
+        contentHash: previous.contentHash,
       });
     }
   }
@@ -395,6 +396,7 @@ async function publishToGitHub(
     pullRequestNumber: published.pullRequestNumber,
     pullRequestUrl: published.pullRequestUrl,
     headSha: published.headSha ?? null,
+    contentHash: postContentHash(post),
   });
 }
 

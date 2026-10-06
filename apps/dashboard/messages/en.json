@@ -6212,7 +6212,6 @@
         "partial": "partly failed"
       },
       "toasts": {
-        "loadFailed": "Couldn't load the content calendar",
         "scheduleFailed": "Couldn't schedule the post",
         "unscheduled": "Schedule removed",
         "unscheduledPartially": "Schedule removed. One destination was already publishing and will finish.",

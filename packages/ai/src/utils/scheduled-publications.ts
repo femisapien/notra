@@ -598,6 +598,56 @@ function dueCondition(now: Date, dueBy = now) {
 }
 
 /**
+ * Ends rows whose runs keep dying before they get anywhere. A takeover only
+ * reaches the attempt cap and the cancel check once its run starts, so a run
+ * that never starts (broken deploy, schema drift) would otherwise leave the
+ * row `publishing` forever and every sweep would start another one. Returns
+ * the rows that failed, for the failure email.
+ */
+export async function settleAbandonedScheduledPublications(params?: {
+  now?: Date;
+  postId?: string;
+}): Promise<string[]> {
+  const now = params?.now ?? new Date();
+  const abandoned = and(
+    eq(scheduledPublications.status, "publishing"),
+    or(
+      isNull(scheduledPublications.leaseUntil),
+      lte(scheduledPublications.leaseUntil, now)
+    ),
+    params?.postId ? eq(scheduledPublications.postId, params.postId) : undefined
+  );
+  const released = { claimToken: null, leaseUntil: null };
+  // Nothing went out yet, so a cancel that arrived meanwhile just wins.
+  await db
+    .update(scheduledPublications)
+    .set({ ...released, status: "canceled" })
+    .where(
+      and(
+        abandoned,
+        isNotNull(scheduledPublications.cancelRequestedAt),
+        isNull(scheduledPublications.externalAttemptAt)
+      )
+    );
+  const failed = await db
+    .update(scheduledPublications)
+    .set({
+      ...released,
+      status: "failed",
+      errorCode: sql`case when ${scheduledPublications.externalAttemptAt} is null then ${SCHEDULED_PUBLICATION_ERROR_CODES.TOO_MANY_ATTEMPTS} else ${SCHEDULED_PUBLICATION_ERROR_CODES.OUTCOME_UNKNOWN} end`,
+      lastError: "Publishing was interrupted too many times.",
+    })
+    .where(
+      and(
+        abandoned,
+        sql`${scheduledPublications.attempts} > ${SCHEDULED_PUBLICATION_MAX_ATTEMPTS}`
+      )
+    )
+    .returning({ id: scheduledPublications.id });
+  return failed.map((row) => row.id);
+}
+
+/**
  * Claims due rows for one sweep with a single compare-and-set.
  *
  * `FOR UPDATE SKIP LOCKED` lets overlapping sweeps split the backlog instead

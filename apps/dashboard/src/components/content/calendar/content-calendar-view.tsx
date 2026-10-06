@@ -3,7 +3,7 @@
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { isSameDay, startOfDay } from "date-fns";
+import { isSameDay, isSameMonth, startOfDay } from "date-fns";
 import { useQueryState } from "nuqs";
 import { useMemo } from "react";
 import { createPortal } from "react-dom";
@@ -80,9 +80,12 @@ export function ContentCalendarView({
     [data?.entries, automation?.triggers, range]
   );
 
+  // The current month is the default, so paging back to it clears the param
+  // (and the "Today" button with it).
   const setAnchor = (date: Date) => {
-    const key = calendarDayKey(date);
-    void setAnchorKey(key === calendarDayKey(new Date()) ? null : key);
+    void setAnchorKey(
+      isSameMonth(date, new Date()) ? null : calendarDayKey(date)
+    );
   };
 
   const handleDropPost: CalendarDropHandler = (postId, day) => {
@@ -163,7 +166,7 @@ export function ContentCalendarView({
   return (
     <>
       {toolbarContainer ? createPortal(navigation, toolbarContainer) : null}
-      {isError ? (
+      {isError && !data ? (
         <EmptyState
           action={
             <Button

@@ -11,6 +11,11 @@ export interface ScheduledPullRequest {
   pullRequestNumber: number;
   pullRequestUrl: string;
   headSha: string | null;
+  /**
+   * Hash of the post as pushed. Kept on every stored result, so a retry after
+   * an edit pushes again instead of merging the old commit.
+   */
+  contentHash?: string;
 }
 
 export interface ScheduledPublicationWorkflowInput {

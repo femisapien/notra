@@ -30,6 +30,7 @@ export function ScheduleSlotField({
   const t = useTranslations("content.calendar.schedule");
   const formatDate = useLocalDateFormat();
   const dateId = useId();
+  const dateLabelId = useId();
   const timeId = useId();
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
@@ -43,13 +44,15 @@ export function ScheduleSlotField({
         {/* Flex, not space-y: the open popover inserts focus guards after the
             trigger, and space-y would then add a margin under it. */}
         <div className="flex flex-1 flex-col">
-          <Label className="sr-only" htmlFor={dateId}>
+          <Label className="sr-only" id={dateLabelId}>
             {t("date")}
           </Label>
           <Popover onOpenChange={setDatePickerOpen} open={datePickerOpen}>
             <PopoverTrigger
               render={
                 <Button
+                  // "Date", then the picked date the button shows.
+                  aria-labelledby={`${dateLabelId} ${dateId}`}
                   className="w-full justify-start gap-2 font-normal"
                   id={dateId}
                   type="button"
@@ -85,6 +88,9 @@ export function ScheduleSlotField({
                   onDateChange(next);
                   setDatePickerOpen(false);
                 }}
+                // Clicking the picked day again would clear it and silently
+                // disable "Schedule".
+                required
                 selected={date}
                 weekStartsOn={1}
               />

@@ -6212,7 +6212,6 @@
         "partial": "teilweise fehlgeschlagen"
       },
       "toasts": {
-        "loadFailed": "Content-Kalender konnte nicht geladen werden",
         "scheduleFailed": "Beitrag konnte nicht geplant werden",
         "unscheduled": "Planung entfernt",
         "unscheduledPartially": "Planung entfernt. Ein Ziel wird gerade veröffentlicht und läuft noch zu Ende.",

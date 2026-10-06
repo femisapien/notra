@@ -214,7 +214,12 @@ export async function createQstashRouteSchedule({
   return resolvedScheduleId;
 }
 
-/** Sends one message to an app route, held by QStash until `notBefore`. */
+/**
+ * Sends one message to a dashboard route, held by QStash until `notBefore`.
+ * Addressed like the schedule triggers, so the API (which only knows the
+ * dashboard as `WORKFLOW_BASE_URL`) can send it too; the route verifies the
+ * signature against the same base.
+ */
 export async function publishQstashRouteMessage({
   path,
   body,
@@ -222,9 +227,12 @@ export async function publishQstashRouteMessage({
   deduplicationId,
 }: PublishQstashRouteMessageProps) {
   const client = getQStashClient();
-  const appUrl = getScheduleAppUrl();
+  const baseUrl = getBaseUrl();
+  if (!baseUrl) {
+    throw new QstashScheduleSetupError({ reason: "missing_app_url" });
+  }
   await client.publishJSON({
-    url: `${appUrl}${path}`,
+    url: `${baseUrl}${path}`,
     body,
     // Whole seconds, rounded up so the message never lands before the time.
     notBefore: Math.ceil(notBefore.getTime() / 1000),

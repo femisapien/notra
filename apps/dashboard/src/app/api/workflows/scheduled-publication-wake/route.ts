@@ -1,5 +1,5 @@
 import { SCHEDULED_PUBLICATION_WAKE_ROUTE_PATH } from "@notra/ai/constants/scheduled-publications";
-import { getAppUrl } from "@notra/ai/qstash/triggers";
+import { getBaseUrl } from "@notra/ai/qstash/triggers";
 import { scheduledPublicationWakeSchema } from "@notra/schemas/dashboard/workflows/scheduled-publication-wake";
 import { flattenError } from "zod";
 
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const verified = await verifyQstashSignature({
     request,
     rawBody,
-    url: `${getAppUrl()}${SCHEDULED_PUBLICATION_WAKE_ROUTE_PATH}`,
+    url: `${getBaseUrl()}${SCHEDULED_PUBLICATION_WAKE_ROUTE_PATH}`,
   });
   if (!verified) {
     return new Response("Unauthorized", { status: 401 });

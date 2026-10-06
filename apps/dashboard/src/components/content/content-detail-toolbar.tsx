@@ -31,6 +31,7 @@ import {
   downloadImage,
   preloadImageExportCopy,
 } from "@/lib/content/image-export";
+import { usePostSchedule } from "@/lib/hooks/use-content-calendar";
 import { cn } from "@/lib/utils";
 import type {
   ContentDetailToolbarProps,
@@ -289,8 +290,18 @@ function ContentDetailPublishActions({
 }
 
 export function ContentDetailToolbar(props: ContentDetailToolbarProps) {
-  const { content, document, organizationId } = props;
+  const { content, contentId, document, organizationId } = props;
   const t = useTranslations("content.toolbar");
+  const { data: scheduleData } = usePostSchedule(organizationId, contentId);
+  // Posting by hand while a social send is pending would post it twice.
+  const socialSendPending = Boolean(
+    scheduleData?.schedule?.publications.some(
+      (publication) =>
+        publication.destination === "social" &&
+        (publication.status === "scheduled" ||
+          publication.status === "publishing")
+    )
+  );
   const tCommon = useTranslations("common.actions");
   const updatesLinkedPullRequest = Boolean(content.githubPublish);
   let saveLabel = tCommon("saveChanges");
@@ -333,8 +344,9 @@ export function ContentDetailToolbar(props: ContentDetailToolbarProps) {
       ) : (
         <ContentDetailPublishActions {...props} />
       )}
-      {content.contentType === "linkedin_post" ||
-      content.contentType === "twitter_post" ? (
+      {(content.contentType === "linkedin_post" ||
+        content.contentType === "twitter_post") &&
+      !socialSendPending ? (
         <PostSocialButton
           content={document.currentMarkdown}
           from="editor"

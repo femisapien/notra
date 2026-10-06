@@ -1,11 +1,23 @@
 import {
   claimDueScheduledPublications,
   releaseScheduledPublicationClaim,
+  settleAbandonedScheduledPublications,
 } from "@notra/ai/utils/scheduled-publications";
 
 import { notifyScheduledPublicationFailed } from "@/lib/email/scheduled-publication";
 import { startScheduledPublicationRun } from "@/lib/workflows/start";
 import type { ScheduledPublicationSweepResult } from "@/types/content/scheduled-publications";
+
+function notifyFailure(scheduledPublicationId: string) {
+  return notifyScheduledPublicationFailed(scheduledPublicationId).catch(
+    (error: unknown) => {
+      console.error("[ScheduledPublication] Failure email failed", {
+        scheduledPublicationId,
+        error,
+      });
+    }
+  );
+}
 
 /**
  * Claims every due scheduled publication and starts one workflow per row.
@@ -20,6 +32,10 @@ export async function runScheduledPublicationSweep(options?: {
   postId?: string;
   dueBy?: Date;
 }): Promise<ScheduledPublicationSweepResult> {
+  const abandoned = await settleAbandonedScheduledPublications({
+    postId: options?.postId,
+  });
+  await Promise.all(abandoned.map(notifyFailure));
   const claims = await claimDueScheduledPublications({
     postId: options?.postId,
     dueBy: options?.dueBy,
@@ -50,14 +66,7 @@ export async function runScheduledPublicationSweep(options?: {
           released += 1;
         }
         if (outcome === "failed") {
-          await notifyScheduledPublicationFailed(claim.id).catch(
-            (error: unknown) => {
-              console.error("[ScheduledPublication] Failure email failed", {
-                scheduledPublicationId: claim.id,
-                error,
-              });
-            }
-          );
+          await notifyFailure(claim.id);
         }
       } catch (error) {
         // The lease expires on its own; the row is retried after that.

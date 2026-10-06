@@ -487,6 +487,34 @@ if (process.env.NOTRA_SCHEDULED_PUBLICATIONS_SQL_WORKER !== "1") {
       }
       expect(begun.preempted).toMatchObject({ code: "too_many_attempts" });
     });
+
+    test("runs that never start are ended instead of taken over forever", async () => {
+      await seedPost("p1");
+      await seedPost("p2");
+      await schedule("p1");
+      await schedule("p2");
+      let at = SLOT;
+      for (let run = 0; run <= SCHEDULED_PUBLICATION_MAX_ATTEMPTS; run++) {
+        await lifecycle.claimDueScheduledPublications({ now: at });
+        at = new Date(at.getTime() + SCHEDULED_PUBLICATION_LEASE_MS + MINUTE);
+      }
+      await lifecycle.cancelPostSchedule({ organizationId: ORG, postId: "p2" });
+
+      const failed = await lifecycle.settleAbandonedScheduledPublications({
+        now: at,
+      });
+
+      const [p1] = await rowsFor("p1");
+      expect(failed).toEqual(p1 ? [p1.id] : []);
+      expect(p1).toMatchObject({
+        status: "failed",
+        errorCode: "too_many_attempts",
+      });
+      expect((await rowsFor("p2"))[0]?.status).toBe("canceled");
+      expect(
+        await lifecycle.claimDueScheduledPublications({ now: at })
+      ).toHaveLength(0);
+    });
   });
 
   describe("user actions", () => {

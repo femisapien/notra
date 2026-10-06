@@ -48,7 +48,6 @@ function contentCalendarListOptions(
 
 /** The month grid around `anchor`, its entries, and warm neighbouring months. */
 export function useContentCalendar(organizationId: string, anchor: Date) {
-  const tToast = useTranslations("content.calendar.toasts");
   const queryClient = useQueryClient();
   const { projectId, isResolved } = useActiveProject();
   const scopedProjectId = projectId ?? undefined;
@@ -72,7 +71,6 @@ export function useContentCalendar(organizationId: string, anchor: Date) {
       }
       return tiers.includes("idle") ? CONTENT_CALENDAR_POLL_MS.idle : false;
     },
-    meta: { errorMessage: tToast("loadFailed") },
   });
 
   // Warm the neighbouring months so paging is instant.
@@ -166,9 +164,29 @@ function useScheduleInvalidation(organizationId: string) {
   };
 }
 
+/**
+ * Reloads a post's schedule after a rejected change. The usual cause is a
+ * schedule that changed elsewhere, and until the cache catches up every new
+ * attempt would send the same stale view and be rejected again.
+ */
+function useScheduleRefetch(organizationId: string) {
+  const queryClient = useQueryClient();
+  return (contentId: string) => {
+    queryClient.invalidateQueries({
+      queryKey: dashboardOrpc.contentCalendar.get.queryKey({
+        input: { organizationId, contentId },
+      }),
+    });
+    queryClient.invalidateQueries({
+      queryKey: dashboardOrpc.contentCalendar.list.key(),
+    });
+  };
+}
+
 export function useSchedulePost(organizationId: string) {
   const t = useTranslations("content.calendar.toasts");
   const invalidateSchedule = useScheduleInvalidation(organizationId);
+  const refetchSchedule = useScheduleRefetch(organizationId);
   return useMutation({
     mutationFn: (input: SchedulePostMutationInput) =>
       dashboardOrpc.contentCalendar.schedule.call({
@@ -182,7 +200,8 @@ export function useSchedulePost(organizationId: string) {
     onSuccess: (result, input) => {
       invalidateSchedule(input.contentId, result.schedule);
     },
-    onError: (error) => {
+    onError: (error, input) => {
+      refetchSchedule(input.contentId);
       toast.error(toErrorMessage(error, t("scheduleFailed")));
     },
   });
@@ -191,6 +210,7 @@ export function useSchedulePost(organizationId: string) {
 export function useCancelPostSchedule(organizationId: string) {
   const t = useTranslations("content.calendar.toasts");
   const invalidateSchedule = useScheduleInvalidation(organizationId);
+  const refetchSchedule = useScheduleRefetch(organizationId);
   return useMutation({
     mutationFn: (contentId: string) =>
       dashboardOrpc.contentCalendar.cancel.call({ organizationId, contentId }),
@@ -200,7 +220,8 @@ export function useCancelPostSchedule(organizationId: string) {
         result.inProgress ? t("unscheduledPartially") : t("unscheduled")
       );
     },
-    onError: (error) => {
+    onError: (error, contentId) => {
+      refetchSchedule(contentId);
       toast.error(toErrorMessage(error, t("unscheduleFailed")));
     },
   });
@@ -209,6 +230,7 @@ export function useCancelPostSchedule(organizationId: string) {
 export function usePublishScheduleNow(organizationId: string) {
   const t = useTranslations("content.calendar.toasts");
   const invalidateSchedule = useScheduleInvalidation(organizationId);
+  const refetchSchedule = useScheduleRefetch(organizationId);
   return useMutation({
     mutationFn: (contentId: string) =>
       dashboardOrpc.contentCalendar.publishNow.call({
@@ -219,7 +241,8 @@ export function usePublishScheduleNow(organizationId: string) {
       invalidateSchedule(contentId, result.schedule);
       toast.success(t("publishingNow"));
     },
-    onError: (error) => {
+    onError: (error, contentId) => {
+      refetchSchedule(contentId);
       toast.error(toErrorMessage(error, t("publishNowFailed")));
     },
   });
@@ -228,6 +251,7 @@ export function usePublishScheduleNow(organizationId: string) {
 export function useRetryScheduledPublication(organizationId: string) {
   const t = useTranslations("content.calendar.toasts");
   const invalidateSchedule = useScheduleInvalidation(organizationId);
+  const refetchSchedule = useScheduleRefetch(organizationId);
   return useMutation({
     mutationFn: (input: {
       contentId: string;
@@ -241,7 +265,8 @@ export function useRetryScheduledPublication(organizationId: string) {
       invalidateSchedule(input.contentId, result.schedule);
       toast.success(t("retrying"));
     },
-    onError: (error) => {
+    onError: (error, input) => {
+      refetchSchedule(input.contentId);
       toast.error(toErrorMessage(error, t("retryFailed")));
     },
   });
