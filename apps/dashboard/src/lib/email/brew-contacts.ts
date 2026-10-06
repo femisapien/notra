@@ -48,12 +48,9 @@ async function loadContacts(userIds?: string[]): Promise<BrewContactInput[]> {
       email: users.email,
       name: users.name,
       createdAt: users.createdAt,
-      // No sender reads this flag; without a saved choice it stays off
-      // because marketing email is opt-in only (Terms of Service).
-      marketingEmails: ownedOrganizationsWith(
-        organizationNotificationSettings.marketingEmails,
-        false
-      ),
+      marketingOptInAt: users.marketingOptInAt,
+      marketingOptInEvidence: users.marketingOptInEvidence,
+      marketingOptInPolicyVersion: users.marketingOptInPolicyVersion,
       dailySummaryEmails: ownedOrganizationsWith(
         organizationNotificationSettings.dailySummary,
         true
@@ -83,15 +80,37 @@ async function loadContacts(userIds?: string[]): Promise<BrewContactInput[]> {
     .where(userIds ? inArray(users.id, userIds) : undefined)
     .groupBy(users.id);
 
-  return rows.map(({ id, email, name, createdAt, ...preferences }) => ({
-    email,
-    ...splitName(name, email),
-    customFields: {
-      notraUserId: id,
-      signedUpAt: createdAt.toISOString(),
-      ...preferences,
-    },
-  }));
+  return rows.map(
+    ({
+      id,
+      email,
+      name,
+      createdAt,
+      marketingOptInAt,
+      marketingOptInEvidence,
+      marketingOptInPolicyVersion,
+      ...preferences
+    }) => ({
+      email,
+      ...splitName(name, email),
+      customFields: {
+        notraUserId: id,
+        signedUpAt: createdAt.toISOString(),
+        marketingEmails: marketingOptInAt !== null,
+        ...preferences,
+      },
+      ...(marketingOptInAt &&
+        marketingOptInEvidence &&
+        marketingOptInPolicyVersion && {
+          consent: {
+            source: "form" as const,
+            capturedAt: marketingOptInAt.toISOString(),
+            policyVersion: marketingOptInPolicyVersion,
+            evidence: marketingOptInEvidence,
+          },
+        }),
+    })
+  );
 }
 
 /** Upserts the given users, or every user when called without ids. */
