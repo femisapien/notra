@@ -495,6 +495,16 @@ export const geoJudgeResultSchema = object({
 export const aiTrafficInputSchema = geoOrganizationInputSchema.extend({
   ...geoWindowFields,
   limit: number().int().min(1).max(MAX_AI_TRAFFIC_LOG_LIMIT).optional(),
+  host: string().trim().max(GEO_SHORT_FIELD_MAX_LENGTH).optional(),
+});
+
+export const webAnalyticsInputSchema = geoOrganizationInputSchema.extend({
+  ...geoWindowFields,
+  host: string().trim().max(GEO_SHORT_FIELD_MAX_LENGTH).optional(),
+});
+
+export const geoTrackVisitorsInputSchema = geoOrganizationInputSchema.extend({
+  enabled: boolean(),
 });
 
 export const geoTrafficLogInputSchema = geoOrganizationInputSchema.extend({
@@ -528,10 +538,12 @@ export const geoRequestPayloadSchema = object({
   accept: string().max(MAX_GEO_FIELD_LENGTH).optional(),
   acceptLanguage: string().max(MAX_GEO_FIELD_LENGTH).optional(),
   requestId: string().max(GEO_SHORT_FIELD_MAX_LENGTH).optional(),
+  status: number().int().min(100).max(599).optional(),
   signals: object({
     clientHints: boolean(),
     fetchMode: string().max(GEO_SHORT_FIELD_MAX_LENGTH).nullable(),
     tracing: boolean(),
+    prefetch: boolean().optional(),
   }).optional(),
 });
 

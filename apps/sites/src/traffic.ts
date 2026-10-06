@@ -9,6 +9,12 @@ function header(headers: Headers, name: string): string | undefined {
   return headers.get(name) ?? undefined;
 }
 
+/** Speculation rules and link prefetch say so; ingest then skips the view. */
+function isPrefetch(headers: Headers): boolean {
+  const purpose = `${headers.get("sec-purpose") ?? ""} ${headers.get("purpose") ?? ""}`;
+  return purpose.toLowerCase().includes("prefetch");
+}
+
 /** Pages, Markdown twins and llms.txt; assets and redirects are never AI traffic worth reporting. */
 export function isReportableResponse(response: Response): boolean {
   if (response.status >= 300 && response.status < 400) {
@@ -19,12 +25,63 @@ export function isReportableResponse(response: Response): boolean {
 }
 
 /**
+ * The dashboard shows the live site in a frame; that is the owner, not a
+ * visitor. The frame's first load names the dashboard as referer, clicks
+ * inside it name the site itself while still loading into a frame.
+ */
+export function isDashboardPreview(
+  request: Request,
+  dashboardUrl: string
+): boolean {
+  const referer = request.headers.get("referer");
+  if (!referer) {
+    return false;
+  }
+  try {
+    const from = new URL(referer);
+    if (from.origin === new URL(dashboardUrl).origin) {
+      return true;
+    }
+    return (
+      request.headers.get("sec-fetch-dest") === "iframe" &&
+      from.host === new URL(request.url).host
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A click between two pages of the site, made on the alias host, names the
+ * alias as referer; reported under the public origin it must stay internal,
+ * or every page of the visit would look like a new arrival.
+ */
+function publicReferer(
+  request: Request,
+  publicUrl: string
+): string | undefined {
+  const referer = request.headers.get("referer") ?? undefined;
+  if (!referer) {
+    return undefined;
+  }
+  try {
+    const from = new URL(referer);
+    if (from.host !== new URL(request.url).host) {
+      return referer;
+    }
+    return new URL(`${from.pathname}${from.search}`, publicUrl).href;
+  } catch {
+    return referer;
+  }
+}
+
+/**
  * The visitor as the ingest payload describes it. Behind a customer's proxy
  * the connecting IP and Cloudflare's location are the proxy's, so the
  * forwarded headers are the better guess there.
  */
 function buildPayload(report: TrafficReport): TrafficPayload {
-  const { request, publicUrl, proxied } = report;
+  const { request, publicUrl, proxied, status } = report;
   const { headers } = request;
   const cf = (request as { cf?: IncomingRequestCfProperties }).cf;
   const ip = proxied
@@ -50,15 +107,17 @@ function buildPayload(report: TrafficReport): TrafficPayload {
     url: publicUrl,
     ip: ip || undefined,
     geo,
-    referer: header(headers, "referer"),
+    referer: publicReferer(request, publicUrl),
     userAgent: header(headers, "user-agent"),
     accept: header(headers, "accept"),
     acceptLanguage: header(headers, "accept-language"),
     requestId: header(headers, "cf-ray"),
+    status,
     signals: {
       clientHints: headers.has("sec-ch-ua"),
       fetchMode: headers.get("sec-fetch-mode"),
       tracing: TRAFFIC_TRACING_HEADERS.some((name) => headers.has(name)),
+      prefetch: isPrefetch(headers),
     },
   };
 }

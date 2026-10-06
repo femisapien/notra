@@ -17,6 +17,15 @@ export const siteMountsInputSchema = z
 
 export const siteScopeInputSchema = z.object({ organizationId, siteId });
 
+const analyticsDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+/** Same window as the GEO pages: trailing days or an inclusive day range. */
+export const siteAnalyticsInputSchema = siteScopeInputSchema.extend({
+  days: z.number().int().min(1).max(365).optional(),
+  from: analyticsDay.optional(),
+  to: analyticsDay.optional(),
+});
+
 /** Which branch's file tree to search for notra.json; the default branch when unset. */
 const suggestionRef = z.string().trim().max(250).optional();
 

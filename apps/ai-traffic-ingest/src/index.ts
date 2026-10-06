@@ -1,6 +1,10 @@
 import { flushGeoLog } from "@notra/ai/evlog";
+import { ingestWebPageViews } from "@notra/analytics/tinybird/client";
 import { getGeoTrafficFlushIntervalMs } from "@notra/analytics/utils/geo-flush-interval";
-import { createGeoEventBatcher } from "@notra/geo-core/ingest/batcher";
+import {
+  createEventBatcher,
+  createGeoEventBatcher,
+} from "@notra/geo-core/ingest/batcher";
 import { announceGeoTrafficRows } from "@notra/geo-core/ingest/live";
 
 import {
@@ -28,15 +32,35 @@ const batcher =
         onWritten: announceGeoTrafficRows,
       })
     : null;
+// Human page views ride the same window, so they add no active minutes of their own.
+const webBatcher =
+  flushIntervalMs > 0
+    ? createEventBatcher({
+        intervalMs: flushIntervalMs,
+        write: ingestWebPageViews,
+      })
+    : null;
 
-const app = createIngestApp((task) => {
-  const promise = task()
-    .catch((error) => {
-      console.error("[geo-ingest] Background task failed", error);
-    })
-    .finally(() => pending.delete(promise));
-  pending.add(promise);
-}, batcher ?? undefined);
+const app = createIngestApp(
+  (task) => {
+    const promise = task()
+      .catch((error) => {
+        console.error("[geo-ingest] Background task failed", error);
+      })
+      .finally(() => pending.delete(promise));
+    pending.add(promise);
+  },
+  batcher
+    ? {
+        enqueue: batcher.enqueue,
+        expedite: (organizationId) => {
+          batcher.expedite(organizationId);
+          webBatcher?.expedite(organizationId);
+        },
+        enqueueWeb: webBatcher?.enqueue,
+      }
+    : undefined
+);
 
 const server = Bun.serve({
   hostname: "0.0.0.0",
@@ -85,6 +109,9 @@ async function shutdown() {
       `[geo-ingest] Drain exceeded ${INGEST_DRAIN_TIMEOUT_MS}ms, closing connections`
     );
     server.stop(true);
+  }
+  if (webBatcher) {
+    await withDeadline(() => webBatcher.stop(), INGEST_EVENTS_FLUSH_TIMEOUT_MS);
   }
   if (batcher) {
     const flushed = await withDeadline(

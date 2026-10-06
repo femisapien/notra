@@ -1,5 +1,11 @@
-import { ingestGeoTrafficEvents } from "@notra/analytics/tinybird/client";
-import type { GeoTrafficEventRow } from "@notra/analytics/tinybird/datasources";
+import {
+  ingestGeoTrafficEvents,
+  ingestWebPageViews,
+} from "@notra/analytics/tinybird/client";
+import type {
+  GeoTrafficEventRow,
+  WebPageViewRow,
+} from "@notra/analytics/tinybird/datasources";
 import { GEO_INGEST_BEARER_PREFIX } from "@notra/geo-core/constants/geo";
 import {
   isGeoIngestSiteToken,
@@ -34,8 +40,10 @@ import { loadIngestAllowedHosts } from "./hosts";
 import { isGeoIngestIdentityActive } from "./identity";
 import { resolveJourneyId } from "./journey";
 import { announceGeoTrafficEvent, expediteForLiveViewers } from "./live";
-import { geoIngestRatelimit } from "./ratelimit";
+import { geoIngestRatelimit, webIngestRatelimit } from "./ratelimit";
 import { loadIngestSite, loadOrganizationSitePrefixes } from "./sites";
+import { buildWebPageView, isHumanPageView } from "./web";
+import { isVisitorTrackingEnabled } from "./web-tracking";
 
 /** A site token names a site; owner and hosts come from the database. */
 const readSiteIdentity = Effect.fn("geoIngest.readSiteIdentity")(function* (
@@ -126,6 +134,36 @@ const parseUrl = Effect.fn("geoIngest.parseUrl")(function* (value: string) {
   });
 });
 
+/**
+ * Buffers a human page view, or writes it when there is no buffer. A failed
+ * write or an exhausted web budget never fails the request: AI traffic in the
+ * same request still has to be stored.
+ */
+const storeWebPageView = Effect.fn("geoIngest.storeWebPageView")(function* (
+  organizationId: string,
+  row: WebPageViewRow,
+  buffer: GeoIngestBuffer | undefined
+) {
+  const allowed = yield* Effect.promise(() =>
+    webIngestRatelimit
+      .limit(organizationId)
+      .then((result) => result.success)
+      .catch(() => true)
+  );
+  if (!allowed) {
+    return;
+  }
+  if (buffer?.enqueueWeb?.(row)) {
+    return;
+  }
+  yield* Effect.promise(() =>
+    ingestWebPageViews([row]).catch((error: unknown) => {
+      console.error("[geo-ingest] Web page view write failed", error);
+      return null;
+    })
+  );
+});
+
 const ingestEvent = Effect.fn("geoIngest.ingest")(function* (
   event: GeoTrafficEventRow
 ) {
@@ -209,7 +247,17 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
     accept: payload.accept,
     signals: payload.signals,
   });
-  if (!isTrackedGeoVisitorType(classification.visitorType)) {
+  const isAi = isTrackedGeoVisitorType(classification.visitorType);
+  // A person reading a page (pure CPU, so prefetches, bots and files for
+  // machines cost nothing more). People only count where visitor tracking is
+  // on (always for Notra Sites); otherwise they are dropped here, before any
+  // other lookup, as before.
+  const countsVisitors =
+    isHumanPageView({ classification, payload, url }) &&
+    (yield* Effect.promise(() =>
+      isVisitorTrackingEnabled(identity).catch(() => false)
+    ));
+  if (!(isAi || countsVisitors)) {
     return {
       outcome: "dropped",
       reason: "visitor_type",
@@ -265,6 +313,32 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
   }
 
   const capturedAt = toCapturedDate(payload.timestamp);
+  const webRow = countsVisitors
+    ? yield* Effect.promise(() =>
+        buildWebPageView({
+          identity,
+          payload,
+          url,
+          capturedAt,
+          classification,
+        }).catch(() => null)
+      )
+    : null;
+  if (webRow) {
+    yield* storeWebPageView(identity.organizationId, webRow, buffer);
+  }
+  if (!isAi) {
+    return {
+      outcome: "ingested",
+      organizationId: identity.organizationId,
+      projectId: identity.projectId,
+      visitorType: classification.visitorType,
+      source: "",
+      agent: "",
+      ingestMs: 0,
+    } satisfies GeoIngestResult;
+  }
+
   const journey = resolveJourneyId({
     url,
     source: classification.source,

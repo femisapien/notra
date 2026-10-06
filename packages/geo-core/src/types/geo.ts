@@ -2016,3 +2016,91 @@ export interface GeoWebsiteGenerationWrite {
   /** Null for projects created before prompt languages; first = prompt language. */
   seedLanguages: readonly string[] | null;
 }
+
+/** Where web analytics reads from: a project (and its hosts) or one Notra Site. */
+export interface WebAnalyticsScope {
+  organizationId: string;
+  projectId: string | null;
+  includeUnassigned: boolean;
+  siteId: string;
+  /** Exact hostnames, empty for every host. */
+  hosts: string[];
+}
+
+export interface WebAnalyticsTotals {
+  views: number;
+  previousViews: number;
+  visitors: number;
+  previousVisitors: number;
+  sessions: number;
+  previousSessions: number;
+  engagedSessions: number;
+  aiVisitors: number;
+  previousAiVisitors: number;
+}
+
+export interface WebAnalyticsPoint {
+  day: string;
+  views: number;
+  visitors: number;
+}
+
+export interface WebAnalyticsPage {
+  host: string;
+  path: string;
+  views: number;
+  previousViews: number;
+  visitors: number;
+  landings: number;
+  aiVisitors: number;
+}
+
+export interface WebAnalyticsSource {
+  group: string;
+  source: string;
+  aiProduct: string;
+  sessions: number;
+  previousSessions: number;
+  visitors: number;
+}
+
+export interface WebAnalyticsBreakdown {
+  value: string;
+  visitors: number;
+}
+
+/** How a session behaves after landing; source "" is every session. */
+export interface WebAnalyticsOutcome {
+  source: string;
+  sessions: number;
+  pagesPerSession: number;
+  engagedRate: number;
+}
+
+export interface WebAnalyticsHost {
+  host: string;
+  siteId: string;
+  views: number;
+}
+
+export interface WebAnalyticsResponse {
+  configured: boolean;
+  /** People are counted for this scope (a Notra Site, or the project switch is on). */
+  tracking: boolean;
+  /** The project's own switch for SDK traffic; Notra Sites count regardless. */
+  trackVisitors: boolean;
+  /** Hosts that saw at least one person in the window, ignoring the host filter. */
+  hosts: WebAnalyticsHost[];
+  totals: WebAnalyticsTotals;
+  points: WebAnalyticsPoint[];
+  pages: WebAnalyticsPage[];
+  sources: WebAnalyticsSource[];
+  countries: WebAnalyticsBreakdown[];
+  devices: WebAnalyticsBreakdown[];
+  outcomes: WebAnalyticsOutcome[];
+}
+
+export interface SiteAnalyticsResponse {
+  web: WebAnalyticsResponse;
+  traffic: AiTrafficResponse;
+}

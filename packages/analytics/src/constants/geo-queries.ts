@@ -137,3 +137,29 @@ export const GEO_HOST_FILTER_SQL = `AND (
               concat('.', {{String(host, '')}})
             )
           )`;
+
+/**
+ * Domains as the domain selector lists them; each also matches its
+ * subdomains (www included), like the single `host` filter. Empty for every
+ * host.
+ */
+export const GEO_HOSTS_PARAMS = {
+  hosts: p
+    .string()
+    .optional("")
+    .describe(
+      "Comma-separated domains, empty for every host. Subdomains match."
+    ),
+};
+
+export const GEO_HOSTS_SQL = `AND (
+            {{String(hosts, '')}} = ''
+            OR arrayExists(
+              domain -> lowerUTF8(host) = domain
+                OR endsWith(lowerUTF8(host), concat('.', domain)),
+              splitByChar(',', {{String(hosts, '')}})
+            )
+          )`;
+
+/** True when the request narrows to hosts; selects the by-host rollup. */
+export const GEO_HOSTS_SET = `{{String(hosts, '')}} != ''`;

@@ -144,3 +144,5 @@ CREATE UNIQUE INDEX "siteJobs_dedupeKey_uidx" ON "site_jobs" USING btree ("dedup
 CREATE INDEX "sites_organizationId_idx" ON "sites" USING btree ("organization_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "sites_slug_uidx" ON "sites" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "sites_githubRepositoryId_idx" ON "sites" USING btree ("github_repository_id");
+--> statement-breakpoint
+ALTER TABLE "projects" ADD COLUMN "track_visitors" boolean DEFAULT false NOT NULL;

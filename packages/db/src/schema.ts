@@ -1405,6 +1405,8 @@ export const projects = pgTable(
     gscLastSyncedAt: timestamp("gsc_last_synced_at"),
     gscLastError: text("gsc_last_error"),
     isSample: boolean("is_sample").notNull().default(false),
+    /** Count human visitors from the GEO SDK too, not only AI traffic. */
+    trackVisitors: boolean("track_visitors").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

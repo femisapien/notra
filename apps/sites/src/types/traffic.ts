@@ -17,9 +17,11 @@ export interface TrafficPayload {
   accept?: string;
   acceptLanguage?: string;
   requestId?: string;
+  status?: number;
   signals: {
     clientHints: boolean;
     fetchMode: string | null;
+    prefetch: boolean;
     tracing: boolean;
   };
 }
@@ -33,4 +35,6 @@ export interface TrafficReport {
   publicUrl: string;
   /** True when the request reached the alias through the customer's own proxy. */
   proxied: boolean;
+  /** What the site answered, so ingest can tell a page from a 404. */
+  status: number;
 }

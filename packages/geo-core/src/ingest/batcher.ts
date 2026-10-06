@@ -10,6 +10,7 @@ import {
   GEO_INGEST_LIVE_RETRY_DELAY_MS,
   GEO_INGEST_MAX_BUFFERED_EVENTS,
 } from "../constants/ingest";
+import type { BatchedRow } from "../types/ingest";
 import {
   getGeoIngestRegion,
   getGeoIngestRuntime,
@@ -17,13 +18,13 @@ import {
 
 type GeoEventWriteResult = Awaited<ReturnType<typeof ingestGeoTrafficEvents>>;
 
-interface GeoEventBatcherOptions {
+interface EventBatcherOptions<R extends BatchedRow> {
   intervalMs: number;
   maxBufferedEvents?: number;
   maxRowsPerWrite?: number;
-  write?: (rows: GeoTrafficEventRow[]) => Promise<GeoEventWriteResult>;
+  write?: (rows: R[]) => Promise<GeoEventWriteResult>;
   /** Called with every chunk Tinybird accepted, e.g. to announce it live. */
-  onWritten?: (rows: GeoTrafficEventRow[]) => void;
+  onWritten?: (rows: R[]) => void;
   now?: () => number;
   liveFlushDelayMs?: number;
   liveRetryDelayMs?: number;
@@ -37,9 +38,9 @@ interface GeoWriteCounts {
   rejected: number;
 }
 
-interface GeoChunkResult extends GeoWriteCounts {
+interface GeoChunkResult<R> extends GeoWriteCounts {
   /** Rows a retryable failure left unwritten, in their original order. */
-  pending: GeoTrafficEventRow[];
+  pending: R[];
   error?: unknown;
 }
 
@@ -49,8 +50,8 @@ const EMPTY_COUNTS: GeoWriteCounts = {
   rejected: 0,
 };
 
-export interface GeoEventBatcher {
-  enqueue: (event: GeoTrafficEventRow) => boolean;
+export interface EventBatcher<R extends BatchedRow> {
+  enqueue: (event: R) => boolean;
   /**
    * Writes the organization's buffered events within about a second instead
    * of at the next window, for organizations with an open live view.
@@ -125,21 +126,22 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
  * exceed its bound. The bound only makes `enqueue` refuse new events, which
  * the caller writes directly instead.
  */
-export function createGeoEventBatcher(
-  options: GeoEventBatcherOptions
-): GeoEventBatcher {
+export function createEventBatcher<R extends BatchedRow>(
+  options: EventBatcherOptions<R> &
+    Required<Pick<EventBatcherOptions<R>, "write">>
+): EventBatcher<R> {
   const {
     intervalMs,
     maxBufferedEvents = GEO_INGEST_MAX_BUFFERED_EVENTS,
     maxRowsPerWrite = GEO_INGEST_FLUSH_MAX_ROWS,
-    write = ingestGeoTrafficEvents,
+    write,
     onWritten,
     now = Date.now,
     liveFlushDelayMs = GEO_INGEST_LIVE_FLUSH_DELAY_MS,
     liveRetryDelayMs = GEO_INGEST_LIVE_RETRY_DELAY_MS,
   } = options;
 
-  let buffer: GeoTrafficEventRow[] = [];
+  let buffer: R[] = [];
   let windowFlush: Promise<void> | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
@@ -147,7 +149,7 @@ export function createGeoEventBatcher(
   const liveAttempts = new Map<string, number>();
   const liveWrites = new Set<Promise<boolean>>();
 
-  function notifyWritten(rows: GeoTrafficEventRow[]) {
+  function notifyWritten(rows: R[]) {
     try {
       onWritten?.(rows);
     } catch (error) {
@@ -162,9 +164,9 @@ export function createGeoEventBatcher(
    * not yet accepted come back as `pending`, never ones already written.
    */
   async function writeChunk(
-    chunk: GeoTrafficEventRow[],
+    chunk: R[],
     context: Record<string, unknown>
-  ): Promise<GeoChunkResult> {
+  ): Promise<GeoChunkResult<R>> {
     try {
       const result = await withTimeout(
         write(chunk),
@@ -214,7 +216,7 @@ export function createGeoEventBatcher(
 
   /** Resolves to false when a retryable failure put rows back in the buffer. */
   async function writeAll(
-    rows: GeoTrafficEventRow[],
+    rows: R[],
     trigger: GeoFlushTrigger
   ): Promise<boolean> {
     const startedAt = performance.now();
@@ -296,8 +298,8 @@ export function createGeoEventBatcher(
   }
 
   function flushOrganization(organizationId: string) {
-    const rows: GeoTrafficEventRow[] = [];
-    const rest: GeoTrafficEventRow[] = [];
+    const rows: R[] = [];
+    const rest: R[] = [];
     for (const row of buffer) {
       (row.organization_id === organizationId ? rows : rest).push(row);
     }
@@ -363,4 +365,16 @@ export function createGeoEventBatcher(
     },
     size: () => buffer.length,
   };
+}
+
+export type GeoEventBatcher = EventBatcher<GeoTrafficEventRow>;
+
+/** The AI traffic batcher: `geo_traffic_events` unless a test passes its own writer. */
+export function createGeoEventBatcher(
+  options: EventBatcherOptions<GeoTrafficEventRow>
+): GeoEventBatcher {
+  return createEventBatcher({
+    ...options,
+    write: options.write ?? ingestGeoTrafficEvents,
+  });
 }

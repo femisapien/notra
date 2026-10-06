@@ -34,6 +34,14 @@ import type {
   SocialOverviewRow,
   TopPostsParams,
   TopPostsRow,
+  WebOverviewRow,
+  WebTimeseriesRow,
+  WebPagesRow,
+  WebSourcesRow,
+  WebCampaignsRow,
+  WebAudienceRow,
+  WebHostsRow,
+  WebAiOutcomesRow,
 } from "../types/tinybird-endpoints";
 import {
   type GeoTrafficEventRow,
@@ -48,6 +56,8 @@ import {
   socialPostSources,
   socialPostStats,
   socialPosts,
+  type WebPageViewRow,
+  webPageViews,
 } from "./datasources";
 import { queryDemoPipe } from "./demo-geo-traffic";
 import { isDemoSocialPipe, queryDemoSocialPipe } from "./demo-social";
@@ -71,6 +81,16 @@ import {
   socialOverview,
   topPosts,
 } from "./pipes/social";
+import {
+  webAiOutcomes,
+  webAudience,
+  webCampaigns,
+  webHosts,
+  webOverview,
+  webPages,
+  webSources,
+  webTimeseries,
+} from "./pipes/web";
 
 /**
  * Analytics queries sit on the request path, so a stalled Tinybird must fail
@@ -106,6 +126,7 @@ function createTinybirdClient(fetch?: typeof globalThis.fetch) {
       socialPostStats,
       socialPostSources,
       geoTrafficEvents,
+      webPageViews,
     },
     pipes: {
       socialOverview,
@@ -124,6 +145,14 @@ function createTinybirdClient(fetch?: typeof globalThis.fetch) {
       geoJourneySources,
       geoJourneyPages,
       geoJourneyDetail,
+      webOverview,
+      webTimeseries,
+      webPages,
+      webSources,
+      webCampaigns,
+      webAudience,
+      webHosts,
+      webAiOutcomes,
     },
   });
 }
@@ -467,5 +496,113 @@ export function queryGeoJourneyDetail(
     params,
     params.organization_id,
     (client) => client.geoJourneyDetail.query(params)
+  );
+}
+
+/** Human page views; written by the same batcher window as AI traffic. */
+export function ingestWebPageViews(
+  rows: WebPageViewRow[]
+): Promise<IngestResult | null> {
+  return ingestRows(
+    rows,
+    "geo",
+    rows.map((row) => row.organization_id),
+    (client, batch) => client.webPageViews.ingestBatch(batch, { wait: false })
+  );
+}
+
+export function queryWebOverview(
+  params: InferParams<typeof webOverview>
+): Promise<QueryResult<WebOverviewRow> | null> {
+  return cachedPipeQuery(
+    "geo",
+    "web_overview",
+    params,
+    params.organization_id,
+    (client) => client.webOverview.query(params)
+  );
+}
+
+export function queryWebTimeseries(
+  params: InferParams<typeof webTimeseries>
+): Promise<QueryResult<WebTimeseriesRow> | null> {
+  return cachedPipeQuery(
+    "geo",
+    "web_timeseries",
+    params,
+    params.organization_id,
+    (client) => client.webTimeseries.query(params)
+  );
+}
+
+export function queryWebPages(
+  params: InferParams<typeof webPages>
+): Promise<QueryResult<WebPagesRow> | null> {
+  return cachedPipeQuery(
+    "geo",
+    "web_pages",
+    params,
+    params.organization_id,
+    (client) => client.webPages.query(params)
+  );
+}
+
+export function queryWebSources(
+  params: InferParams<typeof webSources>
+): Promise<QueryResult<WebSourcesRow> | null> {
+  return cachedPipeQuery(
+    "geo",
+    "web_sources",
+    params,
+    params.organization_id,
+    (client) => client.webSources.query(params)
+  );
+}
+
+export function queryWebCampaigns(
+  params: InferParams<typeof webCampaigns>
+): Promise<QueryResult<WebCampaignsRow> | null> {
+  return cachedPipeQuery(
+    "geo",
+    "web_campaigns",
+    params,
+    params.organization_id,
+    (client) => client.webCampaigns.query(params)
+  );
+}
+
+export function queryWebAudience(
+  params: InferParams<typeof webAudience>
+): Promise<QueryResult<WebAudienceRow> | null> {
+  return cachedPipeQuery(
+    "geo",
+    "web_audience",
+    params,
+    params.organization_id,
+    (client) => client.webAudience.query(params)
+  );
+}
+
+export function queryWebHosts(
+  params: InferParams<typeof webHosts>
+): Promise<QueryResult<WebHostsRow> | null> {
+  return cachedPipeQuery(
+    "geo",
+    "web_hosts",
+    params,
+    params.organization_id,
+    (client) => client.webHosts.query(params)
+  );
+}
+
+export function queryWebAiOutcomes(
+  params: InferParams<typeof webAiOutcomes>
+): Promise<QueryResult<WebAiOutcomesRow> | null> {
+  return cachedPipeQuery(
+    "geo",
+    "web_ai_outcomes",
+    params,
+    params.organization_id,
+    (client) => client.webAiOutcomes.query(params)
   );
 }

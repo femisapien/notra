@@ -31,7 +31,11 @@ import {
   previewAccessDenied,
 } from "./preview-auth";
 import { html, markdownNotFound, robotsTxt, serveFile } from "./responses";
-import { isReportableResponse, reportTraffic } from "./traffic";
+import {
+  isDashboardPreview,
+  isReportableResponse,
+  reportTraffic,
+} from "./traffic";
 import type { LoadedManifest, ResolvedDeployment } from "./types/serving";
 import type { SitesDeps } from "./types/worker";
 import {
@@ -173,7 +177,8 @@ async function serveDeployment(
     trafficToken &&
     deps.trafficIngestUrl &&
     request.method === "GET" &&
-    isReportableResponse(response)
+    isReportableResponse(response) &&
+    !isDashboardPreview(request, deps.dashboardUrl)
   ) {
     // Reported under the public origin, so a page proxied from acme.com/blog
     // counts for acme.com, the same page the SDK would have reported.
@@ -186,6 +191,7 @@ async function serveDeployment(
         request,
         publicUrl: new URL(`${url.pathname}${url.search}`, publicOrigin).href,
         proxied: new URL(publicOrigin).hostname !== host,
+        status: response.status,
       })
     );
   }

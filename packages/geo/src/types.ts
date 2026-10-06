@@ -38,6 +38,8 @@ export interface GeoRequestSignals {
   clientHints: boolean;
   fetchMode: string | null;
   tracing: boolean;
+  /** A speculative fetch (link prefetch, Next.js router prefetch), not a page someone opened. */
+  prefetch?: boolean;
 }
 
 export interface GeoRequestPayload {
@@ -51,6 +53,8 @@ export interface GeoRequestPayload {
   accept?: string;
   acceptLanguage?: string;
   requestId?: string;
+  /** The response status, when the caller reports after responding (Notra Sites). */
+  status?: number;
   signals?: GeoRequestSignals;
 }
 

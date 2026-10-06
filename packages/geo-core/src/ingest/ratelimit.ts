@@ -15,3 +15,15 @@ export const geoIngestRatelimit = new Ratelimit({
   limiter: Ratelimit.slidingWindow(1000, "1m"),
   timeout: GEO_INGEST_RATELIMIT_TIMEOUT_MS,
 });
+
+/**
+ * Human page views outnumber AI requests by far, so they get their own,
+ * larger budget and never eat into the AI one. Over it, views are dropped
+ * quietly: the site keeps serving and its AI traffic still counts.
+ */
+export const webIngestRatelimit = new Ratelimit({
+  redis: Redis.fromEnv({ retry: { retries: GEO_INGEST_REDIS_RETRIES } }),
+  prefix: "ratelimit:web-ingest",
+  limiter: Ratelimit.slidingWindow(20_000, "1m"),
+  timeout: GEO_INGEST_RATELIMIT_TIMEOUT_MS,
+});

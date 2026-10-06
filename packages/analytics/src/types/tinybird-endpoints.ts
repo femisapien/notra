@@ -20,6 +20,16 @@ import type {
   socialOverview,
   topPosts,
 } from "../tinybird/pipes/social";
+import {
+  webOverview,
+  webTimeseries,
+  webPages,
+  webSources,
+  webCampaigns,
+  webAudience,
+  webHosts,
+  webAiOutcomes,
+} from "../tinybird/pipes/web";
 
 export type AccountLeaderboardParams = InferParams<typeof accountLeaderboard>;
 export type AccountLeaderboardRow = InferOutputRow<typeof accountLeaderboard>;
@@ -52,3 +62,12 @@ export type GeoTrafficJourneysRow = InferOutputRow<typeof geoTrafficJourneys>;
 export type GeoJourneySourcesRow = InferOutputRow<typeof geoJourneySources>;
 export type GeoJourneyPagesRow = InferOutputRow<typeof geoJourneyPages>;
 export type GeoJourneyDetailRow = InferOutputRow<typeof geoJourneyDetail>;
+
+export type WebOverviewRow = InferOutputRow<typeof webOverview>;
+export type WebTimeseriesRow = InferOutputRow<typeof webTimeseries>;
+export type WebPagesRow = InferOutputRow<typeof webPages>;
+export type WebSourcesRow = InferOutputRow<typeof webSources>;
+export type WebCampaignsRow = InferOutputRow<typeof webCampaigns>;
+export type WebAudienceRow = InferOutputRow<typeof webAudience>;
+export type WebHostsRow = InferOutputRow<typeof webHosts>;
+export type WebAiOutcomesRow = InferOutputRow<typeof webAiOutcomes>;

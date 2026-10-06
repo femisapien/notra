@@ -44,9 +44,17 @@ const loadOrganizationSitePrefixes = mock(
   async (): Promise<{ host: string; mounts: string[] }[] | null> => []
 );
 const resolveJourneyId = mock(() => ({ journeyId: "journey_1", path: "/" }));
+const ingestWebPageViews = mock(async () => ({
+  successful_rows: 1,
+  quarantined_rows: 0,
+}));
+const isVisitorTrackingEnabled = mock(async (identity: GeoIngestIdentity) =>
+  Boolean(identity.site)
+);
 
 mock.module("@notra/analytics/tinybird/client", () => ({
   ingestGeoTrafficEvents,
+  ingestWebPageViews,
 }));
 mock.module("@notra/geo-core/geo/ingest", () => ({
   verifyGeoIngestToken,
@@ -54,6 +62,7 @@ mock.module("@notra/geo-core/geo/ingest", () => ({
   isGeoIngestSiteToken: (token: string) => token.startsWith("nst."),
   getGeoIngestTokenGeneration: async () => 1,
   geoIngestHostsCacheKey: () => "hosts:key",
+  getGeoIngestSecret: () => "test-secret",
 }));
 mock.module("../src/ingest/identity", () => ({
   isGeoIngestIdentityActive,
@@ -73,6 +82,10 @@ mock.module("../src/ingest/journey", () => ({
 }));
 mock.module("../src/ingest/ratelimit", () => ({
   geoIngestRatelimit: { limit: ratelimitLimit },
+  webIngestRatelimit: { limit: async () => ({ success: true }) },
+}));
+mock.module("../src/ingest/web-tracking", () => ({
+  isVisitorTrackingEnabled,
 }));
 
 const { runGeoIngest } = await import("../src/ingest/pipeline");
@@ -118,6 +131,7 @@ describe("runGeoIngest ordering", () => {
     ]) {
       m.mockClear();
     }
+    ingestWebPageViews.mockClear();
     verifyGeoIngestToken.mockClear();
     verifyGeoIngestToken.mockImplementation(() => ({
       organizationId: "org_1",
@@ -381,6 +395,42 @@ describe("runGeoIngest ordering", () => {
     expect(elsewhere).toMatchObject({
       _tag: "Success",
       success: { outcome: "dropped", reason: "host" },
+    });
+  });
+
+  test("a site counts its human visitors in web_page_views only", async () => {
+    loadIngestAllowedHosts.mockImplementation(
+      async (identity?: GeoIngestIdentity) =>
+        identity?.site ? identity.site.hosts : ["example.com"]
+    );
+    const outcome = await run(
+      ingestRequest(
+        {
+          method: "GET",
+          url: "https://acme.com/blog/a",
+          userAgent:
+            "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36",
+          referer: "https://www.google.com/",
+        },
+        "nst.site_1.good"
+      )
+    );
+    expect(outcome).toMatchObject({
+      _tag: "Success",
+      success: { outcome: "ingested", visitorType: "human" },
+    });
+    expect(ingestGeoTrafficEvents).not.toHaveBeenCalled();
+    expect(ingestWebPageViews).toHaveBeenCalledTimes(1);
+    const [rows] = ingestWebPageViews.mock.calls[0] as unknown as [
+      Record<string, unknown>[],
+    ];
+    expect(rows[0]).toMatchObject({
+      site_id: "site_1",
+      host: "acme.com",
+      path: "/blog/a",
+      referrer_group: "search",
+      referrer_source: "google",
+      browser: "Chrome",
     });
   });
 

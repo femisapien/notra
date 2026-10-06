@@ -323,6 +323,42 @@ describe("production serving", () => {
     expect(payload.ip).toBe("203.0.113.9");
   });
 
+  test("the dashboard's own preview frame is not a visit", async () => {
+    const { request, reports, settle } = setup({
+      trafficToken: "nst.site_a.sig",
+    });
+    await request("https://acme.notra.site/blog/", {
+      referer: "https://app.example.com/acme/sites/site_a",
+    });
+    // A click inside the frame.
+    await request("https://acme.notra.site/blog/post", {
+      referer: "https://acme.notra.site/blog/",
+      "sec-fetch-dest": "iframe",
+    });
+    await settle();
+    expect(reports).toHaveLength(0);
+  });
+
+  test("a click on the alias host stays internal under the public origin", async () => {
+    const { request, reports, settle } = setup({
+      trafficToken: "nst.site_a.sig",
+    });
+    await request("https://acme.notra.site/blog/post", {
+      referer: "https://acme.notra.site/blog/?page=2",
+    });
+    await request("https://acme.notra.site/blog/", {
+      referer: "https://news.ycombinator.com/",
+    });
+    await settle();
+    const referers = reports.map(
+      (report) => JSON.parse(String(report.init.body)).referer
+    );
+    expect(referers).toEqual([
+      "https://acme.com/blog/?page=2",
+      "https://news.ycombinator.com/",
+    ]);
+  });
+
   test("no traffic token, no report", async () => {
     const { request, reports, settle } = setup();
     await request("https://blog.acme.com/blog/");

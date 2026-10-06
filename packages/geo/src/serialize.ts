@@ -47,11 +47,21 @@ function readGeo(headers: Headers): GeoLocation | undefined {
 
 const TRACING_HEADERS = ["traceparent", "b3", "x-b3-traceid"];
 
+/** Browsers send Sec-Purpose / Purpose; Next.js marks its router prefetches. */
+function isPrefetch(headers: Headers): boolean {
+  const purpose = `${headers.get("sec-purpose") ?? ""} ${headers.get("purpose") ?? ""} ${headers.get("x-moz") ?? ""}`;
+  return (
+    purpose.toLowerCase().includes("prefetch") ||
+    headers.has("next-router-prefetch")
+  );
+}
+
 function readSignals(headers: Headers): GeoRequestSignals {
   return {
     clientHints: headers.has("sec-ch-ua"),
     fetchMode: header(headers, "sec-fetch-mode") ?? null,
     tracing: TRACING_HEADERS.some((name) => headers.has(name)),
+    prefetch: isPrefetch(headers),
   };
 }
 
