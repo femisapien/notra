@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  ArrowUpRight01Icon,
-  FileAddIcon,
-  GithubIcon,
-  GitPullRequestIcon,
-} from "@hugeicons/core-free-icons";
+import { ArrowUpRight01Icon, FileAddIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Alert,
@@ -15,13 +10,11 @@ import {
 import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
-import { SITE_CONFIG_DOCS_URL } from "@/constants/site-create";
 import {
   useCreateSiteStarter,
   useSiteStarterStatus,
 } from "@/lib/hooks/use-site-starter";
 import type { SiteCreateStarterProps } from "@/types/components/sites";
-import { parseGithubPullRequestUrl } from "@/utils/site-links";
 import { normalizeSiteStarterRoot } from "@/utils/site-starter-scope";
 
 export function SiteCreateStarter({
@@ -55,108 +48,65 @@ export function SiteCreateStarter({
   const existingRoots = [...new Set(configDirectories)].filter(
     (directory) => directory !== root
   );
-  const existingChoices = existingRoots.length ? (
-    <Alert role="status">
-      <HugeiconsIcon aria-hidden="true" icon={FileAddIcon} strokeWidth={1.75} />
-      <AlertTitle>{t("existingTitle")}</AlertTitle>
-      <AlertDescription>{t("existingDescription")}</AlertDescription>
-      <div className="col-start-2 flex flex-wrap gap-2 pt-2">
-        {existingRoots.map((directory) => (
-          <Button
-            key={directory}
-            onClick={() => onRootDirectoryChange(directory)}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            {t("useExisting", {
-              path: directory ? `${directory}/blog.json` : "blog.json",
-            })}
-          </Button>
-        ))}
-      </div>
-    </Alert>
-  ) : null;
-
-  if (openUrl) {
-    const pullRequest = parseGithubPullRequestUrl(openUrl);
+  if (existingRoots.length) {
     return (
-      <div className="space-y-4">
-        {existingChoices}
-        <Alert role="status">
-          <HugeiconsIcon
-            aria-hidden="true"
-            icon={GitPullRequestIcon}
-            strokeWidth={1.75}
-          />
-          <AlertTitle>{t("opened")}</AlertTitle>
-          <AlertDescription>
-            {t("selectedLocation", { path: configPath, branch })}{" "}
-            {t("optional")}
-          </AlertDescription>
-          <div className="col-start-2 pt-2">
-            <a
-              className="border-border text-muted-foreground hover:bg-muted hover:text-foreground inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors"
-              href={openUrl}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <HugeiconsIcon
-                aria-hidden="true"
-                className="size-3.5 shrink-0"
-                icon={GithubIcon}
-              />
-              {pullRequest ? (
-                <>
-                  <span className="text-foreground truncate">
-                    {pullRequest.owner}/{pullRequest.repo}
-                  </span>
-                  <span className="shrink-0 tabular-nums">
-                    #{pullRequest.number}
-                  </span>
-                </>
-              ) : (
-                <span className="truncate">{t("view")}</span>
-              )}
-              <HugeiconsIcon
-                aria-hidden="true"
-                className="size-3.5 shrink-0"
-                icon={ArrowUpRight01Icon}
-              />
-            </a>
-          </div>
-        </Alert>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {existingChoices}
       <Alert role="status">
         <HugeiconsIcon
           aria-hidden="true"
           icon={FileAddIcon}
           strokeWidth={1.75}
         />
-        <AlertTitle>{t("missingTitle")}</AlertTitle>
-        <AlertDescription>
-          {t("selectedLocation", { path: configPath, branch })} {t("missing")}{" "}
+        <AlertTitle>{t("existingTitle")}</AlertTitle>
+        <div className="col-start-2 space-y-2 pt-2">
+          {existingRoots.map((directory) => {
+            const path = directory ? `${directory}/blog.json` : "blog.json";
+            return (
+              <div
+                className="flex min-w-0 flex-wrap items-center justify-between gap-2"
+                key={directory}
+              >
+                <code className="text-muted-foreground min-w-0 flex-1 text-xs [overflow-wrap:anywhere]">
+                  {path}
+                </code>
+                <Button
+                  aria-label={t("useExisting", { path })}
+                  onClick={() => onRootDirectoryChange(directory)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  {t("useFolder")}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      </Alert>
+    );
+  }
+  return (
+    <Alert role="status">
+      <HugeiconsIcon aria-hidden="true" icon={FileAddIcon} strokeWidth={1.75} />
+      <AlertTitle>{t(openUrl ? "opened" : "missingTitle")}</AlertTitle>
+      <AlertDescription>
+        {t("selectedLocation", { path: configPath, branch })}
+      </AlertDescription>
+      <div className="col-start-2 pt-2">
+        {openUrl ? (
           <a
-            className="inline-flex items-center gap-0.5"
-            href={SITE_CONFIG_DOCS_URL}
+            className="text-muted-foreground hover:text-foreground inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-md text-xs underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+            href={openUrl}
             rel="noopener noreferrer"
             target="_blank"
           >
-            {t("why")}
+            {t("view")}
             <HugeiconsIcon
               aria-hidden="true"
-              className="size-3.5"
+              className="size-3.5 shrink-0"
               icon={ArrowUpRight01Icon}
             />
           </a>
-        </AlertDescription>
-        <div className="col-start-2 pt-2">
+        ) : (
           <Button
             loading={createStarter.isPending}
             onClick={() =>
@@ -169,10 +119,10 @@ export function SiteCreateStarter({
             type="button"
             variant="outline"
           >
-            {t("createAt", { path: configPath })}
+            {t("createAt")}
           </Button>
-        </div>
-      </Alert>
-    </div>
+        )}
+      </div>
+    </Alert>
   );
 }

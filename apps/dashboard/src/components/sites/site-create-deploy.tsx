@@ -13,12 +13,8 @@ import { useTranslations } from "use-intl";
 
 import { Button, buttonVariants } from "@/components/button";
 import Link from "@/components/framework/link";
-import { CopyPromptButton } from "@/components/geo/code-snippet";
 import { SiteBuildLogs } from "@/components/sites/site-build-logs";
-import {
-  SITE_CONFIG_MISSING_DIAGNOSTIC,
-  SITE_CREATE_DEPLOY_POLL_MS,
-} from "@/constants/site-create";
+import { SITE_CREATE_DEPLOY_POLL_MS } from "@/constants/site-create";
 import { MS_PER_SECOND } from "@/constants/site-deployments";
 import { useNow } from "@/lib/hooks/use-now";
 import {
@@ -29,20 +25,19 @@ import { dashboardOrpc } from "@/lib/orpc/query";
 import { cn } from "@/lib/utils";
 import type { SiteCreateDeployProps } from "@/types/components/sites";
 import { toErrorMessage } from "@/utils/error-message";
-import { buildSiteBuildAgentPrompt } from "@/utils/site-build-agent-prompt";
 import {
   deploymentElapsedMs,
   formatBuildDuration,
   isDeploymentInProgress,
+  stripAnsi,
 } from "@/utils/site-deployments";
-import { siteDeploymentHref, siteHref } from "@/utils/site-links";
+import { siteHref } from "@/utils/site-links";
 
 export function SiteCreateDeploy({
   organizationId,
   organizationSlug,
   site,
   deploymentQueued,
-  starterPullRequestUrl = null,
 }: SiteCreateDeployProps) {
   const t = useTranslations("sites.new.deploy");
   const [retryFromDeploymentId, setRetryFromDeploymentId] = useState<
@@ -78,16 +73,18 @@ export function SiteCreateDeploy({
   const ready = !lookupFailed && record !== null && !(inProgress || failed);
   const failureSummary =
     record?.errorMessage?.trim() ||
-    record?.diagnostics.find(
-      (diagnostic) =>
-        diagnostic.severity === "error" && diagnostic.message.trim()
-    )?.message ||
+    record?.diagnostics
+      .find(
+        (diagnostic) =>
+          diagnostic.severity === "error" && diagnostic.message.trim()
+      )
+      ?.message.trim() ||
     t("failureRecovery");
-  const configMissing =
-    failed &&
-    (record?.diagnostics ?? []).some(
-      (diagnostic) => diagnostic.code === SITE_CONFIG_MISSING_DIAGNOSTIC
-    );
+  const log = record ? (deployment.data?.log ?? "") : "";
+  const buildLog =
+    failed && !stripAnsi(log).includes(failureSummary)
+      ? `${log.trimEnd()}${log.trim() ? "\n" : ""}[error] ${failureSummary}`
+      : log;
   const now = useNow(inProgress);
   const elapsed = record
     ? formatBuildDuration(deploymentElapsedMs(record, now))
@@ -148,27 +145,83 @@ export function SiteCreateDeploy({
 
   return (
     <div className="space-y-4">
-      {queued && !lookupFailed ? (
-        <div className="overflow-hidden rounded-xl border">
+      <div className="overflow-hidden rounded-xl border">
+        {!lookupFailed ? (
           <SiteBuildLogs
             heading={heading}
             inProgress={inProgress}
-            log={record ? (deployment.data?.log ?? null) : null}
-            queued={!record || status === "queued"}
+            log={buildLog || null}
+            queued={!failed && (!record || status === "queued")}
           />
+        ) : (
+          <div className="p-4 text-sm">{heading}</div>
+        )}
+        <div className="flex flex-wrap items-center justify-end gap-4 border-t px-4 py-3">
+          {!ready ? (
+            <Link
+              className="text-muted-foreground hover:text-foreground inline-flex min-h-8 items-center rounded-md text-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+              href={siteHref(organizationSlug, site.id, "settings")}
+            >
+              {t("editConfiguration")}
+            </Link>
+          ) : null}
+          {lookupFailed ? (
+            <Button
+              loading={detail.isFetching || deployment.isFetching}
+              onClick={() => {
+                void detail.refetch();
+                if (deploymentId) {
+                  void deployment.refetch();
+                }
+              }}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {t("retryStatus")}
+            </Button>
+          ) : null}
+          {failed ? (
+            <Button
+              loading={retry.isPending}
+              onClick={() => {
+                if (!retry.isPending) {
+                  retry.mutate(undefined, {
+                    onSuccess: () => setRetryFromDeploymentId(deploymentId),
+                  });
+                }
+              }}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {t("retryDeployment")}
+            </Button>
+          ) : null}
+          {ready ? (
+            <>
+              <a
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+                href={site.liveUrl}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                {t("visit")}
+                <HugeiconsIcon
+                  data-icon="inline-end"
+                  icon={ArrowUpRight01Icon}
+                />
+              </a>
+              <Link
+                className={buttonVariants({ size: "sm" })}
+                href={siteHref(organizationSlug, site.id)}
+              >
+                {t("openSite")}
+              </Link>
+            </>
+          ) : null}
         </div>
-      ) : (
-        <div className="text-sm">{heading}</div>
-      )}
-
-      {failed ? (
-        <p
-          className="text-foreground text-sm [overflow-wrap:anywhere]"
-          role="alert"
-        >
-          {failureSummary}
-        </p>
-      ) : null}
+      </div>
       {retry.isError ? (
         <p
           className="text-foreground text-sm [overflow-wrap:anywhere]"
@@ -177,113 +230,6 @@ export function SiteCreateDeploy({
           {toErrorMessage(retry.error, t("retryFailed"))}
         </p>
       ) : null}
-
-      {configMissing ? (
-        <p className="animate-in fade-in text-sm duration-300">
-          {t("configMissingRetry")}
-          {starterPullRequestUrl ? (
-            <>
-              {" "}
-              <a
-                className="text-primary inline-flex items-center gap-0.5 underline-offset-4 hover:underline"
-                href={starterPullRequestUrl}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                {t("viewPullRequest")}
-                <HugeiconsIcon
-                  aria-hidden="true"
-                  className="size-3.5"
-                  icon={ArrowUpRight01Icon}
-                />
-              </a>
-            </>
-          ) : null}
-        </p>
-      ) : null}
-
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        {failed ? (
-          <>
-            <CopyPromptButton
-              className="me-auto"
-              prompt={buildSiteBuildAgentPrompt({
-                site,
-                deployment: record,
-                log: deployment.data?.log ?? null,
-              })}
-            />
-            <Link
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-              href={
-                deploymentId
-                  ? siteDeploymentHref(organizationSlug, site.id, deploymentId)
-                  : siteHref(organizationSlug, site.id, "deployments")
-              }
-            >
-              {t("viewDeployment")}
-            </Link>
-          </>
-        ) : null}
-        <Link
-          className={buttonVariants({ variant: "outline", size: "sm" })}
-          href={siteHref(organizationSlug, site.id, "settings")}
-        >
-          {t("editConfiguration")}
-        </Link>
-        {lookupFailed ? (
-          <Button
-            loading={detail.isFetching || deployment.isFetching}
-            onClick={() => {
-              void detail.refetch();
-              if (deploymentId) {
-                void deployment.refetch();
-              }
-            }}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            {t("retryStatus")}
-          </Button>
-        ) : null}
-        {failed ? (
-          <Button
-            loading={retry.isPending}
-            onClick={() => {
-              if (!retry.isPending) {
-                retry.mutate(undefined, {
-                  onSuccess: () => setRetryFromDeploymentId(deploymentId),
-                });
-              }
-            }}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            {t("retryDeployment")}
-          </Button>
-        ) : null}
-        {ready ? (
-          <>
-            <a
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-              href={site.liveUrl}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              {t("visit")}
-              <HugeiconsIcon data-icon="inline-end" icon={ArrowUpRight01Icon} />
-            </a>
-            <Link
-              className={buttonVariants({ size: "sm" })}
-              href={siteHref(organizationSlug, site.id)}
-            >
-              {t("openSite")}
-            </Link>
-          </>
-        ) : null}
-      </div>
     </div>
   );
 }

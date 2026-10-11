@@ -52,7 +52,7 @@ Already have a Notra site with a `blog.json`? Skip adding a first post and selec
 
     For example, if `hosted-site/blog.json` and `hosted-site/blog/` are on `main`, select **Production branch** `main` and root directory `hosted-site`. For a blog at the address root, set **Blog** to `/` and leave **Changelog** empty. The source folder and the URL path are separate settings.
 
-    If the repository contains more than one `blog.json`, choose the folder for the site you want to publish. A config on another branch or in another folder isn't the config for this selection.
+    When an existing `blog.json` is discovered, click **Use folder** beside its path. If there is more than one, choose the folder for the site you want to publish. A config on another branch or in another folder isn't the config for this selection.
 
     Click **Create & deploy**.
   </Step>
@@ -66,7 +66,7 @@ Already have a Notra site with a `blog.json`? Skip adding a first post and selec
 
 ## Make it yours
 
-When the selected production branch and root directory have no `blog.json`, the Configure step offers **Open starter PR for \{path\} (optional)**. The button shows the chosen config file path: `blog.json` at the repository root or, for example, `hosted-site/blog.json` for root directory `hosted-site`. Notra reads your Brand Identity and website and opens a pull request with a `blog.json`, a `header.mdx`, a `footer.mdx` and a first post that use your logo, colors and links. Review and merge it into the selected production branch to deploy those files after creating the site.
+When the selected production branch and root directory have no `blog.json` and no alternative config is discovered, the Configure step offers **Open starter PR**. The source path is shown above the button: `blog.json` at the repository root or, for example, `hosted-site/blog.json` for root directory `hosted-site`. This is optional; you can still **Create & deploy** with the standard layout. Notra reads your Brand Identity and website and opens a pull request with a `blog.json`, a `header.mdx`, a `footer.mdx` and a first post that use your logo, colors and links. Review and merge it into the selected production branch to deploy those files after creating the site.
 
 If your config already exists elsewhere, select its branch and folder instead. A starter in a different folder creates a separate site source; it doesn't connect or replace your existing config.
 

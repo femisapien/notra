@@ -437,22 +437,22 @@ if (!process.env.NOTRA_DEPLOY_SURFACE_TEST_WORKER) {
         expect(html).not.toContain(messages.common.labels.copyAgentPrompt);
         expect(html).toContain("Your site is live.");
         expect(html).toContain('href="https://site.example"');
+        expect(html).not.toContain(messages.sites.new.deploy.editConfiguration);
       } else {
         expect(html).toContain(messages.sites.new.deploy.failed);
         expect(html).toContain(
           'class="inline-flex items-center gap-2 text-destructive"'
         );
         expect(html).not.toContain("mt-0.5 size-4 shrink-0");
-        expect(html).toContain(messages.sites.new.deploy.viewDeployment);
+        expect(html).not.toContain(messages.sites.new.deploy.viewDeployment);
         expect(html).toContain(messages.sites.new.deploy.retryDeployment);
         expect(html).toContain(messages.sites.new.deploy.failureRecovery);
         expect(html).not.toContain(messages.sites.new.deploy.openSite);
         expect(html).not.toContain('href="https://site.example"');
-        expect(html).toContain(messages.common.labels.copyAgentPrompt);
-        expect(
-          html.indexOf(messages.common.labels.copyAgentPrompt)
-        ).toBeLessThan(html.indexOf(messages.sites.new.deploy.viewDeployment));
-        expect(html).toContain("me-auto");
+        expect(html).not.toContain(messages.common.labels.copyAgentPrompt);
+        expect(html).toContain(messages.sites.new.deploy.editConfiguration);
+        expect(html.match(/<a\b/g)).toHaveLength(1);
+        expect(html).not.toContain('role="alert"');
         expect(html).toContain("min-h-24");
         expect(html).toContain("max-h-48");
         expect(html).toContain('data-streaming="false"');
@@ -462,7 +462,7 @@ if (!process.env.NOTRA_DEPLOY_SURFACE_TEST_WORKER) {
     }
   );
 
-  test("a deployment that was not queued has no empty log box", () => {
+  test("a deployment that was not queued has recovery guidance in its log", () => {
     status = "queued";
     hasRecord = false;
     const html = renderToStaticMarkup(
@@ -479,10 +479,12 @@ if (!process.env.NOTRA_DEPLOY_SURFACE_TEST_WORKER) {
       messages.sites.new.deploy.notStarted
     );
     expect(html).not.toContain(messages.sites.new.deploy.openSite);
-    expect(html).toContain(messages.common.labels.copyAgentPrompt);
-    expect(html).toContain(messages.sites.new.deploy.viewDeployment);
-    expect(html).toContain('href="/organization/sites/site/deployments"');
-    expect(html).not.toContain(messages.sites.deploymentPage.log.copy);
+    expect(html).not.toContain(messages.common.labels.copyAgentPrompt);
+    expect(html).not.toContain(messages.sites.new.deploy.viewDeployment);
+    expect(html).toContain('href="/organization/sites/site/settings"');
+    expect(html).toContain(messages.sites.new.deploy.retryDeployment);
+    expect(html).toContain(messages.sites.new.deploy.failureRecovery);
+    expect(html).toContain('role="log"');
     expect(html).not.toContain("motion-safe:animate-spin");
   });
 
@@ -504,7 +506,7 @@ if (!process.env.NOTRA_DEPLOY_SURFACE_TEST_WORKER) {
     expect(html).not.toContain(messages.sites.new.deploy.openSite);
   });
 
-  test("legacy missing configuration retains retry guidance and PR link", () => {
+  test("legacy missing configuration stays in the log with two recovery controls", () => {
     hasRecord = true;
     status = "failed";
     configMissing = true;
@@ -520,9 +522,14 @@ if (!process.env.NOTRA_DEPLOY_SURFACE_TEST_WORKER) {
       </IntlProvider>
     );
     expect(html).toContain(messages.sites.new.deploy.failed);
-    expect(html).toContain(messages.sites.new.deploy.configMissingRetry);
+    expect(html).not.toContain(messages.sites.new.deploy.configMissingRetry);
     expect(html).toContain("Missing blog.json");
-    expect(html).toContain('href="https://github.example/repository/pull/1"');
+    expect(html).not.toContain(
+      'href="https://github.example/repository/pull/1"'
+    );
+    expect(html).toContain('role="log"');
+    expect(html).toContain(messages.sites.new.deploy.retryDeployment);
+    expect(html).toContain(messages.sites.new.deploy.editConfiguration);
   });
 
   test("terminal failure gives its reason and same-Site settings and retry actions", () => {
@@ -539,7 +546,11 @@ if (!process.env.NOTRA_DEPLOY_SURFACE_TEST_WORKER) {
       </IntlProvider>
     );
     expect(html).toContain(errorMessage);
-    expect(html).toContain('role="alert"');
+    expect(html).toContain('role="log"');
+    expect(html).not.toContain('role="alert"');
+    expect(
+      html.match(/Sandbox rejected upload \(400\): Invalid upload/g)
+    ).toHaveLength(1);
     expect(html).toContain('href="/organization/sites/site/settings"');
     expect(html).toContain(messages.sites.new.deploy.retryDeployment);
   });
@@ -592,6 +603,31 @@ if (!process.env.NOTRA_DEPLOY_SURFACE_TEST_WORKER) {
       expect(render()).toContain(localized.sites.new.deploy.failureRecovery);
     }
   );
+
+  test("a failure already present in the log is not repeated outside or inside it", () => {
+    status = "failed";
+    errorMessage = "Synthetic upload rejection";
+    log =
+      "[build] Uploading files\n[error] \u001b[31mSynthetic upload rejection\u001b[0m";
+    const html = renderToStaticMarkup(
+      <IntlProvider locale="en" messages={messages} timeZone="UTC">
+        <SiteCreateDeploy
+          deploymentQueued
+          organizationId="organization"
+          organizationSlug="organization"
+          site={site}
+        />
+      </IntlProvider>
+    );
+    expect(html.match(/Synthetic upload rejection/g)).toHaveLength(1);
+    expect(html).not.toContain('role="alert"');
+    expect(html).toContain('role="log"');
+    expect(html).not.toContain(messages.sites.new.deploy.failureRecovery);
+    expect(html).not.toContain(messages.sites.new.deploy.viewDeployment);
+    expect(html).not.toContain(messages.common.labels.copyAgentPrompt);
+    expect(html).toContain(messages.sites.new.deploy.editConfiguration);
+    expect(html).toContain(messages.sites.new.deploy.retryDeployment);
+  });
 
   test("an initial site-detail error with no data does not look queued", () => {
     hasRecord = false;
