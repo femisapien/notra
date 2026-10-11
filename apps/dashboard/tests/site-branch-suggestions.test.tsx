@@ -36,6 +36,8 @@ if (!process.env.NOTRA_SITE_BRANCH_SUGGESTIONS_TEST_WORKER) {
     (_options: { enabled: boolean; staleTime: number; retry: boolean }) => ({
       data: queryIndex++ < 2 ? baseData : branchData,
       isPending: pending,
+      isSuccess: (queryIndex <= 2 ? baseData : branchData) !== undefined,
+      isFetching: false,
     })
   );
   const siteOptions = mock(
@@ -126,9 +128,10 @@ if (!process.env.NOTRA_SITE_BRANCH_SUGGESTIONS_TEST_WORKER) {
     expect(siteOptions.mock.calls[1]?.[0]?.input).toEqual({
       organizationId: "org-current",
       siteId: "site_current",
-      ref: undefined,
+      ref: "custom/not-yet-pushed",
     });
-    expect(result.configDirectories).toEqual(repositoryData.configDirectories);
+    expect(result.configDirectories).toEqual([]);
+    expect(result.isReady).toBe(false);
   });
 
   test("loading and unavailable GitHub suggestions leave a safe empty result", () => {
@@ -146,6 +149,7 @@ if (!process.env.NOTRA_SITE_BRANCH_SUGGESTIONS_TEST_WORKER) {
       configDirectories: [],
       contentCounts: undefined,
       isLoading: true,
+      isReady: false,
     });
     queryIndex = 0;
     pending = false;

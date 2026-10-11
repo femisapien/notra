@@ -20,25 +20,30 @@ export function useRepositorySuggestions(
     siteId,
     undefined
   );
-  const knownBranch =
-    branch && base.data?.branches.includes(branch) ? branch : undefined;
+  const selectedBranch = branch.trim();
+  const useSelectedBranch = Boolean(
+    selectedBranch && selectedBranch !== base.data?.defaultBranch
+  );
   const onBranch = useRepositorySuggestionsQuery(
     organizationId,
     repositoryId,
     siteId,
-    knownBranch && knownBranch !== base.data?.defaultBranch
-      ? knownBranch
-      : undefined,
-    Boolean(knownBranch && knownBranch !== base.data?.defaultBranch)
+    useSelectedBranch ? selectedBranch : undefined,
+    useSelectedBranch && base.data?.branches.includes(selectedBranch) === true
   );
-  const scanned = onBranch.data ?? base.data;
+  const selected = useSelectedBranch ? onBranch : base;
+  const isReady = selected.isSuccess && !selected.isFetching;
+  const scanned = isReady ? selected.data : undefined;
   const directories = scanned?.configDirectories ?? [];
   return {
     branches: base.data?.branches ?? [],
     defaultBranch: base.data?.defaultBranch ?? null,
     configDirectories: directories,
     contentCounts: scanned?.contentCounts,
-    isLoading: base.isPending && Boolean(repositoryId ?? siteId),
+    isLoading:
+      Boolean(repositoryId ?? siteId) &&
+      (base.isPending || selected.isFetching),
+    isReady,
   };
 }
 

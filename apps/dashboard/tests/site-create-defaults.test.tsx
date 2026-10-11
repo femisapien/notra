@@ -36,7 +36,7 @@ if (!process.env.NOTRA_SITE_DEFAULTS_TEST_WORKER) {
   };
   const mutate = mock(() => {});
   mock.module("../src/lib/hooks/use-site-starter", () => ({
-    useSiteStarterStatus: () => ({ data: { hasConfig } }),
+    useSiteStarterStatus: () => ({ data: { hasConfig }, isReady: true }),
     useCreateSiteStarter: () => ({ isPending: false, mutate }),
   }));
   mock.module("@tanstack/react-query", () => ({
@@ -46,6 +46,7 @@ if (!process.env.NOTRA_SITE_DEFAULTS_TEST_WORKER) {
     dashboardOrpc: { sites: { get: { queryOptions: () => ({}) } } },
   }));
   mock.module("../src/lib/hooks/use-site-deployments", () => ({
+    useDeployLatest: () => ({ isPending: false, mutate: () => {} }),
     useSiteDeployment: () => ({
       data: {
         deployment: {
@@ -92,16 +93,19 @@ if (!process.env.NOTRA_SITE_DEFAULTS_TEST_WORKER) {
         <IntlProvider locale={locale} messages={messages} timeZone="UTC">
           <SiteCreateStarter
             branch="main"
+            configDirectories={[]}
             onPullRequestOpened={() => {}}
+            onRootDirectoryChange={() => {}}
             organizationId="organization"
             pullRequestUrl={null}
             repositoryId="repository"
             rootDirectory=""
+            suggestionsReady
           />
         </IntlProvider>
       );
       expect(html).toContain(messages.sites.new.starter.missing);
-      expect(html).toContain(messages.sites.new.starter.create);
+      expect(html).toContain("blog.json");
       expect(html).toContain('type="button"');
       expect(mutate).not.toHaveBeenCalled();
       expect(messages.sites.new.create).toBe(
@@ -114,11 +118,14 @@ if (!process.env.NOTRA_SITE_DEFAULTS_TEST_WORKER) {
         <IntlProvider locale={locale} messages={messages} timeZone="UTC">
           <SiteCreateStarter
             branch="main"
+            configDirectories={[]}
             onPullRequestOpened={() => {}}
+            onRootDirectoryChange={() => {}}
             organizationId="organization"
             pullRequestUrl="https://github.example/repository/pull/1"
             repositoryId="repository"
             rootDirectory=""
+            suggestionsReady
           />
         </IntlProvider>
       );
@@ -155,11 +162,14 @@ if (!process.env.NOTRA_SITE_DEFAULTS_TEST_WORKER) {
         <IntlProvider locale="en" messages={en} timeZone="UTC">
           <SiteCreateStarter
             branch="main"
+            configDirectories={[]}
             onPullRequestOpened={() => {}}
+            onRootDirectoryChange={() => {}}
             organizationId="organization"
             pullRequestUrl={null}
             repositoryId="repository"
             rootDirectory=""
+            suggestionsReady
           />
         </IntlProvider>
       )

@@ -22,6 +22,7 @@ import {
 } from "@/lib/hooks/use-site-starter";
 import type { SiteCreateStarterProps } from "@/types/components/sites";
 import { parseGithubPullRequestUrl } from "@/utils/site-links";
+import { normalizeSiteStarterRoot } from "@/utils/site-starter-scope";
 
 export function SiteCreateStarter({
   organizationId,
@@ -30,6 +31,9 @@ export function SiteCreateStarter({
   rootDirectory,
   pullRequestUrl,
   onPullRequestOpened,
+  configDirectories,
+  suggestionsReady,
+  onRootDirectoryChange,
 }: SiteCreateStarterProps) {
   const t = useTranslations("sites.new.starter");
   const scope = { organizationId, repositoryId, branch, rootDirectory };
@@ -37,91 +41,138 @@ export function SiteCreateStarter({
   const createStarter = useCreateSiteStarter();
   const openUrl = pullRequestUrl ?? status.data?.pullRequestUrl ?? null;
 
-  if (!status.data || status.data.hasConfig) {
+  if (
+    !suggestionsReady ||
+    !status.isReady ||
+    !status.data ||
+    status.data.hasConfig
+  ) {
     return null;
   }
+
+  const root = normalizeSiteStarterRoot(rootDirectory);
+  const configPath = root ? `${root}/blog.json` : "blog.json";
+  const existingRoots = [...new Set(configDirectories)].filter(
+    (directory) => directory !== root
+  );
+  const existingChoices = existingRoots.length ? (
+    <Alert role="status">
+      <HugeiconsIcon aria-hidden="true" icon={FileAddIcon} strokeWidth={1.75} />
+      <AlertTitle>{t("existingTitle")}</AlertTitle>
+      <AlertDescription>{t("existingDescription")}</AlertDescription>
+      <div className="col-start-2 flex flex-wrap gap-2 pt-2">
+        {existingRoots.map((directory) => (
+          <Button
+            key={directory}
+            onClick={() => onRootDirectoryChange(directory)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            {t("useExisting", {
+              path: directory ? `${directory}/blog.json` : "blog.json",
+            })}
+          </Button>
+        ))}
+      </div>
+    </Alert>
+  ) : null;
 
   if (openUrl) {
     const pullRequest = parseGithubPullRequestUrl(openUrl);
     return (
-      <Alert role="status">
-        <HugeiconsIcon
-          aria-hidden="true"
-          icon={GitPullRequestIcon}
-          strokeWidth={1.75}
-        />
-        <AlertTitle>{t("opened")}</AlertTitle>
-        <AlertDescription>{t("optional")}</AlertDescription>
-        <div className="col-start-2 pt-2">
-          <a
-            className="border-border text-muted-foreground hover:bg-muted hover:text-foreground inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors"
-            href={openUrl}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <HugeiconsIcon
-              aria-hidden="true"
-              className="size-3.5 shrink-0"
-              icon={GithubIcon}
-            />
-            {pullRequest ? (
-              <>
-                <span className="text-foreground truncate">
-                  {pullRequest.owner}/{pullRequest.repo}
-                </span>
-                <span className="shrink-0 tabular-nums">
-                  #{pullRequest.number}
-                </span>
-              </>
-            ) : (
-              <span className="truncate">{t("view")}</span>
-            )}
-            <HugeiconsIcon
-              aria-hidden="true"
-              className="size-3.5 shrink-0"
-              icon={ArrowUpRight01Icon}
-            />
-          </a>
-        </div>
-      </Alert>
+      <div className="space-y-4">
+        {existingChoices}
+        <Alert role="status">
+          <HugeiconsIcon
+            aria-hidden="true"
+            icon={GitPullRequestIcon}
+            strokeWidth={1.75}
+          />
+          <AlertTitle>{t("opened")}</AlertTitle>
+          <AlertDescription>
+            {t("selectedLocation", { path: configPath, branch })}{" "}
+            {t("optional")}
+          </AlertDescription>
+          <div className="col-start-2 pt-2">
+            <a
+              className="border-border text-muted-foreground hover:bg-muted hover:text-foreground inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors"
+              href={openUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <HugeiconsIcon
+                aria-hidden="true"
+                className="size-3.5 shrink-0"
+                icon={GithubIcon}
+              />
+              {pullRequest ? (
+                <>
+                  <span className="text-foreground truncate">
+                    {pullRequest.owner}/{pullRequest.repo}
+                  </span>
+                  <span className="shrink-0 tabular-nums">
+                    #{pullRequest.number}
+                  </span>
+                </>
+              ) : (
+                <span className="truncate">{t("view")}</span>
+              )}
+              <HugeiconsIcon
+                aria-hidden="true"
+                className="size-3.5 shrink-0"
+                icon={ArrowUpRight01Icon}
+              />
+            </a>
+          </div>
+        </Alert>
+      </div>
     );
   }
 
   return (
-    <Alert role="status">
-      <HugeiconsIcon aria-hidden="true" icon={FileAddIcon} strokeWidth={1.75} />
-      <AlertTitle>{t("missingTitle")}</AlertTitle>
-      <AlertDescription>
-        {t("missing")}{" "}
-        <a
-          className="inline-flex items-center gap-0.5"
-          href={SITE_CONFIG_DOCS_URL}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          {t("why")}
-          <HugeiconsIcon
-            aria-hidden="true"
-            className="size-3.5"
-            icon={ArrowUpRight01Icon}
-          />
-        </a>
-      </AlertDescription>
-      <div className="col-start-2 pt-2">
-        <Button
-          loading={createStarter.isPending}
-          onClick={() =>
-            createStarter.mutate(scope, {
-              onSuccess: (result) => onPullRequestOpened(result.pullRequestUrl),
-            })
-          }
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          {t("create")}
-        </Button>
-      </div>
-    </Alert>
+    <div className="space-y-4">
+      {existingChoices}
+      <Alert role="status">
+        <HugeiconsIcon
+          aria-hidden="true"
+          icon={FileAddIcon}
+          strokeWidth={1.75}
+        />
+        <AlertTitle>{t("missingTitle")}</AlertTitle>
+        <AlertDescription>
+          {t("selectedLocation", { path: configPath, branch })} {t("missing")}{" "}
+          <a
+            className="inline-flex items-center gap-0.5"
+            href={SITE_CONFIG_DOCS_URL}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {t("why")}
+            <HugeiconsIcon
+              aria-hidden="true"
+              className="size-3.5"
+              icon={ArrowUpRight01Icon}
+            />
+          </a>
+        </AlertDescription>
+        <div className="col-start-2 pt-2">
+          <Button
+            loading={createStarter.isPending}
+            onClick={() =>
+              createStarter.mutate(scope, {
+                onSuccess: (result) =>
+                  onPullRequestOpened(result.pullRequestUrl),
+              })
+            }
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            {t("createAt", { path: configPath })}
+          </Button>
+        </div>
+      </Alert>
+    </div>
   );
 }

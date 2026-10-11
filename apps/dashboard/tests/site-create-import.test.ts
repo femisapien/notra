@@ -34,6 +34,7 @@ for (const rejects of [false, true]) {
       setRepository: () => {
         picked = true;
       },
+      sourceRevision: { current: 0 },
       setStarterPullRequestUrl: () => {},
       setForm: () => {},
       clearErrors: () => {},

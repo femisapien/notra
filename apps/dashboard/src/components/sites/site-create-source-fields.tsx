@@ -148,12 +148,15 @@ export function SiteCreateSourceFields({
       </m.div>
       {form.repositoryId ? (
         <SiteCreateStarter
-          branch={form.branch}
+          branch={form.branch.trim() || repository?.defaultBranch || ""}
+          configDirectories={suggestions.configDirectories}
           onPullRequestOpened={onStarterPullRequestOpened}
+          onRootDirectoryChange={(value) => update("rootDirectory", value)}
           organizationId={organizationId}
           pullRequestUrl={starterPullRequestUrl}
           repositoryId={form.repositoryId}
           rootDirectory={form.rootDirectory}
+          suggestionsReady={suggestions.isReady}
         />
       ) : null}
       <m.div variants={SITE_CREATE_ROW_VARIANTS}>

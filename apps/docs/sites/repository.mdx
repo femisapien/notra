@@ -14,7 +14,9 @@ docolin:
   status: stable
 ---
 
-A site lives at the root of your repository, or in a folder you choose with **Site is in a subdirectory** (useful in monorepos, for example `apps/blog`), and every path on this page is relative to that folder.
+A site lives on the **Production branch** you select, at the repository root or in a folder you choose with **Site is in a subdirectory**. An empty root directory means the repository root. Every path on this page is relative to that selected site root.
+
+For an existing `hosted-site/blog.json`, choose root directory `hosted-site`, not `hosted-site/blog` or the config file itself. Notra reads `blog.json`, `blog/`, `changelog/` and the other files below from that folder on the selected branch. If there are several configs, choose the one you want to publish; you don't need a starter PR for an existing site.
 
 ```text
 blog.json              # optional: settings, see the blog.json reference
@@ -36,11 +38,24 @@ style.css              # optional: any .css file loads on every page
 script.js              # optional: custom JavaScript on every page
 ```
 
-Besides the files above, Notra reads every `.css` file and every `.js` file outside `blog/`, `changelog/`, `snippets/`, `public/` and `slots/`, wherever it sits, and loads it on every page. Notra ignores other files, such as a `README.md` or a `package.json`. If the repository also holds your app's code, put the site in its own folder and turn on **Site is in a subdirectory**.
+Notra loads every `.css` file in the site root and its subfolders on every page. It also loads every `.js` file outside `blog/`, `changelog/`, `snippets/`, `public/`, `styles/` and `slots/` as a [custom script](/sites/custom-scripts). Notra ignores other files, such as a `README.md` or a `package.json`. If the repository also holds your app's code, put the site in its own folder and turn on **Site is in a subdirectory**.
+
+## What Notra builds
+
+Notra compiles this repository format into a blog and changelog. It doesn't install your repository's dependencies, run `package.json` scripts, upload a `dist/` directory or start an application server. Pointing the root directory at a Vite or Next.js app doesn't turn it into a Notra site.
+
+You can add client-side experiences with [custom components](/sites/custom-components), [plain browser scripts](/sites/custom-scripts) and the allowed files in `public/`. If you build those scripts or assets with another tool, commit the compatible output in this layout before deploying. Apps that need a different build pipeline, server or unsupported asset types must be hosted separately; you can link to them or embed them where the app allows it.
+
+### Checklist for developers and coding agents
+
+- Find the existing `blog.json` on the intended production branch before creating new site files.
+- Select its containing folder as the site root, and keep content, chrome, scripts and public assets relative to that root.
+- Set Blog and Changelog URL paths separately from the source folder. Leave a section path empty to disable it.
+- Use the [blog.json reference](/sites/reference/blog-json), [custom components](/sites/custom-components) and [custom scripts](/sites/custom-scripts) for the supported format, rather than adding a repository build command.
 
 ## blog.json is optional
 
-Without a `blog.json`, the site builds with the standard layout and the site name from the dashboard, so add one when you want your own colors, logo, navigation, authors or analytics. See the [blog.json reference](/sites/reference/blog-json).
+Without a `blog.json` at the selected site root on the production branch, the hosted site builds with the standard layout and the site name from the dashboard. A config elsewhere in the repository isn't used. Add one when you want your own colors, logo, navigation, authors or analytics. See the [blog.json reference](/sites/reference/blog-json).
 
 `blog.json` must sit at the root of the site folder, and the `$schema` line gives you autocomplete and inline errors in your editor:
 
@@ -53,7 +68,9 @@ Without a `blog.json`, the site builds with the standard layout and the site nam
 
 ## From file to URL
 
-Every `.md` or `.mdx` file in `blog/` and `changelog/` becomes a page, and the path of the file becomes the URL below the section path:
+The source root chooses which files to build; the section path chooses where they appear on the deployed address. With root directory `hosted-site`, `hosted-site/blog/hello-world.mdx` becomes `/blog/hello-world` when Blog is `/blog`, or `/hello-world` when Blog is `/`. The folder name `hosted-site` isn't part of the URL.
+
+Every `.md` or `.mdx` file in an enabled `blog/` or `changelog/` section becomes a page, and the path of the file becomes the URL below the section path. With the default `/blog` and `/changelog` paths:
 
 | File | URL |
 | --- | --- |

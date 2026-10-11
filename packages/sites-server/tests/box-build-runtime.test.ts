@@ -24,6 +24,11 @@ import {
   SANDBOX_REQUEST_TIMEOUT_MS,
   SANDBOX_LOG_TAIL_SCRIPT,
 } from "../src/constants/sandbox";
+import {
+  SANDBOX_ERROR_DETAIL_MAX_BYTES,
+  SANDBOX_ERROR_DETAIL_MAX_LENGTH,
+  SANDBOX_ERROR_DETAIL_TIMEOUT_MS,
+} from "../src/constants/sandbox-error-detail";
 import * as env from "../src/env";
 import { SandboxRequestError } from "../src/schemas/sandbox";
 import type {
@@ -237,9 +242,14 @@ test("startup failure still completes with redacted metrics and preserves the or
   expect(completed?.log).toContain("[build:lifecycle]");
   expect(completed?.log).not.toContain("box-test-secret");
   expect(completed?.log).not.toContain("abc");
+  expect(completed?.metrics?.phases.resultRead).toBeUndefined();
+  expect(read).not.toHaveBeenCalled();
+  expect(logTail).not.toHaveBeenCalled();
+  expect(command).not.toHaveBeenCalled();
+  expect(upload).not.toHaveBeenCalled();
 });
 
-test("upload failure captures logs and deletes the sandbox", async () => {
+test("upload failure skips nonexistent guest artifacts and deletes the sandbox", async () => {
   const error = new Error("upload network failure");
   upload.mockRejectedValueOnce(error);
   await expect(runSandboxBuild(params)).rejects.toMatchObject({
@@ -249,9 +259,173 @@ test("upload failure captures logs and deletes the sandbox", async () => {
     message: error.message,
   });
   expect(remove).toHaveBeenCalledTimes(1);
-  expect(completed?.log).toContain("compiler final log");
+  expect(completed?.log).not.toContain("compiler final log");
   expect(completed?.log).toContain("upload network failure");
   expect(completed?.metrics?.phases.sourceUpload).toBeGreaterThanOrEqual(0);
+  expect(completed?.metrics?.phases.execution).toBeUndefined();
+  expect(completed?.metrics?.phases.resultRead).toBeUndefined();
+  expect(read).not.toHaveBeenCalled();
+  expect(logTail).not.toHaveBeenCalled();
+  expect(command).not.toHaveBeenCalled();
+  expect(complete).toHaveBeenCalledTimes(1);
+});
+
+test("upload HTTP 400 preserves its original status without starting execution or log polling", async () => {
+  upload.mockResolvedValueOnce(new Response(null, { status: 400 }));
+  await expect(
+    runSandboxBuild({ ...params, onLog: async () => {} })
+  ).rejects.toMatchObject({
+    _tag: "SandboxRequestError",
+    operation: "upload",
+    status: 400,
+    message: "Sandbox rejected upload (400)",
+  });
+  expect(completed?.crash).toBe("Sandbox rejected upload (400)");
+  expect(completed?.log).toContain(
+    "[build:lifecycle] Sandbox rejected upload (400)"
+  );
+  expect(completed?.log).not.toContain("[build:read:");
+  expect(completed?.metrics?.phases.resultRead).toBeUndefined();
+  expect(completed?.metrics?.cleanupSucceeded).toBe(true);
+  expect(read).not.toHaveBeenCalled();
+  expect(logTail).not.toHaveBeenCalled();
+  expect(command).not.toHaveBeenCalled();
+  expect(remove).toHaveBeenCalledTimes(1);
+});
+
+test("provider JSON rejection details are bounded and redacted before errors and logs escape", async () => {
+  upload.mockResolvedValueOnce(
+    Response.json(
+      {
+        error: `Invalid upload box-test-secret\nBearer synthetic-bearer token=synthetic-token password="synthetic-password" https://synthetic-user:synthetic-url-password@example.invalid ${"x".repeat(1000)}`,
+        unrelated: "unrelated-private-data",
+      },
+      { status: 400 }
+    )
+  );
+  const error = await runSandboxBuild(params).catch((cause: unknown) => cause);
+  expect(error).toBeInstanceOf(SandboxRequestError);
+  if (!(error instanceof SandboxRequestError)) {
+    throw new Error("Expected sandbox rejection");
+  }
+  const prefix = "Sandbox rejected upload (400): ";
+  expect(error.message).toStartWith(prefix);
+  expect(error.message.length).toBeLessThanOrEqual(
+    prefix.length + SANDBOX_ERROR_DETAIL_MAX_LENGTH
+  );
+  expect(error.message).not.toContain("\n");
+  for (const secret of [
+    "box-test-secret",
+    "synthetic-bearer",
+    "synthetic-token",
+    "synthetic-password",
+    "synthetic-user",
+    "synthetic-url-password",
+    "unrelated-private-data",
+  ]) {
+    expect(JSON.stringify(error)).not.toContain(secret);
+    expect(completed?.log).not.toContain(secret);
+  }
+  expect(completed?.log).toContain("Invalid upload [REDACTED]");
+  expect(remove).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+  ["HTML", "text/html", "<html>private detail</html>"],
+  ["malformed JSON", "application/json", '{"error":'],
+  ["unexpected fields", "application/json", '{"message":"private detail"}'],
+  [
+    "nested error",
+    "application/json",
+    '{"error":{"message":"private detail"}}',
+  ],
+  [
+    "oversized JSON",
+    "application/json",
+    JSON.stringify({ error: "x".repeat(SANDBOX_ERROR_DETAIL_MAX_BYTES) }),
+  ],
+])(
+  "%s provider detail cannot replace the original rejection",
+  async (_name, contentType, body) => {
+    upload.mockResolvedValueOnce(
+      new Response(body, {
+        status: 400,
+        headers: { "content-type": contentType },
+      })
+    );
+    await expect(runSandboxBuild(params)).rejects.toMatchObject({
+      operation: "upload",
+      status: 400,
+      message: "Sandbox rejected upload (400)",
+    });
+    expect(completed?.metrics?.cleanupSucceeded).toBe(true);
+  }
+);
+
+test("an unreadable provider detail retains the original HTTP rejection and cleanup", async () => {
+  upload.mockResolvedValueOnce(
+    new Response(
+      new ReadableStream({
+        pull(controller) {
+          controller.error(new Error("private stream error box-test-secret"));
+        },
+      }),
+      { status: 400, headers: { "content-type": "application/json" } }
+    )
+  );
+  await expect(runSandboxBuild(params)).rejects.toMatchObject({
+    operation: "upload",
+    status: 400,
+    message: "Sandbox rejected upload (400)",
+  });
+  expect(completed?.log).not.toContain("private stream error");
+  expect(remove).toHaveBeenCalledTimes(1);
+});
+
+test("a hung provider detail has a short budget and cancels its body without losing HTTP status", async () => {
+  let canceled = false;
+  await Effect.runPromise(
+    Effect.gen(function* () {
+      const reading = yield* Deferred.make<void>();
+      upload.mockResolvedValueOnce(
+        new Response(
+          new ReadableStream({
+            pull() {
+              Effect.runSync(Deferred.succeed(reading, undefined));
+            },
+            cancel() {
+              canceled = true;
+            },
+          }),
+          { status: 400, headers: { "content-type": "application/json" } }
+        )
+      );
+      const fiber = yield* runSandboxBuildEffect({
+        ...params,
+        onLog: undefined,
+        onComplete: (build) =>
+          Effect.sync(() => {
+            completed = build;
+          }),
+      }).pipe(Effect.exit, Effect.forkScoped);
+      yield* Deferred.await(reading);
+      yield* TestClock.adjust(SANDBOX_ERROR_DETAIL_TIMEOUT_MS);
+      const exit = yield* Fiber.join(fiber);
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (Exit.isFailure(exit)) {
+        expect(exit.cause.reasons[0]).toMatchObject({
+          _tag: "Fail",
+          error: {
+            operation: "upload",
+            status: 400,
+            message: "Sandbox rejected upload (400)",
+          },
+        });
+      }
+      expect(canceled).toBe(true);
+      expect(completed?.metrics?.cleanupSucceeded).toBe(true);
+    }).pipe(Effect.scoped, Effect.provide(TestClock.layer()))
+  );
 });
 
 test("command SDK failure captures the final bounded log and does not let callback failure hide it", async () => {
@@ -277,6 +451,8 @@ test("command SDK failure captures the final bounded log and does not let callba
   expect(completed?.log).toContain("final compiler output [REDACTED]");
   expect(completed?.log).toContain("command transport failed");
   expect(completed?.metrics?.phases.execution).toBeGreaterThanOrEqual(0);
+  expect(read).toHaveBeenCalled();
+  expect(logTail).toHaveBeenCalled();
   expect(remove).toHaveBeenCalledTimes(1);
 });
 

@@ -8,13 +8,17 @@ import { SITE_REPOSITORY_SUGGESTIONS_STALE_MS } from "@/constants/sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type { SiteStarterInput } from "@/types/sites";
 import { toErrorMessage } from "@/utils/error-message";
+import {
+  normalizeSiteStarterRoot,
+  siteStarterScopeKey,
+} from "@/utils/site-starter-scope";
 
 export function useSiteStarterStatus(scope: SiteStarterInput) {
   const [branch] = useDebouncedValue(scope.branch.trim(), {
     wait: SITE_CREATE_STARTER_DEBOUNCE_MS,
   });
   const [rootDirectory] = useDebouncedValue(
-    scope.rootDirectory.trim().replace(/^\/+|\/+$/g, ""),
+    normalizeSiteStarterRoot(scope.rootDirectory),
     { wait: SITE_CREATE_STARTER_DEBOUNCE_MS }
   );
   const input = {
@@ -23,12 +27,22 @@ export function useSiteStarterStatus(scope: SiteStarterInput) {
     branch,
     rootDirectory,
   };
-  return useQuery({
+  const isCurrentScope =
+    siteStarterScopeKey(scope) === siteStarterScopeKey(input);
+  const query = useQuery({
     ...dashboardOrpc.sites.starterStatus.queryOptions({ input }),
-    enabled: Boolean(input.repositoryId),
+    enabled: Boolean(input.repositoryId) && isCurrentScope,
     staleTime: SITE_REPOSITORY_SUGGESTIONS_STALE_MS,
     retry: false,
   });
+  return {
+    ...query,
+    isReady:
+      isCurrentScope &&
+      query.isSuccess &&
+      !query.isFetching &&
+      !query.isPlaceholderData,
+  };
 }
 
 export function useCreateSiteStarter() {

@@ -18,7 +18,7 @@ Run your own JavaScript on every page of your site and control which origins you
 
 ## Custom scripts
 
-Every `.js` file outside the content folders runs on every page, whether it's `script.js`, a file in a `scripts/` folder or a file like `analytics.js` at the root. They're the JavaScript counterpart to [custom CSS](/sites/customize/design#your-own-css), while a `.js` file in `snippets/`, `blog/` or `changelog/` is a component you import instead.
+Paths here are relative to your selected [site root](/sites/repository), not necessarily the repository root. Every `.js` file outside `blog/`, `changelog/`, `snippets/`, `public/`, `styles/` and `slots/` runs on every page, whether it's `script.js`, a file in a `scripts/` folder or a file like `analytics.js` at the site root. They're the JavaScript counterpart to [custom CSS](/sites/customize/design#your-own-css), while a `.js` file in `snippets/`, `blog/` or `changelog/` is a component you import instead. Files in `public/` aren't automatically loaded as page scripts.
 
 ```text
 script.js               # runs first
@@ -32,6 +32,10 @@ Notra loads every script on every page with `defer` from your site's own address
 - These files are plain browser JavaScript rather than modules, so `import` and `export` don't work in them, and you load a library from another host with `document.createElement("script")` and add that host to [`allowedOrigins`](#content-security-policy).
 - The build checks the syntax without running your scripts, and a syntax error fails the build with the file name and line number.
 - Your MDX can't import these files, so for a component, use a [snippet](/sites/custom-components) in `snippets/` instead.
+
+You can use these scripts for custom client-side interactions. If your source needs a bundler, build it yourself as plain browser JavaScript and commit the output as `script.js` or under `scripts/`. Notra doesn't run your repository's package scripts or serve an arbitrary app build. Keep supporting assets in `public/` and check the [allowed file types](/sites/repository#allowed-files); `.html`, `.mjs` and `.wasm` files aren't collected.
+
+Code that requires dynamic inline scripts or `eval` won't work with the default [Content-Security-Policy](#content-security-policy). Adding an origin allows that host, not those execution methods. Choose compatible output or host the app separately rather than disabling the policy to make a bundle run.
 
 ```js scripts/external-links.js
 // Open links to other sites in a new tab.

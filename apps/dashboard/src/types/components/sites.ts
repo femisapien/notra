@@ -628,6 +628,9 @@ export interface SiteCreateStarterProps {
   rootDirectory: string;
   pullRequestUrl: string | null;
   onPullRequestOpened: (url: string) => void;
+  configDirectories: string[];
+  suggestionsReady: boolean;
+  onRootDirectoryChange: (value: string) => void;
 }
 
 export interface SiteRootDirectoryToggleProps {

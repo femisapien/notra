@@ -8,9 +8,10 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { useTranslations } from "use-intl";
 
-import { buttonVariants } from "@/components/button";
+import { Button, buttonVariants } from "@/components/button";
 import Link from "@/components/framework/link";
 import { CopyPromptButton } from "@/components/geo/code-snippet";
 import { SiteBuildLogs } from "@/components/sites/site-build-logs";
@@ -20,10 +21,14 @@ import {
 } from "@/constants/site-create";
 import { MS_PER_SECOND } from "@/constants/site-deployments";
 import { useNow } from "@/lib/hooks/use-now";
-import { useSiteDeployment } from "@/lib/hooks/use-site-deployments";
+import {
+  useDeployLatest,
+  useSiteDeployment,
+} from "@/lib/hooks/use-site-deployments";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import { cn } from "@/lib/utils";
 import type { SiteCreateDeployProps } from "@/types/components/sites";
+import { toErrorMessage } from "@/utils/error-message";
 import { buildSiteBuildAgentPrompt } from "@/utils/site-build-agent-prompt";
 import {
   deploymentElapsedMs,
@@ -40,27 +45,44 @@ export function SiteCreateDeploy({
   starterPullRequestUrl = null,
 }: SiteCreateDeployProps) {
   const t = useTranslations("sites.new.deploy");
+  const [retryFromDeploymentId, setRetryFromDeploymentId] = useState<
+    string | null
+  >(null);
+  const queued = deploymentQueued || retryFromDeploymentId !== null;
+  const retry = useDeployLatest({ organizationId, siteId: site.id });
   const detail = useQuery(
     dashboardOrpc.sites.get.queryOptions({
       input: { organizationId, siteId: site.id },
       refetchInterval: (query) =>
-        !deploymentQueued || query.state.data?.deployments[0]
+        !queued ||
+        (query.state.data?.deployments[0] &&
+          query.state.data.deployments[0].id !== retryFromDeploymentId)
           ? false
           : SITE_CREATE_DEPLOY_POLL_MS,
     })
   );
-  const deploymentId = detail.data?.deployments[0]?.id ?? "";
+  const latestId = detail.data?.deployments[0]?.id ?? "";
+  const deploymentId = latestId === retryFromDeploymentId ? "" : latestId;
   const deployment = useSiteDeployment({
     organizationId: deploymentId ? organizationId : "",
     siteId: site.id,
     deploymentId,
   });
-  const record = deployment.data?.deployment ?? null;
+  const record = deploymentId ? (deployment.data?.deployment ?? null) : null;
+  const lookupFailed =
+    detail.isError || (deploymentId.length > 0 && deployment.isError);
   const status = record?.status ?? "queued";
-  const inProgress = deploymentQueued && isDeploymentInProgress(status);
+  const inProgress = !lookupFailed && queued && isDeploymentInProgress(status);
   const failed =
-    !deploymentQueued || status === "failed" || status === "canceled";
-  const ready = record !== null && !(inProgress || failed);
+    !lookupFailed && (!queued || status === "failed" || status === "canceled");
+  const ready = !lookupFailed && record !== null && !(inProgress || failed);
+  const failureSummary =
+    record?.errorMessage?.trim() ||
+    record?.diagnostics.find(
+      (diagnostic) =>
+        diagnostic.severity === "error" && diagnostic.message.trim()
+    )?.message ||
+    t("failureRecovery");
   const configMissing =
     failed &&
     (record?.diagnostics ?? []).some(
@@ -78,7 +100,9 @@ export function SiteCreateDeploy({
     : 0;
 
   let headline = t("waiting");
-  if (!deploymentQueued) {
+  if (lookupFailed) {
+    headline = t("statusLoadFailed");
+  } else if (!queued) {
     headline = t("notStarted");
   } else if (record && inProgress) {
     headline = t("started", { seconds: startedSeconds });
@@ -91,7 +115,7 @@ export function SiteCreateDeploy({
   let icon = Loading03Icon;
   if (ready) {
     icon = CheckmarkCircle02Icon;
-  } else if (failed) {
+  } else if (failed || lookupFailed) {
     icon = MultiplicationSignCircleIcon;
   }
 
@@ -101,37 +125,58 @@ export function SiteCreateDeploy({
       className={cn(
         "inline-flex items-center gap-2",
         ready && "text-success",
-        failed && "text-destructive",
-        !(ready || failed) && "text-muted-foreground"
+        (failed || lookupFailed) && "text-destructive",
+        !(ready || failed || lookupFailed) && "text-muted-foreground"
       )}
     >
       <HugeiconsIcon
         aria-hidden="true"
         className={cn(
           "size-4 shrink-0",
-          !(ready || failed) && "motion-safe:animate-spin"
+          !(ready || failed || lookupFailed) && "motion-safe:animate-spin"
         )}
         icon={icon}
         strokeWidth={1.75}
       />
-      {headline}
+      {failed || lookupFailed ? (
+        <span className="text-foreground">{headline}</span>
+      ) : (
+        headline
+      )}
     </span>
   );
 
   return (
     <div className="space-y-4">
-      {deploymentQueued ? (
+      {queued && !lookupFailed ? (
         <div className="overflow-hidden rounded-xl border">
           <SiteBuildLogs
             heading={heading}
             inProgress={inProgress}
-            log={deployment.data?.log ?? null}
+            log={record ? (deployment.data?.log ?? null) : null}
             queued={!record || status === "queued"}
           />
         </div>
       ) : (
         <div className="text-sm">{heading}</div>
       )}
+
+      {failed ? (
+        <p
+          className="text-foreground text-sm [overflow-wrap:anywhere]"
+          role="alert"
+        >
+          {failureSummary}
+        </p>
+      ) : null}
+      {retry.isError ? (
+        <p
+          className="text-foreground text-sm [overflow-wrap:anywhere]"
+          role="alert"
+        >
+          {toErrorMessage(retry.error, t("retryFailed"))}
+        </p>
+      ) : null}
 
       {configMissing ? (
         <p className="animate-in fade-in text-sm duration-300">
@@ -157,57 +202,88 @@ export function SiteCreateDeploy({
         </p>
       ) : null}
 
-      {ready || failed ? (
-        <div className="animate-in fade-in motion-safe:slide-in-from-bottom-1 flex flex-wrap items-center justify-end gap-2 duration-300">
-          {failed ? (
-            <>
-              <CopyPromptButton
-                className="me-auto"
-                prompt={buildSiteBuildAgentPrompt({
-                  site,
-                  deployment: record,
-                  log: deployment.data?.log ?? null,
-                })}
-              />
-              <Link
-                className={buttonVariants({ variant: "outline", size: "sm" })}
-                href={
-                  deploymentId
-                    ? siteDeploymentHref(
-                        organizationSlug,
-                        site.id,
-                        deploymentId
-                      )
-                    : siteHref(organizationSlug, site.id, "deployments")
-                }
-              >
-                {t("viewDeployment")}
-              </Link>
-            </>
-          ) : (
-            <>
-              <a
-                className={buttonVariants({ variant: "outline", size: "sm" })}
-                href={site.liveUrl}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                {t("visit")}
-                <HugeiconsIcon
-                  data-icon="inline-end"
-                  icon={ArrowUpRight01Icon}
-                />
-              </a>
-              <Link
-                className={buttonVariants({ size: "sm" })}
-                href={siteHref(organizationSlug, site.id)}
-              >
-                {t("openSite")}
-              </Link>
-            </>
-          )}
-        </div>
-      ) : null}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {failed ? (
+          <>
+            <CopyPromptButton
+              className="me-auto"
+              prompt={buildSiteBuildAgentPrompt({
+                site,
+                deployment: record,
+                log: deployment.data?.log ?? null,
+              })}
+            />
+            <Link
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+              href={
+                deploymentId
+                  ? siteDeploymentHref(organizationSlug, site.id, deploymentId)
+                  : siteHref(organizationSlug, site.id, "deployments")
+              }
+            >
+              {t("viewDeployment")}
+            </Link>
+          </>
+        ) : null}
+        <Link
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+          href={siteHref(organizationSlug, site.id, "settings")}
+        >
+          {t("editConfiguration")}
+        </Link>
+        {lookupFailed ? (
+          <Button
+            loading={detail.isFetching || deployment.isFetching}
+            onClick={() => {
+              void detail.refetch();
+              if (deploymentId) {
+                void deployment.refetch();
+              }
+            }}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            {t("retryStatus")}
+          </Button>
+        ) : null}
+        {failed ? (
+          <Button
+            loading={retry.isPending}
+            onClick={() => {
+              if (!retry.isPending) {
+                retry.mutate(undefined, {
+                  onSuccess: () => setRetryFromDeploymentId(deploymentId),
+                });
+              }
+            }}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            {t("retryDeployment")}
+          </Button>
+        ) : null}
+        {ready ? (
+          <>
+            <a
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+              href={site.liveUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {t("visit")}
+              <HugeiconsIcon data-icon="inline-end" icon={ArrowUpRight01Icon} />
+            </a>
+            <Link
+              className={buttonVariants({ size: "sm" })}
+              href={siteHref(organizationSlug, site.id)}
+            >
+              {t("openSite")}
+            </Link>
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }

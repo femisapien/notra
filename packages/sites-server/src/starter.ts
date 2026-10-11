@@ -46,6 +46,10 @@ import { normalizeWebsiteUrl } from "./utils/links";
 import { readBodyUpTo } from "./utils/read-body";
 import { parseRootDirectory, repositoryPath } from "./utils/root-directory";
 import { buildSiteStarterFiles } from "./utils/starter-files";
+import {
+  starterPullRequestMatchesRoot,
+  starterRootMetadata,
+} from "./utils/starter-pull-request";
 
 async function resolveStarterTarget(
   scope: SiteStarterScope,
@@ -67,7 +71,8 @@ async function resolveStarterTarget(
 async function findOpenStarterPullRequest(
   repository: SiteRepository,
   token: string,
-  base: string
+  base: string,
+  rootDirectory: string
 ): Promise<string | null> {
   const { data } = await createOctokit(token).request(
     "GET /repos/{owner}/{repo}/pulls",
@@ -80,8 +85,10 @@ async function findOpenStarterPullRequest(
       headers: GITHUB_API_VERSION_HEADER,
     }
   );
-  const pullRequest = data.find((candidate) =>
-    candidate.head.ref.startsWith(STARTER_BRANCH_PREFIX)
+  const pullRequest = data.find(
+    (candidate) =>
+      candidate.head.ref.startsWith(STARTER_BRANCH_PREFIX) &&
+      starterPullRequestMatchesRoot(candidate.body, rootDirectory)
   );
   return pullRequest?.html_url ?? null;
 }
@@ -99,7 +106,9 @@ export async function siteStarterStatus(
       path: repositoryPath(rootDirectory, SITE_CONFIG_FILENAME),
       ref: branch,
     }),
-    findOpenStarterPullRequest(repository, token, branch).catch(() => null),
+    findOpenStarterPullRequest(repository, token, branch, rootDirectory).catch(
+      () => null
+    ),
   ]);
   return { hasConfig: config !== null, pullRequestUrl };
 }
@@ -222,11 +231,17 @@ async function loadStarterBrand(
   };
 }
 
-function pullRequestBody(paths: string[], websiteUrl: string | null): string {
+function pullRequestBody(
+  paths: string[],
+  websiteUrl: string | null,
+  rootDirectory: string
+): string {
   const source = websiteUrl
     ? `your Brand Identity in Notra and ${websiteUrl}`
     : "your Brand Identity in Notra";
   return [
+    starterRootMetadata(rootDirectory),
+    "",
     `Notra generated these starter files from ${source}.`,
     "",
     ...paths.map((path) => `- \`${path}\``),
@@ -244,10 +259,21 @@ export async function createSiteStarter(
       contents: "write",
       pull_requests: "write",
     });
+  const configPath = repositoryPath(rootDirectory, SITE_CONFIG_FILENAME);
+  const config = await readRepositoryFile(repository, token, {
+    path: configPath,
+    ref: branch,
+  });
+  if (config !== null) {
+    throw new SiteInputError(`${configPath} already exists on ${branch}`, {
+      field: "rootDirectory",
+    });
+  }
   const existingPullRequest = await findOpenStarterPullRequest(
     repository,
     token,
-    branch
+    branch,
+    rootDirectory
   );
   if (existingPullRequest) {
     return { pullRequestUrl: existingPullRequest, created: false };
@@ -270,14 +296,14 @@ export async function createSiteStarter(
     ),
     getBranchHead(repository, token, branch),
   ]);
-  if (existing[0]) {
+  if (existing[0] !== null) {
     throw new SiteInputError(
       `${repositoryPath(rootDirectory, SITE_CONFIG_FILENAME)} already exists on ${branch}`,
       { field: "rootDirectory" }
     );
   }
   const additions = files
-    .filter((_, index) => !existing[index])
+    .filter((_, index) => existing[index] === null)
     .map((file) => ({
       path: repositoryPath(rootDirectory, file.path),
       content: file.content,
@@ -301,7 +327,8 @@ export async function createSiteStarter(
     base: branch,
     body: pullRequestBody(
       additions.map((file) => file.path),
-      brand.websiteUrl
+      brand.websiteUrl,
+      rootDirectory
     ),
   });
   return { pullRequestUrl, created: true };

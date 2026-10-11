@@ -19,6 +19,7 @@ import {
 import { boundBuildLog } from "./bound-build-log";
 import { redactBuildLog } from "./build-log";
 import { readBodyUpToEffect } from "./read-body";
+import { sandboxErrorDetailEffect } from "./sandbox-error-detail";
 
 export const sandboxRequestEffect = Effect.fn("Sites.Sandbox.request")(
   function* (
@@ -139,8 +140,13 @@ export const sandboxRequestEffect = Effect.fn("Sites.Sandbox.request")(
     );
     status = response.status;
     if (status < 200 || status >= 300) {
+      const detail = fetched
+        ? yield* sandboxErrorDetailEffect(fetched, apiKey)
+        : "";
       return yield* Effect.fail(
-        failure(`Sandbox rejected ${operation} (${status})`)
+        failure(
+          `Sandbox rejected ${operation} (${status})${detail ? `: ${detail}` : ""}`
+        )
       );
     }
     if (!fetched) {

@@ -186,6 +186,7 @@ export const runSandboxBuildEffect = Effect.fn("Sites.Sandbox.build")(
     let boxId: string | null = null;
     let apiKey = "";
     let readResult = false;
+    let executionAttempted = false;
     let runOutput = "";
     let lifecycleLog = "";
     const boundedLog = (log: string) =>
@@ -392,6 +393,7 @@ export const runSandboxBuildEffect = Effect.fn("Sites.Sandbox.build")(
       const execution = performance.now();
       const executionBoxId = currentBoxId;
       const execute = Effect.gen(function* () {
+        executionAttempted = true;
         const bytes = yield* sandboxRequestEffect(
           apiKey,
           "exec",
@@ -441,7 +443,7 @@ export const runSandboxBuildEffect = Effect.fn("Sites.Sandbox.build")(
       Effect.catch((error) =>
         Effect.gen(function* () {
           appendError("lifecycle", error);
-          if (boxId && !readResult) {
+          if (executionAttempted && boxId && !readResult) {
             yield* readBuildFiles().pipe(
               Effect.match({
                 onFailure: (readError) => appendError("read", readError),

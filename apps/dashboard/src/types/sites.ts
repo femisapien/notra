@@ -247,6 +247,7 @@ export interface RepositorySuggestionsResult {
   configDirectories: string[];
   contentCounts: Record<string, RepositoryContentCount> | undefined;
   isLoading: boolean;
+  isReady: boolean;
 }
 
 export type RepositorySuggestionsScope =
