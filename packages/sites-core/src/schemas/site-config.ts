@@ -1,4 +1,5 @@
 import {
+  SITE_AUTHOR_AVATAR,
   SITE_AUTHOR_ID,
   SITE_DEFAULT_PRIMARY_COLOR,
   SITE_HEX_COLOR,
@@ -42,7 +43,7 @@ const siteAuthorSchema = z.strictObject({
     .string()
     .trim()
     .regex(
-      /^(?:\/(?!\/)|https:\/\/)/,
+      SITE_AUTHOR_AVATAR,
       "Use a path like /images/jan.jpg or an https:// URL"
     )
     .optional(),
@@ -166,14 +167,55 @@ export const siteConfigSchema = z.object({
   security: siteSecuritySchema,
 });
 
+const frontmatterLinkSchema = z.url({
+  protocol: /^https?$/,
+  error: "Use a full http(s):// URL",
+});
+
+/** An author written inline in a post. An `id` from `authors` lets blog.json fill or override the fields. */
+export const frontmatterAuthorSchema = z.object({
+  id: z
+    .string()
+    .trim()
+    .regex(
+      SITE_AUTHOR_ID,
+      "Use lowercase letters, digits and dashes for author ids"
+    )
+    .optional(),
+  name: z.string().trim().min(1),
+  title: z.string().trim().optional(),
+  bio: z.string().trim().optional(),
+  avatar: z
+    .string()
+    .trim()
+    .regex(
+      SITE_AUTHOR_AVATAR,
+      "Use a path like /images/jan.jpg or an https:// URL"
+    )
+    .optional(),
+  url: frontmatterLinkSchema.optional(),
+  x: frontmatterLinkSchema.optional(),
+  linkedin: frontmatterLinkSchema.optional(),
+  github: frontmatterLinkSchema.optional(),
+});
+
+const frontmatterAuthorRefSchema = z.union([
+  z.string(),
+  frontmatterAuthorSchema,
+]);
+
 export const blogFrontmatterSchema = z.object({
   title: z.string().trim().min(1),
   description: z.string().trim().optional(),
   date: z.coerce.date(),
   updated: z.coerce.date().optional(),
-  author: z.union([z.string(), z.array(z.string())]).optional(),
+  author: z
+    .union([frontmatterAuthorRefSchema, z.array(frontmatterAuthorRefSchema)])
+    .optional(),
   image: z.string().optional(),
+  imageAlt: z.string().trim().optional(),
   tags: z.array(z.string()).default([]),
+  featured: z.boolean().default(false),
   draft: z.boolean().default(false),
   noindex: z.boolean().default(false),
 });
@@ -185,5 +227,6 @@ export const changelogFrontmatterSchema = z.object({
   version: z.string().trim().optional(),
   tags: z.array(z.string()).default([]),
   image: z.string().optional(),
+  imageAlt: z.string().trim().optional(),
   draft: z.boolean().default(false),
 });

@@ -5,9 +5,9 @@ import BackLink from "../../components/BackLink.astro";
 import Icon from "../../components/Icon.astro";
 import PostCard from "../../components/PostCard.astro";
 import Base from "../../layouts/Base.astro";
-import { allAuthors, authorsOf, personNode } from "../../lib/authors";
+import { allAuthors, authoredBy, personNode } from "../../lib/authors";
+import { cardImages } from "../../lib/cards";
 import { getBlogEntries } from "../../lib/entries";
-import { blogOptions } from "../../lib/options";
 import { absoluteUrl, areaTitle, config, href, params } from "../../lib/params";
 import { breadcrumbs, pageTitle } from "../../lib/seo";
 
@@ -16,14 +16,14 @@ export async function getStaticPaths() {
     return [];
   }
   const entries = await getBlogEntries();
-  return allAuthors()
-    .filter((author) => entries.some((entry) => authorsOf(entry).some((byline) => byline.id === author.id)))
+  return allAuthors(entries)
+    .filter((author) => entries.some((entry) => authoredBy(entry, author.id)))
     .map((author) => ({ params: { author: author.id }, props: { author } }));
 }
 
 const { author } = Astro.props;
-const posts = (await getBlogEntries()).filter((entry) => authorsOf(entry).some((byline) => byline.id === author.id));
-const placeholder = blogOptions.card.image && posts.some((entry) => entry.data.image);
+const posts = (await getBlogEntries()).filter((entry) => authoredBy(entry, author.id));
+const images = cardImages(posts);
 const url = absoluteUrl(author.href ?? href());
 const description = author.bio ?? `Posts by ${author.name}.`;
 const noindex = config.seo.indexing !== "all";
@@ -62,10 +62,10 @@ const jsonLd = [
     </header>
     {
       posts.length > 0 && (
-        <ul class="grid grid-cols-1 gap-x-8 gap-y-12 border-t border-border pt-12 max-sm:gap-y-0 max-sm:divide-y max-sm:divide-border max-sm:pt-2 sm:grid-cols-2 lg:grid-cols-3">
+        <ul class="grid grid-cols-1 gap-x-8 gap-y-12 max-sm:gap-y-0 max-sm:divide-y max-sm:divide-border sm:grid-cols-2 lg:grid-cols-3">
           {posts.map((entry) => (
             <li class="h-full max-sm:py-6">
-              <PostCard entry={entry} placeholder={placeholder} showAuthor={false} />
+              <PostCard entry={entry} images={images} showAuthor={false} />
             </li>
           ))}
         </ul>

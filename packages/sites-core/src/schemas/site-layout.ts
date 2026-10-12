@@ -195,14 +195,14 @@ export const siteBlogSchema = z.object({
     .default("none"),
   card: z
     .object({
-      image: z.boolean().default(false),
+      image: z.union([z.boolean(), z.literal("auto")]).default("auto"),
       excerpt: z.boolean().default(true),
       author: z.boolean().default(true),
       date: z.boolean().default(true),
       readingTime: z.boolean().default(false),
     })
     .default({
-      image: false,
+      image: "auto",
       excerpt: true,
       author: true,
       date: true,

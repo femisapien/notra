@@ -140,10 +140,15 @@ export function structuredData(nodes: JsonLdNode[]): string {
 
 export function socialImage(
   image: string | undefined,
-  generated?: string
+  generated?: string,
+  imageAlt?: string
 ): SocialImage | undefined {
   if (image) {
-    return { url: absoluteUrl(assetUrl(image) ?? image), large: true };
+    return {
+      url: absoluteUrl(assetUrl(image) ?? image),
+      large: true,
+      alt: imageAlt || undefined,
+    };
   }
   if (generated) {
     return { url: absoluteUrl(generated), large: true };

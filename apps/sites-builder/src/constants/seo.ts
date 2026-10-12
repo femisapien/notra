@@ -16,3 +16,17 @@ export const X_HOSTS = new Set([
 export const STRUCTURED_DATA_LIST_LIMIT = 50;
 
 export const PROPERTY_META_TAG = /^(?:og|article|fb|profile|book):/i;
+
+export const FEED_MEDIA_NAMESPACE = "http://search.yahoo.com/mrss/";
+
+export const IMAGE_MIME_TYPES: Record<string, string> = {
+  avif: "image/avif",
+  gif: "image/gif",
+  jpeg: "image/jpeg",
+  jpg: "image/jpeg",
+  png: "image/png",
+  svg: "image/svg+xml",
+  webp: "image/webp",
+};
+
+export const IMAGE_URL_EXTENSION = /\.([a-z0-9]+)$/i;

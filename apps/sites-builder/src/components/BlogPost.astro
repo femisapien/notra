@@ -6,6 +6,7 @@ import { getBlogEntries } from "../lib/entries";
 import { blogOptions } from "../lib/options";
 import { areaTitle, assetUrl, config, href, markdownHref } from "../lib/params";
 import { slotPost } from "../lib/slot-data";
+import { entryTags } from "../lib/tags";
 import { slotComponent } from "../lib/site-files";
 import { formatDate, isoDate } from "../utils/dates";
 import { readingMinutes } from "../utils/reading-time";
@@ -15,6 +16,7 @@ import CopyArticle from "./CopyArticle.astro";
 import Icon from "./Icon.astro";
 import PostPagination from "./PostPagination.astro";
 import SiteSlot from "./SiteSlot.astro";
+import TagList from "./TagList.astro";
 import Toc from "./Toc.astro";
 
 const { entry } = Astro.props;
@@ -29,6 +31,7 @@ const index = entries.findIndex((other) => other.id === entry.id);
 const next = index > 0 ? entries[index - 1] : undefined;
 const previous = index >= 0 ? entries[index + 1] : undefined;
 const post = slotPost(entry);
+const tags = entryTags(entry);
 const hasSidebarSlot = Boolean(slotComponent("sidebar"));
 const wide = options.width === "wide" && (options.toc || hasSidebarSlot);
 const hasToc = options.toc && headings.filter((heading) => heading.depth === 2 || heading.depth === 3).length > 1;
@@ -91,10 +94,11 @@ const hasToc = options.toc && headings.filter((heading) => heading.depth === 2 |
       )
     }
     <SiteSlot name="before-post" data={{ post }} class="mb-8" />
-    {image && <img src={image} alt="" class="image-outline mb-10 aspect-[1200/630] w-full rounded-2xl object-cover" loading="eager" />}
+    {image && <img src={image} alt={entry.data.imageAlt ?? ""} class="image-outline mb-10 aspect-[1200/630] w-full rounded-2xl object-cover" loading="eager" />}
     <div class="mdx-content prose prose-notra max-w-none" data-md-root>
       <Content />
     </div>
+    <TagList tags={tags} class="mt-10" />
     <SiteSlot name="after-post" data={{ post }} class="mt-12" />
     {!wide && <SiteSlot name="sidebar" data={{ post }} class="mt-12" />}
     {options.pagination && <PostPagination next={next} previous={previous} />}

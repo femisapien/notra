@@ -34,7 +34,7 @@ const updated = props.kind === "blog" ? props.entry.data.updated : undefined;
 const modified = updated ?? entry.data.date;
 const authors = props.kind === "blog" ? authorsOf(props.entry) : [];
 const thumbnail = generatedImage(entry.id);
-const image = socialImage(entry.data.image, thumbnail);
+const image = socialImage(entry.data.image, thumbnail, entry.data.imageAlt);
 const jsonLd = [
   {
     "@type": props.kind === "blog" ? "BlogPosting" : "TechArticle",
@@ -62,6 +62,7 @@ const jsonLd = [
   title={pageTitle(entry.data.title)}
   description={description}
   image={entry.data.image}
+  imageAlt={entry.data.imageAlt}
   generatedImage={thumbnail}
   type="article"
   noindex={noindex}

@@ -2,16 +2,20 @@
 import type { ChangelogEntryProps as Props } from "../types/entries";
 import { render } from "astro:content";
 import { assetUrl, config, href, markdownHref } from "../lib/params";
+import { entryTags } from "../lib/tags";
 import { formatDate, isoDate } from "../utils/dates";
 import { excerpt } from "../utils/excerpt";
 import CopyArticle from "./CopyArticle.astro";
 import Icon from "./Icon.astro";
+import TagList from "./TagList.astro";
 
 const { entry, standalone = false, layout = "timeline" } = Astro.props;
 const { Content } = await render(entry);
 const Heading = standalone ? "h1" : "h2";
 const anchor = entry.id.replaceAll("/", "-");
 const image = assetUrl(entry.data.image);
+const imageAlt = entry.data.imageAlt ?? "";
+const tags = entryTags(entry);
 const summary = layout === "compact" ? (entry.data.description ?? excerpt(entry.body)) : undefined;
 ---
 
@@ -44,10 +48,11 @@ const summary = layout === "compact" ? (entry.data.description ?? excerpt(entry.
           <a href={href(entry.id)} class="decoration-foreground/25 decoration-1 underline-offset-[0.2em] hover:underline">{entry.data.title}</a>
           {entry.data.draft && <span class="ml-2 align-middle text-sm font-normal tracking-normal text-warning">Draft</span>}
         </h2>
-        {image && <img src={image} alt="" class="image-outline mt-5 w-full rounded-xl" loading="lazy" />}
+        {image && <img src={image} alt={imageAlt} class="image-outline mt-5 w-full rounded-xl" loading="lazy" />}
         <div class="mdx-content prose prose-notra mt-4 max-w-none">
           <Content />
         </div>
+        <TagList tags={tags} class="mt-5" />
       </div>
     </article>
   ) : (
@@ -62,10 +67,11 @@ const summary = layout === "compact" ? (entry.data.description ?? excerpt(entry.
       </Heading>
       {entry.data.description && <p class="mt-4 text-lg leading-8 text-pretty text-muted-foreground">{entry.data.description}</p>}
       {standalone && config.changelog?.pageActions && <div class="[&:has([data-page-actions])]:mt-5"><CopyArticle markdownHref={markdownHref(href(entry.id))} pagePath={href(entry.id)} title={entry.data.title} /></div>}
-      {image && <img src={image} alt="" class="image-outline mt-8 w-full rounded-2xl" loading={standalone ? "eager" : "lazy"} />}
+      {image && <img src={image} alt={imageAlt} class="image-outline mt-8 w-full rounded-2xl" loading={standalone ? "eager" : "lazy"} />}
       <div class="mdx-content prose prose-notra mt-8 max-w-none" data-md-root={standalone ? "" : undefined}>
         <Content />
       </div>
+      <TagList tags={tags} class="mt-8" />
     </article>
   )
 }

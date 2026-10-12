@@ -16,10 +16,10 @@ import { chromeComponent } from "../lib/site-files";
 import { decorationClass, faviconFor, fontFaces, fontStylesheetUrl, themeStyle } from "../lib/theme";
 import { mountPath } from "../utils/paths";
 
-const { title, description, image, generatedImage, type = "website", noindex = false, publishedTime, modifiedTime, tags = [], markdown, jsonLd } = Astro.props;
+const { title, description, image, imageAlt, generatedImage, type = "website", noindex = false, publishedTime, modifiedTime, tags = [], markdown, jsonLd } = Astro.props;
 const canonicalPath = Astro.url.pathname.length > 1 ? Astro.url.pathname.replace(/\/+$/, "") : Astro.url.pathname;
 const canonical = absoluteUrl(canonicalPath);
-const ogImage = socialImage(image, generatedImage);
+const ogImage = socialImage(image, generatedImage, imageAlt);
 const robots = params.noindex || noindex ? "noindex, nofollow" : "index, follow, max-image-preview:large";
 const twitterSite = twitterHandle();
 const colors = themeColors();
@@ -66,12 +66,13 @@ const customFooter = Boolean(chromeComponent("footer"));
     {description && <meta property="og:description" content={description} />}
     <meta property="og:locale" content="en_US" />
     {ogImage && <meta property="og:image" content={ogImage.url} />}
-    {ogImage && <meta property="og:image:alt" content={ogImage.large ? title : config.name} />}
+    {ogImage && <meta property="og:image:alt" content={ogImage.alt ?? (ogImage.large ? title : config.name)} />}
     {publishedTime && <meta property="article:published_time" content={publishedTime.toISOString()} />}
     {type === "article" && modifiedTime && <meta property="article:modified_time" content={modifiedTime.toISOString()} />}
     {type === "article" && <meta property="article:section" content={areaTitle(params.area)} />}
     {type === "article" && tags.map((tag) => <meta property="article:tag" content={tag} />)}
     <meta name="twitter:card" content={ogImage?.large ? "summary_large_image" : "summary"} />
+    {ogImage?.alt && <meta name="twitter:image:alt" content={ogImage.alt} />}
     {twitterSite && <meta name="twitter:site" content={twitterSite} />}
     <meta name="generator" content="Notra Sites" />
     {metaTags.map((tag) => (tag.key === "property" ? <meta property={tag.value} content={tag.content} /> : <meta name={tag.value} content={tag.content} />))}

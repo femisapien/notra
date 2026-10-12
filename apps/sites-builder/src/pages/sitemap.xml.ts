@@ -1,9 +1,30 @@
 import type { APIRoute } from "astro";
 
-import { allAuthors, authorsOf } from "../lib/authors";
+import { allAuthors, authoredBy } from "../lib/authors";
 import { getAreaEntries } from "../lib/entries";
 import { absoluteUrl, config, href, params } from "../lib/params";
+import { collectTags, tagsHref } from "../lib/tags";
+import type { BlogEntry, ChangelogEntry } from "../types/entries";
 import { isoDate } from "../utils/dates";
+
+/** Author and tag pages, which search engines only index with `seo.indexing: "all"`. */
+function listingUrls(indexable: (BlogEntry | ChangelogEntry)[]): string[] {
+  if (config.seo.indexing !== "all" || indexable.length === 0) {
+    return [];
+  }
+  const tags = collectTags(indexable);
+  const tagPaths =
+    tags.length > 0 ? [tagsHref(), ...tags.map((tag) => tag.href)] : [];
+  const posts = indexable.filter(
+    (entry): entry is BlogEntry => entry.collection === "blog"
+  );
+  const authorPaths = allAuthors(posts)
+    .filter((author) => posts.some((entry) => authoredBy(entry, author.id)))
+    .flatMap((author) => (author.href ? [author.href] : []));
+  return [...authorPaths, ...tagPaths].map(
+    (path) => `<url><loc>${absoluteUrl(path)}</loc></url>`
+  );
+}
 
 export const GET: APIRoute = async () => {
   const entries = await getAreaEntries();
@@ -28,21 +49,7 @@ export const GET: APIRoute = async () => {
       (entry, index) =>
         `<url><loc>${absoluteUrl(href(entry.id))}</loc><lastmod>${isoDate(lastModified[index] ?? entry.data.date)}</lastmod></url>`
     ),
-    ...allAuthors()
-      .filter(
-        (author) =>
-          params.area === "blog" &&
-          config.seo.indexing === "all" &&
-          indexable.some(
-            (entry) =>
-              entry.collection === "blog" &&
-              authorsOf(entry).some((byline) => byline.id === author.id)
-          )
-      )
-      .map(
-        (author) =>
-          `<url><loc>${absoluteUrl(author.href ?? href())}</loc></url>`
-      ),
+    ...listingUrls(indexable),
   ];
   const body = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${params.noindex ? "" : urls.join("")}</urlset>`;
   return new Response(body, {

@@ -412,7 +412,8 @@ body {
     }
   }
 
-  .changelog-version {
+  .changelog-version,
+  .post-tag {
     border-radius: 0.375rem;
     background: var(--muted);
     padding: 0.125rem 0.4375rem;
@@ -420,6 +421,13 @@ body {
     font-size: 0.75rem;
     font-weight: 500;
     line-height: 1.25rem;
+  }
+
+  .post-tag {
+    transition: color 150ms ease-out;
+  }
+  .post-tag:hover {
+    color: var(--foreground);
   }
 
   .post-placeholder {

@@ -26,12 +26,19 @@ export interface ChangelogEntryProps {
   layout?: "timeline" | "cards" | "compact";
 }
 
+export interface CardImages {
+  /** Shows covers on this listing's cards. */
+  show: boolean;
+  /** Frames cards without a cover with a placeholder. */
+  placeholder: boolean;
+}
+
 export interface PostCardProps {
   entry: BlogEntry;
   headingLevel?: "h2" | "h3";
   variant?: "card" | "feature" | "row";
   featured?: boolean;
-  placeholder?: boolean;
+  images?: CardImages;
   showAuthor?: boolean;
   /** Loads the cover eagerly; only for the first card above the fold. */
   priority?: boolean;

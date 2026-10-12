@@ -643,7 +643,7 @@
         },
         "card": {
           "default": {
-            "image": false,
+            "image": "auto",
             "excerpt": true,
             "author": true,
             "date": true,
@@ -652,8 +652,16 @@
           "type": "object",
           "properties": {
             "image": {
-              "default": false,
-              "type": "boolean"
+              "default": "auto",
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "const": "auto"
+                }
+              ]
             },
             "excerpt": {
               "default": true,

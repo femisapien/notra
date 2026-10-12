@@ -119,8 +119,8 @@ See [Layouts](/sites/customize/layouts#blog).
 | `blog.hero.style` | `"wash" \| "plain" \| "image" \| "none"` | `"plain"` | Index hero |
 | `blog.hero.eyebrow` | string, up to 60 characters | | Line above the heading |
 | `blog.hero.image` | Path | | Image for the `image` style |
-| `blog.featured` | `"latest" \| "none"` or up to 6 post paths | `"none"` | Posts pinned on top |
-| `blog.card.image` | boolean | `false` | Cover image on cards |
+| `blog.featured` | `"latest" \| "none"` or up to 6 post paths | `"none"` | Posts pinned on top. With `"none"`, posts with `featured: true` |
+| `blog.card.image` | `boolean \| "auto"` | `"auto"` | Cover image on cards. `"auto"` shows covers when a post on the page has one |
 | `blog.card.excerpt` | boolean | `true` | Summary on cards |
 | `blog.card.author` | boolean | `true` | First author on cards |
 | `blog.card.date` | boolean | `true` | Date on cards |
@@ -143,7 +143,7 @@ See [Layouts](/sites/customize/layouts#blog).
 
 ## Authors
 
-`authors` is an object that maps each author id to an author. See [Authors](/sites/posts#authors).
+`authors` is an object that maps each author id to an author. Posts can also describe authors in their frontmatter. See [Authors](/sites/posts#authors).
 
 | Setting | Type | Description |
 | --- | --- | --- |
@@ -161,7 +161,7 @@ See [SEO, share images and redirects](/sites/customize/seo).
 | Setting | Type | Default | Description |
 | --- | --- | --- | --- |
 | `seo.metatags` | Object of name → value, with values up to 500 characters | `{}` | Extra `<meta>` tags |
-| `seo.indexing` | `"navigable" \| "all"` | `"navigable"` | `all` also indexes author pages |
+| `seo.indexing` | `"navigable" \| "all"` | `"navigable"` | `all` also indexes author and tag pages |
 | `seo.organization` | `{ name, legalName?, url?, logo?, sameAs? }` | From `name`, `logo` and `footer.socials` | The publisher for structured data, with up to 12 `sameAs` URLs |
 | `thumbnails.enabled` | boolean | `true` | Generated share images |
 | `thumbnails.appearance` | `"light" \| "dark"` | `"light"` | Share image colors |

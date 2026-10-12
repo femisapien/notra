@@ -26,7 +26,7 @@ The `blog` and `changelog` objects in `blog.json` set how the blog index, its po
   "layout": "grid",
   "hero": { "style": "wash", "eyebrow": "The Acme journal" },
   "featured": "latest",
-  "card": { "image": true, "excerpt": true, "author": true, "date": true, "readingTime": false },
+  "card": { "image": "auto", "excerpt": true, "author": true, "date": true, "readingTime": false },
   "post": { "toc": true, "authorCard": true, "readingTime": true, "pagination": true, "width": "wide" }
 }
 ```
@@ -43,7 +43,7 @@ The `blog` and `changelog` objects in `blog.json` set how the blog index, its po
 | `hero.image` | Background for the `image` style, like `/images/hero.jpg` | none |
 | `featured` | `"latest"`, `"none"` or up to 6 post paths like `["2026/launch"]`, pinned on top | `"none"` |
 
-`magazine` features the latest post when `featured` is `"none"`, and Notra skips a featured path that doesn't match a post and shows a warning in the build log.
+With `featured` set to `"none"`, Notra pins posts that have `featured: true` in their [frontmatter](/sites/posts#blog-posts), up to the 6 newest. `"latest"` and a list of paths ignore that field. `magazine` features the latest post when nothing else is featured, and Notra skips a featured path that doesn't match a post and shows a warning in the build log.
 
 ### Cards
 
@@ -51,7 +51,7 @@ The `blog` and `changelog` objects in `blog.json` set how the blog index, its po
 
 | Setting | Shows | Default |
 | --- | --- | --- |
-| `card.image` | The post's `image` as a cover (not in `list`) | `false` |
+| `card.image` | The post's `image` as a cover (not in `list`). `"auto"` shows covers when at least one post on the page has one. `true` always leaves room for a cover and shows a placeholder for posts without one | `"auto"` |
 | `card.excerpt` | The `description`, or the start of the first paragraph | `true` |
 | `card.author` | The first author | `true` |
 | `card.date` | The date | `true` |

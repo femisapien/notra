@@ -8,6 +8,8 @@ export interface ThemeColors {
 export interface SocialImage {
   url: string;
   large: boolean;
+  /** The cover's own alt text, from `imageAlt` in the frontmatter. */
+  alt?: string;
 }
 
 export interface ExtraMetaTag {
@@ -20,6 +22,7 @@ export interface BaseLayoutProps {
   title: string;
   description?: string;
   image?: string;
+  imageAlt?: string;
   generatedImage?: string;
   type?: "website" | "article";
   noindex?: boolean;
