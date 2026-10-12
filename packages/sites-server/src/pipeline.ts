@@ -19,6 +19,7 @@ import {
 } from "./deployments";
 import {
   downloadRepositoryTarballEffect,
+  changedPathsBetween,
   getBranchHead,
   siteRepositoryAccess,
 } from "./github";
@@ -59,9 +60,35 @@ const currentBranchHead = Effect.fn("Sites.currentBranchHead")(function* (
   }).pipe(Effect.catchIf(isNotFoundError, () => Effect.succeed(null)));
 });
 
+/**
+ * Pushes that leave a site's folder alone create no deployment for it, so a
+ * build whose branch moved on only by such commits still has the newest
+ * content and must not be dropped. Anything unclear counts as changed.
+ */
+const headMatchesForFolder = Effect.fn("Sites.headMatchesForFolder")(function* (
+  { repository, token }: SiteRepositoryAccess,
+  deployment: SiteDeployment,
+  head: string | null,
+  rootDirectory: string
+) {
+  if (!(head && rootDirectory)) {
+    return false;
+  }
+  const paths = yield* Effect.tryPromise({
+    try: () =>
+      changedPathsBetween(repository, token, deployment.commitSha, head),
+    catch: (error) => error,
+  }).pipe(Effect.catch(() => Effect.succeed(null)));
+  return (
+    paths !== null &&
+    !paths.some((path) => path.startsWith(`${rootDirectory}/`))
+  );
+});
+
 const whyNotBuild = Effect.fn("Sites.whyNotBuild")(function* (
   access: SiteRepositoryAccess,
-  deployment: SiteDeployment
+  deployment: SiteDeployment,
+  rootDirectory: string
 ) {
   if (
     !SITE_DEPLOYMENT_IN_PROGRESS_STATUSES.some(
@@ -73,21 +100,22 @@ const whyNotBuild = Effect.fn("Sites.whyNotBuild")(function* (
   const head = yield* currentBranchHead(access, deployment.branch);
   const fromWebhook =
     deployment.trigger === "push" || deployment.trigger === "pull_request";
-  if (fromWebhook && !head) {
-    return `${deployment.branch} no longer exists.`;
+  if (
+    fromWebhook &&
+    head !== deployment.commitSha &&
+    !(yield* headMatchesForFolder(access, deployment, head, rootDirectory))
+  ) {
+    return head
+      ? `${deployment.branch} moved on to ${head.slice(0, 7)}.`
+      : `${deployment.branch} no longer exists.`;
   }
-  // A moved head alone isn't enough: pushes that don't touch the site's
-  // folder create no deployment, so this one may be the only build of the
-  // site's latest content.
   if (
     yield* Effect.tryPromise({
       try: () => hasNewerDeployment(deployment, head),
       catch: (error) => error,
     })
   ) {
-    return fromWebhook && head && head !== deployment.commitSha
-      ? `${deployment.branch} moved on to ${head.slice(0, 7)}.`
-      : "A newer deployment replaces this one.";
+    return "A newer deployment replaces this one.";
   }
   return null;
 });
@@ -145,14 +173,14 @@ const buildAndPublish = Effect.fn("Sites.buildAndPublish")(function* (
       )
     );
     accessToken = access.token;
-    let skipReason = yield* whyNotBuild(access, deployment);
+    let skipReason = yield* whyNotBuild(access, deployment, site.rootDirectory);
     if (!skipReason) {
       smartComparison = yield* Effect.tryPromise({
         try: () => compareSmartDeployment(site, deployment, access),
         catch: (error) => error,
       });
       // The head or a newer deployment may change during comparison.
-      skipReason = yield* whyNotBuild(access, deployment);
+      skipReason = yield* whyNotBuild(access, deployment, site.rootDirectory);
     }
     if (skipReason) {
       yield* Effect.uninterruptible(
@@ -306,7 +334,7 @@ const buildAndPublish = Effect.fn("Sites.buildAndPublish")(function* (
     }
 
     // Compilation can outlast the branch head or a newer deployment.
-    skipReason = yield* whyNotBuild(access, deployment);
+    skipReason = yield* whyNotBuild(access, deployment, site.rootDirectory);
     if (skipReason) {
       yield* Effect.uninterruptible(
         Effect.tryPromise({

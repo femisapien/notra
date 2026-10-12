@@ -34,3 +34,5 @@ export const EMPTY_TREE_SCAN: RepositoryTreeScan = {
   truncated: false,
 };
 export const GITHUB_ARCHIVE_TIMEOUT_MS = 60_000;
+// The compare API lists at most 300 changed files per page.
+export const GITHUB_COMPARE_MAX_FILES = 300;

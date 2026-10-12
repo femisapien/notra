@@ -96,6 +96,7 @@ if (process.env.NOTRA_SITES_TIMELINE_TEST_WORKER !== "1") {
   const github = {
     siteRepositoryAccess: async () => ({ repository: "owner/repo", token: "" }),
     getBranchHead: async () => ({ sha: "sha" }),
+    changedPathsBetween: async () => null,
     downloadRepositoryTarball: async () => {
       expect(deployment.status).toBe("building");
       expect(writes).toHaveLength(1);

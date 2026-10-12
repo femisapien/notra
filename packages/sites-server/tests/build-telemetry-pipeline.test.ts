@@ -167,6 +167,7 @@ if (process.env.NOTRA_BUILD_TELEMETRY_PIPELINE_WORKER !== "1") {
   }));
   const github = {
     getBranchHead: async () => ({ sha: "sha" }),
+    changedPathsBetween: async () => null,
     siteRepositoryAccess: async () => {
       if (mode === "access") {
         throw new Error(

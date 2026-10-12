@@ -621,23 +621,46 @@ body {
   text-decoration-color: var(--foreground);
 }
 
-/* Builtins opt out of prose for their own chrome and mark themselves with
-   data-notra-markdown, so the Markdown inside still gets the post's code
-   styling. */
-.prose-notra :where(code):not(:where(pre code, .not-prose *)),
-.prose-notra
-  [data-notra-markdown]
-  :where(code):not(
-    :where(
-      pre code,
-      [data-notra-markdown] .not-prose:not([data-notra-markdown]) *
-    )
-  ) {
+@utility inline-code {
   border-radius: 0.25rem;
   background: var(--muted);
   padding: 0.125em 0.3em;
   font-size: 0.875em;
   font-weight: 400;
+}
+
+@utility code-frame {
+  position: relative;
+  margin: 1.5em 0;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: color-mix(
+    in oklab,
+    var(--muted) 50%,
+    var(--background)
+  ) !important;
+  padding: 1rem 1.125rem;
+  font-family: var(--font-code);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+
+.prose-notra :where(code):not(:where(pre code, .not-prose *)) {
+  @apply inline-code;
+}
+
+/* Builtins opt out of prose for their own chrome and mark themselves with
+   data-notra-markdown, so the Markdown inside still gets the post's code
+   styling. The nearest not-prose decides: an unmarked one (your own
+   component) ends the scope, a marked builtin inside it starts a new one. */
+@scope (.prose-notra [data-notra-markdown]) to (.not-prose:not([data-notra-markdown])) {
+  :scope :where(code):not(:where(pre code)) {
+    @apply inline-code;
+  }
+
+  :scope :where(pre) {
+    @apply code-frame;
+  }
 }
 
 .prose-notra :where(code):not(:where(pre code))::before,
@@ -674,25 +697,8 @@ body {
   content: none;
 }
 
-.prose-notra :where(pre):not(:where(.not-prose *)),
-.prose-notra
-  [data-notra-markdown]
-  :where(pre):not(
-    :where([data-notra-markdown] .not-prose:not([data-notra-markdown]) *)
-  ) {
-  position: relative;
-  margin: 1.5em 0;
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  background: color-mix(
-    in oklab,
-    var(--muted) 50%,
-    var(--background)
-  ) !important;
-  padding: 1rem 1.125rem;
-  font-family: var(--font-code);
-  font-size: 0.8125rem;
-  line-height: 1.7;
+.prose-notra :where(pre):not(:where(.not-prose *)) {
+  @apply code-frame;
 }
 
 .prose-notra [data-notra-markdown]:where(.tabs, .code-group) :where(pre) {
