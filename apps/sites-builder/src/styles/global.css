@@ -625,7 +625,14 @@ body {
    data-notra-markdown, so the Markdown inside still gets the post's code
    styling. */
 .prose-notra :where(code):not(:where(pre code, .not-prose *)),
-.prose-notra [data-notra-markdown] :where(code):not(:where(pre code)) {
+.prose-notra
+  [data-notra-markdown]
+  :where(code):not(
+    :where(
+      pre code,
+      [data-notra-markdown] .not-prose:not([data-notra-markdown]) *
+    )
+  ) {
   border-radius: 0.25rem;
   background: var(--muted);
   padding: 0.125em 0.3em;
@@ -668,7 +675,11 @@ body {
 }
 
 .prose-notra :where(pre):not(:where(.not-prose *)),
-.prose-notra [data-notra-markdown] :where(pre) {
+.prose-notra
+  [data-notra-markdown]
+  :where(pre):not(
+    :where([data-notra-markdown] .not-prose:not([data-notra-markdown]) *)
+  ) {
   position: relative;
   margin: 1.5em 0;
   border: 1px solid var(--border);

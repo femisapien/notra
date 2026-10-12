@@ -210,7 +210,12 @@ export async function prepareSiteFonts(
         [...candidates].map(([family, specs]) => [family, specs[0] ?? ""])
       )
     );
-    const key = createHash("sha256").update(url.toString()).digest("hex");
+    // The fallback can download other weights than the first URL asks for,
+    // so the candidates belong in the key too.
+    const key = createHash("sha256")
+      .update(url.toString())
+      .update(JSON.stringify([...candidates]))
+      .digest("hex");
     // Preparation clears site/, but unchanged preview fonts can survive in this cache.
     const cacheRoot = join(workDir, "font-cache");
     const cacheDir = join(cacheRoot, key);

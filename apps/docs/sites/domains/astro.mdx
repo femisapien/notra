@@ -43,8 +43,8 @@ export const proxyToNotra: APIRoute = async ({ request, clientAddress }) => {
   const url = new URL(request.url);
   const headers = new Headers(request.headers);
   for (const name of DROPPED_REQUEST_HEADERS) headers.delete(name);
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  headers.set("x-forwarded-for", forwardedFor ? `${forwardedFor}, ${clientAddress}` : clientAddress);
+  // Overwritten, so visitors can't send their own.
+  headers.set("x-forwarded-for", clientAddress);
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
   const upstream = await fetch(`${NOTRA_SITE}${url.pathname}${url.search}`, {

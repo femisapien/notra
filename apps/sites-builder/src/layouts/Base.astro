@@ -75,10 +75,10 @@ const customFooter = Boolean(chromeComponent("footer"));
     {builtIn("og:locale") && <meta property="og:locale" content="en_US" />}
     {ogImage && builtIn("og:image") && <meta property="og:image" content={ogImage.url} />}
     {ogImage && !customImage && builtIn("og:image:alt") && <meta property="og:image:alt" content={ogImage.large ? title : config.name} />}
-    {publishedTime && <meta property="article:published_time" content={publishedTime.toISOString()} />}
-    {type === "article" && modifiedTime && <meta property="article:modified_time" content={modifiedTime.toISOString()} />}
-    {type === "article" && <meta property="article:section" content={areaTitle(params.area)} />}
-    {type === "article" && tags.map((tag) => <meta property="article:tag" content={tag} />)}
+    {publishedTime && builtIn("article:published_time") && <meta property="article:published_time" content={publishedTime.toISOString()} />}
+    {type === "article" && modifiedTime && builtIn("article:modified_time") && <meta property="article:modified_time" content={modifiedTime.toISOString()} />}
+    {type === "article" && builtIn("article:section") && <meta property="article:section" content={areaTitle(params.area)} />}
+    {type === "article" && builtIn("article:tag") && tags.map((tag) => <meta property="article:tag" content={tag} />)}
     {builtIn("twitter:card") && <meta name="twitter:card" content={twitterCard} />}
     {twitterSite && builtIn("twitter:site") && <meta name="twitter:site" content={twitterSite} />}
     {builtIn("generator") && <meta name="generator" content="Notra Sites" />}

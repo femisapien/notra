@@ -132,7 +132,7 @@
     "organization": {
       "name": "DriftDB",
       "legalName": "DriftDB Project",
-      "url": "https://usenotra.com",
+      "url": "https://driftdb-oss.notra.site",
       "logo": "/images/logo.svg",
       "sameAs": [
         "https://github.com/usenotra/notra",

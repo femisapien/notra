@@ -35,6 +35,9 @@
 }
 
 .mdx-content table {
+  /* border-radius needs separate borders; preflight collapses them. */
+  border-collapse: separate;
+  border-spacing: 0;
   border-radius: 1rem;
   overflow: hidden;
 }

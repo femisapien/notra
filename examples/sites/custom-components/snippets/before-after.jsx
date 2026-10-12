@@ -5,8 +5,8 @@ export const BeforeAfter = ({ before, after, beforeLabel = "Before", afterLabel 
   return (
     <figure className="pm-widget pm-compare not-prose">
       <div className="pm-compare-stage" style={{ "--pos": `${position}%` }}>
-        <img src={before} alt={`${beforeLabel}: ${alt}`} />
-        <img src={after} alt={`${afterLabel}: ${alt}`} className="pm-compare-after" />
+        <img src={before} alt={alt ? `${beforeLabel}: ${alt}` : ""} />
+        <img src={after} alt={alt ? `${afterLabel}: ${alt}` : ""} className="pm-compare-after" />
         <span className="pm-compare-line" aria-hidden="true" />
         <span className="pm-compare-tag pm-compare-tag-before">{beforeLabel}</span>
         <span className="pm-compare-tag pm-compare-tag-after">{afterLabel}</span>

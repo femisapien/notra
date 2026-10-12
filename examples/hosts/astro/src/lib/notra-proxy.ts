@@ -33,9 +33,9 @@ export const proxyToNotra: APIRoute = async ({ request, clientAddress }) => {
   for (const name of DROPPED_REQUEST_HEADERS) {
     headers.delete(name);
   }
-  // Lets site analytics see the visitor, not this server.
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  headers.set("x-forwarded-for", forwardedFor ? `${forwardedFor}, ${clientAddress}` : clientAddress);
+  // Lets site analytics see the visitor, not this server. Overwritten, so
+  // visitors can't send their own.
+  headers.set("x-forwarded-for", clientAddress);
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
   const upstream = await fetch(`${SITE_ORIGIN}${url.pathname}${url.search}`, {

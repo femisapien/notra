@@ -6,7 +6,7 @@
   "vars": {
     // The Notra address from your site's Domains page.
     "NOTRA_SITE_ORIGIN": "https://relaywave-cloudflare.notra.site"
-  }
+  },
   // Serve the whole domain from this Worker:
   // "routes": [{ "pattern": "www.relaywave.dev", "custom_domain": true }]
   //

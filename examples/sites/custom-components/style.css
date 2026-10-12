@@ -1,11 +1,5 @@
 /* Playful touches on the built-in components. */
 .callout, .card, .tabs, .accordion-group, .frame, .code-block { border-radius: 1.25rem; }
-.card { transition: transform 150ms ease; }
+.card { transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease; }
 .card:hover { transform: translateY(-2px); }
 @media (prefers-reduced-motion: reduce) { .card:hover { transform: none; } }
-.code-group {
-  border: 1px solid var(--border);
-  border-radius: 1.25rem;
-  background: var(--card);
-  padding: 0.5rem 1.25rem;
-}
