@@ -20,6 +20,7 @@ import type {
   GeoEngineFamily,
   GeoIngestFramework,
   GeoIngestPackageManager,
+  GeoDrainProvider,
   GeoIngestSetupResponse,
   GeoJourney,
   GeoJourneyDailyPoint,
@@ -165,6 +166,8 @@ export interface TrafficPageViewProps {
   traffic: AiTrafficResponse | undefined;
   isTrafficPending: boolean;
   knownHosts: readonly string[];
+  knownPaths: readonly string[];
+  pathQuery: string;
   isPagesPending: boolean;
   trafficPages: readonly GeoTrafficPage[];
   ingestSetup: GeoIngestSetupResponse | undefined;
@@ -412,6 +415,7 @@ export type GeoBrandSearchHandlerInput = GeoScopeInput & GeoBrandSearchInput;
 
 export interface GeoTrafficLogQueryOptions {
   host?: string;
+  path?: string;
 }
 
 export interface GeoJourneyPathNode {
@@ -634,6 +638,12 @@ export interface GeoPackageManagerIconProps {
 export interface GeoIngestSetupPanelProps {
   setup: GeoIngestSetupResponse | undefined;
   className?: string;
+}
+
+export interface GeoIngestDrainSetupProps {
+  provider: GeoDrainProvider;
+  setup: GeoIngestSetupResponse | undefined;
+  onCopy: () => void;
 }
 
 export interface TrafficEmptyProps {
@@ -1936,10 +1946,27 @@ export interface WebBreakdownTableProps {
   nameHeader: string;
   valueHeader: string;
   rows: readonly WebBreakdownRow[];
+  /** Pixel height, used as both floor and cap. Side-by-side tables share one value. */
+  height?: number;
   showFromAi?: boolean;
   showAvgTime?: boolean;
 }
 
 export interface TrafficDomainSelectProps {
   hosts: readonly string[];
+}
+
+export interface TrafficPathEmptyProps {
+  geoRange: GeoRangeControl;
+}
+
+export interface TrafficPathFilterProps {
+  paths: readonly string[];
+}
+
+export interface TrafficExportButtonProps {
+  traffic: AiTrafficResponse | undefined;
+  web: WebAnalyticsResponse | undefined;
+  range: GeoRangeQuery;
+  path: string;
 }

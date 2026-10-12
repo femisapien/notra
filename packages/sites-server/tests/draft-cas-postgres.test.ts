@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 
 import type { SaveSiteDraftInput } from "../src/types/editor";
 import type { Site } from "../src/types/sites";
+import { seedSiteProject } from "./utils/site-project";
 
 function deferred() {
   let resolve = () => {};
@@ -62,6 +63,7 @@ if (!databaseUrl) {
   let beforeCommit = async () => {};
   let beforeRead = async () => {};
   let blobSha = "blob-current";
+  let publishedFiles: { path: string; contents: string }[] = [];
   const octokit = await import("@notra/ai/utils/octokit");
   mock.module("@notra/ai/utils/octokit", () => ({
     ...octokit,
@@ -93,7 +95,15 @@ if (!databaseUrl) {
         }
         throw new Error(`Unexpected synthetic GitHub request: ${route}`);
       },
-      graphql: async () => {
+      graphql: async (
+        _query: string,
+        variables: {
+          input: {
+            fileChanges: { additions: { path: string; contents: string }[] };
+          };
+        }
+      ) => {
+        publishedFiles = variables.input.fileChanges.additions;
         await beforeCommit();
         return {
           createCommitOnBranch: { commit: { oid: "published-commit" } },
@@ -122,7 +132,8 @@ if (!databaseUrl) {
     rebaseSiteDraft,
     publishSiteDrafts,
   } = editor;
-  const { saveSiteIntegration } = await import("../src/integrations");
+  const { readSiteIntegrations, saveSiteIntegration } =
+    await import("../src/integrations");
   const input = (
     content: string,
     draftId: string | null = null,
@@ -144,6 +155,7 @@ if (!databaseUrl) {
     beforeCommit = async () => {};
     beforeRead = async () => {};
     blobSha = "blob-current";
+    publishedFiles = [];
     organizationId = `draft-cas-${crypto.randomUUID()}`;
     userId = `${organizationId}-user`;
     await db.insert(users).values({
@@ -162,6 +174,7 @@ if (!databaseUrl) {
       .values({
         id: `${organizationId}-site`,
         organizationId,
+        projectId: await seedSiteProject(organizationId),
         name: "Synthetic",
         slug: crypto.randomUUID().slice(0, 8),
         publicOrigin: "https://synthetic.example.test",
@@ -324,6 +337,99 @@ if (!databaseUrl) {
     expect(await editor.listSiteDrafts(site.id)).toEqual([]);
   });
 
+  test("all providers round-trip through real drafts and publish the exact normalized blog.json", async () => {
+    const updates = [
+      {
+        provider: "ga4",
+        settings: { measurementId: " G-ABC123XYZ9 " },
+      },
+      {
+        provider: "umami",
+        settings: { websiteId: " 94db1cb1-74f4-4a40-ad6c-962362670409 " },
+      },
+      {
+        provider: "plausible",
+        settings: {
+          domain: " DOCS.EXAMPLE.TEST ",
+          server: " STATS.EXAMPLE.TEST ",
+        },
+      },
+      {
+        provider: "posthog",
+        settings: {
+          apiKey: "phc_abcdefghijklmnopqrstuvwxyz0123",
+          apiHost: "https://eu.i.posthog.com/",
+          sessionRecording: false,
+        },
+      },
+    ] as const;
+    for (const update of updates) {
+      expect(
+        (await saveSiteIntegration(site, { ...update, userId })).hasDraft
+      ).toBe(true);
+    }
+    const state = await readSiteIntegrations(site);
+    expect(state.invalid).toBe(false);
+    expect(state.integrations).toEqual({
+      ga4: { measurementId: "G-ABC123XYZ9" },
+      umami: { websiteId: "94db1cb1-74f4-4a40-ad6c-962362670409" },
+      plausible: { domain: "docs.example.test", server: "stats.example.test" },
+      posthog: {
+        apiKey: "phc_abcdefghijklmnopqrstuvwxyz0123",
+        apiHost: "https://eu.i.posthog.com",
+        sessionRecording: false,
+      },
+    });
+    const [draft] = await editor.listSiteDrafts(site.id);
+    expect(draft?.revision).toBe(3);
+    expect(JSON.parse(draft?.content ?? "{}").name).toBe("Published");
+    await publishSiteDrafts(site, {
+      mode: "direct",
+      message: "Configure analytics",
+      userId,
+    });
+    expect(publishedFiles).toHaveLength(1);
+    expect(publishedFiles[0]?.path).toBe("blog.json");
+    expect(
+      Buffer.from(publishedFiles[0]?.contents ?? "", "base64").toString()
+    ).toBe(draft?.content ?? "");
+    expect(await editor.listSiteDrafts(site.id)).toEqual([]);
+  });
+
+  test("removing an integration updates the real draft without deleting unrelated settings", async () => {
+    await saveSiteIntegration(site, {
+      provider: "umami",
+      settings: { websiteId: "94db1cb1-74f4-4a40-ad6c-962362670409" },
+      userId,
+    });
+    await saveSiteIntegration(site, {
+      provider: "posthog",
+      settings: {
+        apiKey: "phc_abcdefghijklmnopqrstuvwxyz0123",
+        sessionRecording: false,
+      },
+      userId,
+    });
+    const state = await saveSiteIntegration(site, {
+      provider: "umami",
+      settings: null,
+      userId,
+    });
+    expect(state.integrations).not.toHaveProperty("umami");
+    expect(state.integrations.posthog).toHaveProperty(
+      "sessionRecording",
+      false
+    );
+    const empty = await saveSiteIntegration(site, {
+      provider: "posthog",
+      settings: null,
+      userId,
+    });
+    expect(empty.integrations).toEqual({});
+    const [draft] = await editor.listSiteDrafts(site.id);
+    expect(JSON.parse(draft?.content ?? "{}")).toEqual({ name: "Published" });
+  });
+
   test("racing integration merges preserve both provider settings or report an explicit conflict", async () => {
     const original = editor.listSiteDrafts;
     const gate = deferred();
@@ -347,8 +453,8 @@ if (!databaseUrl) {
           userId,
         }),
         saveSiteIntegration(site, {
-          provider: "ga4",
-          settings: { measurementId: "G-SYNTHETIC" },
+          provider: "umami",
+          settings: { websiteId: "94db1cb1-74f4-4a40-ad6c-962362670409" },
           userId,
         }),
       ]);

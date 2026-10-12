@@ -21,10 +21,12 @@ import {
   GEO_HOST_FILTER_PARAMS,
   GEO_HOST_FILTER_SQL,
   GEO_HOSTS_PARAMS,
-  GEO_HOSTS_SET,
   GEO_HOSTS_SQL,
   GEO_JOURNEY_DEEP_CRAWL_PAGES_SQL,
   GEO_JOURNEY_FIRST_SEEN_CURRENT_CONDITION,
+  GEO_PAGE_FILTER_SET,
+  GEO_PATH_PARAMS,
+  GEO_PATH_SQL,
   GEO_PROJECT_SCOPE_PARAMS,
   GEO_PROJECT_SCOPE_SQL,
   GEO_SITE_SCOPE_PARAMS,
@@ -123,6 +125,7 @@ export const geoTrafficOverview = defineEndpoint("geo_traffic_overview", {
     ...GEO_EXCLUDED_SOURCES_PARAMS,
     ...GEO_WINDOW_PARAMS,
     ...GEO_HOSTS_PARAMS,
+    ...GEO_PATH_PARAMS,
   },
   nodes: [
     node({
@@ -171,12 +174,13 @@ export const geoTrafficOverview = defineEndpoint("geo_traffic_overview", {
             uniqExactIf(path, (${GEO_DAY_CURRENT_CONDITION})) AS paths,
             maxMergeIf(last_seen_state, (${GEO_DAY_CURRENT_CONDITION})) AS last_seen_at
           FROM geo_traffic_pages_by_host_daily
-          WHERE ${GEO_HOSTS_SET}
+          WHERE ${GEO_PAGE_FILTER_SET}
             AND organization_id = {{String(organization_id)}}
             ${GEO_PROJECT_SCOPE_SQL}
           ${GEO_SITE_SCOPE_SQL}
             ${GEO_EXCLUDED_SOURCES_SQL}
             ${GEO_HOSTS_SQL}
+            ${GEO_PATH_SQL}
             ${GEO_DAY_COMPARISON_WINDOW_SQL}
           GROUP BY source, visitor_type
         ) AS h
@@ -189,7 +193,7 @@ export const geoTrafficOverview = defineEndpoint("geo_traffic_overview", {
       name: "result",
       sql: `
         SELECT * FROM (
-          SELECT * FROM per_source WHERE NOT (${GEO_HOSTS_SET})
+          SELECT * FROM per_source WHERE NOT ${GEO_PAGE_FILTER_SET}
           UNION ALL
           SELECT * FROM per_source_hosts
         )
@@ -221,6 +225,7 @@ export const geoTrafficTimeseries = defineEndpoint("geo_traffic_timeseries", {
     ...GEO_EXCLUDED_SOURCES_PARAMS,
     ...GEO_WINDOW_PARAMS,
     ...GEO_HOSTS_PARAMS,
+    ...GEO_PATH_PARAMS,
   },
   nodes: [
     node({
@@ -232,7 +237,7 @@ export const geoTrafficTimeseries = defineEndpoint("geo_traffic_timeseries", {
           source,
           countMerge(visits_state) AS visits
         FROM geo_traffic_daily
-        WHERE NOT (${GEO_HOSTS_SET})
+        WHERE NOT ${GEO_PAGE_FILTER_SET}
           AND organization_id = {{String(organization_id)}}
           ${GEO_PROJECT_SCOPE_SQL}
           ${GEO_SITE_SCOPE_SQL}
@@ -246,12 +251,13 @@ export const geoTrafficTimeseries = defineEndpoint("geo_traffic_timeseries", {
           source,
           countMerge(visits_state) AS visits
         FROM geo_traffic_pages_by_host_daily
-        WHERE ${GEO_HOSTS_SET}
+        WHERE ${GEO_PAGE_FILTER_SET}
           AND organization_id = {{String(organization_id)}}
           ${GEO_PROJECT_SCOPE_SQL}
           ${GEO_SITE_SCOPE_SQL}
           ${GEO_EXCLUDED_SOURCES_SQL}
           ${GEO_HOSTS_SQL}
+          ${GEO_PATH_SQL}
           ${GEO_DAY_WINDOW_SQL}
         GROUP BY day, visitor_type, source
         ORDER BY day ASC, visitor_type ASC, source ASC
@@ -282,6 +288,7 @@ export const geoTrafficPages = defineEndpoint("geo_traffic_pages", {
     limit: p.int32().optional(20).describe("Max rows"),
     ...GEO_HOST_FILTER_PARAMS,
     ...GEO_HOSTS_PARAMS,
+    ...GEO_PATH_PARAMS,
   },
   nodes: [
     node({
@@ -308,6 +315,7 @@ export const geoTrafficPages = defineEndpoint("geo_traffic_pages", {
           AND ((${GEO_CAPTURED_CURRENT_CONDITION}) OR (${GEO_CAPTURED_PREVIOUS_CONDITION}))
           ${GEO_HOST_FILTER_SQL}
           ${GEO_HOSTS_SQL}
+          ${GEO_PATH_SQL}
         GROUP BY host, path, source, visitor_type
         HAVING visits > 0
         ORDER BY visits DESC, host ASC, path ASC
@@ -339,7 +347,8 @@ const GEO_TRAFFIC_LOG_FILTER_SQL = `WHERE organization_id = {{String(organizatio
             OR has(splitByChar(',', {{String(category, '')}}), category)
           )
           AND captured_at >= now() - toIntervalDay(90)
-          ${GEO_HOST_FILTER_SQL}`;
+          ${GEO_HOST_FILTER_SQL}
+          ${GEO_PATH_SQL}`;
 
 export const geoTrafficLog = defineEndpoint("geo_traffic_log", {
   description: "Most recent captured AI visits, newest first",
@@ -362,6 +371,7 @@ export const geoTrafficLog = defineEndpoint("geo_traffic_log", {
         "Comma-separated request purpose filter, empty for every purpose"
       ),
     ...GEO_HOST_FILTER_PARAMS,
+    ...GEO_PATH_PARAMS,
   },
   nodes: [
     node({

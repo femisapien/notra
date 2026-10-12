@@ -18,7 +18,10 @@ import { GeoRangePicker } from "@/components/geo/geo-range-picker";
 import { GeoSetupButton } from "@/components/geo/geo-setup-button";
 import { TrafficDomainSelect } from "@/components/geo/traffic-domain-select";
 import { TrafficEmpty } from "@/components/geo/traffic-empty";
+import { TrafficExportButton } from "@/components/geo/traffic-export-button";
 import { TrafficPagesCard } from "@/components/geo/traffic-pages-card";
+import { TrafficPathEmpty } from "@/components/geo/traffic-path-empty";
+import { TrafficPathFilter } from "@/components/geo/traffic-path-filter";
 import { WebVisitorsSection } from "@/components/geo/web-visitors-section";
 import { PageContainer } from "@/components/layout/container";
 import { useGeoProjectScope } from "@/components/providers/geo-project-provider";
@@ -38,8 +41,15 @@ import {
 import { useGeoActiveProject } from "@/lib/hooks/use-geo-active-project";
 import { useGeoRange } from "@/lib/hooks/use-geo-range";
 import { useGeoTrafficHostQuery } from "@/lib/hooks/use-geo-traffic-host";
+import {
+  useKnownTrafficPaths,
+  useTrafficPathQuery,
+} from "@/lib/hooks/use-traffic-path";
 import type { GeoPageClientProps, TrafficPageViewProps } from "@/types/geo";
-import { trafficHostsFromPages } from "@/utils/ai-traffic-pages";
+import {
+  trafficHostsFromPages,
+  trafficPathOptions,
+} from "@/utils/ai-traffic-pages";
 import { withGeoProject } from "@/utils/geo-paths";
 import { geoSettingsPath } from "@/utils/settings-path";
 import { hasWebAnalytics, webHostsForSelect } from "@/utils/web-analytics";
@@ -56,6 +66,8 @@ function TrafficPageView({
   traffic,
   isTrafficPending,
   knownHosts,
+  knownPaths,
+  pathQuery,
   isPagesPending,
   trafficPages,
   ingestSetup,
@@ -84,7 +96,10 @@ function TrafficPageView({
     );
   }
 
-  const showVisitors = hasWebAnalytics(web);
+  // A path filter can empty the totals; the unfiltered host list still
+  // tells whether this site reports human visitors.
+  const showVisitors =
+    hasWebAnalytics(web) || (pathQuery !== "" && (web?.hosts.length ?? 0) > 0);
 
   const header = (
     <PageHeading
@@ -108,12 +123,21 @@ function TrafficPageView({
       <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
         <div className="flex w-full min-w-0 flex-col gap-6 px-4 lg:px-6">
           {header}
-          {hasPreviousTraffic ? (
+          {pathQuery ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-end">
+                <TrafficPathFilter paths={knownPaths} />
+              </div>
+              <TrafficPathEmpty geoRange={geoRange} />
+            </div>
+          ) : null}
+          {!pathQuery && hasPreviousTraffic ? (
             <EmptyState
               description={t("emptyRangeDescription")}
               title={t("emptyRangeTitle")}
             />
-          ) : (
+          ) : null}
+          {pathQuery || hasPreviousTraffic ? null : (
             <TrafficEmpty setup={ingestSetup} />
           )}
         </div>
@@ -125,27 +149,38 @@ function TrafficPageView({
     <PageContainer className="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
       <div className="w-full space-y-6 px-4 lg:px-6">
         {header}
-        <div className="flex flex-col gap-6">
-          {showVisitors && web ? (
-            <WebVisitorsSection
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <TrafficPathFilter paths={knownPaths} />
+            <TrafficExportButton
+              path={pathQuery}
               range={geoRange.query}
               traffic={traffic}
               web={web}
             />
-          ) : null}
-          <AiTrafficCard
-            isPending={isTrafficPending}
-            pages={trafficPages}
-            range={geoRange.query}
-            settingsHref={withGeoProject(
-              geoSettingsPath(organizationSlug),
-              projectId
-            )}
-            showHero={!showVisitors}
-            traffic={traffic}
-          />
-          <TrafficPagesCard isPending={isPagesPending} pages={trafficPages} />
-          <AiTrafficLogCard organizationId={organizationId} />
+          </div>
+          <div className="flex flex-col gap-6">
+            {showVisitors && web ? (
+              <WebVisitorsSection
+                range={geoRange.query}
+                traffic={traffic}
+                web={web}
+              />
+            ) : null}
+            <AiTrafficCard
+              isPending={isTrafficPending}
+              pages={trafficPages}
+              range={geoRange.query}
+              settingsHref={withGeoProject(
+                geoSettingsPath(organizationSlug),
+                projectId
+              )}
+              showHero={!showVisitors}
+              traffic={traffic}
+            />
+            <TrafficPagesCard isPending={isPagesPending} pages={trafficPages} />
+            <AiTrafficLogCard organizationId={organizationId} />
+          </div>
         </div>
       </div>
     </PageContainer>
@@ -165,17 +200,19 @@ export default function PageClient({ organizationSlug }: GeoPageClientProps) {
 
   const geoRange = useGeoRange();
   const [hostQuery] = useGeoTrafficHostQuery();
+  const [pathQuery] = useTrafficPathQuery();
   const { data: settingsData, isPending: isSettingsPending } =
     useGeoSettings(organizationId);
   const {
     data: traffic,
     isPending: isTrafficPending,
     isPlaceholderData: isTrafficPlaceholder,
-  } = useAiTraffic(organizationId, geoRange.query, hostQuery);
+  } = useAiTraffic(organizationId, geoRange.query, hostQuery, pathQuery);
   const { data: web, isPending: isWebPending } = useWebAnalytics(
     organizationId,
     geoRange.query,
-    hostQuery
+    hostQuery,
+    pathQuery
   );
   const { data: ingestSetup, isPending: isIngestPending } =
     useGeoIngestSetup(organizationId);
@@ -184,13 +221,18 @@ export default function PageClient({ organizationSlug }: GeoPageClientProps) {
     data: trafficPages,
     isPending: isPagesPending,
     isPlaceholderData: isPagesPlaceholder,
-  } = useGeoTrafficPages(organizationId, geoRange.query, hostQuery);
+  } = useGeoTrafficPages(organizationId, geoRange.query, hostQuery, pathQuery);
   const knownHosts = unionTrafficHosts(
     ingestAllowedHosts(brandDomain, settingsData?.settings?.domains),
     [
       ...trafficHostsFromPages(inventoryPages.data?.pages ?? []),
       ...webHostsForSelect(web),
     ]
+  );
+
+  const knownPaths = useKnownTrafficPaths(
+    trafficPathOptions(web?.pages ?? [], inventoryPages.data?.pages ?? []),
+    `${organizationId}:${projectId ?? ""}`
   );
 
   const settings = settingsData?.settings ?? null;
@@ -238,6 +280,8 @@ export default function PageClient({ organizationSlug }: GeoPageClientProps) {
       isPagesPending={isPagesPending || isPagesPlaceholder}
       isTrafficPending={isTrafficPending || isTrafficPlaceholder}
       knownHosts={knownHosts}
+      knownPaths={knownPaths}
+      pathQuery={pathQuery}
       organizationId={organizationId}
       organizationSlug={organizationSlug}
       projectId={projectId}

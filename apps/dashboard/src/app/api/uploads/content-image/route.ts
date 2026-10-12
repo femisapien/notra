@@ -1,7 +1,9 @@
 import { logError } from "@notra/ai/utils/server-log";
+import { isDemoMode } from "@notra/utils/demo-mode";
 import { ORPCError } from "@orpc/server";
 
 import { CONTENT_MEDIA } from "@/constants/content-media";
+import { DEMO_DISABLED_MESSAGE } from "@/constants/demo";
 import { uploadContentImage, uploadContentVideo } from "@/lib/upload/server";
 import type { ContentMediaKind } from "@/types/content/media";
 import {
@@ -31,6 +33,10 @@ function uploadKind(form: FormData): ContentMediaKind {
 }
 
 export async function POST(request: Request) {
+  // Checked before parsing so the demo never buffers an anonymous upload.
+  if (isDemoMode()) {
+    return Response.json({ message: DEMO_DISABLED_MESSAGE }, { status: 403 });
+  }
   let form: FormData;
   try {
     form = await request.formData();

@@ -86,29 +86,29 @@ const readSiteIdentity = Effect.fn("geoIngest.readSiteIdentity")(function* (
   } satisfies GeoIngestIdentity;
 });
 
-const readBearerIdentity = Effect.fn("geoIngest.readBearerIdentity")(function* (
-  request: Request
-) {
-  const header = request.headers.get("authorization");
-  const token = header?.startsWith(GEO_INGEST_BEARER_PREFIX)
-    ? header.slice(GEO_INGEST_BEARER_PREFIX.length).trim()
-    : "";
+export const readBearerIdentity = Effect.fn("geoIngest.readBearerIdentity")(
+  function* (request: Request) {
+    const header = request.headers.get("authorization");
+    const token = header?.startsWith(GEO_INGEST_BEARER_PREFIX)
+      ? header.slice(GEO_INGEST_BEARER_PREFIX.length).trim()
+      : "";
 
-  if (token.length === 0) {
-    return yield* Effect.fail(new GeoIngestMissingTokenError({}));
+    if (token.length === 0) {
+      return yield* Effect.fail(new GeoIngestMissingTokenError({}));
+    }
+
+    if (isGeoIngestSiteToken(token)) {
+      return yield* readSiteIdentity(token);
+    }
+
+    const identity = verifyGeoIngestToken(token);
+    if (!identity) {
+      return yield* Effect.fail(new GeoIngestInvalidTokenError({}));
+    }
+
+    return identity;
   }
-
-  if (isGeoIngestSiteToken(token)) {
-    return yield* readSiteIdentity(token);
-  }
-
-  const identity = verifyGeoIngestToken(token);
-  if (!identity) {
-    return yield* Effect.fail(new GeoIngestInvalidTokenError({}));
-  }
-
-  return identity;
-});
+);
 
 const enforceRateLimit = Effect.fn("geoIngest.rateLimit")(function* (
   organizationId: string,
@@ -192,11 +192,11 @@ const storeWebPageView = Effect.fn("geoIngest.storeWebPageView")(function* (
   );
 });
 
-const ingestEvent = Effect.fn("geoIngest.ingest")(function* (
-  event: GeoTrafficEventRow
+export const writeGeoTrafficEvents = Effect.fn("geoIngest.ingest")(function* (
+  rows: GeoTrafficEventRow[]
 ) {
   const result = yield* Effect.tryPromise({
-    try: () => ingestGeoTrafficEvents([event]),
+    try: () => ingestGeoTrafficEvents(rows),
     catch: (cause) => new GeoIngestFailedError({ cause }),
   }).pipe(
     Effect.timeoutOrElse({
@@ -223,7 +223,7 @@ const ingestEvent = Effect.fn("geoIngest.ingest")(function* (
   if (result.quarantined_rows > 0) {
     return yield* Effect.fail(
       new GeoIngestFailedError({
-        cause: new Error("Tinybird quarantined the event"),
+        cause: new Error("Tinybird quarantined events"),
       })
     );
   }
@@ -366,17 +366,12 @@ const runWebEngagementIngest = Effect.fn("geoIngest.engagement")(function* (
   return webOnlyResult(identity, "human");
 });
 
-export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
-  request: Request,
+export const runGeoEnvelopeIngest = Effect.fn("geoIngest.envelope")(function* (
+  identity: GeoIngestIdentity,
+  body: unknown,
   defer: GeoIngestDefer,
   buffer?: GeoIngestBuffer
 ) {
-  const identity = yield* readBearerIdentity(request);
-  const body = yield* readBody(request);
-  if (isWebEngagementBody(body)) {
-    return yield* runWebEngagementIngest(identity, body, buffer);
-  }
-
   const payloadResult = yield* Effect.result(readPayload(body));
   if (payloadResult._tag === "Failure") {
     return yield* failWithAuthPrecedence(identity, payloadResult.failure);
@@ -506,7 +501,7 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
   // (or when it is full) the 202 still waits for the write.
   const buffered = buffer?.enqueue(event) ?? false;
   if (!buffered) {
-    yield* ingestEvent(event);
+    yield* writeGeoTrafficEvents([event]);
   }
   const ingestMs = Date.now() - ingestStartedAt;
   // Analytics and the live update must not hold the 202 open for the site
@@ -543,4 +538,17 @@ export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
     agent: classification.agent,
     ingestMs,
   } satisfies GeoIngestResult;
+});
+
+export const runGeoIngest = Effect.fn("geoIngest.run")(function* (
+  request: Request,
+  defer: GeoIngestDefer,
+  buffer?: GeoIngestBuffer
+) {
+  const identity = yield* readBearerIdentity(request);
+  const body = yield* readBody(request);
+  if (isWebEngagementBody(body)) {
+    return yield* runWebEngagementIngest(identity, body, buffer);
+  }
+  return yield* runGeoEnvelopeIngest(identity, body, defer, buffer);
 });

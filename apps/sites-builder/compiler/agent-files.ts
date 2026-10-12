@@ -3,7 +3,11 @@ import { join } from "node:path";
 import { joinMountPath } from "@notra/sites-core/utils/mounts";
 
 import { withSiteName } from "../src/utils/area-titles";
-import { AGENT_INSTRUCTIONS_HEADING } from "./constants/agent-files";
+import {
+  AGENT_INSTRUCTIONS_HEADING,
+  WHEN_TO_USE_AREA,
+  WHEN_TO_USE_HEADING,
+} from "./constants/agent-files";
 import type {
   AreaPageEntry,
   AreaPages,
@@ -91,6 +95,18 @@ export function instructionsSection(
   return `${AGENT_INSTRUCTIONS_HEADING}\n\n${body}`;
 }
 
+function whenToUseSection(params: LlmsTxtParams): string {
+  return [
+    WHEN_TO_USE_HEADING,
+    "",
+    `- Use this site as the first-party source for ${params.siteName ?? params.name}.`,
+    ...params.areas.map(
+      (area) =>
+        `- Use [${area.title}](${new URL(area.indexPath, params.origin)}) ${WHEN_TO_USE_AREA[area.area]}.`
+    ),
+  ].join("\n");
+}
+
 export function llmsTxt(params: LlmsTxtParams): string {
   const parts = [`# ${params.name}`];
   if (params.description) {
@@ -100,6 +116,7 @@ export function llmsTxt(params: LlmsTxtParams): string {
   if (instructions) {
     parts.push(instructions);
   }
+  parts.push(whenToUseSection(params));
   parts.push(
     [
       "Every page is also available as Markdown: append `.md` to its URL or request it with `Accept: text/markdown`.",
@@ -195,6 +212,7 @@ export async function writeAgentFiles(
           join(outDir, llmsPath),
           llmsTxt({
             name,
+            siteName: params.siteName,
             description: params.siteDescription,
             areas: scope.areas,
             origin,

@@ -2,8 +2,9 @@ import type { IconSvgElement } from "@hugeicons/react";
 import type { SITE_DEPLOYMENT_STATUSES } from "@notra/sites-core/constants/sites";
 import type { RepositoryContentCount } from "@notra/sites-server/types/github";
 import type { SiteInputField } from "@notra/sites-server/types/sites";
+import type { Badge } from "@notra/ui/components/ui/badge";
 import type { InferRouterInputs, InferRouterOutputs } from "@orpc/server";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import type { SITE_CREATE_STEP_IDS } from "@/constants/site-create";
 import type {
@@ -32,7 +33,7 @@ export type SiteRepository = SitesOutputs["connectRepository"];
 export type SiteCreateStepId = (typeof SITE_CREATE_STEP_IDS)[number];
 export type SiteImportableRepository =
   SitesOutputs["importableRepositories"]["repositories"][number];
-type SiteEditorFiles = SitesOutputs["editor"]["files"];
+export type SiteEditorFiles = SitesOutputs["editor"]["files"];
 export type SiteEditorFile = SiteEditorFiles["files"][number];
 export type SiteEditorDraft = SiteEditorFiles["drafts"][number];
 export type SiteEditorDocument = SitesOutputs["editor"]["read"];
@@ -51,6 +52,12 @@ export interface SiteBuildAgentPromptInput {
 }
 
 export type SiteDeploymentStatus = (typeof SITE_DEPLOYMENT_STATUSES)[number];
+
+export interface SiteStatusBadgeConfig {
+  variant: NonNullable<ComponentProps<typeof Badge>["variant"]>;
+  icon?: IconSvgElement;
+  square?: boolean;
+}
 export type SiteSection = (typeof SITE_DETAIL_TABS)[number];
 
 export interface SiteSectionConfig {
@@ -78,6 +85,7 @@ export interface SiteProxyRecipe {
 
 export interface SitesPageClientProps {
   organizationSlug: string;
+  showAll?: boolean;
 }
 
 export interface SiteDomainConnectRouteContext {
@@ -119,7 +127,19 @@ export interface SiteSettingsForm {
   changelogPath: string;
   publishMode: SitePublishMode;
   previewCommentsEnabled: boolean;
+  smartDeployments: boolean;
 }
+
+export type SiteSettingsSource = Pick<
+  SiteRecord,
+  | "name"
+  | "productionBranch"
+  | "rootDirectory"
+  | "mounts"
+  | "publishMode"
+  | "previewCommentsEnabled"
+  | "smartDeployments"
+>;
 
 export interface SiteCreateFormValues {
   repositoryId: string | null;
@@ -138,7 +158,7 @@ export type SiteCreateFieldErrors = Partial<Record<SiteInputField, string>>;
 export interface SiteCreateTarget {
   organizationId: string;
   repositoryId: string;
-  projectId: string | null;
+  projectId: string;
 }
 
 export interface SiteSettingsPatch {
@@ -148,7 +168,23 @@ export interface SiteSettingsPatch {
   mounts?: { blog?: string; changelog?: string };
   publishMode?: SitePublishMode;
   previewCommentsEnabled?: boolean;
+  smartDeployments?: boolean;
+  showBranding?: boolean;
+  analyticsEnabled?: boolean;
 }
+
+export type SiteSettingsRowKey =
+  | "repository"
+  | "branch"
+  | "rootDirectory"
+  | "sections"
+  | "variables"
+  | "previewAccess";
+
+export type SiteSettingsToggleField =
+  | "previewCommentsEnabled"
+  | "smartDeployments"
+  | "showBranding";
 
 export type SiteDomainRecord = SiteDomain["records"][number];
 export type SiteDomainConnectOutcome =
@@ -212,6 +248,7 @@ export type SiteDeploymentStatusFilter =
   | "failed"
   | "canceled"
   | "superseded"
+  | "skipped"
   | "expired";
 
 export type SiteDeploymentEnvironmentFilter = SiteDeploymentKind | "all";

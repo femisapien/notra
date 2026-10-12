@@ -54,6 +54,7 @@ import { Route as ApiDemoSandboxCustomizeRouteImport } from './routes/api.demo.s
 import { Route as ApiDemoSandboxInfoRouteImport } from './routes/api.demo.sandbox.info'
 import { Route as ApiDemoSandboxResetRouteImport } from './routes/api.demo.sandbox.reset'
 import { Route as ApiDemoSandboxTimezoneRouteImport } from './routes/api.demo.sandbox.timezone'
+import { Route as ApiGeoDrainsProviderRouteImport } from './routes/api.geo.drains.$provider'
 import { Route as ApiIntegrationsGithubCallbackRouteImport } from './routes/api.integrations.github.callback'
 import { Route as ApiIntegrationsGoogleSearchConsoleAuthorizeRouteImport } from './routes/api.integrations.google-search-console.authorize'
 import { Route as ApiIntegrationsGoogleSearchConsoleCallbackRouteImport } from './routes/api.integrations.google-search-console.callback'
@@ -83,6 +84,7 @@ import { Route as ApiOrganizationsOrganizationIdChatChatIdRelayApprovalRouteImpo
 import { Route as ApiOrganizationsOrganizationIdChatChatIdStopRouteImport } from './routes/api.organizations.$organizationId.chat.$chatId.stop'
 import { Route as ApiOrganizationsOrganizationIdChatChatIdStreamRouteImport } from './routes/api.organizations.$organizationId.chat.$chatId.stream'
 import { Route as ApiOrganizationsOrganizationIdContentContentIdChatRouteImport } from './routes/api.organizations.$organizationId.content.$contentId.chat'
+import { Route as ApiOrganizationsOrganizationIdContentContentIdExcalidrawRouteImport } from './routes/api.organizations.$organizationId.content.$contentId.excalidraw'
 import { Route as ApiOrganizationsOrganizationIdDashboardAgentChatChatIdRouteImport } from './routes/api.organizations.$organizationId.dashboard-agent.chat.$chatId'
 import { Route as ApiWebhooksProviderOrganizationIdIntegrationIdRepositoryIdRouteImport } from './routes/api.webhooks.$provider.$organizationId.$integrationId.$repositoryId'
 import { Route as ApiOrganizationsOrganizationIdContentContentIdChatChatIdRouteImport } from './routes/api.organizations.$organizationId.content.$contentId.chat.$chatId'
@@ -320,6 +322,11 @@ const ApiDemoSandboxTimezoneRoute = ApiDemoSandboxTimezoneRouteImport.update({
   path: '/timezone',
   getParentRoute: () => ApiDemoSandboxRoute,
 } as any)
+const ApiGeoDrainsProviderRoute = ApiGeoDrainsProviderRouteImport.update({
+  id: '/api/geo/drains/$provider',
+  path: '/api/geo/drains/$provider',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiIntegrationsGithubCallbackRoute =
   ApiIntegrationsGithubCallbackRouteImport.update({
     id: '/api/integrations/github/callback',
@@ -493,6 +500,12 @@ const ApiOrganizationsOrganizationIdContentContentIdChatRoute =
     path: '/api/organizations/$organizationId/content/$contentId/chat',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiOrganizationsOrganizationIdContentContentIdExcalidrawRoute =
+  ApiOrganizationsOrganizationIdContentContentIdExcalidrawRouteImport.update({
+    id: '/api/organizations/$organizationId/content/$contentId/excalidraw',
+    path: '/api/organizations/$organizationId/content/$contentId/excalidraw',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiOrganizationsOrganizationIdDashboardAgentChatChatIdRoute =
   ApiOrganizationsOrganizationIdDashboardAgentChatChatIdRouteImport.update({
     id: '/$chatId',
@@ -559,6 +572,7 @@ export interface FileRoutesByFullPath {
   '/api/demo/sandbox/info': typeof ApiDemoSandboxInfoRoute
   '/api/demo/sandbox/reset': typeof ApiDemoSandboxResetRoute
   '/api/demo/sandbox/timezone': typeof ApiDemoSandboxTimezoneRoute
+  '/api/geo/drains/$provider': typeof ApiGeoDrainsProviderRoute
   '/api/integrations/github/callback': typeof ApiIntegrationsGithubCallbackRoute
   '/api/integrations/google-search-console/authorize': typeof ApiIntegrationsGoogleSearchConsoleAuthorizeRoute
   '/api/integrations/google-search-console/callback': typeof ApiIntegrationsGoogleSearchConsoleCallbackRoute
@@ -588,6 +602,7 @@ export interface FileRoutesByFullPath {
   '/api/organizations/$organizationId/chat/$chatId/stop': typeof ApiOrganizationsOrganizationIdChatChatIdStopRoute
   '/api/organizations/$organizationId/chat/$chatId/stream': typeof ApiOrganizationsOrganizationIdChatChatIdStreamRoute
   '/api/organizations/$organizationId/content/$contentId/chat': typeof ApiOrganizationsOrganizationIdContentContentIdChatRouteWithChildren
+  '/api/organizations/$organizationId/content/$contentId/excalidraw': typeof ApiOrganizationsOrganizationIdContentContentIdExcalidrawRoute
   '/api/organizations/$organizationId/dashboard-agent/chat/$chatId': typeof ApiOrganizationsOrganizationIdDashboardAgentChatChatIdRoute
   '/api/webhooks/$provider/$organizationId/$integrationId/$repositoryId': typeof ApiWebhooksProviderOrganizationIdIntegrationIdRepositoryIdRoute
   '/api/organizations/$organizationId/content/$contentId/chat/$chatId': typeof ApiOrganizationsOrganizationIdContentContentIdChatChatIdRoute
@@ -638,6 +653,7 @@ export interface FileRoutesByTo {
   '/api/demo/sandbox/info': typeof ApiDemoSandboxInfoRoute
   '/api/demo/sandbox/reset': typeof ApiDemoSandboxResetRoute
   '/api/demo/sandbox/timezone': typeof ApiDemoSandboxTimezoneRoute
+  '/api/geo/drains/$provider': typeof ApiGeoDrainsProviderRoute
   '/api/integrations/github/callback': typeof ApiIntegrationsGithubCallbackRoute
   '/api/integrations/google-search-console/authorize': typeof ApiIntegrationsGoogleSearchConsoleAuthorizeRoute
   '/api/integrations/google-search-console/callback': typeof ApiIntegrationsGoogleSearchConsoleCallbackRoute
@@ -667,6 +683,7 @@ export interface FileRoutesByTo {
   '/api/organizations/$organizationId/chat/$chatId/stop': typeof ApiOrganizationsOrganizationIdChatChatIdStopRoute
   '/api/organizations/$organizationId/chat/$chatId/stream': typeof ApiOrganizationsOrganizationIdChatChatIdStreamRoute
   '/api/organizations/$organizationId/content/$contentId/chat': typeof ApiOrganizationsOrganizationIdContentContentIdChatRouteWithChildren
+  '/api/organizations/$organizationId/content/$contentId/excalidraw': typeof ApiOrganizationsOrganizationIdContentContentIdExcalidrawRoute
   '/api/organizations/$organizationId/dashboard-agent/chat/$chatId': typeof ApiOrganizationsOrganizationIdDashboardAgentChatChatIdRoute
   '/api/webhooks/$provider/$organizationId/$integrationId/$repositoryId': typeof ApiWebhooksProviderOrganizationIdIntegrationIdRepositoryIdRoute
   '/api/organizations/$organizationId/content/$contentId/chat/$chatId': typeof ApiOrganizationsOrganizationIdContentContentIdChatChatIdRoute
@@ -718,6 +735,7 @@ export interface FileRoutesById {
   '/api/demo/sandbox/info': typeof ApiDemoSandboxInfoRoute
   '/api/demo/sandbox/reset': typeof ApiDemoSandboxResetRoute
   '/api/demo/sandbox/timezone': typeof ApiDemoSandboxTimezoneRoute
+  '/api/geo/drains/$provider': typeof ApiGeoDrainsProviderRoute
   '/api/integrations/github/callback': typeof ApiIntegrationsGithubCallbackRoute
   '/api/integrations/google-search-console/authorize': typeof ApiIntegrationsGoogleSearchConsoleAuthorizeRoute
   '/api/integrations/google-search-console/callback': typeof ApiIntegrationsGoogleSearchConsoleCallbackRoute
@@ -747,6 +765,7 @@ export interface FileRoutesById {
   '/api/organizations/$organizationId/chat/$chatId/stop': typeof ApiOrganizationsOrganizationIdChatChatIdStopRoute
   '/api/organizations/$organizationId/chat/$chatId/stream': typeof ApiOrganizationsOrganizationIdChatChatIdStreamRoute
   '/api/organizations/$organizationId/content/$contentId/chat': typeof ApiOrganizationsOrganizationIdContentContentIdChatRouteWithChildren
+  '/api/organizations/$organizationId/content/$contentId/excalidraw': typeof ApiOrganizationsOrganizationIdContentContentIdExcalidrawRoute
   '/api/organizations/$organizationId/dashboard-agent/chat/$chatId': typeof ApiOrganizationsOrganizationIdDashboardAgentChatChatIdRoute
   '/api/webhooks/$provider/$organizationId/$integrationId/$repositoryId': typeof ApiWebhooksProviderOrganizationIdIntegrationIdRepositoryIdRoute
   '/api/organizations/$organizationId/content/$contentId/chat/$chatId': typeof ApiOrganizationsOrganizationIdContentContentIdChatChatIdRoute
@@ -799,6 +818,7 @@ export interface FileRouteTypes {
     | '/api/demo/sandbox/info'
     | '/api/demo/sandbox/reset'
     | '/api/demo/sandbox/timezone'
+    | '/api/geo/drains/$provider'
     | '/api/integrations/github/callback'
     | '/api/integrations/google-search-console/authorize'
     | '/api/integrations/google-search-console/callback'
@@ -828,6 +848,7 @@ export interface FileRouteTypes {
     | '/api/organizations/$organizationId/chat/$chatId/stop'
     | '/api/organizations/$organizationId/chat/$chatId/stream'
     | '/api/organizations/$organizationId/content/$contentId/chat'
+    | '/api/organizations/$organizationId/content/$contentId/excalidraw'
     | '/api/organizations/$organizationId/dashboard-agent/chat/$chatId'
     | '/api/webhooks/$provider/$organizationId/$integrationId/$repositoryId'
     | '/api/organizations/$organizationId/content/$contentId/chat/$chatId'
@@ -878,6 +899,7 @@ export interface FileRouteTypes {
     | '/api/demo/sandbox/info'
     | '/api/demo/sandbox/reset'
     | '/api/demo/sandbox/timezone'
+    | '/api/geo/drains/$provider'
     | '/api/integrations/github/callback'
     | '/api/integrations/google-search-console/authorize'
     | '/api/integrations/google-search-console/callback'
@@ -907,6 +929,7 @@ export interface FileRouteTypes {
     | '/api/organizations/$organizationId/chat/$chatId/stop'
     | '/api/organizations/$organizationId/chat/$chatId/stream'
     | '/api/organizations/$organizationId/content/$contentId/chat'
+    | '/api/organizations/$organizationId/content/$contentId/excalidraw'
     | '/api/organizations/$organizationId/dashboard-agent/chat/$chatId'
     | '/api/webhooks/$provider/$organizationId/$integrationId/$repositoryId'
     | '/api/organizations/$organizationId/content/$contentId/chat/$chatId'
@@ -957,6 +980,7 @@ export interface FileRouteTypes {
     | '/api/demo/sandbox/info'
     | '/api/demo/sandbox/reset'
     | '/api/demo/sandbox/timezone'
+    | '/api/geo/drains/$provider'
     | '/api/integrations/github/callback'
     | '/api/integrations/google-search-console/authorize'
     | '/api/integrations/google-search-console/callback'
@@ -986,6 +1010,7 @@ export interface FileRouteTypes {
     | '/api/organizations/$organizationId/chat/$chatId/stop'
     | '/api/organizations/$organizationId/chat/$chatId/stream'
     | '/api/organizations/$organizationId/content/$contentId/chat'
+    | '/api/organizations/$organizationId/content/$contentId/excalidraw'
     | '/api/organizations/$organizationId/dashboard-agent/chat/$chatId'
     | '/api/webhooks/$provider/$organizationId/$integrationId/$repositoryId'
     | '/api/organizations/$organizationId/content/$contentId/chat/$chatId'
@@ -1031,6 +1056,7 @@ export interface RootRouteChildren {
   ApiWorkflowsSocialAnalyticsSyncRoute: typeof ApiWorkflowsSocialAnalyticsSyncRoute
   AuthSocialCallbackRoute: typeof AuthSocialCallbackRoute
   SitesDomainConnectTokenRoute: typeof SitesDomainConnectTokenRoute
+  ApiGeoDrainsProviderRoute: typeof ApiGeoDrainsProviderRoute
   ApiIntegrationsGithubCallbackRoute: typeof ApiIntegrationsGithubCallbackRoute
   ApiIntegrationsGoogleSearchConsoleAuthorizeRoute: typeof ApiIntegrationsGoogleSearchConsoleAuthorizeRoute
   ApiIntegrationsGoogleSearchConsoleCallbackRoute: typeof ApiIntegrationsGoogleSearchConsoleCallbackRoute
@@ -1055,6 +1081,7 @@ export interface RootRouteChildren {
   ApiOrganizationsOrganizationIdAgentSplatRoute: typeof ApiOrganizationsOrganizationIdAgentSplatRoute
   ApiOrganizationsOrganizationIdDashboardAgentChatRoute: typeof ApiOrganizationsOrganizationIdDashboardAgentChatRouteWithChildren
   ApiOrganizationsOrganizationIdContentContentIdChatRoute: typeof ApiOrganizationsOrganizationIdContentContentIdChatRouteWithChildren
+  ApiOrganizationsOrganizationIdContentContentIdExcalidrawRoute: typeof ApiOrganizationsOrganizationIdContentContentIdExcalidrawRoute
   ApiWebhooksProviderOrganizationIdIntegrationIdRepositoryIdRoute: typeof ApiWebhooksProviderOrganizationIdIntegrationIdRepositoryIdRoute
 }
 
@@ -1375,6 +1402,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDemoSandboxTimezoneRouteImport
       parentRoute: typeof ApiDemoSandboxRoute
     }
+    '/api/geo/drains/$provider': {
+      id: '/api/geo/drains/$provider'
+      path: '/api/geo/drains/$provider'
+      fullPath: '/api/geo/drains/$provider'
+      preLoaderRoute: typeof ApiGeoDrainsProviderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/integrations/github/callback': {
       id: '/api/integrations/github/callback'
       path: '/api/integrations/github/callback'
@@ -1578,6 +1612,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiOrganizationsOrganizationIdContentContentIdChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/organizations/$organizationId/content/$contentId/excalidraw': {
+      id: '/api/organizations/$organizationId/content/$contentId/excalidraw'
+      path: '/api/organizations/$organizationId/content/$contentId/excalidraw'
+      fullPath: '/api/organizations/$organizationId/content/$contentId/excalidraw'
+      preLoaderRoute: typeof ApiOrganizationsOrganizationIdContentContentIdExcalidrawRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/organizations/$organizationId/dashboard-agent/chat/$chatId': {
       id: '/api/organizations/$organizationId/dashboard-agent/chat/$chatId'
       path: '/$chatId'
@@ -1746,6 +1787,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiWorkflowsSocialAnalyticsSyncRoute: ApiWorkflowsSocialAnalyticsSyncRoute,
   AuthSocialCallbackRoute: AuthSocialCallbackRoute,
   SitesDomainConnectTokenRoute: SitesDomainConnectTokenRoute,
+  ApiGeoDrainsProviderRoute: ApiGeoDrainsProviderRoute,
   ApiIntegrationsGithubCallbackRoute: ApiIntegrationsGithubCallbackRoute,
   ApiIntegrationsGoogleSearchConsoleAuthorizeRoute:
     ApiIntegrationsGoogleSearchConsoleAuthorizeRoute,
@@ -1781,6 +1823,8 @@ const rootRouteChildren: RootRouteChildren = {
     ApiOrganizationsOrganizationIdDashboardAgentChatRouteWithChildren,
   ApiOrganizationsOrganizationIdContentContentIdChatRoute:
     ApiOrganizationsOrganizationIdContentContentIdChatRouteWithChildren,
+  ApiOrganizationsOrganizationIdContentContentIdExcalidrawRoute:
+    ApiOrganizationsOrganizationIdContentContentIdExcalidrawRoute,
   ApiWebhooksProviderOrganizationIdIntegrationIdRepositoryIdRoute:
     ApiWebhooksProviderOrganizationIdIntegrationIdRepositoryIdRoute,
 }

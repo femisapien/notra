@@ -34,6 +34,7 @@ import { TRAFFIC_LOG_FILTER_KINDS } from "@/constants/geo-analytics";
 import { trackEvent } from "@/lib/analytics/posthog-client";
 import { useGeoTrafficLog } from "@/lib/hooks/use-geo";
 import { useGeoTrafficHostQuery } from "@/lib/hooks/use-geo-traffic-host";
+import { useTrafficPathQuery } from "@/lib/hooks/use-traffic-path";
 import type { AiTrafficLogCardProps } from "@/types/geo";
 import { tableHeightFor } from "@/utils/table";
 
@@ -48,11 +49,13 @@ export function AiTrafficLogCard({ organizationId }: AiTrafficLogCardProps) {
     categories: [],
   });
   const [hostQuery] = useGeoTrafficHostQuery();
+  const [pathQuery] = useTrafficPathQuery();
   const { data, isPending, isPlaceholderData } = useGeoTrafficLog(
     organizationId,
     filters,
     {
       host: hostQuery,
+      path: pathQuery,
     }
   );
   const log = data?.log ?? [];
@@ -69,7 +72,9 @@ export function AiTrafficLogCard({ organizationId }: AiTrafficLogCardProps) {
           GEO_CITATIONS_ROW_HEIGHT
         )}
         liveKey={
-          isPlaceholderData ? undefined : JSON.stringify([filters, hostQuery])
+          isPlaceholderData
+            ? undefined
+            : JSON.stringify([filters, hostQuery, pathQuery])
         }
         // Live refetches swap rows in place; only a new filter or host,
         // which shows the previous result as placeholder, dims the table.

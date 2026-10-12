@@ -47,7 +47,7 @@ curl -X POST "https://api.usenotra.com/v1/geo/ingest/token?projectId=$PROJECT_ID
   -H "Authorization: Bearer $NOTRA_API_KEY"
 ```
 
-Both return `ingestUrl`, `snippet` (the Next.js snippet) and `snippets` with `next`, `nuxt`, `tanstack`, `astro`, `sveltekit` and `netlify` keys. The token endpoint also returns `token`. The ingest routes are organization-level, so pass `projectId` to bind the token to one project or omit it to track the whole organization. Issuing a token does not invalidate tokens issued earlier, so install the same project token on every domain the project tracks, and add extra hostnames under **Tracked domains** in GEO settings.
+Both return `ingestUrl`, `snippet` (the Next.js snippet), `snippets` with `next`, `nuxt`, `tanstack`, `astro`, `sveltekit` and `netlify` keys and `drainUrls` with the `vercel` and `cloudflare` log drain endpoints. The token endpoint also returns `token`. The ingest routes are organization-level, so pass `projectId` to bind the token to one project or omit it to track the whole organization. Issuing a token does not invalidate tokens issued earlier, so install the same project token on every domain the project tracks, and add extra hostnames under **Tracked domains** in GEO settings.
 
 </Visibility>
 

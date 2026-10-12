@@ -4,6 +4,7 @@ import { createHmac } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import type { Site } from "../src/types/sites";
+import { seedSiteProject } from "./utils/site-project";
 
 const databaseUrl = process.env.SITES_TEST_DATABASE_URL;
 if (!databaseUrl) {
@@ -45,7 +46,9 @@ if (!databaseUrl) {
   mock.module("@notra/ai/integrations/github", () => ({
     createScopedGitHubAppInstallationToken: mint,
   }));
+  const actualOctokit = await import("@notra/ai/utils/octokit");
   mock.module("@notra/ai/utils/octokit", () => ({
+    ...actualOctokit,
     createOctokit: () => {
       throw new Error("Unexpected GitHub request");
     },
@@ -109,6 +112,7 @@ if (!databaseUrl) {
       .values({
         id: `${organizationId}-site`,
         organizationId,
+        projectId: await seedSiteProject(organizationId),
         name: "Synthetic consent",
         slug: crypto.randomUUID().slice(0, 8),
         repositoryId: integrationId,

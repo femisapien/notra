@@ -2,7 +2,7 @@ import { beforeEach, expect, mock, spyOn, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { siteJobs } from "@notra/db/schema";
+import { siteDeployments, siteJobs } from "@notra/db/schema";
 import { SITE_DEPLOYMENT_TRANSITIONS } from "@notra/sites-core/constants/sites";
 import type { SiteBuildMetrics } from "@notra/sites-core/types/build-metrics";
 import type { SQL } from "drizzle-orm";
@@ -75,6 +75,7 @@ if (process.env.NOTRA_BUILD_TELEMETRY_PIPELINE_WORKER !== "1") {
   const logDefect = new Error("log adapter defect");
   const r2Logs: string[] = [];
   const saved: { metrics: SiteBuildMetrics; log: string }[] = [];
+  const buildTargets: SandboxBuildEffectParams["target"][] = [];
   const telemetry = {
     saveBuildTelemetry: async (
       id: string,
@@ -117,7 +118,21 @@ if (process.env.NOTRA_BUILD_TELEMETRY_PIPELINE_WORKER !== "1") {
             catch: (error) => error,
           }),
   }));
+  mock.module("../src/smart-deployments", () => ({
+    compareSmartDeployment: async () => null,
+    skipUnchangedDeployment: async () => false,
+  }));
   mock.module("../src/deployments", () => ({
+    startDeploymentBuild: async (current: SiteDeployment, startedAt: Date) => {
+      if (!SITE_DEPLOYMENT_TRANSITIONS.building.includes(deployment.status)) {
+        return false;
+      }
+      Object.assign(current, {
+        status: "building",
+        startedAt: current.startedAt ?? startedAt,
+      });
+      return true;
+    },
     cancelPreviewBuilds: () => {
       throw new Error("Unexpected preview cancellation");
     },
@@ -180,6 +195,7 @@ if (process.env.NOTRA_BUILD_TELEMETRY_PIPELINE_WORKER !== "1") {
   mock.module("../src/box-build", () => ({
     runSandboxBuildEffect: (params: SandboxBuildEffectParams) =>
       Effect.gen(function* () {
+        buildTargets.push(params.target);
         const build: SandboxBuildResult = {
           result: {
             ok: mode !== "compiler",
@@ -212,9 +228,9 @@ if (process.env.NOTRA_BUILD_TELEMETRY_PIPELINE_WORKER !== "1") {
           yield* params.onComplete(build);
         }
         if (mode === "interrupted") {
-          yield* Effect.gen(function* () {
+          return yield* Effect.gen(function* () {
             yield* Deferred.succeed(sandboxStarted, undefined);
-            yield* Effect.never;
+            return yield* Effect.never;
           }).pipe(
             Effect.ensuring(
               Effect.sync(() => {
@@ -281,12 +297,15 @@ if (process.env.NOTRA_BUILD_TELEMETRY_PIPELINE_WORKER !== "1") {
   const db = {
     select: (selection?: object) => ({
       from: (table: unknown) => {
-        expect(table).toBe(siteJobs);
+        expect(table === siteJobs || table === siteDeployments).toBe(true);
         const claimable =
           job.status === "pending" && job.attempts < job.maxAttempts;
-        const rows = selection
+        let rows: unknown[] = selection
           ? [{ total: 0, site: 0 }]
           : [job].filter(() => claimable);
+        if (table === siteDeployments) {
+          rows = [deployment];
+        }
         const query = {
           where: () => query,
           limit: async () => rows,
@@ -332,6 +351,7 @@ if (process.env.NOTRA_BUILD_TELEMETRY_PIPELINE_WORKER !== "1") {
   const { runSiteJob } = await import("../src/runner");
   beforeEach(() => {
     saved.length = 0;
+    buildTargets.length = 0;
     r2Logs.length = 0;
     r2Fails = false;
     persistenceFails = false;
@@ -386,6 +406,17 @@ if (process.env.NOTRA_BUILD_TELEMETRY_PIPELINE_WORKER !== "1") {
       updatedAt: new Date(),
     };
   });
+  test.each(["production", "preview"] as const)(
+    "%s builds only enable analytics for production",
+    async (kind) => {
+      deployment.kind = kind;
+      expect(await runDeploymentPipeline(site, deployment)).toEqual({
+        kind: "live",
+      });
+      expect(buildTargets).toHaveLength(1);
+      expect(buildTargets[0]?.analytics).toBe(kind === "production");
+    }
+  );
   test("final metrics include source, sandbox and publication while logs survive R2 failure", async () => {
     r2Fails = true;
     expect(await runDeploymentPipeline(site, deployment)).toEqual({

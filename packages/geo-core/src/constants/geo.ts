@@ -10,6 +10,8 @@ import type {
   GeoChatSkin,
   GeoCompetitor,
   GeoCompetitorShareTimeseriesPoint,
+  GeoDrainProvider,
+  GeoIngestMethod,
   GeoGroundedProvider,
   GeoGroundedProviderConfig,
   GeoIngestFramework,
@@ -522,6 +524,43 @@ export const GEO_CITATIONS_ROW_HEIGHT = 40;
 export const GEO_PURPOSE_COLUMN_WIDTH = "12.5rem";
 export const GEO_TRAFFIC_LIVE_INTERVAL_MS = 30_000;
 export const GEO_INGEST_PATH = "/api/geo/ingest";
+export const GEO_DRAIN_PROVIDERS = [
+  "vercel",
+  "cloudflare",
+] as const satisfies readonly GeoDrainProvider[];
+export const GEO_DRAIN_PATHS = {
+  vercel: "/api/geo/drains/vercel",
+  cloudflare: "/api/geo/drains/cloudflare",
+} as const satisfies Record<GeoDrainProvider, string>;
+export const GEO_DRAIN_DOCS_URLS = {
+  vercel: "https://docs.usenotra.com/ai-traffic/install/vercel-log-drain",
+  cloudflare: "https://docs.usenotra.com/ai-traffic/install/cloudflare-logpush",
+} as const satisfies Record<GeoDrainProvider, string>;
+export const GEO_INGEST_DEFAULT_METHOD: GeoIngestMethod = "sdk";
+export const GEO_INGEST_METHODS = [
+  "sdk",
+  "vercel",
+  "cloudflare",
+] as const satisfies readonly GeoIngestMethod[];
+export const GEO_CLOUDFLARE_LOGPUSH_FIELDS = [
+  "ClientCity",
+  "ClientCountry",
+  "ClientIP",
+  "ClientLatitude",
+  "ClientLongitude",
+  "ClientRegionCode",
+  "ClientRequestHost",
+  "ClientRequestMethod",
+  "ClientRequestReferer",
+  "ClientRequestScheme",
+  "ClientRequestSource",
+  "ClientRequestURI",
+  "ClientRequestUserAgent",
+  "EdgeResponseStatus",
+  "EdgeStartTimestamp",
+  "RayID",
+  "RequestHeaders",
+] as const;
 export const GEO_INGEST_SNIPPET_FALLBACK =
   "// Set GEO_INGEST_SECRET to generate your install snippet";
 export const GEO_INGEST_PACKAGE = "@usenotra/geo";

@@ -20,6 +20,7 @@ import {
   repositorySuggestionsInputSchema,
   siteRepositorySuggestionsInputSchema,
   listSiteDeploymentsInputSchema,
+  listSitesInputSchema,
   publishSiteDraftsInputSchema,
   saveSiteDraftInputSchema,
   setSiteSuspendedInputSchema,
@@ -231,20 +232,35 @@ export const sitesRouter = {
     }),
 
   list: sitesAccessProcedure
-    .input(organizationIdInputSchema)
+    .input(listSitesInputSchema)
     .handler(async ({ input }) => {
+      const project = await db.query.projects.findFirst({
+        columns: { id: true },
+        where: and(
+          eq(projects.id, input.projectId),
+          eq(projects.organizationId, input.organizationId)
+        ),
+      });
+      if (!project) {
+        throw notFound("Project not found");
+      }
       if (!isSitesConfigured()) {
         return { configured: false, sites: [] };
       }
       const rows = await db
         .select()
         .from(sites)
-        .where(eq(sites.organizationId, input.organizationId))
+        .where(
+          and(
+            eq(sites.organizationId, input.organizationId),
+            eq(sites.projectId, input.projectId)
+          )
+        )
         .orderBy(desc(sites.createdAt));
       const details = await Promise.all(
         rows.map(async (site) => {
           const [latest, state] = await Promise.all([
-            listSiteDeployments(site.id, 1),
+            listSiteDeployments(site.id, 1, [], "production"),
             servingState(site.id),
           ]);
           return { site, latest: latest[0], state };
@@ -422,7 +438,7 @@ export const sitesRouter = {
     .handler(async ({ context, input }) => {
       const { site } = await requireSite(context, input);
       return runOrpcEffect(
-        loadSiteAnalytics(site, geoWindow(input)).pipe(
+        loadSiteAnalytics(site, geoWindow(input), input.path).pipe(
           Effect.provide(geoCoreDashboardLayer)
         ),
         toGeoOrpcError
@@ -437,18 +453,9 @@ export const sitesRouter = {
         headers: context.headers,
         organizationId: input.organizationId,
       });
-      const project = input.projectId
-        ? await db.query.projects.findFirst({
-            columns: { id: true },
-            where: and(
-              eq(projects.id, input.projectId),
-              eq(projects.organizationId, input.organizationId)
-            ),
-          })
-        : undefined;
       const result = await createSite({
         organizationId: input.organizationId,
-        projectId: project?.id ?? null,
+        projectId: input.projectId,
         userId: access.user.id,
         name: input.name,
         slug: input.slug || undefined,
@@ -835,8 +842,7 @@ export const sitesRouter = {
         assertNotDemo();
         const { site, userId } = await requireSite(context, input);
         return await saveSiteIntegration(site, {
-          provider: input.provider,
-          settings: input.settings,
+          ...input,
           userId,
         });
       }),

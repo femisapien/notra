@@ -15,13 +15,18 @@ import {
   GEO_DAY_CURRENT_CONDITION,
   GEO_DAY_PREVIOUS_CONDITION,
   GEO_DAY_WINDOW_SQL,
+  GEO_PATH_PARAMS,
+  GEO_PATH_SQL,
   GEO_PROJECT_SCOPE_SQL,
 } from "../../constants/geo-queries";
 import {
   WEB_LANDING_SQL,
+  WEB_PATH_SET,
   WEB_QUERY_PARAMS,
   WEB_PAGES_WHERE,
+  WEB_RAW_WHERE,
   WEB_SCOPE_SQL,
+  WEB_AUDIENCE_VALUE_SQL,
 } from "../../constants/web-queries";
 import {
   webAudienceDaily,
@@ -125,7 +130,7 @@ export const webAudienceDailyMv = defineMaterializedView(
 export const webOverview = defineEndpoint("web_overview", {
   description:
     "Views, visitors, sessions and engaged sessions for the window and the window before it",
-  params: WEB_QUERY_PARAMS,
+  params: { ...WEB_QUERY_PARAMS, ...GEO_PATH_PARAMS },
   nodes: [
     node({
       name: "overview",
@@ -143,6 +148,7 @@ export const webOverview = defineEndpoint("web_overview", {
         FROM web_pages_daily
         ${WEB_PAGES_WHERE}
           AND status < 400
+          ${GEO_PATH_SQL}
           ${GEO_DAY_COMPARISON_WINDOW_SQL}
       `,
     }),
@@ -162,7 +168,7 @@ export const webOverview = defineEndpoint("web_overview", {
 
 export const webTimeseries = defineEndpoint("web_timeseries", {
   description: "Daily human views and visitors",
-  params: WEB_QUERY_PARAMS,
+  params: { ...WEB_QUERY_PARAMS, ...GEO_PATH_PARAMS },
   nodes: [
     node({
       name: "daily",
@@ -174,6 +180,7 @@ export const webTimeseries = defineEndpoint("web_timeseries", {
         FROM web_pages_daily
         ${WEB_PAGES_WHERE}
           AND status < 400
+          ${GEO_PATH_SQL}
           ${GEO_DAY_WINDOW_SQL}
         GROUP BY day
         ORDER BY day ASC
@@ -192,6 +199,7 @@ export const webPages = defineEndpoint("web_pages", {
     "Top pages by human views, with visitors, sessions that started there and AI-referred visitors; status 404 lists missing pages",
   params: {
     ...WEB_QUERY_PARAMS,
+    ...GEO_PATH_PARAMS,
     not_found: p
       .int32()
       .optional(0)
@@ -213,6 +221,7 @@ export const webPages = defineEndpoint("web_pages", {
         FROM web_pages_daily
         ${WEB_PAGES_WHERE}
           AND if({{Int32(not_found, 0)}} = 1, status = 404, status < 400)
+          ${GEO_PATH_SQL}
           ${GEO_DAY_COMPARISON_WINDOW_SQL}
         GROUP BY host, path
         HAVING views > 0
@@ -234,14 +243,15 @@ export const webPages = defineEndpoint("web_pages", {
 
 export const webSources = defineEndpoint("web_sources", {
   description:
-    "Where sessions came from: referrer group and source (AI products included), counted on each session's first page",
+    "Where sessions came from: referrer group and source (AI products included), counted on each session's first page; with a path, only sessions that landed on it",
   params: {
     ...WEB_QUERY_PARAMS,
+    ...GEO_PATH_PARAMS,
     limit: p.int32().optional(20).describe("Max rows"),
   },
   nodes: [
     node({
-      name: "sources",
+      name: "sources_rollup",
       sql: `
         SELECT
           referrer_group,
@@ -252,10 +262,43 @@ export const webSources = defineEndpoint("web_sources", {
           uniqMergeIf(visitors_state, (${GEO_DAY_CURRENT_CONDITION})) AS visitors
         FROM web_sources_daily
         ${WEB_PAGES_WHERE}
+          AND NOT ${WEB_PATH_SET}
           AND referrer_group != 'internal'
           ${GEO_DAY_COMPARISON_WINDOW_SQL}
         GROUP BY referrer_group, referrer_source
         HAVING sessions > 0
+      `,
+    }),
+    // web_sources_daily has no path, so a path filter reads the raw landing
+    // views (90-day TTL) instead.
+    node({
+      name: "sources_path",
+      sql: `
+        SELECT
+          referrer_group,
+          referrer_source,
+          any(ai_product) AS ai_product,
+          countIf(${GEO_CAPTURED_CURRENT_CONDITION}) AS sessions,
+          countIf(${GEO_CAPTURED_PREVIOUS_CONDITION}) AS previous_sessions,
+          uniqIf(visitor_id, ${GEO_CAPTURED_CURRENT_CONDITION}) AS visitors
+        FROM web_page_views
+        ${WEB_RAW_WHERE}
+          AND ${WEB_LANDING_SQL}
+          AND status < 400
+          AND referrer_group != 'internal'
+          ${GEO_CAPTURED_COMPARISON_WINDOW_SQL}
+        GROUP BY referrer_group, referrer_source
+        HAVING sessions > 0
+      `,
+    }),
+    node({
+      name: "sources",
+      sql: `
+        SELECT * FROM (
+          SELECT * FROM sources_rollup
+          UNION ALL
+          SELECT * FROM sources_path
+        )
         ORDER BY sessions DESC, referrer_source ASC
         LIMIT {{Int32(limit, 20)}}
       `,
@@ -275,11 +318,12 @@ export const webCampaigns = defineEndpoint("web_campaigns", {
   description: "Sessions per UTM source, medium and campaign",
   params: {
     ...WEB_QUERY_PARAMS,
+    ...GEO_PATH_PARAMS,
     limit: p.int32().optional(20).describe("Max rows"),
   },
   nodes: [
     node({
-      name: "campaigns",
+      name: "campaigns_rollup",
       sql: `
         SELECT
           utm_source,
@@ -289,9 +333,38 @@ export const webCampaigns = defineEndpoint("web_campaigns", {
           uniqMerge(visitors_state) AS visitors
         FROM web_sources_daily
         ${WEB_PAGES_WHERE}
+          AND NOT ${WEB_PATH_SET}
           AND utm_source != ''
           ${GEO_DAY_WINDOW_SQL}
         GROUP BY utm_source, utm_medium, utm_campaign
+      `,
+    }),
+    node({
+      name: "campaigns_path",
+      sql: `
+        SELECT
+          utm_source,
+          utm_medium,
+          utm_campaign,
+          count() AS sessions,
+          uniq(visitor_id) AS visitors
+        FROM web_page_views
+        ${WEB_RAW_WHERE}
+          AND ${WEB_LANDING_SQL}
+          AND status < 400
+          AND utm_source != ''
+          AND (${GEO_CAPTURED_CURRENT_CONDITION})
+        GROUP BY utm_source, utm_medium, utm_campaign
+      `,
+    }),
+    node({
+      name: "campaigns",
+      sql: `
+        SELECT * FROM (
+          SELECT * FROM campaigns_rollup
+          UNION ALL
+          SELECT * FROM campaigns_path
+        )
         ORDER BY sessions DESC, utm_source ASC
         LIMIT {{Int32(limit, 20)}}
       `,
@@ -310,6 +383,7 @@ export const webAudience = defineEndpoint("web_audience", {
   description: "Visitors per country, device, browser or OS",
   params: {
     ...WEB_QUERY_PARAMS,
+    ...GEO_PATH_PARAMS,
     dimension: p
       .string()
       .optional("country")
@@ -318,23 +392,45 @@ export const webAudience = defineEndpoint("web_audience", {
   },
   nodes: [
     node({
-      name: "audience",
+      name: "audience_rollup",
       sql: `
         SELECT
-          multiIf(
-            {{String(dimension, 'country')}} = 'device', device,
-            {{String(dimension, 'country')}} = 'browser', browser,
-            {{String(dimension, 'country')}} = 'os', os,
-            country
-          ) AS value,
+          ${WEB_AUDIENCE_VALUE_SQL} AS value,
           uniqMergeIf(visitors_state, (${GEO_DAY_CURRENT_CONDITION})) AS visitors,
           uniqMergeIf(visitors_state, (${GEO_DAY_PREVIOUS_CONDITION})) AS previous_visitors,
           countMergeIf(views_state, (${GEO_DAY_CURRENT_CONDITION})) AS views
         FROM web_audience_daily
         ${WEB_PAGES_WHERE}
+          AND NOT ${WEB_PATH_SET}
           ${GEO_DAY_COMPARISON_WINDOW_SQL}
         GROUP BY value
         HAVING visitors > 0
+      `,
+    }),
+    node({
+      name: "audience_path",
+      sql: `
+        SELECT
+          ${WEB_AUDIENCE_VALUE_SQL} AS value,
+          uniqIf(visitor_id, ${GEO_CAPTURED_CURRENT_CONDITION}) AS visitors,
+          uniqIf(visitor_id, ${GEO_CAPTURED_PREVIOUS_CONDITION}) AS previous_visitors,
+          countIf(${GEO_CAPTURED_CURRENT_CONDITION}) AS views
+        FROM web_page_views
+        ${WEB_RAW_WHERE}
+          AND status < 400
+          ${GEO_CAPTURED_COMPARISON_WINDOW_SQL}
+        GROUP BY value
+        HAVING visitors > 0
+      `,
+    }),
+    node({
+      name: "audience",
+      sql: `
+        SELECT * FROM (
+          SELECT * FROM audience_rollup
+          UNION ALL
+          SELECT * FROM audience_path
+        )
         ORDER BY visitors DESC, value ASC
         LIMIT {{Int32(limit, 10)}}
       `,
@@ -377,8 +473,8 @@ export const webHosts = defineEndpoint("web_hosts", {
 
 export const webAiOutcomes = defineEndpoint("web_ai_outcomes", {
   description:
-    "Pages per session and the share of sessions that read two or more pages, per AI source and for all sessions",
-  params: WEB_QUERY_PARAMS,
+    "Pages per session and the share of sessions that read two or more pages, per AI source and for all sessions; with a path, only sessions that landed on it",
+  params: { ...WEB_QUERY_PARAMS, ...GEO_PATH_PARAMS },
   nodes: [
     node({
       name: "outcome_sessions",
@@ -387,6 +483,7 @@ export const webAiOutcomes = defineEndpoint("web_ai_outcomes", {
           session_id,
           anyIf(referrer_group, ${WEB_LANDING_SQL}) AS landing_group,
           anyIf(referrer_source, ${WEB_LANDING_SQL}) AS landing_source,
+          anyIf(path, ${WEB_LANDING_SQL}) AS landing_path,
           count() AS pages
         FROM web_page_views
         WHERE organization_id = {{String(organization_id)}}
@@ -396,6 +493,7 @@ export const webAiOutcomes = defineEndpoint("web_ai_outcomes", {
           AND status < 400
           ${GEO_CAPTURED_WINDOW_SQL}
         GROUP BY session_id
+        HAVING {{String(path, '')}} = '' OR landing_path = {{String(path, '')}}
       `,
     }),
     node({
@@ -432,6 +530,7 @@ export const webEngagement = defineEndpoint("web_engagement", {
     "Average visible seconds per page view on Notra Sites, overall (empty path, with the window before) and per page",
   params: {
     ...WEB_QUERY_PARAMS,
+    ...GEO_PATH_PARAMS,
     limit: p.int32().optional(50).describe("Max page rows"),
   },
   nodes: [
@@ -448,6 +547,7 @@ export const webEngagement = defineEndpoint("web_engagement", {
         WHERE organization_id = {{String(organization_id)}}
           ${GEO_PROJECT_SCOPE_SQL}
           ${WEB_SCOPE_SQL}
+          ${GEO_PATH_SQL}
           ${GEO_CAPTURED_COMPARISON_WINDOW_SQL}
         GROUP BY view_id
       `,

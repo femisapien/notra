@@ -9,7 +9,6 @@ import {
   SITE_ACTIVE_POLL_INTERVAL_MS,
   SITE_ANALYTICS_POLL_INTERVAL_MS,
   SITE_IDLE_POLL_INTERVAL_MS,
-  SITE_REPOSITORY_OVERVIEW_STALE_MS,
 } from "@/constants/sites";
 import { dashboardOrpc } from "@/lib/orpc/query";
 import type {
@@ -38,11 +37,11 @@ export function useSitesStatus(organizationId: string) {
   );
 }
 
-export function useSitesList(organizationId: string) {
+export function useSitesList(organizationId: string, projectId: string) {
   return useQuery(
     dashboardOrpc.sites.list.queryOptions({
-      input: { organizationId },
-      enabled: organizationId.length > 0,
+      input: { organizationId, projectId },
+      enabled: organizationId.length > 0 && projectId.length > 0,
       refetchInterval: (query: SitePollingQuery<SiteListResult>) => {
         const latest = (query.state.data?.sites ?? []).flatMap((site) =>
           site.latestDeployment ? [site.latestDeployment] : []
@@ -60,7 +59,7 @@ export function useSiteDetail(organizationId: string, siteId: string) {
   return useQuery(
     dashboardOrpc.sites.get.queryOptions({
       input: { organizationId, siteId },
-      enabled: organizationId.length > 0,
+      enabled: organizationId.length > 0 && siteId.length > 0,
       refetchInterval: (query: SitePollingQuery<SiteDetail>) =>
         hasDeploymentInProgress(query.state.data?.deployments ?? [])
           ? SITE_ACTIVE_POLL_INTERVAL_MS
@@ -84,21 +83,6 @@ export function useSiteAnalytics(
     }),
     placeholderData: keepPreviousData,
   });
-}
-
-/** Loads a site's GitHub details only while their hover card is open. */
-export function useSiteRepositoryOverview(
-  organizationId: string,
-  siteId: string,
-  enabled: boolean
-) {
-  return useQuery(
-    dashboardOrpc.sites.repository.queryOptions({
-      input: { organizationId, siteId },
-      enabled: enabled && organizationId.length > 0,
-      staleTime: SITE_REPOSITORY_OVERVIEW_STALE_MS,
-    })
-  );
 }
 
 export function useInvalidateSites() {

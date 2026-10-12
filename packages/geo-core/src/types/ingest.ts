@@ -1,3 +1,4 @@
+import type { GeoLogEvent } from "@notra/ai/types/evlog";
 import type { GeoTrafficEventRow } from "@notra/analytics/tinybird/datasources";
 import type {
   WebPageEngagementRow,
@@ -10,7 +11,15 @@ import type {
   geoRequestPayloadSchema,
   webEngagementPayloadSchema,
 } from "../schemas/geo";
-import type { GeoIngestIdentity, GeoVisitorType } from "./geo";
+import type {
+  cloudflareLogpushRecordSchema,
+  vercelDrainLogSchema,
+} from "../schemas/geo-drains";
+import type {
+  GeoDrainProvider,
+  GeoIngestIdentity,
+  GeoVisitorType,
+} from "./geo";
 
 export type GeoIngestDefer = (task: () => Promise<void>) => void;
 
@@ -145,4 +154,41 @@ export interface WebSession {
   id: string;
   index: number;
   origin?: string;
+}
+
+export type VercelDrainLog = z.infer<typeof vercelDrainLogSchema>;
+
+export type CloudflareLogpushRecord = z.infer<
+  typeof cloudflareLogpushRecordSchema
+>;
+
+export interface GeoDrainRecord {
+  payload: GeoIngestPayload;
+  dedupeKey: string;
+}
+
+export type GeoDrainHeaders = Map<string, string | string[] | null>;
+
+export interface GeoIngestHandled {
+  response: Response;
+  fields: Omit<GeoLogEvent, "event">;
+}
+
+export type GeoDrainRecordOutcome =
+  | "ingested"
+  | "dropped"
+  | "duplicate"
+  | "rate_limited"
+  | "invalid"
+  | "failed";
+
+export interface GeoDrainSummary {
+  provider: GeoDrainProvider;
+  organizationId: string;
+  projectId: string;
+  lines: number;
+  requests: number;
+  aiRequests: number;
+  ingested: number;
+  duplicates: number;
 }

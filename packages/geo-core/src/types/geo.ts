@@ -1241,6 +1241,10 @@ export type GeoIngestFramework =
 
 export type GeoIngestPackageManager = "bun" | "pnpm" | "yarn" | "npm";
 
+export type GeoDrainProvider = "vercel" | "cloudflare";
+
+export type GeoIngestMethod = "sdk" | GeoDrainProvider;
+
 /** Install snippet per supported framework. */
 export type GeoIngestSnippets = Record<GeoIngestFramework, string>;
 
@@ -1273,6 +1277,7 @@ export interface GeoIngestSetupInfo {
   ingestUrl: string;
   snippet: string;
   snippets: GeoIngestSnippets;
+  drainUrls: Record<GeoDrainProvider, string>;
 }
 
 export interface GeoIngestSetupResponse extends GeoIngestSetupInfo {

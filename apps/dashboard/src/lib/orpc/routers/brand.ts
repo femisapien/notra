@@ -39,6 +39,7 @@ import {
   voiceUpdateInputSchema,
 } from "@notra/schemas/dashboard/brand";
 import {
+  attachGuidelineSourcePdfSchema,
   createGuidelineAssetSchema,
   createGuidelineColorSchema,
   updateGuidelineAssetSchema,
@@ -48,6 +49,7 @@ import {
   updateGuidelineTokenSchema,
 } from "@notra/schemas/dashboard/brand-guidelines";
 import { isSameUrl } from "@notra/utils/url";
+import { ORPCError } from "@orpc/server";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
@@ -61,8 +63,11 @@ import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { assertOrganizationAccess } from "@/lib/auth/organization";
 import { assertActiveSubscription } from "@/lib/billing/subscription";
 import {
+  attachBrandGuidelineSourcePdf,
+  BrandGuidelineSourcePdfValidationError,
   getBrandGuidelines,
   markBrandGuidelinesFailed,
+  removeBrandGuidelineSourcePdf,
   startBrandGuidelineGeneration,
 } from "@/lib/brand-guidelines";
 import { countBrandVoices } from "@/lib/brand-voice-count";
@@ -967,6 +972,47 @@ export const brandRouter = {
         });
 
         return getBrandGuidelines(input.voiceId);
+      }),
+    attachSourcePdf: baseProcedure
+      .input(voiceInputSchema.and(attachGuidelineSourcePdfSchema))
+      .handler(async ({ context, input }) => {
+        await assertOrganizationAccess({
+          headers: context.headers,
+          organizationId: input.organizationId,
+        });
+        await assertActiveSubscription(input.organizationId);
+        await verifyVoiceOwnership(input.organizationId, input.voiceId);
+
+        try {
+          return await attachBrandGuidelineSourcePdf({
+            brandSettingsId: input.voiceId,
+            filename: input.filename,
+            key: input.key,
+            organizationId: input.organizationId,
+          });
+        } catch (error) {
+          if (error instanceof BrandGuidelineSourcePdfValidationError) {
+            throw badRequest(error.message);
+          }
+          if (error instanceof ORPCError) {
+            throw error;
+          }
+          throw internalServerError(
+            "Failed to attach the brand guideline PDF",
+            error
+          );
+        }
+      }),
+    removeSourcePdf: baseProcedure
+      .input(voiceInputSchema)
+      .handler(async ({ context, input }) => {
+        await assertOrganizationAccess({
+          headers: context.headers,
+          organizationId: input.organizationId,
+        });
+        await assertActiveSubscription(input.organizationId);
+        await verifyVoiceOwnership(input.organizationId, input.voiceId);
+        return removeBrandGuidelineSourcePdf(input.voiceId);
       }),
   },
   sitemaps: brandSitemapsRouter,

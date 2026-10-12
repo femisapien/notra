@@ -40,6 +40,7 @@ export interface ServeFileParams {
   isPreview: boolean;
   contentSecurityPolicy?: string;
   analytics?: AnalyticsScriptTag | null;
+  llmsLink?: string | null;
   extraHeaders?: Record<string, string>;
 }
 
@@ -57,4 +58,5 @@ export interface MarkdownNotFoundParams {
   path: string;
   indexPath: string | null;
   llmsPath: string;
+  llmsLink?: string | null;
 }

@@ -1,5 +1,6 @@
 import type { DevRefreshOptions } from "../types/dev-refresh";
 import { siteHeadScripts } from "./head-scripts";
+import { hasReactComponents } from "./react";
 
 export function createDevRefresh(options: DevRefreshOptions) {
   let revision = 0;
@@ -68,6 +69,8 @@ export function createDevRefresh(options: DevRefreshOptions) {
     const params = {
       ...options.params,
       config,
+      fontStylesheet: prepared.fontStylesheet,
+      hasReactComponents: hasReactComponents(prepared.validation.outputs),
       publicFiles: [
         ...new Set([
           ...prepared.publicFiles,
@@ -77,7 +80,8 @@ export function createDevRefresh(options: DevRefreshOptions) {
       headScripts: siteHeadScripts(
         config,
         options.params.mount,
-        prepared.customScripts
+        prepared.customScripts,
+        false
       ),
     };
     const snapshot = JSON.stringify(params);

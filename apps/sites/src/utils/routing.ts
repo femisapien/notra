@@ -2,8 +2,9 @@ import type {
   SiteManifest,
   SiteManifestFile,
 } from "@notra/sites-core/types/deployment";
+import { joinMountPath } from "@notra/sites-core/utils/mounts";
 
-import { HTML_TYPES, MARKDOWN_TYPES } from "../constants/routing";
+import { HTML_TYPES, LLMS_LINKS, MARKDOWN_TYPES } from "../constants/routing";
 import type { RedirectMatch } from "../types/serving";
 
 export function normalizeRequestPath(pathname: string): string | null {
@@ -50,6 +51,21 @@ export function resolveFile(
     }
   }
   return null;
+}
+
+export function trailingSlashPagePath(
+  files: Map<string, SiteManifestFile>,
+  path: string
+): string | null {
+  if (path === "/" || !path.endsWith("/")) {
+    return null;
+  }
+  const bare = path.slice(0, -1);
+  const file = resolveFile(files, path);
+  if (!file?.path.endsWith(".html") || resolveFile(files, bare) !== file) {
+    return null;
+  }
+  return bare.split("/").map(encodeURIComponent).join("/");
 }
 
 export function matchRedirect(
@@ -100,6 +116,31 @@ export function twinPagePath(twinPath: string): string | null {
   return twinPath.slice(0, -"/index.md".length) || "/";
 }
 
+export function markdownAlternatePath(
+  files: Map<string, SiteManifestFile>,
+  twinPath: string,
+  mount: string | undefined
+): string {
+  const pagePath = twinPagePath(twinPath);
+  return pagePath &&
+    pagePath !== "/" &&
+    pagePath !== mount &&
+    !files.has(`${pagePath}.md`)
+    ? `${pagePath}.md`
+    : twinPath;
+}
+
+export function wellKnownLlmsTxtTarget(
+  files: Map<string, SiteManifestFile>,
+  path: string
+): string | null {
+  if (!path.endsWith("/.well-known/llms.txt")) {
+    return null;
+  }
+  const target = `${path.slice(0, -"/.well-known/llms.txt".length)}/llms.txt`;
+  return files.has(target) ? target : null;
+}
+
 export function prefersMarkdown(accept: string | null): boolean {
   if (!accept) {
     return false;
@@ -122,4 +163,14 @@ export function prefersMarkdown(accept: string | null): boolean {
     }
   }
   return markdown > 0 && markdown >= html;
+}
+
+export function llmsLinkHeader(
+  files: Map<string, SiteManifestFile>,
+  mount: string
+): string | null {
+  const links = LLMS_LINKS.filter(({ file }) =>
+    files.has(joinMountPath(mount, file))
+  ).map(({ file, rel }) => `<${joinMountPath(mount, file)}>; rel="${rel}"`);
+  return links.length > 0 ? links.join(", ") : null;
 }

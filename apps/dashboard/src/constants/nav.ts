@@ -280,3 +280,12 @@ export const POST_STATUS_DOT_CLASS: Record<PostStatus, string> = {
   draft: "bg-muted-foreground/50",
   published: "bg-success",
 };
+
+// Second-level segments under these are static pages (geo/prompts,
+// automation/schedules); under any other section they are record ids that
+// belong to the workspace being left.
+export const ORG_SWITCH_STATIC_PAGE_SECTIONS: ReadonlySet<string> = new Set([
+  "geo",
+  "automation",
+  "brand",
+]);

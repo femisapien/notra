@@ -13,7 +13,9 @@ export interface BuildParams {
   branding: boolean;
   workDir: string;
   publicFiles: string[];
+  fontStylesheet?: string;
   mounts: SiteMounts;
   config: SiteConfig;
   headScripts: SiteHeadScript[];
+  hasReactComponents: boolean;
 }

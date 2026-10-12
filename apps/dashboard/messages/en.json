@@ -650,6 +650,30 @@
     "shared": {
       "editApiKey": "Edit API key",
       "deleteApiKey": "Delete API key"
+    },
+    "emptyState": {
+      "title": "No API keys yet",
+      "description": "Create a key to read and write this organization's content from scripts, SDKs or MCP clients."
+    },
+    "account": {
+      "title": "Account API keys",
+      "description": "Personal keys that work in every organization you belong to. Send the <code>X-Notra-Organization-Id</code> header to pick one.",
+      "createKey": "Create account key",
+      "emptyTitle": "No account API keys yet",
+      "emptyDescription": "Use an account key for personal automation across workspaces. Shared systems should use organization keys.",
+      "createTitle": "Create account API key",
+      "createDescription": "This key works in every organization you belong to.",
+      "editTitle": "Edit account API key",
+      "viewTitle": "View account API key",
+      "namePlaceholder": "e.g. Personal automation",
+      "deleteTitle": "Delete account API key?",
+      "toasts": {
+        "created": "Account API key created",
+        "updated": "Account API key updated",
+        "deleted": "Account API key deleted"
+      },
+      "loadFailedTitle": "Couldn't load account API keys",
+      "loadFailedDescription": "Your keys are still there. Try loading them again."
     }
   },
   "feedback": {
@@ -856,6 +880,56 @@
       "register": "Register",
       "loginErrorFallback": "Failed to sign in. Please try again.",
       "backupCodeRecovered": "Backup code accepted. Two-factor authentication was turned off for {email}. Sign in again to continue."
+    },
+    "invitation": {
+      "title": "{inviter} invited you to {organization}",
+      "titleAnonymous": "You've been invited to {organization}",
+      "description": "You'd join as {role}.",
+      "roles": {
+        "member": "a member",
+        "admin": "an admin",
+        "owner": "an owner"
+      },
+      "join": "Join {organization}",
+      "decline": "Decline",
+      "signedInAs": "Signed in as {email}.",
+      "useAnotherAccount": "Use another account",
+      "signedOutHint": "You'll sign in or create an account for {email} first.",
+      "failed": "Something went wrong. Please try again.",
+      "unavailableNow": "This invitation is no longer available.",
+      "declined": {
+        "title": "Invitation declined",
+        "description": "You declined the invitation. Ask the team for a new one if you change your mind."
+      },
+      "joined": {
+        "title": "You joined {organization}",
+        "description": "It's now your active workspace.",
+        "open": "Open {organization}"
+      },
+      "mismatch": {
+        "title": "This invitation is for another account",
+        "description": "{invited} was invited, but you're signed in as {current}. Sign out and sign in as {invited} to join {organization}.",
+        "signOut": "Sign out"
+      },
+      "unavailable": {
+        "home": "Go to Notra",
+        "not-found": {
+          "title": "Invitation not found",
+          "description": "This link is invalid. Check the email you received or ask for a new invitation."
+        },
+        "expired": {
+          "title": "Invitation expired",
+          "description": "Ask a team admin to send you a new invitation."
+        },
+        "revoked": {
+          "title": "Invitation withdrawn",
+          "description": "The team withdrew this invitation. Ask them to send a new one."
+        },
+        "accepted": {
+          "title": "Invitation already used",
+          "description": "This invitation was already accepted. Sign in to open your workspace."
+        }
+      }
     }
   },
   "errors": {
@@ -898,6 +972,7 @@
       "writerPlanFailed": "The content plan couldn't be created or saved. Please try again.",
       "promptAlreadyTracked": "This prompt is already tracked",
       "lastProjectDelete": "You cannot delete your last project. Create another one first.",
+      "projectHasSitesDelete": "This project has hosted sites. Delete its sites before deleting the project.",
       "createBrandIdentityFirst": "Create a brand identity first",
       "noGroundedEngines": "No search-grounded engines are available under your privacy settings",
       "createConversationFailed": "Failed to create conversation",
@@ -1038,6 +1113,13 @@
       "noOrganizationAccess": "You do not have access to this organization",
       "logoSourceNotAllowed": "Logo source is not allowed",
       "logoFetchFailed": "Could not fetch the logo image"
+    },
+    "brandGuidelinePdf": {
+      "generateFirst": "Generate your brand guidelines before adding a PDF",
+      "invalidFile": "This isn't a valid brand guideline PDF",
+      "noText": "We couldn't find any text in this PDF. Export it as a text-based PDF and try again.",
+      "readFailed": "We couldn't read this PDF. Try again or export it again.",
+      "unavailable": "PDF upload isn't available right now"
     },
     "comments": {
       "replyNotAllowed": "Replies are limited to five levels and cannot target deleted comments",
@@ -1396,6 +1478,20 @@
         "updatedAt": "Updated {time}",
         "noAssetsTitle": "Guidelines are empty",
         "noAssetsDescription": "No brand assets found for this identity yet. Refresh to pull the latest logos, colors and screenshots."
+      },
+      "pdf": {
+        "upload": "Upload PDF",
+        "uploadedAt": "Uploaded {time}",
+        "uploadLabel": "Upload brand guideline PDF",
+        "notPdf": "Upload a PDF file",
+        "tooLarge": "This PDF is too large. The limit is {maxMb} MB.",
+        "badFilename": "PDF filename must be between 1 and 200 characters",
+        "saved": "Brand guideline PDF saved",
+        "saveFailed": "Failed to save the PDF",
+        "removed": "Brand guideline PDF removed",
+        "removeFailed": "Failed to remove the PDF",
+        "replace": "Replace guideline PDF",
+        "remove": "Remove {filename}"
       },
       "tokens": {
         "title": "UI Tokens"
@@ -2811,7 +2907,39 @@
       "tokenTitle": "Set your token",
       "tokenDescription": "Add this as {env} on every domain this project tracks.",
       "proxyTitle": "Add the proxy",
-      "framework": "Framework"
+      "framework": "Framework",
+      "method": "Install method",
+      "methods": {
+        "sdk": "Package",
+        "vercel": "Vercel log drain",
+        "cloudflare": "Cloudflare Logpush"
+      },
+      "drains": {
+        "stepsTitle": "Set it up",
+        "docsLink": "Read the guide",
+        "vercel": {
+          "requirements": "No code changes. Vercel sends your request logs to Notra and Notra keeps only the AI traffic. Drains need a Vercel Pro or Enterprise team.",
+          "endpointTitle": "Endpoint URL",
+          "headerTitle": "Custom header",
+          "headerDescription": "Add this line under Custom Headers so Notra knows which project the logs belong to.",
+          "stepOne": "In Vercel, open Team Settings, then Drains, and click Add Drain. Choose Logs.",
+          "stepTwo": "Select the projects behind this site, keep the static, lambda and edge sources and pick the production environment.",
+          "stepThree": "Choose Custom Endpoint, paste the endpoint URL, pick JSON or NDJSON, add the custom header and create the drain.",
+          "limitation": "Known limitation: Vercel drains don't include request headers like Accept, so Notra can't see markdown requests or catch agents that pose as browsers. The package stays the more accurate option."
+        },
+        "cloudflare": {
+          "requirements": "No code changes. Your site can be hosted anywhere, but its traffic has to be proxied through Cloudflare (the orange cloud on the DNS record). Logpush is available on every Cloudflare plan.",
+          "destinationTitle": "Destination URL",
+          "destinationDescription": "Paste this as the HTTP destination. It carries your token as the Authorization header.",
+          "fieldsTitle": "Fields",
+          "stepOne": "In Cloudflare, open your domain, go to Analytics & Logs, then Logpush, and create a job with an HTTP destination.",
+          "stepTwo": "Paste the destination URL, pick the HTTP requests dataset and select the fields above. Set the timestamp format to RFC 3339.",
+          "stepThree": "Optionally log the accept, sec-fetch-mode and sec-ch-ua request headers as custom fields and add RequestHeaders, so Notra can spot markdown requests and disguised agents.",
+          "apiTitle": "Or create the job with the API",
+          "apiFilename": "Create the Logpush job",
+          "limitation": "Logpush uploads in batches, so new traffic shows up after a minute or two instead of instantly."
+        }
+      }
     },
     "promptTranslations": {
       "title": "Translations",
@@ -3869,7 +3997,11 @@
         "titleWithVisitors": "Traffic",
         "descriptionWithVisitors": "People and AI agents on your site",
         "emptyRangeTitle": "No traffic in this period",
-        "emptyRangeDescription": "Try a different date range or domain."
+        "emptyRangeDescription": "Try a different date range or domain.",
+        "emptyPathTitle": "No visits to {path}",
+        "emptyPathDescription": "Neither people nor AI agents opened this page in the selected period.",
+        "emptyPathReset": "Show all pages",
+        "emptyPathWiden": "Try last 90 days"
       },
       "write": {
         "metaTitle": "GEO Writer",
@@ -4034,6 +4166,7 @@
       "pagesPerSession": "Pages per visit",
       "engagedRate": "Read further",
       "noData": "No visitors in this period",
+      "noDataDescription": "Visit details appear here once traffic is recorded. Try a longer date range.",
       "columnViews": "Views",
       "columnFromAi": "From AI",
       "avgTime": "Avg. time on page",
@@ -4042,6 +4175,15 @@
       "columnCountry": "Country",
       "columnDevice": "Device",
       "referrers": "Referrers"
+    },
+    "trafficPathFilter": {
+      "label": "Filter",
+      "allPages": "All pages",
+      "search": "Search paths",
+      "noMatches": "No matching pages"
+    },
+    "trafficExport": {
+      "label": "Export to CSV"
     }
   },
   "integrations": {
@@ -6105,6 +6247,26 @@
       "generating": "Generating content…",
       "queuedViaApi": "Queued via API"
     },
+    "imageChat": {
+      "editingDiagram": "Editing diagram: {title}",
+      "editingImage": "Editing image: {title}",
+      "diagramPlaceholder": "Make the arrows blue…",
+      "imagePlaceholder": "Make the background darker…"
+    },
+    "diagramEditor": {
+      "open": "Edit diagram",
+      "title": "Edit diagram",
+      "description": "Move, restyle, or relabel anything. Saving re-renders the image, and chat edits continue from your changes.",
+      "loading": "Loading diagram…",
+      "loadFailed": "Couldn't load the diagram",
+      "cancel": "Cancel",
+      "save": "Save diagram",
+      "saved": "Diagram saved",
+      "saveFailed": "Couldn't save the diagram",
+      "savedWithDropped": "Diagram saved. Notra can't render {types} yet, so those were left out.",
+      "conflict": "Someone changed this diagram while you were editing. Copy anything you need, close the editor, and open it again.",
+      "saveRejected": "Couldn't save the diagram: {reason}"
+    },
     "toolbar": {
       "copyFor": "Copy for {target}",
       "selectExportTarget": "Select export target",
@@ -6283,6 +6445,9 @@
         "figmaCopyFailed": "Failed to copy for Figma",
         "paperCopied": "Copied for Paper. Paste it into your Paper file.",
         "paperCopyFailed": "Failed to copy for Paper",
+        "excalidrawCopied": "Copied for Excalidraw. Paste it onto your canvas.",
+        "tldrawCopied": "Copied for tldraw. Paste it onto your canvas.",
+        "diagramCopyFailed": "Failed to copy the diagram",
         "downloadFailed": "Failed to download image"
       }
     },
@@ -6396,10 +6561,13 @@
       "navigate": "Navigate"
     },
     "sections": {
-      "ai": "AI"
+      "recent": "Recent",
+      "suggested": "Suggested"
     },
     "entitySections": {
-      "brandVoices": "Brand voices"
+      "brandVoices": "Brand voices",
+      "chats": "Chats",
+      "prompts": "Tracked prompts"
     },
     "entities": {
       "reference": "Reference"
@@ -6409,15 +6577,32 @@
       "openingChat": "Opening chat…",
       "almostThere": "Hang tight, almost there.",
       "figuringOut": "Figuring out where to take you for \"{query}\".",
-      "navigate": "Navigate with AI",
-      "askChat": "Ask AI chat",
-      "failed": "AI search failed. Try the chat fallback.",
-      "navigateQuery": "Navigate with AI: \"{query}\"",
-      "askChatAbout": "Ask AI chat about this"
+      "failed": "AI search failed. Try again in a moment.",
+      "ask": "Ask AI"
     },
     "empty": {
       "title": "No matches for \"{query}\"",
-      "description": "Let AI navigate for you or open a chat with your question."
+      "description": "Ask AI. It opens the right page or answers in chat."
+    },
+    "actions": {
+      "newContent": "New content",
+      "switchProject": "Switch project",
+      "switchWorkspace": "Switch workspace",
+      "inviteMembers": "Invite members",
+      "darkMode": "Switch to dark mode",
+      "lightMode": "Switch to light mode"
+    },
+    "pages": {
+      "projects": {
+        "title": "Projects",
+        "placeholder": "Search projects…",
+        "count": "{count} projects"
+      },
+      "workspaces": {
+        "title": "Workspaces",
+        "placeholder": "Search workspaces…",
+        "count": "{count} workspaces"
+      }
     }
   },
   "dashboard": {
@@ -6649,7 +6834,7 @@
         "run": "{state, select, running {Running {name}} other {Ran {name}}}"
       },
       "imageGenerating": "Generating image, usually takes 3–8 minutes",
-      "imageRevising": "Revising image, usually takes 3–8 minutes",
+      "imageRevising": "Revising image",
       "imageLongRunning": "{action, select, revise {Revising} other {Generating}} image. Still working, large repos can take longer",
       "unableToDisplay": "Unable to display value",
       "truncated": "… ({count, plural, one {# more character} other {# more characters}} truncated)",
@@ -6913,6 +7098,14 @@
     "title": "Sites",
     "description": "Blogs and changelogs, built and hosted from your GitHub repository",
     "newSite": "New site",
+    "projectRequired": {
+      "title": "Select a project",
+      "description": "Create or select a project in the sidebar to manage its sites."
+    },
+    "projectLoadFailed": {
+      "title": "Couldn't load projects",
+      "description": "Reload the page to try again."
+    },
     "empty": {
       "title": "No sites yet",
       "description": "Host a blog and changelog from a GitHub repo. Every push goes live, every pull request gets a preview."
@@ -6926,23 +7119,28 @@
       "description": "Notra Sites isn't set up on this environment yet."
     },
     "list": {
-      "columns": {
-        "site": "Site",
-        "lastDeployment": "Last deployment"
-      },
+      "visitors": "Visitors · 7d",
       "noDeployments": "No deployments yet",
-      "notConnected": "Repository disconnected"
+      "viewDeployments": "View deployments",
+      "deploymentCreated": "Deployment created <time></time>",
+      "actionsLabel": "Actions for {name}",
+      "actions": {
+        "openSite": "Open site",
+        "visitSite": "Visit live site",
+        "copyLink": "Copy site link"
+      }
     },
     "status": {
       "queued": "Queued",
       "building": "Building",
       "uploading": "Uploading",
-      "ready": "Ready",
-      "live": "Live",
+      "ready": "Successful",
+      "offline": "Offline",
       "superseded": "Superseded",
       "failed": "Failed",
       "canceled": "Canceled",
-      "expired": "Expired"
+      "expired": "Expired",
+      "skipped": "Skipped"
     },
     "domainStatus": {
       "pending": "Pending",
@@ -6991,6 +7189,10 @@
     },
     "new": {
       "title": "New site",
+      "project": "Project: {name}",
+      "projectLoading": "Loading project…",
+      "projectRequired": "Create or select a project in the sidebar before creating a site.",
+      "projectLoadFailed": "Couldn't load projects. Reload the page to try again.",
       "description": "Import a repository. Every push to its production branch goes live.",
       "private": "Private repository",
       "name": "Site name",
@@ -7177,6 +7379,7 @@
       "messagePlaceholder": "Update blog posts",
       "mode": "How to publish",
       "pullRequestDescription": "Opens a pull request into {branch}. It goes live when merged.",
+      "pullRequestReviewDescription": "{count, plural, one {Review the saved draft} other {Review all # saved drafts}} before opening the pull request.",
       "directDescription": "Commits to {branch} and goes live right away.",
       "directDisabled": "Turned off for this site. Change it in settings.",
       "openPullRequest": "Open pull request",
@@ -7187,14 +7390,11 @@
       "failed": "Couldn't publish"
     },
     "settings": {
-      "general": "General",
-      "content": "Content",
       "previews": "Previews",
       "previewBuilds": "Preview builds",
       "previewsEnabledHint": "A preview for every pull request.",
       "previewComments": "Post PR comments",
       "previewCommentsHint": "Build status and preview link in your PR.",
-      "publishing": "Publishing",
       "saved": "Settings saved",
       "savedRebuilding": "Settings saved. Rebuilding…",
       "saveFailed": "Couldn't save the settings",
@@ -7236,7 +7436,32 @@
         "confirm": "Delete site",
         "done": "{name} deleted",
         "failed": "Couldn't delete the site"
-      }
+      },
+      "smartDeployments": "Smart deployments",
+      "beta": "Beta",
+      "smartDeploymentsHint": "Skip automatic deployments when the published site inputs are unchanged. Manual redeploys always build.",
+      "contentGroup": "Content and publishing",
+      "visitors": "Analytics and branding",
+      "nameHint": "Shown in the dashboard.",
+      "repository": "Repository",
+      "repositoryHint": "The GitHub repository this site builds from.",
+      "noRepository": "Not connected",
+      "rootDirectory": "Root directory",
+      "rootDirectoryHint": "Where the site lives in the repository.",
+      "publishModeHint": "How changes from the editor reach your repository.",
+      "variablesHint": "Reusable values like names and links, available as placeholders.",
+      "variablesCount": "{count, plural, =0 {None yet} one {# variable} other {# variables}}",
+      "analyticsLabel": "Analytics",
+      "analyticsHint": "Count visitors, time on page and AI agents. No cookies.",
+      "openOnGitHub": "Open on GitHub",
+      "manageGitHub": "Manage GitHub access",
+      "manageGitHubFailed": "Couldn't open GitHub",
+      "repositoryChangeHint": "To build from a different repository, create a new site. Manage access if Notra lost access to this one.",
+      "rootDirectoryPlaceholder": "Repository root",
+      "rootDirectoryFieldHint": "Relative to the repository root. Leave empty when the site is at the root.",
+      "sectionsRowHint": "Where the blog and changelog live on your site.",
+      "branchFieldHint": "Every push to this branch goes live. Changes apply on the next deploy.",
+      "optional": "Optional"
     },
     "previewFrame": {
       "title": "Site preview",
@@ -7299,13 +7524,14 @@
         "allStatuses": "All statuses"
       },
       "statusFilters": {
-        "ready": "Ready",
+        "ready": "Successful",
         "building": "Building",
         "queued": "Queued",
         "failed": "Failed",
         "canceled": "Canceled",
         "superseded": "Superseded",
-        "expired": "Expired"
+        "expired": "Expired",
+        "skipped": "Skipped"
       },
       "actions": {
         "copyUrl": "Copy URL",
@@ -7367,7 +7593,8 @@
         "failed": "Build failed",
         "canceled": "This build was canceled before it finished.",
         "superseded": "A newer commit replaced this build before it started.",
-        "expired": "This deployment's files were cleaned up. Redeploy its commit to build it again."
+        "expired": "This deployment's files were cleaned up. Redeploy its commit to build it again.",
+        "skipped": "Skipped because the site inputs match the published version."
       },
       "log": {
         "title": "Build logs",
@@ -7472,7 +7699,6 @@
       "notVerifiedYet": "Not verified yet",
       "verifyNow": "Check now",
       "lastErrorTitle": "Domain check details:",
-      "lastCheckDetails": "Last check details",
       "remove": "Remove",
       "removeConfirm": "Remove domain",
       "removeTitle": "Remove this domain?",
@@ -7493,11 +7719,14 @@
         "value": "Value",
         "noRecords": "No records needed",
         "connect": "Connect with {provider}",
+        "automaticDescription": "Sign in to {provider} to add these records automatically.",
         "openProvider": "Open {provider} DNS",
         "proxy": "Proxy",
         "dnsOnly": "DNS only (required)",
-        "proxyRequirement": "Disable the proxy for this CNAME. This is the required setting, not an observed DNS status.",
-        "proxyNotApplicable": "N/A"
+        "proxyRequirement": "Turn off the orange cloud in Cloudflare so Notra can issue your HTTPS certificate. This is the required setting, not a live status.",
+        "proxied": "Proxied",
+        "proxyNotApplicable": "Proxy not applicable",
+        "proxyNotApplicableDescription": "TXT records verify domain ownership. Cloudflare only proxies A, AAAA and CNAME records."
       },
       "proxy": {
         "agentPromptDescription": "Let your coding agent set up the proxy.",
@@ -7603,16 +7832,34 @@
         "none": "No changes yet. Your edits show up here next to the published version."
       }
     },
+    "variables": {
+      "title": "Content variables",
+      "openEditor": "Open editor",
+      "reset": "Reset changes",
+      "loading": "Loading variables…",
+      "loadFailed": "Unable to load variables. Try again.",
+      "retry": "Try again",
+      "invalidConfig": "Fix blog.json in the editor to manage variables here.",
+      "name": "Name",
+      "value": "Value",
+      "add": "Add variable",
+      "removeLabel": "Remove variable {number}",
+      "nameLabel": "Name of variable {number}",
+      "valueLabel": "Value of variable {number}",
+      "duplicate": "Use a different name for each variable.",
+      "invalid": "Start each name with a letter. Use up to 40 letters, numbers, underscores or dashes, and values up to 500 characters.",
+      "saveDraft": "Save draft",
+      "saved": "Variables saved as a draft",
+      "saveFailed": "Unable to save variables. Try again.",
+      "reviewAndPublish": "Review and publish",
+      "hint": "Use a variable as '{{product_name}}'. Values are public and stay a draft until you publish."
+    },
     "settingsPage": {
       "title": "Settings",
       "description": "Repository, sections, previews and publishing for this site",
-      "unsaved": "You have unsaved changes",
       "brandingLabel": "Notra branding",
       "brandingHint": "Shows a small \"Powered by Notra\" badge in the footer. Changing it rebuilds the site.",
-      "sectionsHint": "Paths on your site. Changing them rebuilds the site; the current version stays live until the build succeeds.",
-      "changeAccess": "Change",
-      "brandingRemove": "Remove branding",
-      "brandingShow": "Show branding"
+      "sectionsHint": "Paths on your site. Changing them rebuilds the site; the current version stays live until the build succeeds."
     },
     "previewAccess": {
       "title": "Preview access",
@@ -7639,36 +7886,42 @@
     },
     "integrationsPage": {
       "title": "Integrations",
-      "description": "Analytics for this site. Settings are saved in blog.json and go live when you publish.",
+      "description": "Analytics for this site. Valid settings save automatically to a blog.json draft and go live when you publish.",
       "optional": "Optional",
-      "connect": "Connect",
-      "save": "Save",
       "remove": "Remove",
-      "saved": "Integration saved",
       "removed": "Integration removed",
-      "savedDescription": "It's a draft of blog.json until you publish it from the editor.",
+      "savedDescription": "It's a draft of blog.json until you publish it.",
       "saveFailed": "Couldn't save the integration",
       "docs": "{provider} docs",
       "draftDescription": "blog.json has changes that aren't live yet",
       "reviewAndPublish": "Review and publish",
-      "invalidTitle": "blog.json can't be read",
-      "invalidDescription": "It isn't valid JSON. Fix it in the editor, then come back.",
+      "createPullRequest": "Create PR",
+      "preparePublishFailed": "Couldn't load changes for the pull request",
+      "noDrafts": "There are no changes to include in a pull request.",
+      "publishMessage": "Update site",
+      "publishConflict": "These drafts conflict with changes on GitHub. Open the editor to reload the files and reapply your changes.",
+      "invalidTitle": "Invalid blog.json configuration",
+      "invalidDescription": "The JSON or integration settings are invalid. Fix them in the editor, then come back.",
       "providers": {
-        "databuddy": "Privacy-first web analytics.",
         "plausible": "Lightweight, cookie-free analytics.",
         "posthog": "Product analytics, session replay and feature flags.",
+        "umami": "Lightweight, cookie-free web analytics.",
         "ga4": "Google's web analytics."
       },
       "fields": {
-        "databuddy": {
-          "clientId": "Client ID"
-        },
         "plausible": {
-          "domain": "Domain"
+          "domain": "Domain",
+          "server": "Self-hosted server"
         },
         "posthog": {
           "apiKey": "Project API key",
-          "apiHost": "API host"
+          "apiHost": "API host",
+          "sessionRecording": "Session recording"
+        },
+        "umami": {
+          "websiteId": "Website ID",
+          "scriptUrl": "Script URL",
+          "hostUrl": "Collection URL"
         },
         "ga4": {
           "measurementId": "Measurement ID"
@@ -7676,19 +7929,39 @@
       },
       "add": "Add {provider}",
       "more": "{provider} options",
-      "edit": "Edit"
-    },
-    "repositoryCard": {
-      "private": "Private",
-      "public": "Public",
-      "language": "Language",
-      "stars": "Stars",
-      "forks": "Forks",
-      "openIssues": "Open issues and PRs",
-      "defaultBranch": "Default branch",
-      "lastPush": "Last push",
-      "openOnGithub": "Open on GitHub",
-      "unavailable": "Couldn't load repository details from GitHub."
+      "edit": "Edit",
+      "configExample": "Configuration in blog.json",
+      "copyConfig": "Copy configuration",
+      "previewDescription": "Analytics integrations run on the live site only. Previews and local development do not send events.",
+      "loadFailed": "Couldn't load integrations",
+      "retry": "Try again",
+      "openEditor": "Open editor",
+      "fieldDescriptions": {
+        "plausible": {
+          "domain": "Use the domain you added to Plausible, without https://.",
+          "server": "For self-hosted Plausible, enter its hostname and optional port (e.g. plausible.acme.com:8443), without https://. Leave empty for plausible.io."
+        },
+        "posthog": {
+          "apiKey": "Copy the public project API key from your PostHog project settings.",
+          "apiHost": "Leave empty for US Cloud. Use https://eu.i.posthog.com for EU Cloud or your own HTTPS endpoint.",
+          "sessionRecording": "Record visitor sessions when recording is enabled for this domain in PostHog."
+        },
+        "umami": {
+          "websiteId": "In Umami, edit your website and copy data-website-id from Tracking code.",
+          "scriptUrl": "Leave empty for Umami Cloud. For self-hosting, copy the full HTTPS script URL from your tracking code.",
+          "hostUrl": "Usually empty. Set an HTTPS base URL only when events should go to a different endpoint, such as a reverse proxy."
+        },
+        "ga4": {
+          "measurementId": "In Google Analytics, open Admin → Data streams → your web stream and copy the Measurement ID."
+        }
+      },
+      "close": "Close",
+      "autosavePending": "Waiting to save…",
+      "autosaveSaving": "Saving draft…",
+      "autosaveSaved": "Draft saved. Create a pull request, then merge it to go live.",
+      "autosaveInvalid": "Enter valid settings to save your changes.",
+      "discardUnsaved": "Discard unsaved changes",
+      "removeFailedDescription": "The integration was not removed. Retry the removal or discard the unsaved changes."
     },
     "analyticsPage": {
       "title": "Analytics",

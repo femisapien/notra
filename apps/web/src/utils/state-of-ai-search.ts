@@ -8,8 +8,12 @@ import type {
   StateOfAiSearchReport,
 } from "@/types/state-of-ai-search";
 
+export function reportCategoryPath(slug: string): string {
+  return `${STATE_OF_AI_SEARCH_PATH}/${slug}`;
+}
+
 export function reportPath(slug: string, edition: string): string {
-  return `${STATE_OF_AI_SEARCH_PATH}/${slug}/${edition}`;
+  return `${reportCategoryPath(slug)}/${edition}`;
 }
 
 /** Bar color for a ranked brand; everyone past the top five shares slate. */

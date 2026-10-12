@@ -32,3 +32,19 @@ export const WEB_QUERY_PARAMS = {
 export const WEB_PAGES_WHERE = `WHERE organization_id = {{String(organization_id)}}
           ${GEO_PROJECT_SCOPE_SQL}
           ${WEB_SCOPE_SQL}`;
+
+export const WEB_PATH_SET = `{{String(path, '')}} != ''`;
+
+/** Raw page views for one path; empty when no path filter is set. */
+export const WEB_RAW_WHERE = `WHERE ${WEB_PATH_SET}
+          AND organization_id = {{String(organization_id)}}
+          ${GEO_PROJECT_SCOPE_SQL}
+          ${WEB_SCOPE_SQL}
+          AND path = {{String(path, '')}}`;
+
+export const WEB_AUDIENCE_VALUE_SQL = `multiIf(
+            {{String(dimension, 'country')}} = 'device', device,
+            {{String(dimension, 'country')}} = 'browser', browser,
+            {{String(dimension, 'country')}} = 'os', os,
+            country
+          )`;

@@ -33,10 +33,12 @@ test.each(["", "fixture.example"])(
       }
       const rows = database
         .prepare(
-          result.sql.replaceAll(
-            "{{String(hosts, '')}}",
-            host ? "'fixture.example'" : "''"
-          )
+          result.sql
+            .replaceAll(
+              "{{String(hosts, '')}}",
+              host ? "'fixture.example'" : "''"
+            )
+            .replaceAll("{{String(path, '')}}", "''")
         )
         .all();
       expect(rows).toHaveLength(124);

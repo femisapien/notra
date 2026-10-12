@@ -13,6 +13,7 @@ import type {
   WebAudienceRow,
   WebEngagementRow,
 } from "@notra/analytics/types/tinybird-endpoints";
+import { isDemoMode } from "@notra/utils/demo-mode";
 import { Effect } from "effect";
 
 import {
@@ -32,7 +33,7 @@ import type {
   WebEngagement,
 } from "../types/geo";
 import { webHostFilter } from "../utils/geo-project-domains";
-import { geoQuery } from "./effect";
+import { geoQuery, geoRequiredQuery } from "./effect";
 import { loadAiTraffic } from "./programs";
 import { resolveGeoScope } from "./projects";
 import { geoTrafficWindowParams } from "./window";
@@ -69,7 +70,8 @@ function toEngagement(
 
 const loadWebAnalyticsForScope = Effect.fn("web.analytics")(function* (
   scope: WebAnalyticsScope,
-  window: GeoWindowInput
+  window: GeoWindowInput,
+  path: string
 ) {
   const base = {
     organization_id: scope.organizationId,
@@ -78,7 +80,10 @@ const loadWebAnalyticsForScope = Effect.fn("web.analytics")(function* (
     site_id: scope.siteId,
     ...geoTrafficWindowParams(window, WEB_DEFAULT_DAYS),
   };
-  const params = { ...base, hosts: scope.hosts.join(",") };
+  const params = { ...base, hosts: scope.hosts.join(","), path };
+  const configured = isTinybirdConfigured();
+  // Demo traffic is generated locally; unsupported web pipes return null.
+  const query = configured && !isDemoMode() ? geoRequiredQuery : geoQuery;
 
   const [
     overview,
@@ -91,30 +96,30 @@ const loadWebAnalyticsForScope = Effect.fn("web.analytics")(function* (
     hosts,
   ] = yield* Effect.all(
     [
-      geoQuery("web overview query failed", () => queryWebOverview(params)),
-      geoQuery("web timeseries query failed", () => queryWebTimeseries(params)),
-      geoQuery("web pages query failed", () =>
+      query("web overview query failed", () => queryWebOverview(params)),
+      query("web timeseries query failed", () => queryWebTimeseries(params)),
+      query("web pages query failed", () =>
         queryWebPages({ ...params, limit: WEB_PAGES_LIMIT })
       ),
-      geoQuery("web sources query failed", () =>
+      query("web sources query failed", () =>
         queryWebSources({ ...params, limit: WEB_SOURCES_LIMIT })
       ),
-      geoQuery("web countries query failed", () =>
+      query("web countries query failed", () =>
         queryWebAudience({
           ...params,
           dimension: "country",
           limit: WEB_BREAKDOWN_LIMIT,
         })
       ),
-      geoQuery("web devices query failed", () =>
+      query("web devices query failed", () =>
         queryWebAudience({
           ...params,
           dimension: "device",
           limit: WEB_BREAKDOWN_LIMIT,
         })
       ),
-      geoQuery("web outcomes query failed", () => queryWebAiOutcomes(params)),
-      geoQuery("web hosts query failed", () =>
+      query("web outcomes query failed", () => queryWebAiOutcomes(params)),
+      query("web hosts query failed", () =>
         queryWebHosts({ ...base, hosts: "" })
       ),
     ],
@@ -123,7 +128,7 @@ const loadWebAnalyticsForScope = Effect.fn("web.analytics")(function* (
 
   const totalsRow = overview?.data[0];
   const response: WebAnalyticsResponse = {
-    configured: isTinybirdConfigured(),
+    configured,
     hosts: (hosts?.data ?? []).map((row) => ({
       host: row.host,
       siteId: row.site_id,
@@ -177,18 +182,21 @@ const loadWebAnalyticsForScope = Effect.fn("web.analytics")(function* (
 export const loadWebAnalytics = Effect.fn("web.projectAnalytics")(function* (
   input: GeoScopeInput,
   window: GeoWindowInput,
-  host: string | undefined
+  host: string | undefined,
+  path = ""
 ) {
   const scope = yield* resolveGeoScope(input);
   return yield* loadWebAnalyticsForScope(
     { ...scope, siteId: "", hosts: webHostFilter(host) },
-    window
+    window,
+    path
   );
 });
 
 export const loadSiteAnalytics = Effect.fn("web.siteAnalytics")(function* (
   site: SiteAnalyticsInput,
-  window: GeoWindowInput
+  window: GeoWindowInput,
+  path = ""
 ) {
   const scope: WebAnalyticsScope = {
     organizationId: site.organizationId,
@@ -197,9 +205,11 @@ export const loadSiteAnalytics = Effect.fn("web.siteAnalytics")(function* (
     siteId: site.id,
     hosts: [],
   };
+  const query =
+    isTinybirdConfigured() && !isDemoMode() ? geoRequiredQuery : geoQuery;
   const [web, traffic, engagement] = yield* Effect.all(
     [
-      loadWebAnalyticsForScope(scope, window),
+      loadWebAnalyticsForScope(scope, window, path),
       loadAiTraffic(
         {
           organizationId: site.organizationId,
@@ -207,15 +217,17 @@ export const loadSiteAnalytics = Effect.fn("web.siteAnalytics")(function* (
         },
         window,
         [],
-        site.id
+        site.id,
+        path
       ),
-      geoQuery("web engagement query failed", () =>
+      query("web engagement query failed", () =>
         queryWebEngagement({
           organization_id: site.organizationId,
           project_id: "",
           include_unassigned: 0,
           site_id: site.id,
           hosts: "",
+          path,
           limit: WEB_PAGES_LIMIT,
           ...geoTrafficWindowParams(window, WEB_DEFAULT_DAYS),
         })

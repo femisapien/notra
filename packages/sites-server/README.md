@@ -70,6 +70,15 @@ failures are not silently treated as successful persistence: an already failing
 pipeline preserves its original exception and records the persistence error in
 its best-effort R2 log.
 
+Sandbox HTTP rejections retain a redacted provider error response and, when
+available, an `x-request-id` or `x-upstash-request-id`. Diagnostic reads are
+limited to 4 KiB and 2 seconds. Oversized bodies are omitted rather than partially
+logged, so truncation cannot expose part of a credential. Unreadable bodies retain
+the HTTP status and a safe placeholder, including rejections near the request
+deadline. `sites.job_failed` also logs the site/deployment IDs,
+attempt count, sandbox operation, status, and provider diagnostics. The enriched
+error message is retained by the existing job, build-log, and telemetry paths.
+
 `metrics.version` is 1. `phases` contains monotonic millisecond durations for
 attempted repository access, source download, sandbox startup, upload, execution, result reads,
 output download, cleanup and publication. Guest extraction, compilation and
@@ -113,6 +122,15 @@ WHERE metrics #>> '{phases,compile}' IS NOT NULL;
 
 **Toolchain change (theme, Astro, compiler).** Rebuild the snapshot and roll the env var:
 `cd apps/sites-builder && bun --env-file=../../.env scripts/create-box-snapshot.ts` → set `SITES_BUILDER_SNAPSHOT_ID` (Vercel) → redeploy the dashboard. The deployment records the toolchain `VERSION`.
+
+**Reader page actions.** The theme shares `CopyArticle.astro` between blog posts and
+standalone changelog entries, using their generated `.md` files. Blog posts show
+actions by default; changelog entries require `changelog.pageActions: true`
+(default `false`). `blog.json`'s `contextual` setting applies to both areas and can
+still hide all actions. AI links pass the title and canonical
+Markdown URL in a prefilled prompt; they do not upload the article, bypass preview
+access controls or require provider API keys. A theme update requires the snapshot
+roll above and a new build of each Site; existing immutable deployments do not change.
 
 **Rotate the preview secret.** Generate a new value, set `SITES_PREVIEW_SECRET` (dashboard) and `PREVIEW_SECRET` (worker: `wrangler secret put PREVIEW_SECRET`) together. Existing preview sessions and share links stop working.
 
@@ -179,3 +197,147 @@ cd apps/sites && npx wrangler dev --env dev        # worker on :8787, real dev b
 open http://{slug}.sites.localhost:8787/blog
 cd apps/sites-builder && bun compiler/cli.ts dev --source <site repo>   # theme dev with live reload
 ```
+
+## Smart deployments (Beta)
+
+`sites.smartDeployments` defaults to `true`, including existing Sites after migration
+`0114_site_smart_deployments`. Changing the setting alone does not rebuild the Site.
+
+Automatic push and pull-request deployments compare a complete Git tree against
+the fingerprint of the deployment currently referenced by serving state. Preview
+keys have separate baselines. The fingerprint includes collected file paths and
+Git blob IDs, repository/root identity, the complete build target, draft visibility,
+builder snapshot ID and UTC year. Path selection is shared with the compiler.
+
+Identical inputs produce a terminal `skipped` deployment with an explicit reason.
+GitHub checks and PR comments show **Skipped – no site changes** and link to the
+existing published Site or preview. Canceled and superseded builds remain separate
+skip reasons and do not advertise a preview that they did not publish.
+The serving pointer retains its deployment ID and files while advancing its
+generation, preventing an older concurrent build from replacing the current Site.
+The comparison is fenced again under the existing storage lock and R2 CAS before
+the skip is persisted. Retries can finish persistence after a serving-state write.
+
+First deployments, manual builds, redeploys, configuration-triggered builds and
+unknown comparisons build normally. Truncated trees, missing fingerprints,
+unsupported archive transformations (`.gitattributes` / `.lfsconfig`), and source
+limits also require a build. Existing published deployments establish their first
+fingerprint on their next successful build. The UTC year invalidates equality at
+the next deployment check; this does not schedule a yearly deployment.
+
+TypeSafe Jev evaluates the verified comparison alongside the deterministic
+policy. Its probability and model ID are recorded in `smartDeploymentEvaluation`.
+The model receives comparison facts, not repository contents. Missing credentials,
+provider failures or model disagreement cannot override proven input equality or
+skip changed inputs. This Beta does not enable autonomous model decisions.
+
+Unchanged automatic deployments do not reserve or consume daily build slots.
+Manual/non-smart queued deployments reserve slots at admission; automatic smart
+deployments reserve a slot atomically only if a build is necessary. Retries of an
+already started deployment do not reserve a second slot.
+
+## Verification
+
+### Required projects (migration 0115)
+
+Sites belong to projects and remain shared with all organization members. A
+project with Sites cannot be deleted; remove its Sites explicitly first. Public
+URLs, Site IDs, deployments and stored assets are unchanged by this migration.
+
+Before deploying, inventory **all** unassigned Sites in the target database,
+including those eligible for automatic backfill:
+
+```sql
+SELECT id AS site_id, organization_id
+FROM sites
+WHERE project_id IS NULL
+ORDER BY organization_id, id;
+```
+
+Then run this read-only preflight to identify Sites needing explicit assignment:
+
+```sql
+SELECT s.id AS site_id, s.organization_id,
+       count(p.id) AS non_sample_projects,
+       array_agg(p.id ORDER BY p.id) FILTER (WHERE p.id IS NOT NULL) AS candidates
+FROM sites s
+LEFT JOIN projects p ON p.organization_id = s.organization_id AND NOT p.is_sample
+WHERE s.project_id IS NULL
+GROUP BY s.id, s.organization_id
+HAVING count(p.id) <> 1;
+```
+
+The migration runs within Drizzle's migration transaction. It backfills only
+unassigned Sites whose organization has exactly one non-sample project. It never
+changes an existing assignment. Zero or multiple non-sample projects abort the
+entire migration with unresolved Site IDs, organization IDs and candidate counts.
+Do not select the first/oldest project or create placeholder projects to proceed.
+An operator must choose the intended existing same-organization project (or
+create a genuine project via the application) and explicitly assign each Site.
+Follow the maintenance sequence below before applying assignments or migration:
+
+```sql
+UPDATE sites s
+SET project_id = p.id
+FROM projects p
+WHERE s.id = '<unresolved-site-id>'
+  AND s.project_id IS NULL
+  AND p.id = '<chosen-project-id>'
+  AND p.organization_id = s.organization_id
+RETURNING s.id, s.organization_id, s.project_id;
+```
+
+Confirm exactly one returned row per assignment, rerun the preflight, then retry
+migration 0115 through the normal migration runner. For manual SQL execution wrap
+the entire migration in `BEGIN` / `COMMIT`; never run individual statements in
+autocommit mode. No R2 cleanup or serving-state changes are required.
+
+**Maintenance sequence: explicit assignment and automatic backfill**
+
+An unassigned Site's ingestion identity falls back to the organization's oldest
+project, including sample projects. That cached project can differ from either
+the chosen manual assignment or the migration's sole non-sample project.
+
+1. Run the inventory and preflight above. Include every unassigned Site in the
+   affected set, not just ambiguous Sites; automatic backfill also changes
+   ingestion identity.
+2. Before any assignment, quiesce Site analytics ingress for the affected Sites
+   on **all active paths and replicas**: the dedicated ingest service and the
+   dashboard compatibility handler, including direct and proxied endpoints.
+   Use operator-controlled routing or maintenance controls; there is no assumed
+   pause environment flag. Drain accepted/in-flight requests, background work
+   and queued events before proceeding. Keep public Sites online: do not suspend
+   Sites or change R2/serving state. See the
+   [AI traffic ingestion runbook](../../apps/ai-traffic-ingest/README.md) for
+   routing and graceful drain behavior.
+3. Apply required same-organization assignments with the SQL above, confirm one
+   returned row each, and rerun the preflight. Run migration 0115 through the
+   normal transactional migration runner, including automatic backfill. Preserve
+   the transaction requirements above. If assignment, migration or verification
+   fails, keep ingress quiesced until corrected.
+4. Before resuming, choose **one** cache-clearing approach:
+   - Call `invalidateIngestSiteCaches(siteId, organizationId)` from
+     `packages/geo-core/src/ingest/sites.ts` for every affected Site in an
+     environment configured for the target database and shared Redis. Confirm
+     successful deletion of the affected `geo:ingest-site:v2:<siteId>` identity
+     and `geo:ingest-organization-sites:v2:<organizationId>` prefix-cache keys.
+     Then drain/restart **every ingestion-capable process/replica**, including
+     dashboard instances, to clear process memory. Calling the helper in a
+     migration runner clears only that runner's local memory; deployment alone
+     does not evict shared Redis.
+   - Keep ingress quiesced for **at least 6 minutes after the last committed
+     assignment or migration**. The active shared identity TTL is 300 seconds
+     and process memory lasts 60 seconds; a process can refresh from stale Redis
+     just before Redis expiry, so allow the full 360 seconds.
+5. While ingress is still quiesced, verify that each affected analytics-enabled
+   Site resolves to its database project on every ingestion path/replica. Resume
+   only after those checks pass, then smoke-check newly ingested page-view and
+   engagement attribution in the assigned project. This procedure does not
+   rewrite historical analytics.
+
+Run `bun test tests` in this package. PostgreSQL integration suites additionally
+require `SITES_TEST_DATABASE_URL` pointing to the synthetic local database
+`postgresql://postgres@127.0.0.1:55447/notra_server_audit`, initialized with the
+current schema. They test real queries, serving-state CAS and pipeline decisions
+with simulated GitHub, model, sandbox and R2 adapters. Do not use a customer or
+production database for these suites.

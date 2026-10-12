@@ -14,12 +14,14 @@ import {
   Home01Icon,
   Key01Icon,
   Layers01Icon,
+  LinkSquare02Icon,
   Message01Icon,
   NoteIcon,
   Notification01Icon,
   Notification03Icon,
   PencilEdit01Icon,
   PlugIcon,
+  QuotesIcon,
   SearchList01Icon,
   Settings01Icon,
   UserCircleIcon,
@@ -27,8 +29,10 @@ import {
   Wallet01Icon,
   WebDesign01Icon,
 } from "@hugeicons/core-free-icons";
+import type { IconSvgElement } from "@hugeicons/react";
 
 import type {
+  CommandPaletteEntityKind,
   CommandRoute,
   CommandRouteId,
   CommandSection,
@@ -408,3 +412,61 @@ export const COMMAND_SECTIONS: CommandSection[] = [
   "Manage",
   "Settings",
 ];
+
+export const COMMAND_PALETTE_JEV_FEATURE = "command_palette_navigation";
+
+// Jev answers in ~300 ms; past this the sequential LLM fallback (~1.5 s)
+// should start rather than stacking on a slow evaluation.
+export const COMMAND_PALETTE_JEV_TIMEOUT_MS = 1200;
+
+// Below this the pick is a guess; the LLM fallback decides instead.
+export const COMMAND_PALETTE_JEV_MIN_CONFIDENCE = 0.5;
+
+export const COMMAND_PALETTE_JEV_CHAT_CHOICE = "chat";
+
+export const COMMAND_PALETTE_RECENTS_LIMIT = 5;
+
+export const COMMAND_PALETTE_SUGGESTED_ROUTES = {
+  geo: ["geo", "geo-prompts", "geo-gaps", "geo-competitors"],
+  studio: ["home", "content", "chat", "automation-schedules"],
+} as const satisfies Record<string, readonly CommandRouteId[]>;
+
+export const COMMAND_PALETTE_ENTITY_ICONS = {
+  post: NoteIcon,
+  voice: CorporateIcon,
+  reference: QuotesIcon,
+  github: Github01Icon,
+  linear: LinkSquare02Icon,
+  social: UserCircleIcon,
+  prompt: AiChat01Icon,
+  competitor: ChartAnalysisIcon,
+  persona: UserGroupIcon,
+  site: WebDesign01Icon,
+  chat: Message01Icon,
+} as const satisfies Record<CommandPaletteEntityKind, IconSvgElement>;
+
+export const COMMAND_PALETTE_THEME_SHORTCUT = "D";
+
+/** How Jev reads each search hit kind when picking a destination. */
+export const COMMAND_PALETTE_ENTITY_DESCRIPTIONS = {
+  prompt: "tracked GEO prompt",
+  competitor: "competitor brand tracked in AI answers",
+  persona: "GEO buyer persona",
+  post: "content post",
+  chat: "earlier AI chat",
+  site: "hosted docs or blog site",
+  voice: "brand voice",
+  reference: "brand voice reference",
+  github: "GitHub integration",
+  linear: "Linear integration",
+  social: "connected social account",
+} as const satisfies Record<CommandPaletteEntityKind, string>;
+
+// A query this long that starts exactly one hit's name opens it without AI.
+export const COMMAND_PALETTE_NAME_MATCH_MIN_LENGTH = 3;
+
+export const COMMAND_PALETTE_SEARCH_DEBOUNCE_MS = 300;
+
+export const COMMAND_PALETTE_SEARCH_MIN_LENGTH = 2;
+
+export const COMMAND_PALETTE_REFERENCE_SNIPPET_MAX = 80;

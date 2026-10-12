@@ -46,6 +46,7 @@
 @source "../../../../packages/ui/src/components/ai-skins/perplexity/perplexity-sources-sheet.tsx";
 @source "../../../../packages/ui/src/components/data-table/body.tsx";
 @source "../../../../packages/ui/src/components/data-table/column-group.tsx";
+@source "../../../../packages/ui/src/components/data-table/corner-scrollbar.tsx";
 @source "../../../../packages/ui/src/components/data-table/header.tsx";
 @source "../../../../packages/ui/src/components/data-table/pager.tsx";
 @source "../../../../packages/ui/src/components/data-table/root.tsx";
@@ -161,6 +162,7 @@
 @source "../../../../packages/ui/src/components/ui/svgs/perplexity.tsx";
 @source "../../../../packages/ui/src/components/ui/svgs/qwen.tsx";
 @source "../../../../packages/ui/src/components/ui/svgs/qwenDark.tsx";
+@source "../../../../packages/ui/src/components/ui/svgs/raycast.tsx";
 @source "../../../../packages/ui/src/components/ui/svgs/reddit.tsx";
 @source "../../../../packages/ui/src/components/ui/svgs/slack.tsx";
 @source "../../../../packages/ui/src/components/ui/svgs/tavily.tsx";
@@ -176,6 +178,7 @@
 @source "../../../../packages/ui/src/components/ui/svgs/youCom.tsx";
 @source "../../../../packages/ui/src/components/ui/svgs/youtube.tsx";
 @source "../../../../packages/ui/src/components/ui/svgs/zai.tsx";
+@source "../../../../packages/ui/src/components/ui/switch.tsx";
 @source "../../../../packages/ui/src/components/ui/table.tsx";
 @source "../../../../packages/ui/src/components/ui/textarea.tsx";
 @source "../../../../packages/ui/src/components/ui/title-card.tsx";
@@ -185,6 +188,7 @@
 @source "../../../../packages/ui/src/constants/claude-chat-models.ts";
 @source "../../../../packages/ui/src/constants/codex-skin.ts";
 @source "../../../../packages/ui/src/constants/command-tabs.ts";
+@source "../../../../packages/ui/src/constants/dropdown.ts";
 @source "../../../../packages/ui/src/constants/framework-image.ts";
 @source "../../../../packages/ui/src/constants/gemini-models.ts";
 @source "../../../../packages/ui/src/constants/geo.ts";

@@ -104,7 +104,7 @@ When it passes, Notra rebuilds the site so that canonical URLs, feeds, sitemaps 
 ## Search engines and AI agents
 
 - Search engines only index pages under your domain, because your Notra address stops being crawled once the domain is active and every page names `www.acme.com/blog/...` as canonical.
-- Each section has its own `sitemap.xml`, `feed.xml` and `llms.txt` under its path, for example `/blog/llms.txt`.
+- Each section has its own `robots.txt`, `sitemap.xml`, `feed.xml` and `llms.txt` under its path, for example `/blog/robots.txt`. The section's `robots.txt` uses your domain in its links, so you can copy its `Sitemap` lines and `llms.txt` comment into your own `robots.txt`. Keep your website's crawler rules as they are, because the section's `Allow` rules for AI crawlers would override paths you block under `User-agent: *`.
 - `/robots.txt` and `/llms.txt` at the root of your domain belong to your website, so add the sitemaps to `robots.txt` (step 5) and link `/blog/llms.txt` from your own `llms.txt` if you have one.
 
 ## Troubleshooting

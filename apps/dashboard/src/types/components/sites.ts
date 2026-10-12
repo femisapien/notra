@@ -1,7 +1,10 @@
 import type { IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
 
-import type { SiteIntegrationProvider } from "@/types/site-integrations";
+import type {
+  SiteIntegrationProvider,
+  SiteIntegrationAutosaveState,
+} from "@/types/site-integrations";
 import type {
   RepositorySuggestionsResult,
   SiteBuildAgentPromptInput,
@@ -38,6 +41,22 @@ export interface SitesPageShellProps {
   children: ReactNode;
 }
 
+export interface ProjectSitesListProps {
+  organizationId: string;
+  organizationSlug: string;
+  projectId: string;
+  showAll: boolean;
+}
+
+export interface SiteCreateProjectProps {
+  organizationId: string;
+}
+
+export interface SiteLoadErrorProps {
+  organizationSlug: string;
+  error: unknown;
+}
+
 export interface SiteDeploymentTimelineProps {
   deployment: SiteDeploymentRecord;
   log: string | null;
@@ -49,18 +68,29 @@ export interface SiteLayoutProps {
   children: ReactNode;
 }
 
-export interface SiteRepositoryHoverCardProps {
-  organizationId: string;
-  siteId: string;
-  owner: string;
-  name: string;
-  branch: string;
-}
-
-export interface SitesTableProps {
+export interface SitesListProps {
   organizationId: string;
   organizationSlug: string;
   sites: SiteListItem[];
+}
+
+export interface SiteListCardProps {
+  organizationId: string;
+  organizationSlug: string;
+  site: SiteListItem;
+}
+
+export type SiteVisitorsSummaryProps = Pick<
+  SiteListCardProps,
+  "organizationId" | "site"
+>;
+
+export interface SiteListMenuItemsProps extends Pick<
+  SiteListCardProps,
+  "organizationSlug" | "site"
+> {
+  onDelete: () => void;
+  variant: "context" | "dropdown";
 }
 
 export interface SiteCreateFormProps {
@@ -105,28 +135,6 @@ export interface SiteAddressInputProps {
   describedBy?: string;
 }
 
-export interface SiteSectionsFieldsProps {
-  idPrefix: string;
-  blogEnabled: boolean;
-  changelogEnabled: boolean;
-  blogPath: string;
-  changelogPath: string;
-  onBlogEnabledChange: (value: boolean) => void;
-  onChangelogEnabledChange: (value: boolean) => void;
-  onBlogPathChange: (value: string) => void;
-  onChangelogPathChange: (value: string) => void;
-}
-
-export interface SiteSectionRowProps {
-  id: string;
-  title: string;
-  description: string;
-  enabled: boolean;
-  path: string;
-  onEnabledChange: (value: boolean) => void;
-  onPathChange: (value: string) => void;
-}
-
 export interface SiteChoiceGroupProps<T extends string> {
   label: string;
   value: T;
@@ -134,13 +142,6 @@ export interface SiteChoiceGroupProps<T extends string> {
   onValueChange: (value: T) => void;
   disabled?: boolean;
   hideLabel?: boolean;
-}
-
-export interface SiteSettingsRowProps {
-  label: string;
-  htmlFor?: string;
-  description?: ReactNode;
-  children: ReactNode;
 }
 
 export interface SiteDeleteDialogProps extends SiteScope {
@@ -163,9 +164,8 @@ export interface SiteRelativeTimeProps {
   inline?: boolean;
 }
 
-export interface SiteStatusDotProps {
+export interface SiteStatusBadgeProps {
   status: SiteDeploymentStatus;
-  live?: boolean;
   duration?: string | null;
   className?: string;
 }
@@ -203,14 +203,14 @@ export interface SiteOverviewExternalLinkProps {
   muted?: boolean;
 }
 
-export interface SitePendingProductionProps {
+export interface SiteProductionBuildProps {
   deployment: SiteDeployment;
 }
 
 export interface SiteOverviewStatusProps {
-  pendingProduction: SiteDeployment | null;
+  /** The newest unpublished production build, else the live one. */
+  deployment: SiteDeployment | null;
   suspended: boolean;
-  live: boolean;
 }
 
 export interface SiteOverviewPreviewProps {
@@ -340,7 +340,6 @@ export interface SiteDeploymentActionsProps extends SiteScope {
 export interface SiteEnvironmentBadgeProps {
   kind: SiteDeployment["kind"];
   previewKey: string | null;
-  live: boolean;
   className?: string;
 }
 
@@ -409,23 +408,14 @@ export interface SitePreviewBranchDialogProps extends SiteScope {
   onOpenChange: (open: boolean) => void;
 }
 
-export interface SiteSettingsFormProps extends SiteScope {
-  organizationSlug: string;
-  detail: SiteDetail;
-}
-
 export interface SiteSettingsDangerZoneProps extends SiteScope {
   organizationSlug: string;
   site: SiteRecord;
 }
 
-export interface SiteSettingsSaveBarProps {
-  canSave: boolean;
-  isSaving: boolean;
-  onReset: () => void;
-}
-
 export interface SitePublishDialogProps extends SiteScope {
+  pullRequestOnly?: boolean;
+  initialMessage?: string;
   unsaved?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -553,6 +543,7 @@ export interface SiteIntegrationLogoProps {
 export interface SiteIntegrationRowProps {
   provider: SiteIntegrationProvider;
   isSetUp: boolean;
+  disabled: boolean;
   onOpen: () => void;
   onRemove: () => void;
 }
@@ -563,6 +554,15 @@ export interface SiteIntegrationDialogProps {
   settings: Record<string, unknown> | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onPublish: () => Promise<boolean>;
+}
+
+export interface SiteIntegrationSaveStatusProps {
+  state: SiteIntegrationAutosaveState;
+  invalid: boolean;
+  busy: boolean;
+  removalFailed: boolean;
+  onRetry: () => void;
 }
 
 export interface SiteImportListProps {
@@ -604,6 +604,7 @@ export interface SiteCreateDeployProps {
   site: Pick<
     SiteRecord,
     | "id"
+    | "projectId"
     | "name"
     | "liveUrl"
     | "repository"

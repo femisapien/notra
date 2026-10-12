@@ -166,3 +166,15 @@ export const GEO_HOSTS_SQL = `AND (
           )`;
 
 export const GEO_HOSTS_SET = `{{String(hosts, '')}} != ''`;
+
+export const GEO_PATH_PARAMS = {
+  path: p
+    .string()
+    .optional("")
+    .describe("Exact page path, empty for every page"),
+};
+
+export const GEO_PATH_SQL = `AND ({{String(path, '')}} = '' OR path = {{String(path, '')}})`;
+
+/** Host or path filters need the per-page rollup instead of the per-source one. */
+export const GEO_PAGE_FILTER_SET = `(${GEO_HOSTS_SET} OR {{String(path, '')}} != '')`;

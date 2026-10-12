@@ -14,13 +14,15 @@ import {
   LEGACY_API_READ_SCOPE,
   LEGACY_API_WRITE_SCOPE,
 } from "@notra/utils/api-scopes";
+import { ACCOUNT_API_KEY_ORGANIZATION_HEADERS } from "@notra/utils/constants/account-api-key";
 import { DEMO_CONSOLE_HEADER } from "@notra/utils/constants/demo";
 import { isDemoMode } from "@notra/utils/demo-mode";
 import type { Context } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
 import { trimTrailingSlash } from "hono/trailing-slash";
 
-import { DEMO_API_URL } from "./constants/demo";
+import { DEMO_API_MAX_BODY_BYTES, DEMO_API_URL } from "./constants/demo";
 import { apiAnalyticsMiddleware } from "./middleware/analytics";
 import { authMiddleware } from "./middleware/auth";
 import { demoRequestLogMiddleware } from "./middleware/demo-request-log";
@@ -29,7 +31,10 @@ import {
   geoProjectContextMiddleware,
 } from "./middleware/geo-context";
 import { geoEntitlementMiddleware } from "./middleware/geo-entitlement";
-import { apiObservabilityMiddleware } from "./middleware/observability";
+import {
+  apiAuthTelemetryMiddleware,
+  apiObservabilityMiddleware,
+} from "./middleware/observability";
 import { subscriptionMiddleware } from "./middleware/subscription";
 import { agentChatsRoutes } from "./routes/agent-chats";
 import { brandIdentitiesRoutes } from "./routes/brand-identities";
@@ -171,9 +176,12 @@ const securityHeadersMiddleware = async (
     );
     c.header(
       "Access-Control-Allow-Headers",
-      IS_DEMO
-        ? `Content-Type, Authorization, ${DEMO_CONSOLE_HEADER}`
-        : "Content-Type, Authorization"
+      [
+        "Content-Type",
+        "Authorization",
+        ...ACCOUNT_API_KEY_ORGANIZATION_HEADERS,
+        ...(IS_DEMO ? [DEMO_CONSOLE_HEADER] : []),
+      ].join(", ")
     );
   }
 
@@ -199,6 +207,13 @@ app.use("/v1/*", databaseMiddleware);
 app.use("/v2/*", databaseMiddleware);
 
 if (IS_DEMO) {
+  // Before the request log, which buffers bodies ahead of auth.
+  const demoBodyLimit = bodyLimit({
+    maxSize: DEMO_API_MAX_BODY_BYTES,
+    onError: (c) => c.json({ error: "Payload too large" }, 413),
+  });
+  app.use("/v1/*", demoBodyLimit);
+  app.use("/v2/*", demoBodyLimit);
   app.use("/v1/*", demoRequestLogMiddleware);
   app.use("/v2/*", demoRequestLogMiddleware);
 }
@@ -265,6 +280,8 @@ app.use("/v2/*", apiAnalyticsMiddleware);
 
 app.use("/v1/*", unlessPublicFeedbackIngest(oauthScopeMiddleware));
 app.use("/v2/*", oauthScopeMiddleware);
+app.use("/v1/*", apiAuthTelemetryMiddleware);
+app.use("/v2/*", apiAuthTelemetryMiddleware);
 
 app.use("/v1/*", unlessFeedbackRequest(subscriptionMiddleware()));
 app.use("/v2/*", subscriptionMiddleware());
@@ -367,7 +384,16 @@ app.openAPIRegistry.registerComponent("securitySchemes", "BearerAuth", {
   scheme: "bearer",
   bearerFormat: "API Key",
   description:
-    "Send your API key in the Authorization header as Bearer API_KEY.",
+    "Send your API key in the Authorization header as Bearer API_KEY. Account API keys work in every workspace you belong to: send X-Notra-Organization-Id with the workspace id or slug to choose one. Workspace endpoints require it when you belong to more than one workspace; GET /v1/me/workspaces works without it. Organization keys only accept their own workspace there.",
+});
+
+app.openAPIRegistry.registerComponent("parameters", "OrganizationSelector", {
+  name: "X-Notra-Organization-Id",
+  in: "header",
+  required: false,
+  description:
+    "Workspace id or slug an account API key acts on. Required on workspace endpoints when the key's user belongs to more than one workspace; GET /v1/me/workspaces works without it. Organization keys reject any other workspace; OAuth tokens ignore it.",
+  schema: { type: "string" },
 });
 
 // Routes and schema configuration are fixed after startup.

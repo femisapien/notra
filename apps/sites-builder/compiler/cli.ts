@@ -8,19 +8,25 @@ import { parseArgs } from "node:util";
 import { hasErrors } from "@notra/sites-compiler/utils/diagnostics";
 import { validateSite } from "@notra/sites-compiler/validate";
 import type { SiteDiagnostic } from "@notra/sites-core/types/build";
-import { normalizeSiteMounts } from "@notra/sites-core/utils/mounts";
-
 import {
-  buildSite,
-  readBuildTarget,
-  runAstro,
-  writeBuildParams,
-} from "./build";
+  listMountedAreas,
+  normalizeSiteMounts,
+} from "@notra/sites-core/utils/mounts";
+
+import { buildSite, readBuildTarget, writeBuildParams } from "./build";
 import { USAGE } from "./constants/cli";
+import {
+  findFreePort,
+  paramsForArea,
+  startAstroDev,
+  startDevProxy,
+  stopAstroDev,
+} from "./dev-server";
 import { writeOgImages } from "./og-images";
 import { prepareSite, readSiteFiles } from "./prepare";
+import type { DevAreaServer, RunningDevArea } from "./types/dev-server";
 import { createDevRefresh } from "./utils/dev-refresh";
-import { localDefaultConfig, localPreviewArea } from "./utils/local-options";
+import { localDefaultConfig } from "./utils/local-options";
 
 const TOOLCHAIN_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
@@ -114,14 +120,41 @@ async function main() {
     const target = values.target
       ? await readBuildTarget(values.target)
       : undefined;
-    const { mounts, selected } = localPreviewArea(target, values.area);
+    const mounts = normalizeSiteMounts(
+      target?.mounts ?? { blog: "/blog", changelog: "/changelog" }
+    );
     const defaultConfig = localDefaultConfig(siteRoot, target);
-    const paramsPath = join(workDir, "params.dev.json");
+    const port = Number(values.port ?? "4321");
+    const mounted = listMountedAreas(mounts);
+    const areas: DevAreaServer[] = [];
+    let nextPort = port + 1;
+    for (const entry of mounted) {
+      // Sequential on purpose: each search starts after the last port taken.
+      const areaPort = await findFreePort(nextPort);
+      nextPort = areaPort + 1;
+      areas.push({
+        ...entry,
+        port: areaPort,
+        paramsPath: join(workDir, `params.dev.${entry.area}.json`),
+      });
+    }
+    const selected =
+      areas.find((entry) => entry.area === values.area) ?? areas[0];
+    if (!selected) {
+      process.exit(1);
+    }
+    const ordered = [selected, ...areas.filter((area) => area !== selected)];
+    let running: RunningDevArea[] = [];
+    const stopAreas = async () => {
+      const stopping = running;
+      running = [];
+      await Promise.all(stopping.map(stopAstroDev));
+    };
     const refresh = createDevRefresh({
       params: {
         area: selected.area,
         mount: selected.mount,
-        publicOrigin: `http://localhost:${values.port}`,
+        publicOrigin: `http://localhost:${port}`,
         siteId: "local",
         deploymentId: "local",
         noindex: true,
@@ -141,24 +174,35 @@ async function main() {
       printDiagnostics,
       reportError: (error) => process.stderr.write(`${String(error)}\n`),
       publish: async (params, isCurrent) => {
-        const temporaryPath = `${paramsPath}.tmp`;
-        await writeBuildParams(temporaryPath, params);
-        if (!isCurrent()) {
-          return false;
+        for (const area of areas) {
+          const temporaryPath = `${area.paramsPath}.tmp`;
+          await writeBuildParams(temporaryPath, paramsForArea(params, area));
+          if (!isCurrent()) {
+            return false;
+          }
+          renameSync(temporaryPath, area.paramsPath);
         }
-        renameSync(temporaryPath, paramsPath);
         return true;
       },
-      runAstro: (astroCommand) =>
-        runAstro(
-          TOOLCHAIN_ROOT,
-          astroCommand,
-          paramsPath,
-          astroCommand === "dev"
-            ? ["--background", "--port", values.port ?? "4321"]
-            : []
-        ),
+      runAstro: async (astroCommand) => {
+        await stopAreas();
+        if (astroCommand === "stop") {
+          return 0;
+        }
+        const started = await Promise.all(
+          areas.map((area) => startAstroDev(TOOLCHAIN_ROOT, area))
+        );
+        running = started.filter(
+          (entry): entry is RunningDevArea => entry !== null
+        );
+        if (running.length !== areas.length) {
+          await stopAreas();
+          return 1;
+        }
+        return 0;
+      },
     });
+    const proxy = await startDevProxy(port, mounts, ordered);
     let watchedRefresh: Promise<boolean> | undefined;
     const watcher = watch(siteRoot, { recursive: true }, () => {
       const requested = refresh.refresh(150);
@@ -171,6 +215,7 @@ async function main() {
     });
     const stop = async () => {
       watcher.close();
+      proxy.close();
       await refresh.shutdown();
     };
     const onSignal = () => {
@@ -189,7 +234,7 @@ async function main() {
         process.exit(1);
       }
       process.stderr.write(
-        `Previewing ${selected.area} at http://localhost:${values.port}${selected.mount}\n`
+        `Previewing ${areas.map((area) => `${area.area} at http://localhost:${port}${area.mount}`).join(" and ")}\n`
       );
       await new Promise(() => undefined);
     } catch (error) {

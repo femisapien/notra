@@ -1170,14 +1170,20 @@ export const geoRouter = {
     .input(aiTrafficInputSchema)
     .handler(
       geoHandler((input) =>
-        loadAiTraffic(input, geoWindow(input), webHostFilter(input.host))
+        loadAiTraffic(
+          input,
+          geoWindow(input),
+          webHostFilter(input.host),
+          "",
+          input.path
+        )
       )
     ),
   webAnalytics: authorizedProcedure
     .input(webAnalyticsInputSchema)
     .handler(
       geoHandler((input) =>
-        loadWebAnalytics(input, geoWindow(input), input.host)
+        loadWebAnalytics(input, geoWindow(input), input.host, input.path)
       )
     ),
   trafficLog: authorizedProcedure
@@ -1189,7 +1195,8 @@ export const geoRouter = {
           input.limit,
           input.visitorTypes,
           input.categories,
-          input.host
+          input.host,
+          input.path
         )
       )
     ),
@@ -1221,7 +1228,8 @@ export const geoRouter = {
           geoWindow(input),
           input.limit,
           input.visitorType,
-          input.host
+          input.host,
+          input.path
         )
       )
     ),

@@ -21,6 +21,7 @@ import {
   TooltipTrigger,
 } from "@notra/ui/components/ui/tooltip";
 import { useMutationState } from "@tanstack/react-query";
+import { parseAsString, useQueryState } from "nuqs";
 import { useMemo, useState } from "react";
 import { useTranslations } from "use-intl";
 
@@ -33,6 +34,7 @@ import {
 } from "@/components/geo/persona-table-actions";
 import { useGeoProjectScope } from "@/components/providers/geo-project-provider";
 import {
+  GEO_PERSONA_DETAIL_QUERY_KEY,
   GEO_PERSONAS_ACTIONS_COLUMN_WIDTH,
   GEO_PERSONAS_MEMORIES_COLUMN_WIDTH,
   GEO_PERSONAS_MIN_TABLE_ROWS,
@@ -79,6 +81,11 @@ export function PersonasTable({
   const reactivatePersona = restorePersona.mutate;
   const [viewing, setViewing] = useState<GeoPersona | null>(null);
   const [removing, setRemoving] = useState<GeoPersona | null>(null);
+  // Deep link from the command palette.
+  const [linkedPersonaId, setLinkedPersonaId] = useQueryState(
+    GEO_PERSONA_DETAIL_QUERY_KEY,
+    parseAsString
+  );
 
   // Prevent deleting a persona while its profile is being saved.
   const pendingPersonaIds = useMutationState({
@@ -95,7 +102,9 @@ export function PersonasTable({
     : null;
   const autoOpenPersona =
     personas.find((persona) => persona.id === openPersonaId) ?? null;
-  const displayedPersona = autoOpenPersona ?? viewing;
+  const linkedPersona =
+    personas.find((persona) => persona.id === linkedPersonaId) ?? null;
+  const displayedPersona = autoOpenPersona ?? viewing ?? linkedPersona;
 
   const columns = useMemo<TableColumn<GeoPersona>[]>(
     () => [
@@ -234,6 +243,8 @@ export function PersonasTable({
       restoreAtLimit,
       restorePersona.isPending,
       t,
+      tCommon,
+      tGeoShared,
     ]
   );
 
@@ -305,6 +316,9 @@ export function PersonasTable({
         onOpenChange={(next) => {
           if (!next) {
             setViewing(null);
+            if (linkedPersonaId) {
+              void setLinkedPersonaId(null);
+            }
             if (autoOpenPersona) {
               onAutoOpenClose();
             }

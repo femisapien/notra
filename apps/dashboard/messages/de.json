@@ -650,6 +650,30 @@
     "shared": {
       "editApiKey": "API-Schlüssel bearbeiten",
       "deleteApiKey": "API-Schlüssel löschen"
+    },
+    "emptyState": {
+      "title": "Noch keine API-Schlüssel",
+      "description": "Erstelle einen Schlüssel, um die Inhalte dieser Organisation per Skript, SDK oder MCP-Client zu lesen und zu bearbeiten."
+    },
+    "account": {
+      "title": "Account-API-Schlüssel",
+      "description": "Persönliche Schlüssel, die in jeder Organisation funktionieren, in der du Mitglied bist. Wähle sie mit dem Header <code>X-Notra-Organization-Id</code> aus.",
+      "createKey": "Account-Schlüssel erstellen",
+      "emptyTitle": "Noch keine Account-API-Schlüssel",
+      "emptyDescription": "Nutze einen Account-Schlüssel für persönliche Automatisierung über mehrere Workspaces. Für geteilte Systeme sind Organisations-Schlüssel gedacht.",
+      "createTitle": "Account-API-Schlüssel erstellen",
+      "createDescription": "Dieser Schlüssel funktioniert in jeder Organisation, in der du Mitglied bist.",
+      "editTitle": "Account-API-Schlüssel bearbeiten",
+      "viewTitle": "Account-API-Schlüssel anzeigen",
+      "namePlaceholder": "z. B. Persönliche Automatisierung",
+      "deleteTitle": "Account-API-Schlüssel löschen?",
+      "toasts": {
+        "created": "Account-API-Schlüssel erstellt",
+        "updated": "Account-API-Schlüssel aktualisiert",
+        "deleted": "Account-API-Schlüssel gelöscht"
+      },
+      "loadFailedTitle": "Account-API-Schlüssel konnten nicht geladen werden",
+      "loadFailedDescription": "Deine Schlüssel sind weiterhin da. Versuche es noch einmal."
     }
   },
   "feedback": {
@@ -856,6 +880,56 @@
       "register": "Registrieren",
       "loginErrorFallback": "Anmeldung fehlgeschlagen. Bitte versuch es nochmal.",
       "backupCodeRecovered": "Backup-Code akzeptiert. Die Zwei-Faktor-Authentifizierung wurde für {email} deaktiviert. Melde dich erneut an, um fortzufahren."
+    },
+    "invitation": {
+      "title": "{inviter} hat dich zu {organization} eingeladen",
+      "titleAnonymous": "Du wurdest zu {organization} eingeladen",
+      "description": "Du würdest als {role} beitreten.",
+      "roles": {
+        "member": "Mitglied",
+        "admin": "Admin",
+        "owner": "Inhaber:in"
+      },
+      "join": "{organization} beitreten",
+      "decline": "Ablehnen",
+      "signedInAs": "Angemeldet als {email}.",
+      "useAnotherAccount": "Anderes Konto verwenden",
+      "signedOutHint": "Du meldest dich zuerst mit {email} an oder erstellst ein Konto.",
+      "failed": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+      "unavailableNow": "Diese Einladung ist nicht mehr verfügbar.",
+      "declined": {
+        "title": "Einladung abgelehnt",
+        "description": "Du hast die Einladung abgelehnt. Bitte das Team um eine neue, falls du es dir anders überlegst."
+      },
+      "joined": {
+        "title": "Du bist jetzt bei {organization}",
+        "description": "Es ist jetzt dein aktiver Workspace.",
+        "open": "{organization} öffnen"
+      },
+      "mismatch": {
+        "title": "Diese Einladung gilt für ein anderes Konto",
+        "description": "{invited} wurde eingeladen, du bist aber als {current} angemeldet. Melde dich ab und mit {invited} an, um {organization} beizutreten.",
+        "signOut": "Abmelden"
+      },
+      "unavailable": {
+        "home": "Zu Notra",
+        "not-found": {
+          "title": "Einladung nicht gefunden",
+          "description": "Dieser Link ist ungültig. Prüfe die E-Mail oder bitte um eine neue Einladung."
+        },
+        "expired": {
+          "title": "Einladung abgelaufen",
+          "description": "Bitte einen Admin des Teams, dir eine neue Einladung zu schicken."
+        },
+        "revoked": {
+          "title": "Einladung zurückgezogen",
+          "description": "Das Team hat diese Einladung zurückgezogen. Bitte um eine neue."
+        },
+        "accepted": {
+          "title": "Einladung bereits verwendet",
+          "description": "Diese Einladung wurde schon angenommen. Melde dich an, um deinen Workspace zu öffnen."
+        }
+      }
     }
   },
   "errors": {
@@ -898,6 +972,7 @@
       "writerPlanFailed": "Der Inhaltsplan konnte nicht erstellt oder gespeichert werden. Bitte versuche es erneut.",
       "promptAlreadyTracked": "Dieser Prompt wird bereits getrackt",
       "lastProjectDelete": "Du kannst dein letztes Projekt nicht löschen. Erstelle zuerst ein weiteres.",
+      "projectHasSitesDelete": "Dieses Projekt hat gehostete Sites. Lösche seine Sites, bevor du das Projekt löschst.",
       "createBrandIdentityFirst": "Erstelle zuerst eine Markenidentität",
       "noGroundedEngines": "Mit deinen Datenschutzeinstellungen sind keine KI-Engines mit Websuche verfügbar",
       "createConversationFailed": "Konversation konnte nicht erstellt werden",
@@ -1038,6 +1113,13 @@
       "noOrganizationAccess": "Du hast keinen Zugriff auf diese Organisation",
       "logoSourceNotAllowed": "Diese Logo-Quelle ist nicht erlaubt",
       "logoFetchFailed": "Das Logo konnte nicht abgerufen werden"
+    },
+    "brandGuidelinePdf": {
+      "generateFirst": "Generiere zuerst deine Brand Guidelines, bevor du ein PDF hinzufügst",
+      "invalidFile": "Das ist kein gültiges Brand-Guideline-PDF",
+      "noText": "In diesem PDF wurde kein Text gefunden. Exportiere es als textbasiertes PDF und versuche es erneut.",
+      "readFailed": "Dieses PDF konnte nicht gelesen werden. Versuche es erneut oder exportiere es neu.",
+      "unavailable": "PDF-Upload ist gerade nicht verfügbar"
     },
     "comments": {
       "replyNotAllowed": "Antworten sind auf fünf Ebenen begrenzt und können sich nicht auf gelöschte Kommentare beziehen",
@@ -1396,6 +1478,20 @@
         "updatedAt": "Aktualisiert {time}",
         "noAssetsTitle": "Richtlinien sind leer",
         "noAssetsDescription": "Für diese Identität wurden noch keine Marken-Assets gefunden. Aktualisiere, um die neuesten Logos, Farben und Screenshots zu übernehmen."
+      },
+      "pdf": {
+        "upload": "PDF hochladen",
+        "uploadedAt": "Hochgeladen {time}",
+        "uploadLabel": "Markenrichtlinien-PDF hochladen",
+        "notPdf": "Lade eine PDF-Datei hoch",
+        "tooLarge": "Das Richtlinien-PDF darf höchstens {maxMb}MB groß sein",
+        "badFilename": "Der PDF-Dateiname muss zwischen 1 und 200 Zeichen lang sein",
+        "saved": "Richtlinien-PDF gespeichert",
+        "saveFailed": "Das PDF konnte nicht gespeichert werden",
+        "removed": "Richtlinien-PDF entfernt",
+        "removeFailed": "Das PDF konnte nicht entfernt werden",
+        "replace": "Richtlinien-PDF ersetzen",
+        "remove": "{filename} entfernen"
       },
       "tokens": {
         "title": "UI-Tokens"
@@ -2811,7 +2907,39 @@
       "tokenTitle": "Token setzen",
       "tokenDescription": "Füge dies als {env} auf jeder Domain hinzu, die dieses Projekt trackt.",
       "proxyTitle": "Proxy hinzufügen",
-      "framework": "Framework"
+      "framework": "Framework",
+      "method": "Installationsart",
+      "methods": {
+        "sdk": "Paket",
+        "vercel": "Vercel Log Drain",
+        "cloudflare": "Cloudflare Logpush"
+      },
+      "drains": {
+        "stepsTitle": "Einrichten",
+        "docsLink": "Zur Anleitung",
+        "vercel": {
+          "requirements": "Ohne Codeänderungen. Vercel schickt deine Request-Logs an Notra und Notra behält nur den KI-Traffic. Drains brauchen ein Vercel Pro- oder Enterprise-Team.",
+          "endpointTitle": "Endpoint-URL",
+          "headerTitle": "Custom Header",
+          "headerDescription": "Füge diese Zeile unter Custom Headers hinzu, damit Notra weiß, zu welchem Projekt die Logs gehören.",
+          "stepOne": "Öffne in Vercel Team Settings, dann Drains, und klicke auf Add Drain. Wähle Logs.",
+          "stepTwo": "Wähle die Projekte hinter dieser Website, behalte die Quellen static, lambda und edge und wähle die Production-Umgebung.",
+          "stepThree": "Wähle Custom Endpoint, füge die Endpoint-URL ein, wähle JSON oder NDJSON, füge den Custom Header hinzu und lege den Drain an.",
+          "limitation": "Bekannte Einschränkung: Vercel Drains enthalten keine Request-Header wie Accept. Notra sieht deshalb keine Markdown-Anfragen und erkennt keine Agents, die sich als Browser ausgeben. Das Paket bleibt die genauere Option."
+        },
+        "cloudflare": {
+          "requirements": "Ohne Codeänderungen. Deine Website kann überall gehostet sein, ihr Traffic muss aber über Cloudflare laufen (die orange Wolke am DNS-Eintrag). Logpush gibt es in jedem Cloudflare-Plan.",
+          "destinationTitle": "Ziel-URL",
+          "destinationDescription": "Füge sie als HTTP-Ziel ein. Sie enthält deinen Token als Authorization-Header.",
+          "fieldsTitle": "Felder",
+          "stepOne": "Öffne in Cloudflare deine Domain, geh zu Analytics & Logs, dann Logpush, und lege einen Job mit HTTP-Ziel an.",
+          "stepTwo": "Füge die Ziel-URL ein, wähle das Dataset HTTP requests und die Felder oben. Stell das Zeitformat auf RFC 3339.",
+          "stepThree": "Optional: Logge die Request-Header accept, sec-fetch-mode und sec-ch-ua als Custom Fields und füge RequestHeaders hinzu, damit Notra Markdown-Anfragen und getarnte Agents erkennt.",
+          "apiTitle": "Oder lege den Job per API an",
+          "apiFilename": "Logpush-Job anlegen",
+          "limitation": "Logpush lädt in Batches hoch, neuer Traffic erscheint deshalb nach ein bis zwei Minuten statt sofort."
+        }
+      }
     },
     "promptTranslations": {
       "title": "Übersetzungen",
@@ -3869,7 +3997,11 @@
         "titleWithVisitors": "Traffic",
         "descriptionWithVisitors": "Menschen und AI-Agents auf deiner Website",
         "emptyRangeTitle": "Kein Traffic in diesem Zeitraum",
-        "emptyRangeDescription": "Wähle einen anderen Zeitraum oder eine andere Domain."
+        "emptyRangeDescription": "Wähle einen anderen Zeitraum oder eine andere Domain.",
+        "emptyPathTitle": "Keine Besuche auf {path}",
+        "emptyPathDescription": "Weder Menschen noch AI-Agents haben diese Seite im gewählten Zeitraum geöffnet.",
+        "emptyPathReset": "Alle Seiten anzeigen",
+        "emptyPathWiden": "Letzte 90 Tage anzeigen"
       },
       "write": {
         "metaTitle": "GEO Writer",
@@ -4034,6 +4166,7 @@
       "pagesPerSession": "Seiten pro Besuch",
       "engagedRate": "Weitergelesen",
       "noData": "Keine Besucher in diesem Zeitraum",
+      "noDataDescription": "Hier erscheinen Besuchsdaten, sobald Traffic erfasst wird. Wähle einen längeren Zeitraum.",
       "columnViews": "Aufrufe",
       "columnFromAi": "Aus AI",
       "avgTime": "Ø Zeit auf der Seite",
@@ -4042,6 +4175,15 @@
       "columnCountry": "Land",
       "columnDevice": "Gerät",
       "referrers": "Herkunft"
+    },
+    "trafficPathFilter": {
+      "label": "Filter",
+      "allPages": "Alle Seiten",
+      "search": "Pfade durchsuchen",
+      "noMatches": "Keine passenden Seiten"
+    },
+    "trafficExport": {
+      "label": "Als CSV exportieren"
     }
   },
   "integrations": {
@@ -6105,6 +6247,26 @@
       "generating": "Inhalte werden erstellt…",
       "queuedViaApi": "Über die API eingereiht"
     },
+    "imageChat": {
+      "editingDiagram": "Du bearbeitest das Diagramm: {title}",
+      "editingImage": "Du bearbeitest das Bild: {title}",
+      "diagramPlaceholder": "Mach die Pfeile blau…",
+      "imagePlaceholder": "Mach den Hintergrund dunkler…"
+    },
+    "diagramEditor": {
+      "open": "Diagramm bearbeiten",
+      "title": "Diagramm bearbeiten",
+      "description": "Verschiebe, gestalte oder beschrifte alles neu. Beim Speichern wird das Bild neu gerendert, und Chat-Änderungen bauen auf deinen Änderungen auf.",
+      "loading": "Diagramm wird geladen…",
+      "loadFailed": "Diagramm konnte nicht geladen werden",
+      "cancel": "Abbrechen",
+      "save": "Diagramm speichern",
+      "saved": "Diagramm gespeichert",
+      "saveFailed": "Diagramm konnte nicht gespeichert werden",
+      "savedWithDropped": "Diagramm gespeichert. {types} kann Notra noch nicht rendern, das wurde weggelassen.",
+      "conflict": "Das Diagramm wurde geändert, während du es bearbeitet hast. Kopiere, was du brauchst, schließe den Editor und öffne ihn erneut.",
+      "saveRejected": "Diagramm konnte nicht gespeichert werden: {reason}"
+    },
     "toolbar": {
       "copyFor": "Für {target} kopieren",
       "selectExportTarget": "Exportziel auswählen",
@@ -6283,6 +6445,9 @@
         "figmaCopyFailed": "Kopieren für Figma fehlgeschlagen",
         "paperCopied": "Für Paper kopiert. Füge es in deine Paper-Datei ein.",
         "paperCopyFailed": "Kopieren für Paper fehlgeschlagen",
+        "excalidrawCopied": "Für Excalidraw kopiert. Füge es auf deiner Zeichenfläche ein.",
+        "tldrawCopied": "Für tldraw kopiert. Füge es auf deiner Zeichenfläche ein.",
+        "diagramCopyFailed": "Diagramm konnte nicht kopiert werden",
         "downloadFailed": "Bild konnte nicht heruntergeladen werden"
       }
     },
@@ -6396,10 +6561,13 @@
       "navigate": "Navigieren"
     },
     "sections": {
-      "ai": "KI"
+      "recent": "Zuletzt",
+      "suggested": "Vorgeschlagen"
     },
     "entitySections": {
-      "brandVoices": "Markenstimmen"
+      "brandVoices": "Markenstimmen",
+      "chats": "Chats",
+      "prompts": "Getrackte Prompts"
     },
     "entities": {
       "reference": "Referenz"
@@ -6409,15 +6577,32 @@
       "openingChat": "Chat wird geöffnet…",
       "almostThere": "Einen Moment, gleich geschafft.",
       "figuringOut": "Wir finden heraus, wohin es für „{query}“ gehen soll.",
-      "navigate": "Mit KI navigieren",
-      "askChat": "KI-Chat fragen",
-      "failed": "KI-Suche fehlgeschlagen. Versuch es stattdessen im Chat.",
-      "navigateQuery": "Mit KI navigieren: „{query}“",
-      "askChatAbout": "KI-Chat dazu fragen"
+      "failed": "KI-Suche fehlgeschlagen. Versuch es gleich noch mal.",
+      "ask": "KI fragen"
     },
     "empty": {
       "title": "Keine Treffer für „{query}“",
-      "description": "Lass die KI für dich navigieren oder öffne einen Chat mit deiner Frage."
+      "description": "Frag die KI. Sie öffnet die passende Seite oder antwortet im Chat."
+    },
+    "actions": {
+      "newContent": "Neuer Content",
+      "switchProject": "Projekt wechseln",
+      "switchWorkspace": "Workspace wechseln",
+      "inviteMembers": "Mitglieder einladen",
+      "darkMode": "Zum dunklen Modus wechseln",
+      "lightMode": "Zum hellen Modus wechseln"
+    },
+    "pages": {
+      "projects": {
+        "title": "Projekte",
+        "placeholder": "Projekte suchen…",
+        "count": "{count} Projekte"
+      },
+      "workspaces": {
+        "title": "Workspaces",
+        "placeholder": "Workspaces suchen…",
+        "count": "{count} Workspaces"
+      }
     }
   },
   "dashboard": {
@@ -6649,7 +6834,7 @@
         "run": "{state, select, running {Führe {name} aus} other {{name} ausgeführt}}"
       },
       "imageGenerating": "Generiere Bild, dauert meist 3–8 Minuten",
-      "imageRevising": "Überarbeite Bild, dauert meist 3–8 Minuten",
+      "imageRevising": "Bild wird überarbeitet",
       "imageLongRunning": "{action, select, revise {Überarbeite} other {Generiere}} Bild. Läuft noch, große Repos können länger dauern",
       "unableToDisplay": "Wert kann nicht angezeigt werden",
       "truncated": "… ({count, plural, one {# weiteres Zeichen} other {# weitere Zeichen}} abgeschnitten)",
@@ -6913,6 +7098,14 @@
     "title": "Sites",
     "description": "Blogs und Changelogs, gebaut und gehostet aus deinem GitHub-Repository",
     "newSite": "Neue Site",
+    "projectRequired": {
+      "title": "Wähle ein Projekt",
+      "description": "Erstelle oder wähle ein Projekt in der Seitenleiste, um seine Sites zu verwalten."
+    },
+    "projectLoadFailed": {
+      "title": "Projekte konnten nicht geladen werden",
+      "description": "Lade die Seite neu, um es erneut zu versuchen."
+    },
     "empty": {
       "title": "Noch keine Sites",
       "description": "Hoste Blog und Changelog aus einem GitHub-Repo. Jeder Push geht live, jeder Pull Request bekommt eine Vorschau."
@@ -6926,23 +7119,28 @@
       "description": "Notra Sites ist in dieser Umgebung noch nicht eingerichtet."
     },
     "list": {
-      "columns": {
-        "site": "Site",
-        "lastDeployment": "Letztes Deployment"
-      },
+      "visitors": "Besucher · 7 T",
       "noDeployments": "Noch keine Deployments",
-      "notConnected": "Repository getrennt"
+      "viewDeployments": "Deployments ansehen",
+      "deploymentCreated": "Deployment erstellt <time></time>",
+      "actionsLabel": "Aktionen für {name}",
+      "actions": {
+        "openSite": "Site öffnen",
+        "visitSite": "Live-Site besuchen",
+        "copyLink": "Site-Link kopieren"
+      }
     },
     "status": {
       "queued": "In Warteschlange",
       "building": "Wird gebaut",
       "uploading": "Wird hochgeladen",
-      "ready": "Bereit",
-      "live": "Live",
+      "ready": "Erfolgreich",
+      "offline": "Offline",
       "superseded": "Ersetzt",
       "failed": "Fehlgeschlagen",
       "canceled": "Abgebrochen",
-      "expired": "Abgelaufen"
+      "expired": "Abgelaufen",
+      "skipped": "Übersprungen"
     },
     "domainStatus": {
       "pending": "Ausstehend",
@@ -6991,6 +7189,10 @@
     },
     "new": {
       "title": "Neue Site",
+      "project": "Projekt: {name}",
+      "projectLoading": "Projekt wird geladen…",
+      "projectRequired": "Erstelle oder wähle ein Projekt in der Seitenleiste, bevor du eine Site erstellst.",
+      "projectLoadFailed": "Projekte konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
       "description": "Importiere ein Repository. Jeder Push auf den Produktions-Branch geht live.",
       "private": "Privates Repository",
       "name": "Name der Site",
@@ -7177,6 +7379,7 @@
       "messagePlaceholder": "Blogbeiträge aktualisieren",
       "mode": "Art der Veröffentlichung",
       "pullRequestDescription": "Öffnet einen Pull Request in {branch}. Er geht live, sobald er gemergt ist.",
+      "pullRequestReviewDescription": "{count, plural, one {Prüfe den gespeicherten Entwurf} other {Prüfe alle # gespeicherten Entwürfe}}, bevor du den Pull Request erstellst.",
       "directDescription": "Committet auf {branch} und geht sofort live.",
       "directDisabled": "Für diese Site ausgeschaltet. Ändere das in den Einstellungen.",
       "openPullRequest": "Pull Request öffnen",
@@ -7187,14 +7390,11 @@
       "failed": "Veröffentlichen fehlgeschlagen"
     },
     "settings": {
-      "general": "Allgemein",
-      "content": "Inhalte",
       "previews": "Vorschauen",
       "previewBuilds": "Preview-Builds",
       "previewsEnabledHint": "Eine Vorschau pro Pull Request.",
       "previewComments": "PR-Kommentare posten",
       "previewCommentsHint": "Build-Status und Vorschau-Link direkt im PR.",
-      "publishing": "Veröffentlichen",
       "saved": "Einstellungen gespeichert",
       "savedRebuilding": "Einstellungen gespeichert. Wird neu gebaut…",
       "saveFailed": "Einstellungen konnten nicht gespeichert werden",
@@ -7236,7 +7436,32 @@
         "confirm": "Site löschen",
         "done": "{name} gelöscht",
         "failed": "Site konnte nicht gelöscht werden"
-      }
+      },
+      "smartDeployments": "Smart deployments",
+      "beta": "Beta",
+      "smartDeploymentsHint": "Automatische Deployments überspringen, wenn die Eingaben der veröffentlichten Site unverändert sind. Manuelle Redeploys werden immer gebaut.",
+      "contentGroup": "Inhalte und Veröffentlichen",
+      "visitors": "Analytics und Branding",
+      "nameHint": "Wird im Dashboard angezeigt.",
+      "repository": "Repository",
+      "repositoryHint": "Das GitHub-Repository, aus dem diese Site gebaut wird.",
+      "noRepository": "Nicht verbunden",
+      "rootDirectory": "Stammverzeichnis",
+      "rootDirectoryHint": "Wo die Site im Repository liegt.",
+      "publishModeHint": "Wie Änderungen aus dem Editor in dein Repository kommen.",
+      "variablesHint": "Wiederverwendbare Werte wie Namen und Links, nutzbar als Platzhalter.",
+      "variablesCount": "{count, plural, =0 {Noch keine} one {# Variable} other {# Variablen}}",
+      "analyticsLabel": "Analytics",
+      "analyticsHint": "Zählt Besucher, Verweildauer und KI-Agenten. Ohne Cookies.",
+      "openOnGitHub": "Auf GitHub öffnen",
+      "manageGitHub": "GitHub-Zugriff verwalten",
+      "manageGitHubFailed": "GitHub konnte nicht geöffnet werden",
+      "repositoryChangeHint": "Für ein anderes Repository legst du eine neue Site an. Verwalte den Zugriff, falls Notra keinen Zugriff mehr auf dieses hat.",
+      "rootDirectoryPlaceholder": "Repository-Stammverzeichnis",
+      "rootDirectoryFieldHint": "Relativ zum Repository. Leer lassen, wenn die Site im Stammverzeichnis liegt.",
+      "sectionsRowHint": "Wo Blog und Changelog auf deiner Site liegen.",
+      "branchFieldHint": "Jeder Push auf diesen Branch geht live. Änderungen gelten ab dem nächsten Deploy.",
+      "optional": "Optional"
     },
     "previewFrame": {
       "title": "Vorschau der Site",
@@ -7299,13 +7524,14 @@
         "allStatuses": "Alle Status"
       },
       "statusFilters": {
-        "ready": "Bereit",
+        "ready": "Erfolgreich",
         "building": "Wird gebaut",
         "queued": "In der Warteschlange",
         "failed": "Fehlgeschlagen",
         "canceled": "Abgebrochen",
         "superseded": "Ersetzt",
-        "expired": "Abgelaufen"
+        "expired": "Abgelaufen",
+        "skipped": "Übersprungen"
       },
       "actions": {
         "copyUrl": "URL kopieren",
@@ -7367,7 +7593,8 @@
         "failed": "Build fehlgeschlagen",
         "canceled": "Dieser Build wurde abgebrochen, bevor er fertig war.",
         "superseded": "Ein neuerer Commit hat diesen Build ersetzt, bevor er startete.",
-        "expired": "Die Dateien dieses Deployments wurden aufgeräumt. Deploye den Commit neu, um ihn wieder zu bauen."
+        "expired": "Die Dateien dieses Deployments wurden aufgeräumt. Deploye den Commit neu, um ihn wieder zu bauen.",
+        "skipped": "Übersprungen, weil die Site-Eingaben mit der veröffentlichten Version übereinstimmen."
       },
       "log": {
         "title": "Build-Logs",
@@ -7472,7 +7699,6 @@
       "notVerifiedYet": "Noch nicht verifiziert",
       "verifyNow": "Jetzt prüfen",
       "lastErrorTitle": "Details zur Domainprüfung:",
-      "lastCheckDetails": "Details zur letzten Prüfung",
       "remove": "Entfernen",
       "removeConfirm": "Domain entfernen",
       "removeTitle": "Domain entfernen?",
@@ -7493,11 +7719,14 @@
         "value": "Wert",
         "noRecords": "Keine Einträge nötig",
         "connect": "Mit {provider} verbinden",
+        "automaticDescription": "Melde dich bei {provider} an, um diese Einträge automatisch hinzuzufügen.",
         "openProvider": "{provider}-DNS öffnen",
         "proxy": "Proxy",
         "dnsOnly": "Nur DNS (erforderlich)",
-        "proxyRequirement": "Deaktiviere den Proxy für diesen CNAME. Dies ist die erforderliche Einstellung, kein beobachteter DNS-Status.",
-        "proxyNotApplicable": "Nicht zutreffend"
+        "proxyRequirement": "Schalte die orange Wolke in Cloudflare aus, damit Notra dein HTTPS-Zertifikat ausstellen kann. Dies ist die erforderliche Einstellung, kein Live-Status.",
+        "proxied": "Mit Proxy",
+        "proxyNotApplicable": "Proxy nicht anwendbar",
+        "proxyNotApplicableDescription": "TXT-Einträge bestätigen den Domainbesitz. Cloudflare unterstützt den Proxy nur für A-, AAAA- und CNAME-Einträge."
       },
       "proxy": {
         "agentPromptDescription": "Lass deinen Coding-Agent den Proxy einrichten.",
@@ -7603,16 +7832,34 @@
         "none": "Noch keine Änderungen. Deine Bearbeitungen erscheinen hier neben der veröffentlichten Version."
       }
     },
+    "variables": {
+      "title": "Content-Variablen",
+      "openEditor": "Editor öffnen",
+      "reset": "Änderungen zurücksetzen",
+      "loading": "Variablen werden geladen…",
+      "loadFailed": "Variablen konnten nicht geladen werden. Versuche es erneut.",
+      "retry": "Erneut versuchen",
+      "invalidConfig": "Korrigiere blog.json im Editor, um Variablen hier zu bearbeiten.",
+      "name": "Name",
+      "value": "Wert",
+      "add": "Variable hinzufügen",
+      "removeLabel": "Variable {number} entfernen",
+      "nameLabel": "Name von Variable {number}",
+      "valueLabel": "Wert von Variable {number}",
+      "duplicate": "Verwende für jede Variable einen eigenen Namen.",
+      "invalid": "Beginne jeden Namen mit einem Buchstaben. Verwende bis zu 40 Buchstaben, Zahlen, Unterstriche oder Bindestriche und Werte mit bis zu 500 Zeichen.",
+      "saveDraft": "Entwurf speichern",
+      "saved": "Variablen als Entwurf gespeichert",
+      "saveFailed": "Variablen konnten nicht gespeichert werden. Versuche es erneut.",
+      "reviewAndPublish": "Prüfen und veröffentlichen",
+      "hint": "Nutze eine Variable als '{{product_name}}'. Werte sind öffentlich und bleiben ein Entwurf, bis du veröffentlichst."
+    },
     "settingsPage": {
       "title": "Einstellungen",
       "description": "Repository, Bereiche, Previews und Veröffentlichen für diese Site",
-      "unsaved": "Du hast ungespeicherte Änderungen",
       "brandingLabel": "Notra-Branding",
       "brandingHint": "Zeigt ein kleines „Powered by Notra“-Badge im Footer. Eine Änderung baut die Site neu.",
-      "sectionsHint": "Pfade auf deiner Site. Eine Änderung baut die Site neu; die aktuelle Version bleibt live, bis der Build fertig ist.",
-      "changeAccess": "Ändern",
-      "brandingRemove": "Branding entfernen",
-      "brandingShow": "Branding anzeigen"
+      "sectionsHint": "Pfade auf deiner Site. Eine Änderung baut die Site neu; die aktuelle Version bleibt live, bis der Build fertig ist."
     },
     "previewAccess": {
       "title": "Zugriff auf Vorschauen",
@@ -7639,36 +7886,42 @@
     },
     "integrationsPage": {
       "title": "Integrationen",
-      "description": "Analytics für diese Site. Die Einstellungen landen in blog.json und gehen beim Veröffentlichen live.",
+      "description": "Analytics für diese Site. Gültige Einstellungen werden automatisch als blog.json-Entwurf gespeichert und beim Veröffentlichen übernommen.",
       "optional": "Optional",
-      "connect": "Verbinden",
-      "save": "Speichern",
       "remove": "Entfernen",
-      "saved": "Integration gespeichert",
       "removed": "Integration entfernt",
-      "savedDescription": "Bis du sie im Editor veröffentlichst, ist sie ein Entwurf von blog.json.",
+      "savedDescription": "Bis du sie veröffentlichst, ist sie ein Entwurf von blog.json.",
       "saveFailed": "Integration konnte nicht gespeichert werden",
       "docs": "{provider}-Doku",
       "draftDescription": "blog.json hat Änderungen, die noch nicht live sind",
       "reviewAndPublish": "Prüfen und veröffentlichen",
-      "invalidTitle": "blog.json kann nicht gelesen werden",
-      "invalidDescription": "Die Datei ist kein gültiges JSON. Korrigiere sie im Editor und komm dann zurück.",
+      "createPullRequest": "Create PR",
+      "preparePublishFailed": "Änderungen für den Pull Request konnten nicht geladen werden",
+      "noDrafts": "Es gibt keine Änderungen für einen Pull Request.",
+      "publishMessage": "Site aktualisieren",
+      "publishConflict": "Diese Entwürfe stehen im Konflikt mit Änderungen auf GitHub. Öffne den Editor, lade die Dateien neu und wende deine Änderungen erneut an.",
+      "invalidTitle": "Ungültige blog.json-Konfiguration",
+      "invalidDescription": "Das JSON oder die Integrationseinstellungen sind ungültig. Korrigiere sie im Editor und komm dann zurück.",
       "providers": {
-        "databuddy": "Datenschutzfreundliche Web-Analytics.",
         "plausible": "Leichtgewichtige Analytics ohne Cookies.",
         "posthog": "Product Analytics, Session Replay und Feature Flags.",
+        "umami": "Leichte Web-Analytics ohne Cookies.",
         "ga4": "Die Web-Analytics von Google."
       },
       "fields": {
-        "databuddy": {
-          "clientId": "Client-ID"
-        },
         "plausible": {
-          "domain": "Domain"
+          "domain": "Domain",
+          "server": "Eigener Server"
         },
         "posthog": {
           "apiKey": "Projekt-API-Key",
-          "apiHost": "API-Host"
+          "apiHost": "API-Host",
+          "sessionRecording": "Session-Aufzeichnung"
+        },
+        "umami": {
+          "websiteId": "Website-ID",
+          "scriptUrl": "Script-URL",
+          "hostUrl": "URL für Events"
         },
         "ga4": {
           "measurementId": "Mess-ID"
@@ -7676,19 +7929,39 @@
       },
       "add": "{provider} hinzufügen",
       "more": "{provider}-Optionen",
-      "edit": "Bearbeiten"
-    },
-    "repositoryCard": {
-      "private": "Privat",
-      "public": "Öffentlich",
-      "language": "Sprache",
-      "stars": "Sterne",
-      "forks": "Forks",
-      "openIssues": "Offene Issues und PRs",
-      "defaultBranch": "Standard-Branch",
-      "lastPush": "Letzter Push",
-      "openOnGithub": "Auf GitHub öffnen",
-      "unavailable": "Repository-Details konnten nicht von GitHub geladen werden."
+      "edit": "Bearbeiten",
+      "configExample": "Konfiguration in blog.json",
+      "copyConfig": "Konfiguration kopieren",
+      "previewDescription": "Analytics-Integrationen laufen nur auf der Live-Site. Previews und lokale Entwicklung senden keine Events.",
+      "loadFailed": "Integrationen konnten nicht geladen werden",
+      "retry": "Erneut versuchen",
+      "openEditor": "Editor öffnen",
+      "fieldDescriptions": {
+        "plausible": {
+          "domain": "Gib die Domain ein, die du in Plausible angelegt hast, ohne https://.",
+          "server": "Gib für selbst gehostetes Plausible den Hostnamen mit optionalem Port ein (z. B. plausible.acme.com:8443), ohne https://. Leer lassen für plausible.io."
+        },
+        "posthog": {
+          "apiKey": "Kopiere den öffentlichen Projekt-API-Key aus deinen PostHog-Projekteinstellungen.",
+          "apiHost": "Leer lassen für US Cloud. Für EU Cloud nutze https://eu.i.posthog.com oder deinen eigenen HTTPS-Endpunkt.",
+          "sessionRecording": "Zeichnet Besuchersitzungen auf, wenn Aufzeichnungen für diese Domain in PostHog aktiviert sind."
+        },
+        "umami": {
+          "websiteId": "Bearbeite deine Website in Umami und kopiere data-website-id aus dem Tracking-Code.",
+          "scriptUrl": "Für Umami Cloud leer lassen. Bei Self-Hosting die vollständige HTTPS-Script-URL aus deinem Tracking-Code kopieren.",
+          "hostUrl": "Normalerweise leer. Nur setzen, wenn Events an einen anderen HTTPS-Endpunkt gehen sollen, etwa einen Reverse Proxy."
+        },
+        "ga4": {
+          "measurementId": "Öffne in Google Analytics Verwaltung → Datenstreams → deinen Webstream und kopiere die Mess-ID."
+        }
+      },
+      "close": "Schließen",
+      "autosavePending": "Warten auf Speicherung…",
+      "autosaveSaving": "Entwurf wird gespeichert…",
+      "autosaveSaved": "Entwurf gespeichert. Erstelle einen Pull Request und merge ihn, um die Änderungen live zu schalten.",
+      "autosaveInvalid": "Gib gültige Einstellungen ein, um deine Änderungen zu speichern.",
+      "discardUnsaved": "Ungespeicherte Änderungen verwerfen",
+      "removeFailedDescription": "Die Integration wurde nicht entfernt. Wiederhole das Entfernen oder verwirf die ungespeicherten Änderungen."
     },
     "analyticsPage": {
       "title": "Analytics",

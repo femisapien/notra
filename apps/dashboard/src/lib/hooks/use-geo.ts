@@ -889,14 +889,20 @@ function useGeoTrafficPollInterval(): number {
 export function useAiTraffic(
   organizationId: string,
   range?: GeoRangeQuery,
-  host?: string
+  host?: string,
+  path?: string
 ) {
   const tToast = useTranslations("geo.toasts");
   const { projectId } = useGeoProjectScope();
   const trafficPollInterval = useGeoTrafficPollInterval();
   return useQuery<AiTrafficResponse>({
     ...dashboardOrpc.geo.aiTraffic.queryOptions({
-      input: geoHostQueryInput({ organizationId, projectId }, range, host),
+      input: geoHostQueryInput(
+        { organizationId, projectId },
+        range,
+        host,
+        path
+      ),
     }),
     enabled: !!organizationId,
     placeholderData: useScopedPreviousData<AiTrafficResponse>(projectId),
@@ -909,14 +915,20 @@ export function useAiTraffic(
 export function useWebAnalytics(
   organizationId: string,
   range?: GeoRangeQuery,
-  host?: string
+  host?: string,
+  path?: string
 ) {
   const tToast = useTranslations("geo.toasts");
   const { projectId } = useGeoProjectScope();
   const trafficPollInterval = useGeoTrafficPollInterval();
   return useQuery<WebAnalyticsResponse>({
     ...dashboardOrpc.geo.webAnalytics.queryOptions({
-      input: geoHostQueryInput({ organizationId, projectId }, range, host),
+      input: geoHostQueryInput(
+        { organizationId, projectId },
+        range,
+        host,
+        path
+      ),
     }),
     enabled: !!organizationId,
     placeholderData: useScopedPreviousData<WebAnalyticsResponse>(projectId),
@@ -939,7 +951,8 @@ export function useGeoTrafficLog(
       input: geoTrafficLogQueryInput(
         { organizationId, projectId },
         filters,
-        options?.host
+        options?.host,
+        options?.path
       ),
     }),
     enabled: !!organizationId,
@@ -953,7 +966,8 @@ export function useGeoTrafficLog(
 export function useGeoTrafficPages(
   organizationId: string,
   range?: GeoRangeQuery,
-  host?: string
+  host?: string,
+  path?: string
 ) {
   const tToast = useTranslations("geo.toasts");
   const { projectId } = useGeoProjectScope();
@@ -963,7 +977,8 @@ export function useGeoTrafficPages(
       input: geoTrafficPagesQueryInput(
         { organizationId, projectId },
         range,
-        host
+        host,
+        path
       ),
     }),
     enabled: !!organizationId,

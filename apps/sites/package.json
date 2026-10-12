@@ -12,7 +12,8 @@
     "test": "bun test tests"
   },
   "dependencies": {
-    "@notra/sites-core": "workspace:*"
+    "@notra/sites-core": "workspace:*",
+    "effect": "4.0.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.0.0",

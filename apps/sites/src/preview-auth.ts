@@ -18,7 +18,7 @@ import {
 
 import { PASSWORD_FORM_MAX_BYTES } from "./constants/preview-auth";
 import { previewLockedPage } from "./pages";
-import { noStoreRedirect } from "./responses";
+import { noStoreRedirect } from "./responses/redirects";
 import type { PreviewGateError } from "./types/pages";
 import type {
   PreviewPasswordForm,

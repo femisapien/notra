@@ -21,6 +21,8 @@ export const localStorageKeys = {
   chatSuggestionsDismissed: "notra:chat-suggestions-dismissed:v1",
   dashboardAgentSuggestionsDismissed:
     "notra:dashboard-agent-suggestions-dismissed:v2",
+  commandPaletteRecents: (organizationId: string) =>
+    `notra:command-palette-recents:v1:${organizationId}`,
   githubPublishRepository: (organizationId: string) =>
     `notra:github-publish-repository:v1:${organizationId}`,
 } as const;

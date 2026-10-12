@@ -11,7 +11,9 @@ import { webAudience } from "./web";
 test.each(["country", "device"])(
   "audience %s compares distinct visitors in the same scope",
   (dimension) => {
-    const node = webAudience.options.nodes[0];
+    const node = webAudience.options.nodes.find(
+      (candidate) => candidate._name === "audience_rollup"
+    );
     if (!node) {
       throw new Error("Audience node is missing");
     }

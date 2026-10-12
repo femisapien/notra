@@ -56,8 +56,17 @@ See `.env.example` in this directory for the service-specific variables.
 
 ## Railway configuration
 
-Create an `ai-traffic-ingest` service in the `notra` project. Keep the build root
-at `/`, since the app imports workspace packages. Configure the service with:
+The existing `notra-prod` / `production` service is described in
+[`../../.railway/ai-traffic.ts`](../../.railway/ai-traffic.ts). Reuse that service,
+its two Virginia replicas, and the existing shared database, Upstash, and Tinybird
+configuration; do not provision replacements. See the
+[Railway IaC guide](../../.railway/README.md) for read-only plans and adoption.
+The repository's scheduled release owns deployments and keeps watch patterns
+unset; the manual setup below is for a new standalone installation.
+
+For a new installation, create an `ai-traffic-ingest` service in your own Railway
+project. Keep the build root at `/`, since the app imports workspace packages.
+Configure the service with:
 
 | Setting | Value |
 | --- | --- |
@@ -65,6 +74,7 @@ at `/`, since the app imports workspace packages. Configure the service with:
 | Dockerfile path | `apps/ai-traffic-ingest/Dockerfile` |
 | Healthcheck | `/readyz` |
 | Region | US East (Virginia), next to Postgres and Upstash |
+| Replicas | 2 in the same region |
 | Healthcheck timeout | 60 seconds |
 | Public target port | 3000 |
 | Restart policy | On failure, maximum 5 retries |
@@ -77,11 +87,11 @@ with missing credentials is never promoted. Every tracked hit reads Postgres and
 Upstash before the SDK's 2 second timeout, so run the service in one region next
 to them rather than in several distant ones.
 
-Watch `/apps/ai-traffic-ingest/**`, `/packages/**`, `/bun.lock`, `/package.json`,
-`/bunfig.toml`, `/patches/**`, and `/.dockerignore`. Deploy from the repository
-root with `railway up --service ai-traffic-ingest --environment production --ci`
-after linking the project. A CLI upload does not configure GitHub auto-deploys;
-connect the repository and branch in Railway after merging the code.
+Keep watch patterns unset and the GitHub repository connected without main-branch
+deployment triggers. The scheduled production release builds the checked commit
+after Vercel succeeds; see [CONTRIBUTING.md](../../CONTRIBUTING.md). IaC changes
+need a separately reviewed `railway config apply`; deployments do not read the
+TypeScript configuration automatically.
 
 The Docker image contains only Bun and the built bundle. No Next.js server,
 build-time credentials, or database migration is required. Build locally with:

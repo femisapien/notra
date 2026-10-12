@@ -799,6 +799,27 @@
       "when": 1791486349850,
       "tag": "0113_site_preview_comments",
       "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1791532800000,
+      "tag": "0114_site_smart_deployments",
+      "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1791784257718,
+      "tag": "0115_sites_required_project",
+      "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1791800218256,
+      "tag": "0116_brand_guidelines_source_pdf",
+      "breakpoints": true
     }
   ]
 }

@@ -8,6 +8,10 @@ import {
   Rocket01Icon,
   RefreshIcon,
   Settings01Icon,
+  Cancel01Icon,
+  Clock01Icon,
+  Loading03Icon,
+  Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
 
@@ -18,6 +22,7 @@ import type {
   SiteDeploymentTrigger,
   SiteDomainChipStatus,
   SiteSectionConfig,
+  SiteStatusBadgeConfig,
 } from "@/types/sites";
 
 export const SITES_NAV_LINK = "/sites";
@@ -57,9 +62,6 @@ export const SITE_DEPLOYMENTS_PAGE_SIZE = 20;
 export const SITE_OVERVIEW_PREVIEWS_LIMIT = 5;
 export const SITE_TABLE_EMPTY_HEIGHT = 340;
 export const SITE_TABLE_COMPACT_EMPTY_HEIGHT = 300;
-export const SITE_LIST_TABLE_ROW_HEIGHT = 66;
-export const SITE_REPOSITORY_OVERVIEW_STALE_MS = 5 * 60 * 1000;
-export const SITE_REPOSITORY_SKELETON_ROWS = 4;
 export const SITE_SHORT_SHA_LENGTH = 7;
 export const SITE_SHARE_LINK_DAYS = 7;
 
@@ -107,15 +109,19 @@ export const SITE_MANUAL_TRIGGER_ICONS: Partial<
   config: Settings01Icon,
 };
 
-export const SITE_STATUS_DOT_STYLES: Record<SiteDeploymentStatus, string> = {
-  queued: "bg-muted-foreground/50",
-  building: "bg-warning motion-safe:animate-pulse",
-  uploading: "bg-warning motion-safe:animate-pulse",
-  ready: "bg-success",
-  failed: "bg-destructive",
-  superseded: "bg-muted-foreground/40",
-  canceled: "bg-muted-foreground/40",
-  expired: "bg-muted-foreground/40",
+export const SITE_STATUS_BADGES: Record<
+  SiteDeploymentStatus,
+  SiteStatusBadgeConfig
+> = {
+  queued: { variant: "info", icon: Clock01Icon },
+  building: { variant: "warning", icon: Loading03Icon },
+  uploading: { variant: "warning", icon: Loading03Icon },
+  ready: { variant: "success", icon: Tick02Icon, square: true },
+  failed: { variant: "destructive", icon: Cancel01Icon, square: true },
+  superseded: { variant: "secondary" },
+  skipped: { variant: "secondary" },
+  canceled: { variant: "secondary" },
+  expired: { variant: "secondary" },
 };
 
 export const SITE_DEPLOYMENT_ROW_HEIGHT = 48;
@@ -146,6 +152,7 @@ export const SITE_DEPLOYMENT_STATUS_FILTERS = [
   "failed",
   "canceled",
   "superseded",
+  "skipped",
   "expired",
 ] as const;
 
@@ -167,6 +174,8 @@ export const SITES_PAGE_SKELETON_ROWS = 3;
 
 export const SITE_PREVIEW_VIEWPORT_WIDTH = 1280;
 export const SITE_PREVIEW_VIEWPORT_HEIGHT = 800;
+export const SITE_PREVIEW_REACHABILITY_TIMEOUT_MS = 8000;
+export const SITE_PREVIEW_REACHABILITY_STALE_MS = 60_000;
 
 export const SITE_OVERVIEW_LINK_CLASS =
   "text-foreground decoration-foreground/25 hover:decoration-foreground min-w-0 truncate underline underline-offset-4 transition-colors duration-150";
@@ -194,3 +203,6 @@ export const SITE_DEPLOYMENT_SUMMARY_SURFACE_CLASS =
   "bg-background shadow-lift grid gap-6 rounded-[14px] border p-5 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]";
 export const SITE_DEPLOYMENT_LOG_SURFACE_CLASS =
   "bg-background shadow-lift overflow-hidden rounded-[14px] border";
+
+export const SITE_SETTINGS_PANEL_CLASSNAME =
+  "h-[var(--collapsible-panel-height)] overflow-hidden outline-none transition-[height,opacity] duration-normal ease-emphasized motion-reduce:transition-none data-[ending-style]:h-0 data-[ending-style]:opacity-0 data-[starting-style]:h-0 data-[starting-style]:opacity-0";

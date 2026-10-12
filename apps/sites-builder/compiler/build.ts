@@ -31,8 +31,9 @@ import { siteHeadScripts } from "./utils/head-scripts";
 import { inlineScriptHashes } from "./utils/inline-scripts";
 import { unnestLinks } from "./utils/nested-links";
 import { rewritePublicAssetUrls } from "./utils/public-assets";
+import { hasReactComponents } from "./utils/react";
 
-function astroBin(toolchainRoot: string): string {
+export function astroBin(toolchainRoot: string): string {
   const require = createRequire(join(toolchainRoot, "package.json"));
   const packageJsonPath = require.resolve("astro/package.json");
   const packageJson = require(packageJsonPath) as AstroPackageJson;
@@ -165,9 +166,16 @@ export async function buildSite(
       branding: options.target.branding,
       workDir,
       publicFiles: publicFileList,
+      fontStylesheet: prepared.fontStylesheet,
       mounts,
       config,
-      headScripts: siteHeadScripts(config, mount, prepared.customScripts),
+      hasReactComponents: hasReactComponents(prepared.validation.outputs),
+      headScripts: siteHeadScripts(
+        config,
+        mount,
+        prepared.customScripts,
+        options.target.analytics
+      ),
     });
     const started = Date.now();
     let log = "";
@@ -258,7 +266,7 @@ export async function buildSite(
     });
   } else {
     contentSecurityPolicy = buildSiteContentSecurityPolicy({
-      integrations: config.integrations,
+      integrations: options.target.analytics ? config.integrations : {},
       security: config.security,
       scriptHashes,
     });

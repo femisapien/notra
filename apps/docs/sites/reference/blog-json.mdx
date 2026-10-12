@@ -102,8 +102,8 @@ See [Logo, navigation and banner](/sites/customize/navigation).
 | `banner.type` | `"info" \| "warning" \| "critical"` | `"info"` | Banner color |
 | `banner.color` | Color, or `{ light, dark }` | | Your own banner color |
 | `banner.dismissible` | boolean | `false` | Show a close button |
-| `contextual.options` | Up to 12 of `copy`, `view`, `chatgpt`, `claude`, `t3chat`, `perplexity`, `grok` or `{ title, href, description?, icon? }` | All seven built-ins | The post actions menu |
-| `contextual.display` | `"meta" \| "none"` | `"meta"` | `none` hides the post actions |
+| `contextual.options` | Up to 12 of `copy`, `view`, `chatgpt`, `claude`, `t3chat`, `perplexity`, `grok` or `{ title, href, description?, icon? }` | All built-ins except `t3chat` | [Page actions](/sites/customize/navigation#page-actions) on blog posts and opted-in changelog entries; `[]` hides all actions |
+| `contextual.display` | `"meta" \| "none"` | `"meta"` | `meta` shows actions below the page heading; `none` hides them in both areas |
 
 Link labels are up to 60 characters.
 
@@ -116,7 +116,7 @@ See [Layouts](/sites/customize/layouts#blog).
 | `blog.title` | string, 1 to 120 characters | `"Blog"` | Index heading |
 | `blog.description` | string, up to 400 characters | Site `description` | Line under the heading |
 | `blog.layout` | `"grid" \| "list" \| "magazine"` | `"grid"` | Index layout |
-| `blog.hero.style` | `"wash" \| "plain" \| "image" \| "none"` | `"wash"` | Index hero |
+| `blog.hero.style` | `"wash" \| "plain" \| "image" \| "none"` | `"plain"` | Index hero |
 | `blog.hero.eyebrow` | string, up to 60 characters | | Line above the heading |
 | `blog.hero.image` | Path | | Image for the `image` style |
 | `blog.featured` | `"latest" \| "none"` or up to 6 post paths | `"none"` | Posts pinned on top |
@@ -138,7 +138,8 @@ See [Layouts](/sites/customize/layouts#blog).
 | `changelog.title` | string, 1 to 120 characters | `"Changelog"` | Index heading |
 | `changelog.description` | string, up to 400 characters | Site `description` | Line under the heading |
 | `changelog.layout` | `"timeline" \| "cards" \| "compact"` | `"timeline"` | Index layout |
-| `changelog.hero` | Same as `blog.hero` | `"wash"` | Index hero |
+| `changelog.hero` | Same as `blog.hero` | `"plain"` | Index hero |
+| `changelog.pageActions` | boolean | `false` | Show the shared page-actions menu on individual changelog entries; uses `contextual` options |
 
 ## Authors
 
@@ -189,19 +190,23 @@ Names start with a letter and use letters, digits, `_` and `-`, up to 40 charact
 
 ## Integrations
 
-See [Analytics and scripts](/sites/analytics-and-scripts#analytics-integrations).
+For step-by-step setup in the dashboard or repository, see [Analytics integrations](/sites/integrations/analytics/overview). Provider scripts run on the live production site only, after you publish and deploy the configuration. Drafts, previews and local development do not activate them.
 
 | Setting | Format |
 | --- | --- |
-| `integrations.databuddy.clientId` | 8 to 64 letters, digits, `_` or `-` |
+| `integrations.ga4.measurementId` | Public Google Analytics 4 web stream Measurement ID, starting with `G-`, like `G-ABC123XYZ9` |
 | `integrations.plausible.domain` | Your domain as added in Plausible, like `acme.com` |
+| `integrations.plausible.server` | Optional self-hosted server hostname with an optional port, like `plausible.acme.com:8443`, without a protocol or path. Defaults to `plausible.io`; requests use HTTPS |
 | `integrations.posthog.apiKey` | Starts with `phc_` |
 | `integrations.posthog.apiHost` | An `https://` URL, with the default `https://us.i.posthog.com` |
-| `integrations.ga4.measurementId` | Like `G-ABC123XYZ9` |
+| `integrations.posthog.sessionRecording` | Boolean, defaults to `true`. Set to `false` to disable recording while keeping analytics |
+| `integrations.umami.websiteId` | Public Website ID as a UUID from Umami's Tracking code |
+| `integrations.umami.scriptUrl` | Optional full HTTPS script URL. Defaults to `https://cloud.umami.is/script.js`; supports self-hosted script paths and ports |
+| `integrations.umami.hostUrl` | Optional HTTPS collection base URL, corresponding to `data-host-url`. Leave empty unless events should go to a different endpoint |
 
 ## Security
 
-See [Content-Security-Policy](/sites/analytics-and-scripts#content-security-policy).
+See [Content-Security-Policy](/sites/custom-scripts#content-security-policy).
 
 | Setting | Type | Default | Description |
 | --- | --- | --- | --- |

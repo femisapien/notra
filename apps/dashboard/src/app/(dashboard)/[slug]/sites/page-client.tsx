@@ -3,30 +3,77 @@
 import { PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { PageHeading } from "@notra/ui/components/shared/page-heading";
+import { Navigate } from "@tanstack/react-router";
 import { useTranslations } from "use-intl";
 
 import { buttonVariants } from "@/components/button";
 import { EmptyState } from "@/components/empty-state";
 import { EmptyStateTablePreview } from "@/components/empty-state-preview";
 import Link from "@/components/framework/link";
+import { SitesList } from "@/components/sites/sites-list";
 import { SitesPageShell } from "@/components/sites/sites-page-shell";
-import { SitesTable } from "@/components/sites/sites-table";
 import { SitesUnavailableState } from "@/components/sites/sites-unavailable-state";
 import {
   EMPTY_STATE_TABLE_COLUMNS,
   EMPTY_STATE_TABLE_ROWS,
 } from "@/constants/empty-state";
+import { useActiveProject } from "@/lib/hooks/use-active-project";
 import { useSitesList, useSitesOrganizationId } from "@/lib/hooks/use-sites";
 import { cn } from "@/lib/utils";
+import type { ProjectSitesListProps } from "@/types/components/sites";
 import type { SitesPageClientProps } from "@/types/sites";
+import { siteHref } from "@/utils/site-links";
+import { resolvedSiteProjectId } from "@/utils/site-project";
 
 import { SitesPageSkeleton } from "./skeleton";
 
-export default function PageClient({ organizationSlug }: SitesPageClientProps) {
+export default function PageClient({
+  organizationSlug,
+  showAll = false,
+}: SitesPageClientProps) {
   const t = useTranslations("sites");
   const organizationId = useSitesOrganizationId(organizationSlug);
-  const listQuery = useSitesList(organizationId);
-  const newSiteHref = `/${organizationSlug}/sites/new`;
+  const activeProject = useActiveProject();
+  const projectId = resolvedSiteProjectId(activeProject);
+
+  if (activeProject.isError || (activeProject.isResolved && !projectId)) {
+    const state = activeProject.isError
+      ? "projectLoadFailed"
+      : "projectRequired";
+    return (
+      <SitesPageShell>
+        <PageHeading description={t("description")} title={t("title")} />
+        <EmptyState
+          description={t(`${state}.description`)}
+          title={t(`${state}.title`)}
+        />
+      </SitesPageShell>
+    );
+  }
+
+  if (!projectId) {
+    return <SitesPageSkeleton />;
+  }
+
+  return (
+    <ProjectSitesList
+      organizationId={organizationId}
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      showAll={showAll}
+    />
+  );
+}
+
+function ProjectSitesList({
+  organizationId,
+  organizationSlug,
+  projectId,
+  showAll,
+}: ProjectSitesListProps) {
+  const t = useTranslations("sites");
+  const listQuery = useSitesList(organizationId, projectId);
+  const newSiteHref = `/${organizationSlug}/sites/new?project=${encodeURIComponent(projectId)}`;
 
   if (!listQuery.data) {
     if (listQuery.isError) {
@@ -44,6 +91,20 @@ export default function PageClient({ organizationSlug }: SitesPageClientProps) {
   }
 
   const { configured, sites } = listQuery.data;
+  const [onlySite, ...otherSites] = sites;
+  if (configured && !showAll && onlySite && otherSites.length === 0) {
+    return (
+      <Navigate
+        replace
+        to={siteHref(
+          organizationSlug,
+          onlySite.id,
+          "overview",
+          onlySite.projectId
+        )}
+      />
+    );
+  }
   const newSiteButton = (
     <Link
       className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}
@@ -86,7 +147,7 @@ export default function PageClient({ organizationSlug }: SitesPageClientProps) {
           title={t("empty.title")}
         />
       ) : (
-        <SitesTable
+        <SitesList
           organizationId={organizationId}
           organizationSlug={organizationSlug}
           sites={sites}

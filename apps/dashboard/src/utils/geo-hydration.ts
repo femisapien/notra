@@ -4,6 +4,7 @@ import {
   GEO_TRAFFIC_HOST_PARAM,
 } from "@notra/geo-core/constants/geo";
 
+import { TRAFFIC_PATH_PARAM } from "@/constants/traffic-path";
 import {
   geoHostQueryInput,
   geoOverviewQueryInput,
@@ -121,16 +122,18 @@ export function geoTrafficHydrationInputs(
   );
   const window = { from: range.dateFrom, to: range.dateTo };
   const host = firstSearchParam(search[GEO_TRAFFIC_HOST_PARAM]);
+  const path = firstSearchParam(search[TRAFFIC_PATH_PARAM]);
 
   return {
     settings: geoSettingsQueryInput(scope),
-    aiTraffic: geoHostQueryInput(scope, window, host),
-    webAnalytics: geoHostQueryInput(scope, window, host),
-    trafficPages: geoTrafficPagesQueryInput(scope, window, host),
+    aiTraffic: geoHostQueryInput(scope, window, host, path),
+    webAnalytics: geoHostQueryInput(scope, window, host, path),
+    trafficPages: geoTrafficPagesQueryInput(scope, window, host, path),
     trafficLog: geoTrafficLogQueryInput(
       scope,
       { visitorTypes: [], categories: [] },
-      host
+      host,
+      path
     ),
     ingestSetup: geoSettingsQueryInput(scope),
   };

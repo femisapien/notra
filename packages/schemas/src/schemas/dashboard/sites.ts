@@ -1,8 +1,8 @@
-import { SITE_INTEGRATION_NAMES } from "@notra/sites-core/constants/integrations";
 import {
   SITE_PREVIEW_PASSWORD_MAX_LENGTH,
   SITE_PREVIEW_PASSWORD_MIN_LENGTH,
 } from "@notra/sites-core/constants/sites";
+import { siteIntegrationUpdateSchema } from "@notra/sites-core/schemas/site-integrations";
 import z from "zod";
 
 const organizationId = z.string().min(1);
@@ -26,12 +26,18 @@ const siteMountsInputSchema = z
 
 export const siteScopeInputSchema = z.object({ organizationId, siteId });
 
+export const listSitesInputSchema = z.object({
+  organizationId,
+  projectId: z.string().min(1),
+});
+
 const analyticsDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const siteAnalyticsInputSchema = siteScopeInputSchema.extend({
   days: z.number().int().min(1).max(365).optional(),
   from: analyticsDay.optional(),
   to: analyticsDay.optional(),
+  path: z.string().trim().max(2048).optional(),
 });
 
 const suggestionRef = z.string().trim().max(250).optional();
@@ -56,7 +62,7 @@ export const createSiteInputSchema = z.object({
   mounts: siteMountsInputSchema,
   previewVisibility: z.enum(["public", "protected"]).default("protected"),
   publishMode: z.enum(["pull_request", "direct"]).default("pull_request"),
-  projectId: z.string().min(1).optional(),
+  projectId: z.string().min(1),
 });
 
 export const updateSiteInputSchema = siteScopeInputSchema.extend({
@@ -65,6 +71,7 @@ export const updateSiteInputSchema = siteScopeInputSchema.extend({
   rootDirectory: z.string().trim().max(200).optional(),
   mounts: siteMountsInputSchema.optional(),
   previewsEnabled: z.boolean().optional(),
+  smartDeployments: z.boolean().optional(),
   previewCommentsEnabled: z.boolean().optional(),
   previewVisibility: z.enum(["public", "protected"]).optional(),
   publishMode: z.enum(["pull_request", "direct"]).optional(),
@@ -137,10 +144,9 @@ export const publishSiteDraftsInputSchema = siteScopeInputSchema.extend({
   mode: z.enum(["direct", "pull_request"]),
 });
 
-export const saveSiteIntegrationInputSchema = siteScopeInputSchema.extend({
-  provider: z.enum(SITE_INTEGRATION_NAMES),
-  settings: z.record(z.string(), z.unknown()).nullable(),
-});
+export const saveSiteIntegrationInputSchema = siteScopeInputSchema.and(
+  siteIntegrationUpdateSchema
+);
 
 export const connectSiteRepositoryInputSchema = z.object({
   organizationId,

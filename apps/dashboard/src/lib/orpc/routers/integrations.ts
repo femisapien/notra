@@ -161,6 +161,7 @@ import { hasGitHubStatus } from "@/utils/github-publish-failure";
 import { ratelimit } from "@/utils/ratelimit";
 
 import {
+  assertNotDemo,
   badRequest,
   conflict,
   forbidden,
@@ -1932,6 +1933,8 @@ export const integrationsRouter = {
     create: baseProcedure
       .input(createMcpServerRequestSchema)
       .handler(async ({ context, input }) => {
+        // The server would fetch any public URL on an anonymous visitor's behalf.
+        assertNotDemo();
         const auth = await assertOrganizationAccess({
           headers: context.headers,
           organizationId: input.organizationId,
@@ -2028,6 +2031,8 @@ export const integrationsRouter = {
     update: baseProcedure
       .input(mcpServerInputSchema.and(updateMcpServerBodySchema))
       .handler(async ({ context, input }) => {
+        // Every MCP call reaches the server's URL on an anonymous visitor's behalf.
+        assertNotDemo();
         const auth = await assertOrganizationAccess({
           headers: context.headers,
           organizationId: input.organizationId,
@@ -2098,6 +2103,8 @@ export const integrationsRouter = {
     beginOAuth: baseProcedure
       .input(beginMcpOAuthRequestSchema)
       .handler(async ({ context, input }) => {
+        // Every MCP call reaches the server's URL on an anonymous visitor's behalf.
+        assertNotDemo();
         const access = await assertOrganizationAccess({
           headers: context.headers,
           organizationId: input.organizationId,
@@ -2161,6 +2168,8 @@ export const integrationsRouter = {
     reauthorizeOAuth: baseProcedure
       .input(reauthorizeMcpOAuthRequestSchema)
       .handler(async ({ context, input }) => {
+        // Every MCP call reaches the server's URL on an anonymous visitor's behalf.
+        assertNotDemo();
         const access = await assertOrganizationAccess({
           headers: context.headers,
           organizationId: input.organizationId,
@@ -2254,6 +2263,8 @@ export const integrationsRouter = {
     refreshTools: baseProcedure
       .input(mcpServerInputSchema)
       .handler(async ({ context, input }) => {
+        // Every MCP call reaches the server's URL on an anonymous visitor's behalf.
+        assertNotDemo();
         const auth = await assertOrganizationAccess({
           headers: context.headers,
           organizationId: input.organizationId,
@@ -2307,6 +2318,7 @@ export const integrationsRouter = {
     test: baseProcedure
       .input(testMcpServerRequestSchema)
       .handler(async ({ context, input }) => {
+        assertNotDemo();
         const auth = await assertOrganizationAccess({
           headers: context.headers,
           organizationId: input.organizationId,

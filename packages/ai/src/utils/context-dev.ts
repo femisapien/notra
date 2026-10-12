@@ -8,6 +8,7 @@ import type {
   ContextDevErrorResponse,
   ContextDevFetchWebpageInput,
   ContextDevFetchWebpageResponse,
+  ContextDevParseResponse,
   ContextDevScrapingResult,
   ContextDevScreenshotInput,
   ContextDevScreenshotResponse,
@@ -32,6 +33,7 @@ import {
   BRAND_ANALYSIS_WWW_PREFIX,
   BRAND_SEARCH_TYPO_TOLERANCE,
   COMPETITORS_TIMEOUT_MS,
+  CONTEXT_DEV_PARSE_TIMEOUT_MS,
 } from "../constants/context-dev";
 import { demoContextDevResponse } from "./demo-context-dev";
 import { httpErrorKind } from "./http-error-kind";
@@ -551,6 +553,25 @@ export async function searchBrands(
     `/brand/search?${params.toString()}`,
     { method: "GET", signal: options?.signal }
   );
+}
+
+/**
+ * Converts a PDF to markdown with context.dev Parse. The endpoint takes the
+ * raw file bytes; a JSON body would be parsed as the document itself.
+ */
+export async function parsePdfDocument(
+  bytes: Uint8Array<ArrayBuffer>
+): Promise<string> {
+  const response = await requestContextDev<ContextDevParseResponse>(
+    "/parse?extension=pdf",
+    {
+      body: bytes,
+      headers: { "Content-Type": "application/pdf" },
+      method: "POST",
+      signal: AbortSignal.timeout(CONTEXT_DEV_PARSE_TIMEOUT_MS),
+    }
+  );
+  return response.markdown?.trim() ?? "";
 }
 
 export async function retrieveStyleguide(

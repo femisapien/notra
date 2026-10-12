@@ -49,6 +49,7 @@ import type {
   PostToolsResult,
 } from "@notra/ai/types/post-tools";
 import type { RouteUsageSummary } from "@notra/ai/types/router";
+import { loadBrandGuidelineSourceInstructions } from "@notra/ai/utils/load-brand-guideline-source";
 import { updatePostRecord } from "@notra/ai/utils/post-service";
 import { summarizeRouteUsage } from "@notra/ai/utils/route-usage";
 import { logWarn } from "@notra/ai/utils/server-log";
@@ -546,6 +547,8 @@ export async function runGeoWriter(
     log
   );
 
+  const guidelineDocument =
+    await loadBrandGuidelineSourceInstructions(brandSettingsId);
   const instructions = buildGeoWriterInstructions({
     brief,
     brandName,
@@ -555,6 +558,7 @@ export async function runGeoWriter(
     today: now.toISOString().slice(0, 10),
     monthYear: formatMonthYear(now),
     language,
+    guidelineDocument,
   });
 
   const postToolsResult: PostToolsResult = {};

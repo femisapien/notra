@@ -31,6 +31,7 @@ import {
   useState,
 } from "react";
 import { withLocaleTooltip, withLocaleValueAxis } from "@/utils/chart-locale";
+import { buildZeroBaselineAxisLine } from "@/utils/chart-zero-baseline";
 import { EChartsPlotFrame } from "@/components/charts/echarts-plot-frame";
 import { CHART_SCRUB_POSITION_LERP } from "@/constants/charts";
 import {
@@ -314,6 +315,7 @@ const YAxis: FC<YAxisProps> = () => null;
 export interface GridProps {
   variant?: GridLineVariant; // "dashed" (default) or unbroken "solid" split lines
   lineType?: GridLineVariant; // alias used by the shared chart API
+  opacity?: number; // multiplies the split line alpha, 0–1 (default 1)
 }
 
 /** Presence shows the horizontal split lines. Renders nothing. */
@@ -446,6 +448,7 @@ type CollectedConfig = {
   yAxis: YAxisSlot;
   showGrid: boolean;
   gridVariant: GridLineVariant;
+  gridOpacity: number;
   tooltip: TooltipSlot;
   legend: LegendSlot;
   brush: BrushSlot;
@@ -457,6 +460,7 @@ function collectConfig(children: ReactNode): CollectedConfig {
   let yAxis: YAxisSlot = { present: false, hideDots: false, scale: false };
   let showGrid = false;
   let gridVariant: GridLineVariant = "dashed";
+  let gridOpacity = 1;
   let tooltip: TooltipSlot = {
     present: false,
     variant: "default",
@@ -539,6 +543,7 @@ function collectConfig(children: ReactNode): CollectedConfig {
       showGrid = true;
       const props = child.props as GridProps;
       gridVariant = props.lineType ?? props.variant ?? "dashed";
+      gridOpacity = props.opacity ?? 1;
     } else if (type === Tooltip) {
       const props = child.props as TooltipProps;
       tooltip = {
@@ -590,6 +595,7 @@ function collectConfig(children: ReactNode): CollectedConfig {
     yAxis,
     showGrid,
     gridVariant,
+    gridOpacity,
     tooltip,
     legend,
     brush,
@@ -949,6 +955,7 @@ type OptionBuildContext = {
   hasSelection: boolean;
   showGrid: boolean;
   gridVariant: GridLineVariant;
+  gridOpacity: number;
   xAxisSlot: XAxisSlot;
   yAxisSlot: YAxisSlot;
   tooltipSlot: TooltipSlot;
@@ -1009,6 +1016,7 @@ function buildMainAxes(ctx: OptionBuildContext): {
     yAxisSlot,
     showGrid,
     gridVariant,
+    gridOpacity,
     isLoading,
     isExpanded,
     categories,
@@ -1017,7 +1025,7 @@ function buildMainAxes(ctx: OptionBuildContext): {
   const { tokens } = ctx.resolved;
 
   const axisLabelColor = tokens.mutedForeground;
-  const splitLineColor = withAlpha(tokens.border, GRID_LINE_OPACITY);
+  const splitLineColor = withAlpha(tokens.border, GRID_LINE_OPACITY * gridOpacity);
   // Gridline gray as an opaque color — see flattenColor.
   const tickDotColor = flattenColor(splitLineColor, tokens.background);
 
@@ -1034,7 +1042,15 @@ function buildMainAxes(ctx: OptionBuildContext): {
     nameLocation: "middle",
     nameGap: 30,
     nameTextStyle: { color: axisLabelColor, fontSize: 10 },
-    axisLine: { show: false },
+    axisLine: buildZeroBaselineAxisLine(
+      ctx.data,
+      isLoading
+        ? []
+        : ctx.areas
+            .filter((area) => area.visible !== false)
+            .map((area) => area.dataKey),
+      axisLabelColor
+    ),
     // Tick DOTS: a near-zero-length tick whose round caps form a true circle,
     // in the gridline gray (flattened opaque so the caps don't stack).
     axisTick: {
@@ -2141,6 +2157,7 @@ export function EChartsAreaChart<TData extends Record<string, unknown>>({
     yAxis: yAxisSlot,
     showGrid,
     gridVariant,
+    gridOpacity,
     tooltip: tooltipSlot,
     legend: legendSlot,
     brush: brushSlot,
@@ -2335,6 +2352,7 @@ export function EChartsAreaChart<TData extends Record<string, unknown>>({
       hasSelection,
       showGrid,
       gridVariant,
+      gridOpacity,
       xAxisSlot,
       yAxisSlot,
       tooltipSlot,
@@ -2439,6 +2457,7 @@ export function EChartsAreaChart<TData extends Record<string, unknown>>({
     hasSelection,
     showGrid,
     gridVariant,
+    gridOpacity,
     xAxisSlot,
     yAxisSlot,
     tooltipSlot,

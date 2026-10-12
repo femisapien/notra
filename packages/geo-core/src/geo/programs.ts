@@ -140,7 +140,7 @@ import { normalizePromptTags } from "../utils/geo-prompt-tags";
 import { groupGeoSparklinePoints } from "../utils/geo-sparkline";
 import { memoizeGeoRequest } from "../utils/request-memo";
 import { competitorKey } from "./domain";
-import { geoDb, geoQuery, geoSkip } from "./effect";
+import { geoDb, geoQuery, geoRequiredQuery, geoSkip } from "./effect";
 import {
   GeoCompetitorLimitError,
   GeoPromptDuplicateError,
@@ -1218,12 +1218,14 @@ export const loadAiTraffic = Effect.fn("geo.aiTraffic")(function* (
   input: GeoScopeInput,
   window: GeoWindowInput,
   hosts: readonly string[] = [],
-  siteId = ""
+  siteId = "",
+  path = ""
 ) {
   const scope = yield* resolveGeoScope(input);
   const windowParams = {
     ...geoTrafficWindowParams(window, AI_TRAFFIC_DEFAULT_DAYS),
     hosts: hosts.join(","),
+    path,
     ...(siteId
       ? { site_id: siteId, project_id: "", include_unassigned: 0 }
       : {}),
@@ -1234,17 +1236,18 @@ export const loadAiTraffic = Effect.fn("geo.aiTraffic")(function* (
       )
     : null;
   const conversionPaths = settingsRow?.conversionPaths ?? [];
+  const query = siteId && isTinybirdConfigured() ? geoRequiredQuery : geoQuery;
 
   const [overview, timeseries, conversionPages] = yield* Effect.all(
     [
-      geoQuery("traffic overview query failed", () =>
+      query("traffic overview query failed", () =>
         queryGeoTrafficOverview({
           ...geoScopeParams(scope),
           ...geoHiddenSourceParams(),
           ...windowParams,
         })
       ),
-      geoQuery("traffic timeseries query failed", () =>
+      query("traffic timeseries query failed", () =>
         queryGeoTrafficTimeseries({
           ...geoScopeParams(scope),
           ...geoHiddenSourceParams(),
@@ -1253,7 +1256,7 @@ export const loadAiTraffic = Effect.fn("geo.aiTraffic")(function* (
       ),
       conversionPaths.length === 0
         ? Effect.succeed(null)
-        : geoQuery("traffic conversion pages query failed", () =>
+        : query("traffic conversion pages query failed", () =>
             queryGeoTrafficPages({
               ...geoScopeParams(scope),
               ...geoHiddenSourceParams(),
@@ -1317,7 +1320,8 @@ export const loadGeoTrafficLog = Effect.fn("geo.trafficLog")(function* (
   limit: number | undefined,
   visitorTypes: readonly string[] | undefined,
   categories: readonly string[] | undefined,
-  host: string | undefined
+  host: string | undefined,
+  path = ""
 ) {
   const scope = yield* resolveGeoScope(input);
   const rows = yield* geoQuery("traffic log query failed", () =>
@@ -1328,6 +1332,7 @@ export const loadGeoTrafficLog = Effect.fn("geo.trafficLog")(function* (
       visitor_type: visitorTypes?.join(",") ?? "",
       category: categories?.join(",") ?? "",
       host: trafficLogHostFilter(host),
+      path,
     })
   );
   const data = rows?.data ?? [];
@@ -1484,7 +1489,8 @@ export const loadGeoTrafficPages = Effect.fn("geo.trafficPages")(function* (
   window: GeoWindowInput,
   limit: number | undefined,
   visitorType: string | undefined,
-  host: string | undefined
+  host: string | undefined,
+  path = ""
 ) {
   const scope = yield* resolveGeoScope(input);
   const pages = yield* geoQuery("traffic pages query failed", () =>
@@ -1495,6 +1501,7 @@ export const loadGeoTrafficPages = Effect.fn("geo.trafficPages")(function* (
       limit: limit ?? AI_TRAFFIC_DEFAULT_PAGES_LIMIT,
       visitor: visitorType ?? "",
       host: trafficLogHostFilter(host),
+      path,
     })
   );
 

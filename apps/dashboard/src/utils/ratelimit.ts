@@ -6,6 +6,10 @@ import { COMPANY_LOGO_RATE_LIMIT_PER_USER_PER_MINUTE } from "@/constants/company
 import {
   DEMO_SANDBOX_CREATE_LIMIT,
   DEMO_SANDBOX_CREATE_WINDOW,
+  DEMO_SANDBOX_RESET_LIMIT,
+  DEMO_SANDBOX_RESET_WINDOW,
+  DEMO_SANDBOX_TIME_ZONE_LIMIT,
+  DEMO_SANDBOX_TIME_ZONE_WINDOW,
 } from "@/constants/demo";
 
 const redis = Redis.fromEnv();
@@ -186,6 +190,22 @@ export const ratelimit = {
     limiter: Ratelimit.slidingWindow(
       DEMO_SANDBOX_CREATE_LIMIT,
       DEMO_SANDBOX_CREATE_WINDOW
+    ),
+  }),
+  demoSandboxReset: new Ratelimit({
+    redis,
+    prefix: "ratelimit:demo-sandbox-reset",
+    limiter: Ratelimit.slidingWindow(
+      DEMO_SANDBOX_RESET_LIMIT,
+      DEMO_SANDBOX_RESET_WINDOW
+    ),
+  }),
+  demoSandboxTimeZone: new Ratelimit({
+    redis,
+    prefix: "ratelimit:demo-sandbox-time-zone",
+    limiter: Ratelimit.slidingWindow(
+      DEMO_SANDBOX_TIME_ZONE_LIMIT,
+      DEMO_SANDBOX_TIME_ZONE_WINDOW
     ),
   }),
   backupCode: new Ratelimit({

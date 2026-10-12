@@ -7,6 +7,8 @@ export const onRequest = defineMiddleware(async (_context, next) => {
   const response = await next();
   if (
     !import.meta.env.DEV ||
+    params.mount === "/" ||
+    params.publicFiles.length === 0 ||
     !response.body ||
     !response.headers.get("content-type")?.startsWith("text/html")
   ) {

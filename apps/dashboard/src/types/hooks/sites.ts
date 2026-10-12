@@ -1,3 +1,5 @@
+import type { SiteIntegrationUpdate } from "@notra/sites-core/types/site-integrations";
+
 import type { dashboardOrpc } from "@/lib/orpc/query";
 import type { SiteDiagnostic, SiteDomain, SiteScope } from "@/types/sites";
 
@@ -40,15 +42,15 @@ export interface UseSavePreviewAccessParams extends SiteScope {
   onSaved: () => void;
 }
 
-export interface SaveSiteIntegrationInput {
-  provider: Parameters<
-    typeof dashboardOrpc.sites.integrations.save.call
-  >[0]["provider"];
-  settings: Record<string, unknown> | null;
-}
+export type SaveSiteIntegrationInput = SiteIntegrationUpdate;
 
 export interface SiteAnalyticsWindow {
   days?: number;
   from?: string;
   to?: string;
+  path?: string;
+}
+
+export interface UseUpdateSiteSettingsOptions {
+  onSaved?: () => void;
 }

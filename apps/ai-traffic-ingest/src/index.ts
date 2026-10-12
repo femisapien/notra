@@ -6,6 +6,7 @@ import {
 } from "@notra/analytics/tinybird/client";
 import { getGeoTrafficFlushIntervalMs } from "@notra/analytics/utils/geo-flush-interval";
 import { db } from "@notra/db/drizzle";
+import { GEO_DRAIN_MAX_BODY_BYTES } from "@notra/geo-core/constants/ingest";
 import {
   createEventBatcher,
   createGeoEventBatcher,
@@ -22,7 +23,6 @@ import {
   INGEST_DRAIN_TIMEOUT_MS,
   INGEST_EVENTS_FLUSH_TIMEOUT_MS,
   INGEST_FLUSH_TIMEOUT_MS,
-  INGEST_MAX_BODY_BYTES,
   INGEST_RUNTIME_LOG_INTERVAL_MS,
 } from "./constants/server";
 import { createIngestApp } from "./http";
@@ -89,7 +89,7 @@ const app = createIngestApp(
 const server = Bun.serve({
   hostname: "0.0.0.0",
   port: process.env.PORT ?? INGEST_DEFAULT_PORT,
-  maxRequestBodySize: INGEST_MAX_BODY_BYTES,
+  maxRequestBodySize: GEO_DRAIN_MAX_BODY_BYTES,
   idleTimeout: 60,
   fetch(request) {
     const response = Promise.resolve(app.fetch(request));

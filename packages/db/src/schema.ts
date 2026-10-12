@@ -15,6 +15,7 @@ import type {
   SiteMounts,
   SitePreviewPassword,
 } from "@notra/sites-core/types/deployment";
+import type { SmartDeploymentEvaluation } from "@notra/sites-core/types/smart-deployments";
 import { relations, sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
@@ -1085,6 +1086,11 @@ export const brandGuidelines = pgTable(
     contextDevMeta: jsonb("context_dev_meta"),
     lastGeneratedAt: timestamp("last_generated_at"),
     lastGenerationError: text("last_generation_error"),
+    sourcePdfFilename: text("source_pdf_filename"),
+    sourcePdfStorageKey: text("source_pdf_storage_key"),
+    sourcePdfUrl: text("source_pdf_url"),
+    sourcePdfText: text("source_pdf_text"),
+    sourcePdfUploadedAt: timestamp("source_pdf_uploaded_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -4219,9 +4225,9 @@ export const sites = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    projectId: text("project_id").references(() => projects.id, {
-      onDelete: "set null",
-    }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     repositoryId: text("repository_id").references(
@@ -4239,6 +4245,7 @@ export const sites = pgTable(
     publicOrigin: text("public_origin").notNull(),
     mounts: jsonb("mounts").$type<SiteMounts>().notNull(),
     previewsEnabled: boolean("previews_enabled").notNull().default(true),
+    smartDeployments: boolean("smart_deployments").notNull().default(true),
     previewCommentsEnabled: boolean("preview_comments_enabled")
       .notNull()
       .default(true),
@@ -4272,6 +4279,7 @@ export const sites = pgTable(
   },
   (table): PgTableExtraConfigValue[] => [
     index("sites_organizationId_idx").on(table.organizationId),
+    index("sites_org_project_idx").on(table.organizationId, table.projectId),
     uniqueIndex("sites_slug_uidx").on(table.slug),
     index("sites_githubRepositoryId_idx").on(table.githubRepositoryId),
     uniqueIndex("sites_org_id_uidx").on(table.organizationId, table.id),
@@ -4388,6 +4396,14 @@ export const siteDeployments = pgTable(
     pullRequestNumber: integer("pull_request_number"),
     target: jsonb("target").$type<SiteBuildTarget>().notNull(),
     configHash: text("config_hash").notNull(),
+    inputFingerprint: text("input_fingerprint"),
+    skipReason: text("skip_reason"),
+    smartDeploymentEvaluation: jsonb(
+      "smart_deployment_evaluation"
+    ).$type<SmartDeploymentEvaluation>(),
+    buildBudgetReserved: boolean("build_budget_reserved")
+      .notNull()
+      .default(true),
     toolchainVersion: text("toolchain_version"),
     fileCount: integer("file_count"),
     totalBytes: integer("total_bytes"),
@@ -4435,7 +4451,7 @@ export const siteDeployments = pgTable(
     ),
     check(
       "siteDeployments_status_check",
-      sql`${table.status} IN ('queued', 'building', 'uploading', 'ready', 'superseded', 'failed', 'canceled', 'expired')`
+      sql`${table.status} IN ('queued', 'building', 'uploading', 'ready', 'superseded', 'skipped', 'failed', 'canceled', 'expired')`
     ),
     check(
       "siteDeployments_trigger_check",

@@ -56,7 +56,7 @@ test("visitor collection has no toggle in either traffic state", () => {
   expect(emptyReturn).toContain("<TrafficEmpty");
   expect(emptyReturn).toContain("{header}");
   expect(page).not.toContain("VisitorTrackingToggle");
-  expect(page).toContain("const showVisitors = hasWebAnalytics(web)");
+  expect(page).toMatch(/const showVisitors =\s+hasWebAnalytics\(web\)/);
 });
 
 test("source details use filtered pages while the domain picker keeps its full inventory", () => {

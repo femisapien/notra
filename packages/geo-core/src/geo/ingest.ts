@@ -6,6 +6,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
 import {
+  GEO_DRAIN_PATHS,
   GEO_INGEST_PATH,
   GEO_INGEST_SECRET_ENV,
   GEO_INGEST_SECRET_FALLBACK_ENV,
@@ -397,11 +398,17 @@ export function buildGeoSnippets(appUrl: string): GeoIngestSnippets {
  * holder post events), so the read path builds this and never the token.
  */
 export function buildGeoIngestSetupInfo(): GeoIngestSetupInfo {
-  const snippets = buildGeoSnippets(new URL(buildGeoIngestUrl()).origin);
+  const ingestUrl = buildGeoIngestUrl();
+  const { origin } = new URL(ingestUrl);
+  const snippets = buildGeoSnippets(origin);
   return {
-    ingestUrl: buildGeoIngestUrl(),
+    ingestUrl,
     snippet: snippets.next,
     snippets,
+    drainUrls: {
+      vercel: new URL(GEO_DRAIN_PATHS.vercel, origin).toString(),
+      cloudflare: new URL(GEO_DRAIN_PATHS.cloudflare, origin).toString(),
+    },
   };
 }
 

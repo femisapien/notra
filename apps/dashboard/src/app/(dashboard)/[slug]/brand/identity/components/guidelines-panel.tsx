@@ -21,6 +21,7 @@ import { GuidelinesActionButton } from "./guidelines-action-button";
 import { GuidelinesAssetsSection } from "./guidelines-assets-section";
 import { GuidelinesColorsSection } from "./guidelines-colors-section";
 import { GuidelinesScreenshotsSection } from "./guidelines-screenshots-section";
+import { GuidelinesSourcePdfSection } from "./guidelines-source-pdf-section";
 import { GuidelinesStatusLine } from "./guidelines-status-line";
 import { GuidelinesTokensSection } from "./guidelines-tokens-section";
 import { GuidelinesTypographySection } from "./guidelines-typography-section";
@@ -131,10 +132,19 @@ export function GuidelinesPanel({
 
   return (
     <div className="space-y-6">
-      <GuidelinesStatusLine
-        generating={isGenerating}
-        lastGeneratedAt={guideline.lastGeneratedAt}
-      />
+      <div className="flex items-center justify-between gap-3">
+        <GuidelinesSourcePdfSection
+          guideline={guideline}
+          organizationId={organizationId}
+          voiceId={voiceId}
+        />
+        <div className="ml-auto">
+          <GuidelinesStatusLine
+            generating={isGenerating}
+            lastGeneratedAt={guideline.lastGeneratedAt}
+          />
+        </div>
+      </div>
 
       {hasData ? (
         <>

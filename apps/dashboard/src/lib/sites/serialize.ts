@@ -31,6 +31,7 @@ export function serializeSite(
 ) {
   return {
     id: site.id,
+    projectId: site.projectId,
     name: site.name,
     slug: site.slug,
     status: site.status,
@@ -46,6 +47,7 @@ export function serializeSite(
     liveUrl: primaryMountUrl(site.publicOrigin, site.mounts),
     mounts: site.mounts,
     previewsEnabled: site.previewsEnabled,
+    smartDeployments: site.smartDeployments,
     previewCommentsEnabled: site.previewCommentsEnabled,
     previewVisibility: site.previewVisibility,
     previewPasswordSetAt: site.previewPassword?.updatedAt ?? null,
@@ -53,6 +55,7 @@ export function serializeSite(
     showBranding: site.showBranding,
     analyticsEnabled: site.analyticsEnabled,
     liveDeploymentId: state?.production?.deploymentId ?? null,
+    liveSince: state?.production?.activatedAt ?? null,
     createdAt: site.createdAt,
   };
 }
@@ -86,6 +89,7 @@ export function serializeDeployment(
     buildDurationMs: deployment.buildDurationMs,
     diagnostics: deployment.diagnostics,
     errorMessage: deployment.errorMessage,
+    skipReason: deployment.skipReason,
     createdAt: deployment.createdAt,
     startedAt: deployment.startedAt,
     finishedAt: deployment.finishedAt,

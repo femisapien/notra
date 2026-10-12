@@ -23,6 +23,7 @@ export type AreaPageEntry = AreaPages["entries"][number];
 
 export interface LlmsTxtParams {
   name: string;
+  siteName?: string;
   description?: string;
   areas: AreaPages[];
   origin: string;

@@ -99,6 +99,7 @@ async function scopedEvents(
     (event) =>
       (!params.project_id || event.project_id === params.project_id) &&
       (!params.site_id || event.site_id === params.site_id) &&
+      (!params.path || event.path === params.path) &&
       !excluded?.has(event.source)
   );
 }

@@ -1,71 +1,18 @@
 import { SITE_R2_KEYS } from "@notra/sites-core/constants/sites";
-import type {
-  SiteManifest,
-  SiteManifestFile,
-} from "@notra/sites-core/types/deployment";
-import {
-  joinMountPath,
-  listMountedAreas,
-} from "@notra/sites-core/utils/mounts";
+import type { SiteManifestFile } from "@notra/sites-core/types/deployment";
 
 import { injectAnalyticsScript } from "./analytics";
 import {
-  AI_USER_AGENTS,
   ASSET_SEGMENT,
   EDGE_CACHE_ORIGIN,
   IMMUTABLE_CACHE_CONTROL,
   PREVIEW_CACHE_CONTROL,
   REVALIDATE_CACHE_CONTROL,
-  ROBOTS_TXT_MAX_AGE_SECONDS,
 } from "./constants/responses";
 import { serviceErrorPage } from "./pages";
-import type { MarkdownNotFoundParams, ServeFileParams } from "./types/serving";
+import type { ServeFileParams } from "./types/serving";
 import type { SitesDeps } from "./types/worker";
-import { html, plainText } from "./utils/responses";
-
-export function methodNotAllowed(allow: string): Response {
-  return new Response("Method not allowed", {
-    status: 405,
-    headers: { Allow: allow },
-  });
-}
-
-export function noStoreRedirect(
-  location: string,
-  status: number,
-  extraHeaders: Record<string, string> = {}
-): Response {
-  return new Response(null, {
-    status,
-    headers: {
-      Location: location,
-      "Cache-Control": "no-store",
-      ...extraHeaders,
-    },
-  });
-}
-
-export function robotsTxt(
-  origin: string,
-  crawlable: SiteManifest | null
-): Response {
-  const lines = crawlable
-    ? [
-        `# Markdown map of this site for language models: ${origin}/llms.txt`,
-        "User-agent: *",
-        "Allow: /",
-        "",
-        ...AI_USER_AGENTS.map((agent) => `User-agent: ${agent}`),
-        "Allow: /",
-        "",
-        ...listMountedAreas(crawlable.target.mounts).map(
-          ({ mount }) =>
-            `Sitemap: ${origin}${joinMountPath(mount, "sitemap.xml")}`
-        ),
-      ]
-    : ["User-agent: *", "Disallow: /"];
-  return plainText(`${lines.join("\n")}\n`, ROBOTS_TXT_MAX_AGE_SECONDS);
-}
+import { html } from "./utils/responses";
 
 function fileCacheControl(file: SiteManifestFile, isPreview: boolean): string {
   if (isPreview) {
@@ -124,9 +71,6 @@ export async function serveFile(params: ServeFileParams): Promise<Response> {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
   });
-  if (isPreview) {
-    headers.set("X-Robots-Tag", "noindex, nofollow");
-  }
   if (
     params.contentSecurityPolicy &&
     file.contentType.startsWith("text/html")
@@ -135,6 +79,17 @@ export async function serveFile(params: ServeFileParams): Promise<Response> {
   }
   for (const [name, value] of Object.entries(params.extraHeaders ?? {})) {
     headers.set(name, value);
+  }
+  const servedType = headers.get("Content-Type") ?? "";
+  if (
+    params.llmsLink &&
+    (servedType.startsWith("text/html") ||
+      servedType.startsWith("text/markdown"))
+  ) {
+    headers.append("Link", params.llmsLink);
+  }
+  if (isPreview) {
+    headers.set("X-Robots-Tag", "noindex, nofollow");
   }
   if (status === 200 && request.headers.get("If-None-Match") === etag) {
     return new Response(null, { status: 304, headers });
@@ -150,26 +105,4 @@ export async function serveFile(params: ServeFileParams): Promise<Response> {
   return analytics && request.method !== "HEAD"
     ? injectAnalyticsScript(response, analytics.scriptSrc, analytics.eventPath)
     : response;
-}
-
-export function markdownNotFound(params: MarkdownNotFoundParams): Response {
-  const lines = [
-    "# Not found",
-    "",
-    `There is no page at \`${params.path.replaceAll("`", "")}\`. It may have moved, or the link is wrong.`,
-    "",
-  ];
-  if (params.indexPath) {
-    lines.push(`- [Index](${params.indexPath}): every entry, newest first`);
-  }
-  lines.push(`- [llms.txt](${params.llmsPath}): a Markdown map of this site`);
-  return new Response(`${lines.join("\n")}\n`, {
-    status: 404,
-    headers: {
-      "Content-Type": "text/markdown; charset=utf-8",
-      "Cache-Control": "no-store",
-      "X-Robots-Tag": "noindex",
-      Vary: "Accept",
-    },
-  });
 }

@@ -88,6 +88,7 @@ test("404 then two successful views agree across session rollups and raw outcome
         session_id: "session",
         landing_group: "ai",
         landing_source: "openai",
+        landing_path: "/",
         pages: 2,
       },
     ]);

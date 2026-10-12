@@ -6,32 +6,34 @@ import LinkIcon from "./LinkIcon.astro";
 
 const { markdownHref, pagePath, title } = Astro.props;
 const { copy, menu } = contextualActions({ title, pagePath, markdownHref });
+const hasActions = copy || menu.length > 0;
 ---
 
-{
-  copy && (
-    <>
-      <span aria-hidden="true">·</span>
-      <button type="button" data-copy-article={markdownHref} class="inline-flex cursor-pointer items-center gap-1.5 underline-offset-4 transition-colors duration-150 hover:text-foreground hover:underline">
+{hasActions && (
+<div class="relative" data-page-actions>
+<div class="split-button" role="group" aria-label="Page actions">
+  {
+    copy && (
+      <button type="button" data-copy-article={markdownHref} class="btn btn-secondary btn-sm">
         <Icon name="copy" size={14} class="[[data-copied]_&]:hidden" />
         <Icon name="check" size={14} class="hidden [[data-copied]_&]:block" />
-        <span data-copy-label>Copy article</span>
+        <span data-copy-label>Copy page</span>
       </button>
-    </>
-  )
-}
-{
-  menu.length > 0 && (
-    <>
-      <span aria-hidden="true">·</span>
-      <details class="group relative" data-open-in>
-        <summary aria-label="Open in" class="flex cursor-pointer list-none items-center gap-1 underline-offset-4 transition-colors duration-150 hover:text-foreground hover:underline [&::-webkit-details-marker]:hidden">
-          Open in
-          <Icon name="chevron-down" size={14} class="transition-transform duration-150 group-open:rotate-180" />
+    )
+  }
+  {
+    menu.length > 0 && (
+      <details class="group" data-open-in>
+        <summary
+          aria-label={copy ? "More page actions" : undefined}
+          class:list={["btn btn-secondary btn-sm list-none [&::-webkit-details-marker]:hidden", copy && "btn-icon"]}
+        >
+          {!copy && "Open in"}
+          <Icon name="chevron-down" size={14} class="transition-transform duration-150 ease-out group-open:rotate-180" />
         </summary>
         <div
           class:list={[
-            "absolute left-0 z-30 mt-2 origin-top-left rounded-xl border border-border bg-background p-1.5 font-sans shadow-lg motion-safe:animate-[menu-in_120ms_ease-out]",
+            "absolute top-full left-0 z-30 mt-2 origin-top-left rounded-xl border border-border bg-background p-1.5 font-sans shadow-lg motion-safe:animate-[menu-in_120ms_ease-out]",
             menu.some((item) => item.description) ? "w-72" : "w-60",
           ]}
         >
@@ -61,29 +63,74 @@ const { copy, menu } = contextualActions({ title, pagePath, markdownHref });
           ))}
         </div>
       </details>
-    </>
-  )
-}
+    )
+  }
+</div>
+{copy && (
+  <>
+    <p data-copy-status role="status" class="mt-2 max-w-72 text-sm text-muted-foreground empty:sr-only" />
+    <a data-copy-fallback href={markdownHref} hidden class="text-sm underline underline-offset-4">View as Markdown</a>
+  </>
+)}
+</div>
+)}
 
 <script>
   for (const button of document.querySelectorAll<HTMLButtonElement>("[data-copy-article]")) {
+    let resetTimer: ReturnType<typeof setTimeout> | undefined;
     button.addEventListener("click", async () => {
-      const response = await fetch(button.dataset.copyArticle ?? "");
-      if (!response.ok) {
+      if (button.getAttribute("aria-disabled") === "true") {
         return;
       }
-      await navigator.clipboard.writeText(await response.text());
       const label = button.querySelector("[data-copy-label]");
-      button.setAttribute("data-copied", "");
-      if (label) {
-        label.textContent = "Copied";
+      const status = button.closest("[data-page-actions]")?.querySelector("[data-copy-status]");
+      const fallback = button.closest("[data-page-actions]")?.querySelector<HTMLAnchorElement>("[data-copy-fallback]");
+      clearTimeout(resetTimer);
+      button.setAttribute("aria-disabled", "true");
+      button.setAttribute("aria-busy", "true");
+      button.removeAttribute("data-copied");
+      if (fallback) {
+        fallback.hidden = true;
       }
-      setTimeout(() => {
-        button.removeAttribute("data-copied");
-        if (label) {
-          label.textContent = "Copy article";
+      if (label) {
+        label.textContent = "Copy page";
+      }
+      if (status) {
+        status.textContent = "";
+      }
+      try {
+        const response = await fetch(button.dataset.copyArticle ?? "");
+        if (!response.ok) {
+          throw new Error("Unable to load Markdown");
         }
-      }, 2000);
+        await navigator.clipboard.writeText(await response.text());
+        button.setAttribute("data-copied", "");
+        if (label) {
+          label.textContent = "Copied";
+        }
+        if (status) {
+          status.textContent = "Page copied as Markdown.";
+        }
+        resetTimer = setTimeout(() => {
+          button.removeAttribute("data-copied");
+          if (label) {
+            label.textContent = "Copy page";
+          }
+          if (status?.textContent === "Page copied as Markdown.") {
+            status.textContent = "";
+          }
+        }, 2000);
+      } catch {
+        if (status) {
+          status.textContent = "Unable to copy. Try again, or open the Markdown version and copy it manually.";
+        }
+        if (fallback) {
+          fallback.hidden = false;
+        }
+      } finally {
+        button.removeAttribute("aria-disabled");
+        button.removeAttribute("aria-busy");
+      }
     });
   }
   for (const menu of document.querySelectorAll<HTMLDetailsElement>("[data-open-in]")) {

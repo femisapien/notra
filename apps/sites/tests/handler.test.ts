@@ -251,9 +251,11 @@ describe("production serving", () => {
     expect(await (await request("https://acme.notra.site/blog")).text()).toBe(
       "dep_live:/blog/index.html"
     );
-    expect(
-      await (await request("https://acme.notra.site/blog/post/")).text()
-    ).toBe("dep_live:/blog/post/index.html");
+    const slashed = await request("https://acme.notra.site/blog/post/?a=1");
+    expect([slashed.status, slashed.headers.get("Location")]).toEqual([
+      308,
+      "/blog/post?a=1",
+    ]);
     expect(
       await (await request("https://acme.notra.site/changelog")).text()
     ).toBe("dep_live:/changelog/index.html");
@@ -285,7 +287,7 @@ describe("production serving", () => {
     const page = await request("https://acme.notra.site/blog/post");
     expect(await page.text()).toBe("dep_live:/blog/post/index.html");
     expect(page.headers.get("Vary")).toBe("Accept");
-    expect(page.headers.get("Link")).toContain("</blog/post/index.md>");
+    expect(page.headers.get("Link")).toContain("</blog/post.md>");
 
     const negotiated = await request("https://acme.notra.site/blog/post", {
       Accept: "text/markdown, text/html;q=0.9, */*;q=0.8",
@@ -443,7 +445,7 @@ describe("production serving", () => {
     await request("https://acme.notra.site/blog/post", {
       referer: "https://acme.notra.site/blog/?page=2",
     });
-    await request("https://acme.notra.site/blog/", {
+    await request("https://acme.notra.site/blog", {
       referer: "https://news.ycombinator.com/",
     });
     await settle();
