@@ -22,6 +22,11 @@ import {
 } from "../../constants/dashboard/github";
 import { createPostFieldsSchema, postSlugSchema } from "../shared/post";
 import {
+  contentAuthorFieldsSchema,
+  postMetadataPatchSchema,
+  postMetadataSchema,
+} from "../shared/post-metadata";
+import {
   LOOKBACK_WINDOWS,
   repositoryContentFilePathSchema,
   repositoryRelativePathSchema,
@@ -105,6 +110,7 @@ export const contentSchema = z.object({
   date: z.string(),
   sourceMetadata: sourceMetadataSchema,
   githubPublish: postGitHubPublishSchema.nullable(),
+  metadata: postMetadataSchema,
 });
 
 export type ContentResponse = z.infer<typeof contentSchema>;
@@ -380,6 +386,26 @@ export const updateContentSchema = z
   );
 
 export type UpdateContentInput = z.infer<typeof updateContentSchema>;
+
+export const updateContentMetadataInputSchema = contentInputSchema.extend({
+  metadata: postMetadataPatchSchema,
+});
+
+export const createContentAuthorInputSchema =
+  contentOrganizationIdInputSchema.extend({
+    author: contentAuthorFieldsSchema,
+  });
+
+export const updateContentAuthorInputSchema =
+  contentOrganizationIdInputSchema.extend({
+    authorId: z.string().min(1),
+    author: contentAuthorFieldsSchema.partial(),
+  });
+
+export const deleteContentAuthorInputSchema =
+  contentOrganizationIdInputSchema.extend({
+    authorId: z.string().min(1),
+  });
 
 export const createPostInputSchema = contentOrganizationIdInputSchema
   .extend(contentProjectIdInputSchema.shape)

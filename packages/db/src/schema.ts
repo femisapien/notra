@@ -79,6 +79,7 @@ import {
 import type { GeoContentBriefJson } from "./types/geo-writer";
 import type { GoogleSearchConsoleQuery } from "./types/google-search-console";
 import type { PostGitHubPublish } from "./types/post-github-publish";
+import type { PostCoverImage } from "./types/post-metadata";
 import type {
   ScheduledPublicationDestinationConfig,
   ScheduledPublicationResult,
@@ -2350,6 +2351,21 @@ export const posts = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     sourceMetadata: jsonb("source_metadata"),
     githubPublish: jsonb("github_publish").$type<PostGitHubPublish | null>(),
+    // Site metadata for blog posts and changelog entries, written into the
+    // frontmatter on publish.
+    coverImage: jsonb("cover_image").$type<PostCoverImage | null>(),
+    tags: text("tags")
+      .array()
+      .default(sql`'{}'::text[]`)
+      .notNull(),
+    excerpt: text("excerpt"),
+    authorIds: text("author_ids")
+      .array()
+      .default(sql`'{}'::text[]`)
+      .notNull(),
+    featured: boolean("featured").default(false).notNull(),
+    noindex: boolean("noindex").default(false).notNull(),
+    displayDate: timestamp("display_date"),
     status: postStatusEnum("status").default("draft").notNull(),
     publishedAt: timestamp("published_at"),
     updatedAt: timestamp("updated_at")
@@ -2384,6 +2400,43 @@ export const posts = pgTable(
     index("posts_org_published_at_idx")
       .on(table.organizationId, table.publishedAt)
       .where(sql`${table.publishedAt} IS NOT NULL`),
+  ]
+);
+
+export const contentAuthors = pgTable(
+  "content_authors",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // Stable id on hosted sites: the author page lives at /author/<slug>.
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    title: text("title"),
+    bio: text("bio"),
+    avatarUrl: text("avatar_url"),
+    url: text("url"),
+    x: text("x"),
+    linkedin: text("linkedin"),
+    github: text("github"),
+    userId: text("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("content_authors_org_slug_uidx").on(
+      table.organizationId,
+      table.slug
+    ),
+    uniqueIndex("content_authors_org_user_uidx")
+      .on(table.organizationId, table.userId)
+      .where(sql`${table.userId} IS NOT NULL`),
   ]
 );
 
@@ -3741,6 +3794,13 @@ export const postCollectionsRelations = relations(
     posts: many(posts),
   })
 );
+
+export const contentAuthorsRelations = relations(contentAuthors, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [contentAuthors.organizationId],
+    references: [organizations.id],
+  }),
+}));
 
 export const postsRelations = relations(posts, ({ many, one }) => ({
   organization: one(organizations, {
