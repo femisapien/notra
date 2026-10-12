@@ -5,6 +5,7 @@ import {
   POST_SLUG_REGEX,
   supportsPostSlug,
 } from "@notra/ai/schemas/post";
+import { generatedPostMetadataShape } from "@notra/ai/schemas/post-metadata";
 import type {
   PostToolsConfig,
   PostToolsResult,
@@ -15,6 +16,7 @@ import {
   createPostRecord,
   ensureChatPostCollection,
   updatePostRecord,
+  updatePostSiteMetadata,
 } from "@notra/ai/utils/post-service";
 import { applyPostTextEdits } from "@notra/ai/utils/post-text-edits";
 import { getCreatePostToolName } from "@notra/ai/utils/post-tool-name";
@@ -68,6 +70,7 @@ const createPostBaseInputShape = {
 
 const createPostSlugInputShape = {
   ...createPostBaseInputShape,
+  ...generatedPostMetadataShape,
   slug: postSlugSchema
     .nullable()
     .optional()
@@ -90,6 +93,8 @@ export function createCreatePostTool(
     slug?: string | null;
     markdown: string;
     recommendations?: string | null;
+    tags?: string[];
+    excerpt?: string;
   }) => {
     const collectionId =
       config.collectionId ??
@@ -120,6 +125,14 @@ export function createCreatePostTool(
       if (status === "not_found") {
         throw new Error("The draft post to update was not found.");
       }
+      if (withSlug) {
+        await updatePostSiteMetadata({
+          organizationId: config.organizationId,
+          postId: config.targetPostId,
+          tags: input.tags,
+          excerpt: input.excerpt,
+        });
+      }
       result.posts ??= [];
       result.posts.push({
         postId: config.targetPostId,
@@ -146,6 +159,8 @@ export function createCreatePostTool(
       recommendations: input.recommendations ?? null,
       autoPublish: config.autoPublish,
       sourceMetadata,
+      tags: input.tags,
+      excerpt: input.excerpt,
     });
     result.posts ??= [];
     result.posts.push({

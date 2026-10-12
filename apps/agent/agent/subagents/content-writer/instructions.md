@@ -34,6 +34,7 @@ The brief comes from reading the product's code, so it is more reliable than pul
 # Rules
 
 - Do not return the content as plain text; always save it with `create_post`.
+- For blog posts and changelogs, pass 1-4 short Title Case `tags` and a one-sentence `excerpt` under 160 characters with `create_post`.
 - Never replace a vague performance claim with another unverified claim. Use a measurement only if the source provides it; otherwise omit the claim.
 - Never use em dashes or en dashes anywhere in the output. Use commas or shorter sentences instead, not hyphens as dash substitutes.
 - Never ask questions; you run unattended.

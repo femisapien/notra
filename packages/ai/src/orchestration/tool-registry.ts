@@ -1,3 +1,4 @@
+import { supportsPostSlug } from "@notra/ai/schemas/post";
 import { unavailableImageRevisionToolInputSchema } from "@notra/ai/schemas/repo-image";
 import {
   createGetBrandReferencesTool,
@@ -27,6 +28,7 @@ import {
   createGetBrandIdentityTool,
   createListBrandIdentitiesTool,
 } from "@notra/ai/tools/organization";
+import { createPostDetailsTools } from "@notra/ai/tools/post-details";
 import { registerSitemapTools } from "@notra/ai/tools/sitemap";
 import { getSkillByName, listAvailableSkills } from "@notra/ai/tools/skills";
 import { registerWebSearchTools } from "@notra/ai/tools/web-search";
@@ -113,6 +115,18 @@ export function buildToolSet(
     descriptions.unshift(
       "**Markdown Editing**: View and edit the document using getMarkdown and editMarkdown"
     );
+
+    if (currentPostId && contentType && supportsPostSlug(contentType)) {
+      const { getPostDetails, updatePostDetails } = createPostDetailsTools({
+        organizationId,
+        postId: currentPostId,
+      });
+      tools.getPostDetails = getPostDetails;
+      tools.updatePostDetails = updatePostDetails;
+      descriptions.unshift(
+        "**Post Details**: Read and change the cover image, tags, excerpt, authors, featured flag, search visibility and shown date (the Overview tab) using getPostDetails and updatePostDetails. These are not part of the markdown."
+      );
+    }
   }
 
   if (isDev) {

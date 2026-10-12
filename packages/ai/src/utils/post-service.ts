@@ -1,6 +1,7 @@
 import { getChatProjectId } from "@notra/ai/chat/history";
 import { maybeGenerateCollectionTitle } from "@notra/ai/jobs/collection-title";
-import { POST_SLUG_MAX_LENGTH } from "@notra/ai/schemas/post";
+import { POST_SLUG_MAX_LENGTH, supportsPostSlug } from "@notra/ai/schemas/post";
+import { postTagsSchema } from "@notra/ai/schemas/post-metadata";
 import type {
   CreatePostRecordParams,
   CreatePostRecordResult,
@@ -8,6 +9,7 @@ import type {
   PostDatabase,
   UpdatePostRecordParams,
   UpdatePostRecordResult,
+  UpdatePostSiteMetadataParams,
 } from "@notra/ai/types/post-service";
 import { sanitizeMarkdownHtml } from "@notra/ai/utils/sanitize";
 import { db } from "@notra/db/drizzle";
@@ -48,12 +50,67 @@ function uniquifySlug(slug: string, n: number) {
   return `${slug.slice(0, POST_SLUG_MAX_LENGTH - suffix.length)}${suffix}`;
 }
 
+/**
+ * Maps tags a model wrote onto the spelling the organization already uses,
+ * so "product" joins the existing "Product" tag instead of starting a new one.
+ */
+export async function matchExistingTags(
+  organizationId: string,
+  tags: readonly string[]
+): Promise<string[]> {
+  const parsed = postTagsSchema.safeParse(tags);
+  if (!parsed.success || parsed.data.length === 0) {
+    return [];
+  }
+  const tag = sql<string>`unnest(${posts.tags})`;
+  const existing = await db
+    .selectDistinct({ tag })
+    .from(posts)
+    .where(eq(posts.organizationId, organizationId));
+  const byKey = new Map(
+    existing.map((row) => [row.tag.toLowerCase(), row.tag])
+  );
+  return parsed.data.map((value) => byKey.get(value.toLowerCase()) ?? value);
+}
+
+/** Writes tags and excerpt a writer picked onto an existing post; unset fields stay. */
+export async function updatePostSiteMetadata(
+  params: UpdatePostSiteMetadataParams
+): Promise<void> {
+  const tags = params.tags
+    ? await matchExistingTags(params.organizationId, params.tags)
+    : undefined;
+  const excerpt = params.excerpt?.trim() || undefined;
+  if (!(tags?.length || excerpt)) {
+    return;
+  }
+  await db
+    .update(posts)
+    .set({
+      ...(tags?.length ? { tags } : {}),
+      ...(excerpt ? { excerpt } : {}),
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(posts.id, params.postId),
+        eq(posts.organizationId, params.organizationId)
+      )
+    );
+}
+
 export async function createPostRecord(
   params: CreatePostRecordParams
 ): Promise<CreatePostRecordResult> {
   const id = params.postId ?? generatePostId();
   const content = sanitizeMarkdownHtml(await marked.parse(params.markdown));
   const baseSlug = params.slug ?? null;
+  const hasSiteMetadata = supportsPostSlug(params.contentType);
+  const tags =
+    hasSiteMetadata && params.tags
+      ? await matchExistingTags(params.organizationId, params.tags)
+      : [];
+  const excerpt = hasSiteMetadata ? params.excerpt?.trim() || null : null;
 
   const insert = async (slug: string | null) =>
     db.transaction(async (tx) => {
@@ -73,6 +130,8 @@ export async function createPostRecord(
           status: params.autoPublish ? "published" : "draft",
           publishedAt: params.autoPublish ? new Date() : null,
           sourceMetadata: params.sourceMetadata ?? null,
+          tags,
+          excerpt,
         })
         .onConflictDoNothing({ target: posts.id })
         .returning({ id: posts.id });

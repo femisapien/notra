@@ -1,5 +1,9 @@
 import "zod/compile";
 import { z } from "@hono/zod-openapi";
+import {
+  POST_AUTHORS_MAX,
+  POST_TAGS_MAX,
+} from "@notra/ai/constants/post-metadata";
 import { supportedLanguageSchema } from "@notra/ai/schemas/language";
 import {
   BRAND_AUDIENCE_MAX_LENGTH,
@@ -14,23 +18,21 @@ import {
   POST_TITLE_MAX_LENGTH,
 } from "@notra/ai/schemas/limits";
 import { POST_SLUG_MAX_LENGTH, POST_SLUG_REGEX } from "@notra/ai/schemas/post";
+import {
+  postCoverImageSchema,
+  postExcerptPatchSchema,
+  postTagsSchema,
+} from "@notra/ai/schemas/post-metadata";
 import { toneProfileSchema } from "@notra/ai/schemas/tone";
 import { isValidTimezone } from "@notra/ai/utils/current-date";
 import { SUPPORTED_CONTENT_GENERATION_TYPES } from "@notra/content-generation/schemas";
 import { lookbackWindowEnum, postStatusEnum } from "@notra/db/schema";
 import { assertPublicHttpUrl } from "@notra/utils/url";
 
-import {
-  POST_AUTHORS_MAX,
-  POST_TAGS_MAX,
-} from "../../constants/dashboard/post-metadata";
 import { createPostFieldsSchema } from "../shared/post";
 import {
   postAuthorIdsSchema,
-  postCoverImageSchema,
   postDisplayDatePatchSchema,
-  postExcerptPatchSchema,
-  postTagsSchema,
 } from "../shared/post-metadata";
 import { resourceIdSchema } from "./ids";
 

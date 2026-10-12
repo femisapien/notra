@@ -1,3 +1,10 @@
+import { POST_AUTHORS_MAX } from "@notra/ai/constants/post-metadata";
+import {
+  postCoverImageSchema,
+  postExcerptPatchSchema,
+  postMediaUrlSchema,
+  postTagsSchema,
+} from "@notra/ai/schemas/post-metadata";
 import { SITE_AUTHOR_ID } from "@notra/sites-core/constants/site-config";
 // biome-ignore lint/performance/noNamespaceImport: Zod recommended way to import
 import * as z from "zod";
@@ -7,63 +14,12 @@ import {
   CONTENT_AUTHOR_LINK_MAX_LENGTH,
   CONTENT_AUTHOR_NAME_MAX_LENGTH,
   CONTENT_AUTHOR_TITLE_MAX_LENGTH,
-  POST_AUTHORS_MAX,
-  POST_COVER_ALT_MAX_LENGTH,
-  POST_COVER_URL_MAX_LENGTH,
-  POST_EXCERPT_MAX_LENGTH,
-  POST_TAG_MAX_LENGTH,
-  POST_TAGS_MAX,
 } from "../../constants/dashboard/post-metadata";
-
-/**
- * An https URL, or a path to Notra's own upload route. Plain http is
- * rejected: hosted sites are https-only and refuse mixed content.
- */
-const mediaUrlSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(POST_COVER_URL_MAX_LENGTH)
-  .refine(
-    (value) =>
-      value.startsWith("/api/uploads/") || /^https:\/\/[^\s]+$/i.test(value),
-    { error: "Use an https URL or an uploaded image" }
-  );
-
-export const postCoverImageSchema = z.object({
-  url: mediaUrlSchema,
-  alt: z.string().trim().max(POST_COVER_ALT_MAX_LENGTH).default(""),
-});
-
-export const postTagSchema = z.string().trim().min(1).max(POST_TAG_MAX_LENGTH);
-
-/** Trims, drops empties and case-insensitive duplicates, keeps first spelling. */
-export const postTagsSchema = z
-  .array(postTagSchema)
-  .max(POST_TAGS_MAX)
-  .transform((tags) => {
-    const seen = new Set<string>();
-    return tags.filter((tag) => {
-      const key = tag.toLowerCase();
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
-  });
 
 export const postAuthorIdsSchema = z
   .array(z.string().trim().min(1).max(64))
   .max(POST_AUTHORS_MAX)
   .transform((ids) => [...new Set(ids)]);
-
-/** Empty or null: derive the summary from the first paragraph again. */
-export const postExcerptPatchSchema = z
-  .string()
-  .trim()
-  .max(POST_EXCERPT_MAX_LENGTH)
-  .nullable();
 
 /** YYYY-MM-DD; null falls back to the publish date. */
 export const postDisplayDatePatchSchema = z.iso.date().nullable();
@@ -128,7 +84,7 @@ export const contentAuthorFieldsSchema = z.object({
     .transform((value) => value || null)
     .nullable()
     .optional(),
-  avatarUrl: mediaUrlSchema.nullable().optional(),
+  avatarUrl: postMediaUrlSchema.nullable().optional(),
   url: optionalLinkSchema,
   x: optionalLinkSchema,
   linkedin: optionalLinkSchema,
