@@ -282,7 +282,6 @@ export async function changedPathsBetween(
       owner: repository.owner,
       repo: repository.repo,
       basehead: `${base}...${head}`,
-      per_page: GITHUB_COMPARE_MAX_FILES,
       headers: GITHUB_API_VERSION_HEADER,
     }
   );
