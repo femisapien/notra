@@ -391,11 +391,15 @@ if (!databaseUrl) {
     ["inside the folder", ["docs/blog/page.mdx"], true],
     ["an unknown comparison", null, true],
   ] as const)("a head moved by commits %s", async (_, paths, superseded) => {
-    [site] = await db
+    const [updated] = await db
       .update(sites)
       .set({ rootDirectory: "docs" })
       .where(eq(sites.id, site.id))
       .returning();
+    if (!updated) {
+      throw new Error("Synthetic site was not updated");
+    }
+    site = updated;
     await publish();
     const candidate = await queue();
     branchHead = "c".repeat(40);
