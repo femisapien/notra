@@ -72,6 +72,8 @@ Slots add your own content at fixed places, and each one is a file in `slots/`:
 | `post` | `title`, `description`, `date` (formatted), `tags`, `authors` (each with `name`, `title`, `url`), `url` |
 | `entry` | `title`, `version`, `date` (formatted), `url` |
 
+The hero slots span the full content width, so wrap their content in `<div className="mx-auto max-w-(--layout-index)">` to line it up with the posts below.
+
 ```mdx slots/after-post.mdx
 <div className="mt-12 rounded-xl border border-border p-6">
   <p className="font-semibold">Enjoyed "{post.title}"?</p>

@@ -36,6 +36,14 @@ const codeDark = config.styling.codeblocks === "dark";
 const lightFavicon = faviconFor("light");
 const darkFavicon = faviconFor("dark");
 const metaTags = extraMetaTags();
+// A tag set in seo.metatags replaces the theme's own instead of adding a second one.
+const customTags = new Set(metaTags.map((tag) => tag.value.toLowerCase()));
+const builtIn = (name: string) => !customTags.has(name);
+// Previews must stay out of search engines, whatever the site sets.
+const customRobots = !params.noindex && !noindex && !builtIn("robots");
+// A custom og:image makes the theme's alt text and card size wrong.
+const customImage = !builtIn("og:image");
+const twitterCard = customImage || ogImage?.large ? "summary_large_image" : "summary";
 const banner = siteBanner();
 const dismissKey = banner?.dismissible ? banner.storageKey : null;
 const customHeader = Boolean(chromeComponent("header"));
@@ -46,35 +54,35 @@ const customFooter = Boolean(chromeComponent("footer"));
 <html lang="en" class:list={[decorationClass(), codeDark && "code-dark"]}>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {builtIn("viewport") && <meta name="viewport" content="width=device-width, initial-scale=1" />}
     <title>{title}</title>
-    {description && <meta name="description" content={description} />}
+    {description && builtIn("description") && <meta name="description" content={description} />}
     <link rel="canonical" href={canonical} />
-    <meta name="robots" content={robots} />
+    {!customRobots && <meta name="robots" content={robots} />}
     {lightFavicon && <link rel="icon" href={lightFavicon} media={darkFavicon !== lightFavicon ? "(prefers-color-scheme: light)" : undefined} />}
     {darkFavicon && darkFavicon !== lightFavicon && <link rel="icon" href={darkFavicon} media="(prefers-color-scheme: dark)" />}
     {appleTouchIcon && <link rel="apple-touch-icon" href={appleTouchIcon} />}
-    <meta name="theme-color" content={colors.light} media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content={colors.dark} media="(prefers-color-scheme: dark)" />
+    {builtIn("theme-color") && <meta name="theme-color" content={colors.light} media="(prefers-color-scheme: light)" />}
+    {builtIn("theme-color") && <meta name="theme-color" content={colors.dark} media="(prefers-color-scheme: dark)" />}
     {markdown && <link rel="alternate" type="text/markdown" href={markdown} />}
     <link rel="alternate" type="text/plain" title="llms.txt" href={llmsHref()} />
     {feeds.map((feed) => <link rel="alternate" type="application/rss+xml" title={feed.title} href={feed.href} />)}
-    <meta property="og:type" content={type} />
-    <meta property="og:title" content={title} />
-    <meta property="og:url" content={canonical} />
-    <meta property="og:site_name" content={config.name} />
-    {description && <meta property="og:description" content={description} />}
-    <meta property="og:locale" content="en_US" />
-    {ogImage && <meta property="og:image" content={ogImage.url} />}
-    {ogImage && <meta property="og:image:alt" content={ogImage.large ? title : config.name} />}
+    {builtIn("og:type") && <meta property="og:type" content={type} />}
+    {builtIn("og:title") && <meta property="og:title" content={title} />}
+    {builtIn("og:url") && <meta property="og:url" content={canonical} />}
+    {builtIn("og:site_name") && <meta property="og:site_name" content={config.name} />}
+    {description && builtIn("og:description") && <meta property="og:description" content={description} />}
+    {builtIn("og:locale") && <meta property="og:locale" content="en_US" />}
+    {ogImage && builtIn("og:image") && <meta property="og:image" content={ogImage.url} />}
+    {ogImage && !customImage && builtIn("og:image:alt") && <meta property="og:image:alt" content={ogImage.large ? title : config.name} />}
     {publishedTime && <meta property="article:published_time" content={publishedTime.toISOString()} />}
     {type === "article" && modifiedTime && <meta property="article:modified_time" content={modifiedTime.toISOString()} />}
     {type === "article" && <meta property="article:section" content={areaTitle(params.area)} />}
     {type === "article" && tags.map((tag) => <meta property="article:tag" content={tag} />)}
-    <meta name="twitter:card" content={ogImage?.large ? "summary_large_image" : "summary"} />
-    {twitterSite && <meta name="twitter:site" content={twitterSite} />}
-    <meta name="generator" content="Notra Sites" />
-    {metaTags.map((tag) => (tag.key === "property" ? <meta property={tag.value} content={tag.content} /> : <meta name={tag.value} content={tag.content} />))}
+    {builtIn("twitter:card") && <meta name="twitter:card" content={twitterCard} />}
+    {twitterSite && builtIn("twitter:site") && <meta name="twitter:site" content={twitterSite} />}
+    {builtIn("generator") && <meta name="generator" content="Notra Sites" />}
+    {metaTags.filter((tag) => tag.value.toLowerCase() !== "robots" || customRobots).map((tag) => (tag.key === "property" ? <meta property={tag.value} content={tag.content} /> : <meta name={tag.value} content={tag.content} />))}
     {jsonLd && <script type="application/ld+json" set:html={structuredData(jsonLd)} />}
     {preloadInter && <link rel="preload" href={interFont} as="font" type="font/woff2" crossorigin />}
     {fontsUrl && <link rel="stylesheet" href={fontsUrl} />}

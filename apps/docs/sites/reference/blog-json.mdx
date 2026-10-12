@@ -77,10 +77,10 @@ See [Design and CSS](/sites/customize/design).
 | `colors.dark` | Color | `primary` | Button color |
 | `appearance` | `"light" \| "dark" \| "system"` or `{ default, strict }` | `"system"` | Starting mode, and `strict: true` hides the toggle |
 | `fonts.family` | string | Inter | A Google Font, or the name of your own font with `source` |
-| `fonts.weight` | 100 to 900 | | Font weight |
+| `fonts.weight` | 100 to 900 | `400` | Body text weight |
 | `fonts.source` | Path | | Your own font file |
 | `fonts.format` | `"woff2" \| "woff"` | `"woff2"` | Format of `source` |
-| `fonts.heading`, `fonts.body` | `{ family, weight?, source?, format? }` | | A separate font for headings or body text |
+| `fonts.heading`, `fonts.body` | `{ family, weight?, source?, format? }` | | A separate font for headings or body text, where `heading.weight` sets heading weight (default `600`) |
 | `background.decoration` | `"none" \| "grid" \| "dots" \| "gradient"` | `"none"` | Page decoration |
 | `background.color` | `{ light?, dark? }` Colors | | Page color per mode |
 | `background.image` | Path, or `{ light, dark }` | | Page background image |
@@ -185,7 +185,7 @@ See [SEO, share images and redirects](/sites/customize/seo).
 
 `variables` is an object that maps names to values, which you use as `{{ name }}` in posts. See [Variables](/sites/posts#variables).
 
-Names start with a letter and use letters, digits, `_` and `-`, up to 40 characters, and values are up to 500 characters. Variables also work in `description`, `banner.content` and the `title` and `description` of `blog` and `changelog`.
+Names start with a letter and use letters, digits, `_` and `-`, up to 40 characters, and values are up to 500 characters. Variables also work in `description`, `banner.content`, `markdown.instructions` and the `title` and `description` of `blog` and `changelog`.
 
 ## Integrations
 

@@ -8,6 +8,7 @@ import { siteConfigSchema } from "@notra/sites-core/schemas/site-config";
 import {
   siteBlogSchema,
   siteChangelogSchema,
+  siteMarkdownSchema,
 } from "@notra/sites-core/schemas/site-layout";
 import type { SiteDiagnostic } from "@notra/sites-core/types/build";
 import type { SiteConfig } from "@notra/sites-core/types/site-config";
@@ -95,6 +96,35 @@ function validateSlotFile(path: string): SiteDiagnostic[] {
   ];
 }
 
+type Instructions = SiteConfig["markdown"]["instructions"];
+
+/** Fills variables in, then re-checks the length limits against the result. */
+function substituteInstructions(
+  instructions: Instructions,
+  fill: (text: string, setting: string) => string | undefined,
+  diagnostics: SiteDiagnostic[]
+): Instructions {
+  if (instructions === undefined) {
+    return undefined;
+  }
+  const filled =
+    typeof instructions === "string"
+      ? (fill(instructions, "markdown.instructions") ?? instructions)
+      : instructions.map(
+          (line, index) => fill(line, `markdown.instructions[${index}]`) ?? line
+        );
+  if (siteMarkdownSchema.safeParse({ instructions: filled }).success) {
+    return filled;
+  }
+  diagnostics.push(
+    configError(
+      "instructions_too_long",
+      "markdown.instructions is over its length limit once variables are filled in. Shorten the text or the variables it uses."
+    )
+  );
+  return instructions;
+}
+
 function substituteSettingVariables(config: SiteConfig): SubstitutedSettings {
   const diagnostics: SiteDiagnostic[] = [];
   const fill = (text: string | undefined, setting: string) => {
@@ -112,10 +142,16 @@ function substituteSettingVariables(config: SiteConfig): SubstitutedSettings {
     }
     return result.text;
   };
+  const instructions = substituteInstructions(
+    config.markdown.instructions,
+    fill,
+    diagnostics
+  );
   return {
     config: {
       ...config,
       description: fill(config.description, "description"),
+      markdown: { ...config.markdown, instructions },
       banner: config.banner
         ? {
             ...config.banner,

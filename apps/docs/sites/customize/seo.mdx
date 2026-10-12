@@ -35,7 +35,7 @@ Every site comes with sitemaps, RSS feeds, canonical URLs, Open Graph tags and s
 
 | Setting | What it does |
 | --- | --- |
-| `metatags` | Adds `<meta>` tags to every page, where keys starting with `og:`, `article:`, `fb:`, `profile:` or `book:` become `property` and the rest `name` |
+| `metatags` | Adds `<meta>` tags to every page, where keys starting with `og:`, `article:`, `fb:`, `profile:` or `book:` become `property` and the rest `name`. A tag the theme already sets, like `og:site_name`, `description` or `robots`, replaces the theme's value instead of adding a second tag, except `robots` on previews, which always stay `noindex` |
 | `indexing` | `navigable` (default) lets search engines index posts and index pages, while `all` also indexes author pages |
 | `organization` | The publisher search engines and AI answers attribute your posts to, with a required `name` and up to 12 `sameAs` profiles. Without it, Notra uses `name`, `logo` and `footer.socials` |
 

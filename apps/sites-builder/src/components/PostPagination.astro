@@ -6,16 +6,17 @@ import AuthorAvatar from "./AuthorAvatar.astro";
 import Icon from "./Icon.astro";
 
 const { next, previous } = Astro.props;
+// Older post on the left, newer on the right, so each arrow points the way its label reads.
 const cards = [
-  ...(next ? [{ entry: next, label: "Next", right: false }] : []),
-  ...(previous ? [{ entry: previous, label: "Previous", right: true }] : []),
+  ...(previous ? [{ entry: previous, label: "Previous", right: false }] : []),
+  ...(next ? [{ entry: next, label: "Next", right: true }] : []),
 ];
 ---
 
 {
   cards.length > 0 && (
     <nav id="pagination" aria-label="More posts" class="mt-16 grid gap-4 border-t border-border pt-8 sm:grid-cols-2">
-      {!next && <div aria-hidden="true" class="hidden sm:block" />}
+      {!previous && <div aria-hidden="true" class="hidden sm:block" />}
       {cards.map(({ entry, label, right }) => {
         const [author] = authorsOf(entry);
         return (

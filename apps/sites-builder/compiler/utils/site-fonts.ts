@@ -8,7 +8,6 @@ import {
 } from "@notra/sites-core/constants/sites";
 import type { SiteConfig } from "@notra/sites-core/types/site-config";
 
-import { declaredFonts } from "../../src/utils/theme-fonts";
 import {
   FONT_CSS_MAX_BYTES,
   FONT_DOWNLOAD_CONCURRENCY,
@@ -18,11 +17,127 @@ import {
   FONT_PATH_RE,
   FONT_URL_RE,
   FONT_USER_AGENT,
+  FONT_COMMON_WEIGHTS,
+  FONT_WEIGHT_RANGES,
+  DEFAULT_HEADING_WEIGHT,
   GOOGLE_FONTS_CSS_URL,
   GOOGLE_FONTS_LICENSE_URL,
 } from "../constants/fonts";
 import type { SiteFontsResult } from "../types/fonts";
 import { exists, writeFileEnsured } from "./fs";
+
+class FontRequestError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`Font download failed (${status})`);
+    this.status = status;
+  }
+}
+
+function discreteWeights(weights: number[]): string {
+  return [...new Set(weights)].sort((a, b) => a - b).join(";");
+}
+
+/**
+ * Weight specs to try per family, best first: ranges for variable fonts, then
+ * the exact weights, which static fonts like Lato only serve one by one.
+ */
+function weightCandidates(weights: (number | undefined)[]): string[] {
+  const explicit = weights.filter((weight) => weight !== undefined);
+  if (!weights.includes(undefined)) {
+    return [discreteWeights(explicit)];
+  }
+  const ranges = FONT_WEIGHT_RANGES.map(([min, max]) => {
+    const low = Math.min(min, ...explicit);
+    const high = Math.max(max, ...explicit);
+    return low === high ? `${low}` : `${low}..${high}`;
+  });
+  return [
+    ...new Set([
+      ...ranges,
+      discreteWeights([...FONT_COMMON_WEIGHTS, ...explicit]),
+      discreteWeights([400, ...explicit]),
+      "400",
+    ]),
+  ];
+}
+
+/** The Google families the site uses, with every weight the theme renders. */
+function requestedWeights(
+  fonts: SiteConfig["fonts"]
+): Map<string, (number | undefined)[]> {
+  const headingWeight = fonts?.heading?.weight;
+  const uses = [
+    {
+      spec: fonts?.body?.family ? fonts.body : fonts,
+      weights: [fonts?.body?.weight ?? fonts?.weight],
+    },
+    {
+      spec: fonts?.heading?.family ? fonts.heading : fonts,
+      // Without its own weight a heading renders at the theme default, so that
+      // weight has to be downloaded even when the body pins another one.
+      weights:
+        headingWeight === undefined
+          ? [undefined, DEFAULT_HEADING_WEIGHT]
+          : [headingWeight],
+    },
+  ];
+  const families = new Map<string, (number | undefined)[]>();
+  for (const { spec, weights } of uses) {
+    if (spec?.family && !spec.source) {
+      families.set(spec.family, [
+        ...(families.get(spec.family) ?? []),
+        ...weights,
+      ]);
+    }
+  }
+  return families;
+}
+
+function googleFontsUrl(specs: Map<string, string>): URL {
+  const url = new URL(GOOGLE_FONTS_CSS_URL);
+  for (const [family, spec] of [...specs].sort(([a], [b]) =>
+    a.localeCompare(b)
+  )) {
+    url.searchParams.append("family", `${family}:wght@${spec}`);
+  }
+  url.searchParams.set("display", "swap");
+  return url;
+}
+
+async function firstSupportedSpec(
+  family: string,
+  options: string[]
+): Promise<string> {
+  for (const spec of options) {
+    try {
+      await fetchFontAsset(
+        googleFontsUrl(new Map([[family, spec]])).toString(),
+        FONT_CSS_MAX_BYTES
+      );
+      return spec;
+    } catch (error) {
+      if (!(error instanceof FontRequestError && error.status === 400)) {
+        throw error;
+      }
+    }
+  }
+  throw new Error(`Google Fonts has no ${family} in the requested weights`);
+}
+
+/** Picks, per family, the first weight spec Google accepts. */
+async function supportedFontsUrl(
+  candidates: Map<string, string[]>
+): Promise<URL> {
+  const specs = await Promise.all(
+    [...candidates].map(
+      async ([family, options]) =>
+        [family, await firstSupportedSpec(family, options)] as const
+    )
+  );
+  return googleFontsUrl(new Map(specs));
+}
 
 async function fetchFontAsset(url: string, maxBytes: number): Promise<Buffer> {
   const response = await fetch(url, {
@@ -32,7 +147,7 @@ async function fetchFontAsset(url: string, maxBytes: number): Promise<Buffer> {
   });
   if (!response.ok || !response.body) {
     await response.body?.cancel();
-    throw new Error(`Font download failed (${response.status})`);
+    throw new FontRequestError(response.status);
   }
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -76,31 +191,25 @@ export async function prepareSiteFonts(
   config: SiteConfig,
   workDir: string
 ): Promise<SiteFontsResult> {
-  const fonts = declaredFonts(config.fonts).filter((font) => !font.source);
-  if (fonts.length === 0) {
+  const families = requestedWeights(config.fonts);
+  if (families.size === 0) {
     return { publicFiles: [], diagnostics: [] };
   }
 
   let stagingDir: string | undefined;
   let publicDir: string | undefined;
   try {
-    const url = new URL(GOOGLE_FONTS_CSS_URL);
-    const families = new Map<string, (number | undefined)[]>();
-    for (const font of fonts) {
-      const weights = families.get(font.family) ?? [];
-      weights.push(font.weight);
-      families.set(font.family, weights);
-    }
-    for (const [family, weights] of [...families].sort(([a], [b]) =>
-      a.localeCompare(b)
-    )) {
-      const explicit = weights.filter((weight) => weight !== undefined);
-      const requested = weights.includes(undefined)
-        ? `${Math.min(300, ...explicit)}..${Math.max(800, ...explicit)}`
-        : [...new Set(explicit)].sort((a, b) => a - b).join(";");
-      url.searchParams.append("family", `${family}:wght@${requested}`);
-    }
-    url.searchParams.set("display", "swap");
+    const candidates = new Map(
+      [...families].map(([family, weights]) => [
+        family,
+        weightCandidates(weights),
+      ])
+    );
+    const url = googleFontsUrl(
+      new Map(
+        [...candidates].map(([family, specs]) => [family, specs[0] ?? ""])
+      )
+    );
     const key = createHash("sha256").update(url.toString()).digest("hex");
     // Preparation clears site/, but unchanged preview fonts can survive in this cache.
     const cacheRoot = join(workDir, "font-cache");
@@ -110,7 +219,23 @@ export async function prepareSiteFonts(
     if (!(await exists(cacheDir))) {
       await mkdir(cacheRoot, { recursive: true });
       stagingDir = await mkdtemp(join(cacheRoot, "batch-"));
-      await downloadSiteFonts(url, [...families.keys()], stagingDir);
+      try {
+        await downloadSiteFonts(url, [...families.keys()], stagingDir, true);
+      } catch (error) {
+        if (!(error instanceof FontRequestError && error.status === 400)) {
+          throw error;
+        }
+        // A font without the full default range: retry with ranges it has.
+        await rm(stagingDir, { recursive: true, force: true });
+        stagingDir = await mkdtemp(join(cacheRoot, "batch-"));
+        // Each family passed on its own, so a renamed family can't fail it again.
+        await downloadSiteFonts(
+          await supportedFontsUrl(candidates),
+          [...families.keys()],
+          stagingDir,
+          false
+        );
+      }
       await rename(stagingDir, cacheDir);
       stagingDir = undefined;
     }
@@ -149,7 +274,8 @@ export async function prepareSiteFonts(
 async function downloadSiteFonts(
   url: URL,
   families: string[],
-  stagingDir: string
+  stagingDir: string,
+  requireEveryFamily: boolean
 ): Promise<void> {
   const css = (
     await fetchFontAsset(url.toString(), FONT_CSS_MAX_BYTES)
@@ -163,6 +289,17 @@ async function downloadSiteFonts(
   ];
   if (urls.length === 0) {
     throw new Error("Font stylesheet contains no font files");
+  }
+  // With several families, Google answers 200 and silently drops a family
+  // whose weights don't exist, so treat that like the single-family 400.
+  const served = css.toLowerCase();
+  if (
+    requireEveryFamily &&
+    families.some(
+      (family) => !served.includes(`font-family: '${family.toLowerCase()}'`)
+    )
+  ) {
+    throw new FontRequestError(400);
   }
   // Validate the entire stylesheet before making any font requests.
   const sources = urls.map((source) => {

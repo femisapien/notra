@@ -40,6 +40,7 @@
     "Inter Variable", "Inter", "Inter Fallback", ui-sans-serif, system-ui,
     -apple-system, "Segoe UI", sans-serif;
   --font-heading: var(--font-body);
+  --font-heading-weight: 600;
   --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --layout-index: 64rem;
   --layout-post: 64rem;
@@ -94,6 +95,7 @@
   html {
     background: var(--page-background);
     color: var(--foreground);
+    font-weight: var(--font-body-weight, 400);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -575,7 +577,7 @@ body {
 
 .prose-notra :where(h1, h2, h3, h4) {
   font-family: var(--font-heading);
-  font-weight: 600;
+  font-weight: var(--font-heading-weight);
   letter-spacing: -0.02em;
   text-wrap: balance;
 }
@@ -619,7 +621,11 @@ body {
   text-decoration-color: var(--foreground);
 }
 
-.prose-notra :where(code):not(:where(pre code, .not-prose *)) {
+/* Builtins opt out of prose for their own chrome and mark themselves with
+   data-notra-markdown, so the Markdown inside still gets the post's code
+   styling. */
+.prose-notra :where(code):not(:where(pre code, .not-prose *)),
+.prose-notra [data-notra-markdown] :where(code):not(:where(pre code)) {
   border-radius: 0.25rem;
   background: var(--muted);
   padding: 0.125em 0.3em;
@@ -661,7 +667,8 @@ body {
   content: none;
 }
 
-.prose-notra :where(pre):not(:where(.not-prose *)) {
+.prose-notra :where(pre):not(:where(.not-prose *)),
+.prose-notra [data-notra-markdown] :where(pre) {
   position: relative;
   margin: 1.5em 0;
   border: 1px solid var(--border);
@@ -675,6 +682,14 @@ body {
   font-family: var(--font-code);
   font-size: 0.8125rem;
   line-height: 1.7;
+}
+
+.prose-notra [data-notra-markdown]:where(.tabs, .code-group) :where(pre) {
+  margin: 0;
+}
+
+.prose-notra [data-notra-markdown]:where(.callout) :where(pre) {
+  margin: 0.75rem 0 0;
 }
 
 .prose-notra :where(pre) code {
