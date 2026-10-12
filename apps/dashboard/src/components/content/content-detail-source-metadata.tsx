@@ -135,7 +135,7 @@ function SourceMetadataBrandVoiceLabel({
   );
 }
 
-function parseSourceMetadata(
+export function parseSourceMetadata(
   sourceMetadata: unknown
 ): ParsedSourceMetadata | null {
   if (!sourceMetadata) {

@@ -415,6 +415,7 @@ function ContentChatActivityHeader({
   onOpenChat,
   showHistory = true,
   title: titleProp,
+  titleSlot,
 }: ContentChatActivityHeaderProps) {
   const t = useTranslations("content.chatActivity");
   const tCommon = useTranslations("common");
@@ -424,9 +425,11 @@ function ContentChatActivityHeader({
   const isAgentBusy = status === "streaming" || status === "submitted";
   return (
     <header className="bg-muted flex h-12 shrink-0 items-center justify-between gap-2 rounded-t-[calc(0.75rem-1px)] px-4">
-      <h2 className="text-foreground flex h-full min-w-0 items-center truncate text-sm leading-5">
-        <span className="truncate">{title}</span>
-      </h2>
+      {titleSlot ?? (
+        <h2 className="text-foreground flex h-full min-w-0 items-center truncate text-sm leading-5">
+          <span className="truncate">{title}</span>
+        </h2>
+      )}
       <TooltipProvider>
         <div className="-mr-1.5 flex h-full items-center gap-0.5">
           <Tooltip>

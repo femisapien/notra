@@ -36,6 +36,7 @@ import type { QueuedMessage } from "@/components/chat/chat-queue";
 import type { ContentDetailChatComposerProps } from "@/components/content/content-detail-chat-shell";
 import { useRightPanel } from "@/components/dashboard/right-panel-context";
 import { emitAutumnRefresh } from "@/lib/billing/autumn-refresh";
+import { setContentPanelTab } from "@/lib/content-panel-tab";
 import {
   applyContentChatToolOutputEffect,
   collectContentChatToolOutputEffects,
@@ -556,6 +557,7 @@ export function useContentDetailChat({
 
   const handleAiEdit = useCallback(
     async (instruction: string, files: ChatAttachment[] = []) => {
+      setContentPanelTab("agent");
       openPanel("content");
       const attachments = snapshotContentChatAttachments(selection, context);
       if (isAgentBusyRef.current) {

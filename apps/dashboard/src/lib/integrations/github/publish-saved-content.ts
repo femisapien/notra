@@ -36,6 +36,7 @@ import { nanoid } from "nanoid";
 import {
   DEFAULT_GITHUB_CONTENT_DIRECTORIES,
   DEFAULT_GITHUB_CONTENT_OUTPUT_ENABLED,
+  GITHUB_CONTENT_MAX_ASSET_BYTES,
 } from "@/constants/github";
 import { getTranslations } from "@/lib/i18n/server";
 import {
@@ -51,9 +52,10 @@ import {
   buildOpenInNotraBadgeUrls,
   resolveNotraBaseUrl,
 } from "@/lib/integrations/github/pull-request-body";
+import { prepareSiteEntryMetadata } from "@/lib/integrations/github/site-entry-metadata";
 import {
   findSiteGitHubPublishTarget,
-  resolveSiteEntryAuthor,
+  resolveSiteEntryContext,
 } from "@/lib/integrations/github/site-publish-target";
 import { runOrpcEffect } from "@/lib/orpc/effect";
 import {
@@ -98,6 +100,14 @@ export async function publishSavedContentToGitHub(
         contentType: true,
         githubPublish: true,
         createdAt: true,
+        publishedAt: true,
+        coverImage: true,
+        tags: true,
+        excerpt: true,
+        authorIds: true,
+        featured: true,
+        noindex: true,
+        displayDate: true,
       },
     }),
     db
@@ -329,23 +339,24 @@ export async function publishSavedContentToGitHub(
         }
       : undefined;
 
-  const siteEntryAuthor =
-    siteTarget && input.contentType === "blog_post"
-      ? await resolveSiteEntryAuthor({
-          token,
-          owner: integration.owner,
-          repo: integration.repo,
-          target: siteTarget,
-          publisherUserId: options.publisherUserId,
-          existingEntry:
-            linkedPullRequest && storedPublish.success
-              ? {
-                  branchName: linkedPullRequest.branchName,
-                  path: storedPublish.data.path,
-                }
-              : undefined,
-        })
-      : null;
+  const siteEntry = siteTarget
+    ? await resolveSiteEntryContext({
+        token,
+        owner: integration.owner,
+        repo: integration.repo,
+        contentType: input.contentType,
+        path,
+        target: siteTarget,
+        publisherUserId: options.publisherUserId,
+        existingEntry:
+          linkedPullRequest && storedPublish.success
+            ? {
+                branchName: linkedPullRequest.branchName,
+                path: storedPublish.data.path,
+              }
+            : undefined,
+      })
+    : null;
 
   const octokit = createOctokit(token);
   const publisherLogin =
@@ -403,14 +414,45 @@ export async function publishSavedContentToGitHub(
         if (!siteTarget) {
           return preparedContent;
         }
+        const entryMetadata = await prepareSiteEntryMetadata(post, {
+          contentPath,
+          contentType: input.contentType,
+          imagePathTemplate: resolveGitHubImagePathTemplate(
+            contentPath,
+            imagePath
+          ),
+          organizationId: input.organizationId,
+          publicDirectory: resolveSitePublicDirectory(siteTarget.rootDirectory),
+          slug: contentSlug,
+        });
+        const assets = [
+          ...new Map(
+            [...preparedContent.assets, ...entryMetadata.assets].map(
+              (asset) => [asset.path, asset]
+            )
+          ).values(),
+        ];
+        // Cover and avatars are prepared on their own, so check the
+        // combined draft against the same budget the body images use.
+        const assetBytes = assets.reduce(
+          (total, asset) => total + asset.contents.byteLength,
+          0
+        );
+        if (assetBytes > GITHUB_CONTENT_MAX_ASSET_BYTES) {
+          const tErrors = await getTranslations("errors.content");
+          throw badRequest(tErrors("assetsTooLarge"));
+        }
         return {
-          ...preparedContent,
+          assets,
           markdown: buildSiteEntryMarkdown({
-            author: siteEntryAuthor,
+            author: siteEntry?.author,
             contentType: input.contentType,
-            date: post.createdAt,
+            date: post.publishedAt ?? post.createdAt,
+            existingMarkdown: siteEntry?.existingMarkdown,
             markdown: preparedContent.markdown,
+            metadata: entryMetadata.metadata,
             title: post.title,
+            updated: siteEntry?.isLive ? new Date() : null,
           }),
         };
       },

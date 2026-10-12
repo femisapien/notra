@@ -7,12 +7,17 @@ import type {
   TextSelection,
 } from "@notra/ai/types/chat";
 import type { ChatStatus, UIMessage } from "ai";
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 
 import ChatInput from "@/components/chat-input";
 import type { QueuedMessage } from "@/components/chat/chat-queue";
 import { ContentChatActivityPanel } from "@/components/content/content-chat-activity-panel";
+import {
+  ContentPanelOverview,
+  ContentPanelTabs,
+} from "@/components/content/overview/content-panel-tabs";
 import { RightPanel } from "@/components/dashboard/right-panel";
+import { useContentPanelTab } from "@/lib/content-panel-tab";
 import type {
   ChatInputEditingTarget,
   ContentChatInputHandle,
@@ -79,22 +84,44 @@ interface ContentDetailChatPanelProps {
   sessions: ChatSessionSummary[];
   status: ChatStatus;
   composer: ContentDetailChatComposerProps;
+  /** Post details tab next to the agent; blog posts and changelogs only. */
+  overview?: ReactNode;
+}
+
+function ContentDetailChatComposerSlot({
+  composer,
+}: {
+  composer: ContentDetailChatComposerProps;
+}) {
+  return (
+    <div className="shrink-0 p-2 pt-1">
+      <ContentDetailChatComposer {...composer} />
+    </div>
+  );
 }
 
 export function ContentDetailChatPanel({
   composer,
+  overview,
   ...panelProps
 }: ContentDetailChatPanelProps) {
+  const tab = useContentPanelTab();
+  const showOverview = Boolean(overview) && tab === "overview";
   return (
     <RightPanel id="content">
-      <ContentChatActivityPanel
-        {...panelProps}
-        organizationSlug={composer.organizationSlug}
-      >
-        <div className="shrink-0 p-2 pt-1">
-          <ContentDetailChatComposer {...composer} />
-        </div>
-      </ContentChatActivityPanel>
+      {showOverview ? (
+        <ContentPanelOverview onClose={panelProps.onClose}>
+          {overview}
+        </ContentPanelOverview>
+      ) : (
+        <ContentChatActivityPanel
+          {...panelProps}
+          organizationSlug={composer.organizationSlug}
+          titleSlot={overview ? <ContentPanelTabs /> : undefined}
+        >
+          <ContentDetailChatComposerSlot composer={composer} />
+        </ContentChatActivityPanel>
+      )}
     </RightPanel>
   );
 }

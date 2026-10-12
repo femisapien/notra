@@ -1,7 +1,13 @@
 "use client";
 
-import { Download01Icon, SentIcon, TextIcon } from "@hugeicons/core-free-icons";
+import {
+  Download01Icon,
+  SentIcon,
+  SidebarRightIcon,
+  TextIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { supportsPostSlug } from "@notra/ai/schemas/post";
 import { POSTHOG_EVENTS } from "@notra/posthog/events";
 import {
   DropdownMenu,
@@ -23,9 +29,14 @@ import { ImageExportTargetIcon } from "@/components/content/image-export-target-
 import { PostSocialButton } from "@/components/content/post-social-button";
 import { PublishContentToGitHubDialog } from "@/components/content/publish-content-to-github-dialog";
 import { ContentPublishButton } from "@/components/content/schedule/content-publish-button";
+import { useRightPanel } from "@/components/dashboard/right-panel-context";
 import { WriterExecute } from "@/components/geo/writer/writer-execute";
 import { IMAGE_EXPORT_DOWNLOAD_TARGET } from "@/constants/studio-analytics";
 import { trackEvent } from "@/lib/analytics/posthog-client";
+import {
+  setContentPanelTab,
+  useContentPanelTab,
+} from "@/lib/content-panel-tab";
 import {
   copyDiagramScene,
   copyImageAsFigma,
@@ -319,6 +330,31 @@ function ContentDetailPublishActions({
   );
 }
 
+function ContentDetailOverviewButton() {
+  const t = useTranslations("content.overview");
+  const { active, openPanel, closePanel } = useRightPanel();
+  const tab = useContentPanelTab();
+  const showing = active === "content" && tab === "overview";
+  return (
+    <Button
+      aria-pressed={showing}
+      onClick={() => {
+        if (showing) {
+          closePanel("content");
+          return;
+        }
+        setContentPanelTab("overview");
+        openPanel("content");
+      }}
+      size="sm"
+      variant={showing ? "secondary" : "ghost"}
+    >
+      <HugeiconsIcon icon={SidebarRightIcon} strokeWidth={1.8} />
+      {t("detailsButton")}
+    </Button>
+  );
+}
+
 export function ContentDetailToolbar(props: ContentDetailToolbarProps) {
   const { content, contentId, document, organizationId } = props;
   const t = useTranslations("content.toolbar");
@@ -368,6 +404,9 @@ export function ContentDetailToolbar(props: ContentDetailToolbarProps) {
             {saveLabel}
           </Button>
         </>
+      ) : null}
+      {supportsPostSlug(content.contentType) ? (
+        <ContentDetailOverviewButton />
       ) : null}
       {content.contentType === "image" ? (
         <ContentDetailImageActions {...props} />

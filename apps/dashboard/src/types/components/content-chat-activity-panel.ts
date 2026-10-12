@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 
 export interface ContentChatActivityPanelProps {
   title?: string;
+  /** Replaces the title, e.g. with tabs when the panel hosts more than the agent. */
+  titleSlot?: ReactNode;
   messages: UIMessage[];
   sessions: ChatSessionSummary[];
   activeChatId: string | null;
@@ -32,6 +34,7 @@ export interface ContentChatActivityMessageProps {
 export type ContentChatActivityHeaderProps = Pick<
   ContentChatActivityPanelProps,
   | "title"
+  | "titleSlot"
   | "sessions"
   | "activeChatId"
   | "isHistoryLoading"

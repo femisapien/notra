@@ -1158,7 +1158,11 @@
       "filePathTooLong": "Das konfigurierte Verzeichnis und der Slug überschreiten die Dateipfad-Grenze von GitHub",
       "imagePathTooLong": "Der konfigurierte Bildpfad überschreitet die Pfad-Grenze von GitHub",
       "dataSourceRequired": "Mindestens eine Datenquelle muss aktiviert sein.",
-      "eventRequired": "Mindestens ein Ereignis muss ausgewählt sein."
+      "eventRequired": "Mindestens ein Ereignis muss ausgewählt sein.",
+      "metadataNotSupported": "Cover, Tags und Autoren gibt es nur für Blogposts und Changelogs",
+      "unknownAuthor": "Einen der ausgewählten Autoren gibt es nicht mehr",
+      "authorSlugTaken": "Diese ID verwendet bereits ein anderer Autor",
+      "assetsTooLarge": "Bilder, Cover und Autoren-Avatare des Posts sind zu groß für einen Pull Request"
     },
     "iris": {
       "runInProgress": "Iris arbeitet bereits an einem Durchlauf"
@@ -6531,6 +6535,110 @@
       "day": {
         "open": "Alles am {date} anzeigen",
         "empty": "Für diesen Tag ist nichts geplant."
+      }
+    },
+    "overview": {
+      "tabs": {
+        "overview": "Übersicht",
+        "agent": "Agent",
+        "label": "Panel"
+      },
+      "detailsButton": "Details",
+      "saveFailed": "Die Details konnten nicht gespeichert werden",
+      "status": {
+        "label": "Status",
+        "draft": "Entwurf",
+        "published": "Veröffentlicht"
+      },
+      "url": "URL",
+      "featured": {
+        "label": "Featured",
+        "hint": "Hebt den Post oben auf der Blog-Startseite hervor."
+      },
+      "indexed": {
+        "label": "In Suche sichtbar",
+        "hint": "Aus heißt: Der Post bleibt per Link erreichbar, taucht aber nicht in Suchmaschinen, der Sitemap und llms.txt auf."
+      },
+      "cover": {
+        "label": "Cover",
+        "hint": "Erscheint auf der Blog-Karte, oben im Post und als Vorschaubild beim Teilen. Ohne Cover erzeugt die Site eins.",
+        "upload": "Hochladen",
+        "link": "Link",
+        "fromPost": "Aus dem Post",
+        "dropTitle": "Cover hinzufügen",
+        "dropHint": "Ziehen, einfügen oder klicken · {width}×{height}",
+        "uploading": "Wird hochgeladen…",
+        "uploadFailed": "Das Bild konnte nicht hochgeladen werden",
+        "linkPlaceholder": "https://…/bild.png",
+        "linkApply": "Bild verwenden",
+        "linkInvalid": "Gib einen vollständigen https-Link zu einem Bild ein",
+        "noPostImages": "Dieser Post enthält noch keine Bilder.",
+        "pickImage": "Dieses Bild verwenden",
+        "replace": "Ersetzen",
+        "remove": "Cover entfernen",
+        "altLabel": "Alt-Text",
+        "altPlaceholder": "Beschreibe das Bild für Screenreader und Suche"
+      },
+      "description": {
+        "label": "Beschreibung",
+        "hint": "Kurzbeschreibung für Blog-Karte, Suchergebnisse und Link-Vorschauen. Leer lassen, dann nehmen wir den ersten Absatz.",
+        "auto": "Nimmt den ersten Absatz",
+        "count": "{count} / {max} Zeichen"
+      },
+      "authors": {
+        "label": "Autoren",
+        "hint": "Jeder Autor bekommt einen Avatar und eine eigene Seite auf der Site.",
+        "placeholder": "Autoren wählen",
+        "addMe": "Mich hinzufügen",
+        "manage": "Verwalten",
+        "fallback": "Leer: Es wird die Person genommen, die veröffentlicht"
+      },
+      "tags": {
+        "label": "Tags",
+        "hint": "Tags bekommen eigene Übersichtsseiten auf der Site und landen im RSS-Feed.",
+        "placeholder": "Tags hinzufügen",
+        "remove": "{tag} entfernen",
+        "add": "Tag hinzufügen"
+      },
+      "date": {
+        "label": "Veröffentlicht am",
+        "hint": "Datum, das auf der Site steht. Standard ist der Tag der ersten Veröffentlichung."
+      },
+      "source": {
+        "label": "Entstehung"
+      },
+      "recommendations": "Empfehlungen",
+      "updatePr": {
+        "hint": "Änderungen landen beim nächsten Update im offenen Pull Request.",
+        "action": "Pull Request aktualisieren",
+        "done": "Pull Request aktualisiert",
+        "failed": "Der Pull Request konnte nicht aktualisiert werden"
+      },
+      "authorDialog": {
+        "title": "Rolle",
+        "description": "Autoren erscheinen an Posts und bekommen eine eigene Seite auf deiner Site.",
+        "new": "Neuer Autor",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "deleteConfirm": "{name} löschen? Posts verlieren diesen Autor.",
+        "empty": "Noch keine Autoren.",
+        "back": "Zurück",
+        "name": "Name",
+        "slug": "ID",
+        "slugHint": "Steht in der URL der Autorenseite: /author/{slug}",
+        "bio": "Bio",
+        "avatar": "Avatar",
+        "uploadAvatar": "Hochladen",
+        "removeAvatar": "Entfernen",
+        "website": "Website",
+        "x": "X",
+        "linkedin": "LinkedIn",
+        "github": "GitHub",
+        "save": "Autor speichern",
+        "saved": "Autor gespeichert",
+        "deleted": "Autor gelöscht",
+        "saveFailed": "Der Autor konnte nicht gespeichert werden",
+        "you": "Du"
       }
     }
   },

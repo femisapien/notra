@@ -1158,7 +1158,11 @@
       "filePathTooLong": "The configured directory and content slug exceed GitHub's file path limit",
       "imagePathTooLong": "The configured image path exceeds GitHub's path limit",
       "dataSourceRequired": "At least one data source must be enabled.",
-      "eventRequired": "At least one event must be selected."
+      "eventRequired": "At least one event must be selected.",
+      "metadataNotSupported": "Cover, tags and authors can only be set for blog posts and changelogs",
+      "unknownAuthor": "One of the selected authors no longer exists",
+      "authorSlugTaken": "Another author already uses this ID",
+      "assetsTooLarge": "The post's images, cover and author avatars are too large for one pull request"
     },
     "iris": {
       "runInProgress": "Iris is already working on a run"
@@ -6531,6 +6535,110 @@
       "day": {
         "open": "Show everything on {date}",
         "empty": "Nothing planned for this day."
+      }
+    },
+    "overview": {
+      "tabs": {
+        "overview": "Overview",
+        "agent": "Agent",
+        "label": "Panel"
+      },
+      "detailsButton": "Details",
+      "saveFailed": "Couldn't save the post details",
+      "status": {
+        "label": "Status",
+        "draft": "Draft",
+        "published": "Published"
+      },
+      "url": "URL",
+      "featured": {
+        "label": "Featured",
+        "hint": "Pins the post to the top of your blog's home page."
+      },
+      "indexed": {
+        "label": "Visible in search",
+        "hint": "When off, the post stays reachable by link but is hidden from search engines, the sitemap and llms.txt."
+      },
+      "cover": {
+        "label": "Cover",
+        "hint": "Shown on the blog card, at the top of the post and as the preview image when the link is shared. Without a cover, the site generates one.",
+        "upload": "Upload",
+        "link": "Link",
+        "fromPost": "From post",
+        "dropTitle": "Add a cover",
+        "dropHint": "Drag, paste or click · {width}×{height}",
+        "uploading": "Uploading…",
+        "uploadFailed": "Couldn't upload the image",
+        "linkPlaceholder": "https://…/image.png",
+        "linkApply": "Use image",
+        "linkInvalid": "Enter a full https link to an image",
+        "noPostImages": "This post has no images yet.",
+        "pickImage": "Use this image",
+        "replace": "Replace",
+        "remove": "Remove cover",
+        "altLabel": "Alt text",
+        "altPlaceholder": "Describe the image for screen readers and search"
+      },
+      "description": {
+        "label": "Description",
+        "hint": "Short summary for the blog card, search results and link previews. Leave empty to use the first paragraph.",
+        "auto": "Uses the first paragraph",
+        "count": "{count} / {max} characters"
+      },
+      "authors": {
+        "label": "Authors",
+        "hint": "Each author gets an avatar and their own page on the site.",
+        "placeholder": "Choose authors",
+        "addMe": "Add me",
+        "manage": "Manage",
+        "fallback": "Empty: the person who publishes is used"
+      },
+      "tags": {
+        "label": "Tags",
+        "hint": "Tags get their own listing pages on the site and show up in the RSS feed.",
+        "placeholder": "Add tags",
+        "remove": "Remove {tag}",
+        "add": "Add tag"
+      },
+      "date": {
+        "label": "Publish date",
+        "hint": "Date shown on the site. Defaults to the day the post was first published."
+      },
+      "source": {
+        "label": "How it was made"
+      },
+      "recommendations": "Recommendations",
+      "updatePr": {
+        "hint": "Changes reach the open pull request with its next update.",
+        "action": "Update pull request",
+        "done": "Pull request updated",
+        "failed": "Couldn't update the pull request"
+      },
+      "authorDialog": {
+        "title": "Role",
+        "description": "Authors appear on posts and get their own page on your site.",
+        "new": "New author",
+        "edit": "Edit",
+        "delete": "Delete",
+        "deleteConfirm": "Delete {name}? Posts lose this author.",
+        "empty": "No authors yet.",
+        "back": "Back",
+        "name": "Name",
+        "slug": "ID",
+        "slugHint": "Used in the author page URL: /author/{slug}",
+        "bio": "Bio",
+        "avatar": "Avatar",
+        "uploadAvatar": "Upload",
+        "removeAvatar": "Remove",
+        "website": "Website",
+        "x": "X",
+        "linkedin": "LinkedIn",
+        "github": "GitHub",
+        "save": "Save author",
+        "saved": "Author saved",
+        "deleted": "Author deleted",
+        "saveFailed": "Couldn't save the author",
+        "you": "You"
       }
     }
   },

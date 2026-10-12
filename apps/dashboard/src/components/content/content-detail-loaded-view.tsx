@@ -126,7 +126,8 @@ export function ContentDetailLoadedView({
                 selectedExcerpt={selectedExcerpt}
               />
 
-              {document.isGeoWriterPlanMode ? null : (
+              {/* Blog posts and changelogs show these in the overview tab. */}
+              {document.isGeoWriterPlanMode || isLongForm ? null : (
                 <RecommendationsSection value={content.recommendations} />
               )}
 

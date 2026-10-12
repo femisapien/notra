@@ -14,10 +14,19 @@ import { createOctokit } from "@notra/ai/utils/octokit";
 import { sanitizeMarkdownHtml } from "@notra/ai/utils/sanitize";
 import { logError } from "@notra/ai/utils/server-log";
 import { db } from "@notra/db/drizzle";
-import { githubIntegrations, postCollections, posts } from "@notra/db/schema";
+import {
+  contentAuthors,
+  githubIntegrations,
+  postCollections,
+  posts,
+} from "@notra/db/schema";
 import type { BlogPostSubtype } from "@notra/db/types/content";
 import { buildPostCollectionName } from "@notra/db/utils/post-collections";
 import { extractImageArtifactHtml } from "@notra/db/utils/post-image-artifacts";
+import {
+  contentAuthorsInOrganization,
+  postMetadataUpdateData,
+} from "@notra/db/utils/post-metadata";
 import { publishedAtForStatusChange } from "@notra/db/utils/post-published-at";
 import {
   isProjectInOrganization,
@@ -46,10 +55,15 @@ import {
   postGitHubPublishSchema,
   publishContentToGitHubSchema,
   renamePostCollectionInputSchema,
+  updateContentMetadataInputSchema,
   updateContentSchema,
   updateExpectedPostCountInputSchema,
 } from "@notra/schemas/dashboard/content";
 import { clearCompletedGenerationSchema } from "@notra/schemas/dashboard/generations";
+import {
+  type PostMetadata,
+  postCoverImageSchema,
+} from "@notra/schemas/shared/post-metadata";
 import { slugify } from "@notra/utils/slugify";
 import {
   and,
@@ -68,6 +82,7 @@ import {
 import { marked } from "marked";
 import { nanoid } from "nanoid";
 
+import { TAG_SUGGESTIONS_LIMIT } from "@/constants/content-overview";
 import {
   DASHBOARD_HOME_POST_LIMIT,
   GITHUB_API_MAX_PAGES,
@@ -92,7 +107,9 @@ import { requestGeoRescanForPublishedPost } from "@/lib/geo/rescan";
 import { getTranslations } from "@/lib/i18n/server";
 import { publishSavedContentToGitHub } from "@/lib/integrations/github/publish-saved-content";
 import { baseProcedure } from "@/lib/orpc/base";
+import { contentAuthorsRouter } from "@/lib/orpc/routers/content-authors";
 import { startOnDemandRun } from "@/lib/workflows/start";
+import type { PostMetadataColumns } from "@/types/content/overview";
 import type {
   CommitPreview,
   LinearIntegrationPreviewItem,
@@ -135,6 +152,13 @@ const postReadColumns = {
   createdAt: true,
   sourceMetadata: true,
   githubPublish: true,
+  coverImage: true,
+  tags: true,
+  excerpt: true,
+  authorIds: true,
+  featured: true,
+  noindex: true,
+  displayDate: true,
   status: true,
   updatedAt: true,
 } as const;
@@ -196,20 +220,37 @@ function serializePost(post: {
   };
 }
 
-function serializeContent(post: {
-  content: string;
-  contentType: string;
-  createdAt: Date;
-  htmlUrl: string | null;
-  id: string;
-  markdown: string | null;
-  recommendations: string | null;
-  slug: string | null;
-  sourceMetadata: unknown;
-  githubPublish: unknown;
-  status: "draft" | "published";
-  title: string;
-}): ContentResponse {
+function serializePostMetadata(post: PostMetadataColumns): PostMetadata {
+  const cover = postCoverImageSchema.safeParse(post.coverImage);
+  return {
+    coverImage: cover.success ? cover.data : null,
+    tags: post.tags,
+    excerpt: post.excerpt,
+    authorIds: post.authorIds,
+    featured: post.featured,
+    noindex: post.noindex,
+    displayDate: post.displayDate
+      ? post.displayDate.toISOString().slice(0, 10)
+      : null,
+  };
+}
+
+function serializeContent(
+  post: PostMetadataColumns & {
+    content: string;
+    contentType: string;
+    createdAt: Date;
+    htmlUrl: string | null;
+    id: string;
+    markdown: string | null;
+    recommendations: string | null;
+    slug: string | null;
+    sourceMetadata: unknown;
+    githubPublish: unknown;
+    status: "draft" | "published";
+    title: string;
+  }
+): ContentResponse {
   const githubPublish = postGitHubPublishSchema.safeParse(post.githubPublish);
 
   return {
@@ -226,6 +267,7 @@ function serializeContent(post: {
     date: post.createdAt.toISOString(),
     sourceMetadata: post.sourceMetadata as ContentResponse["sourceMetadata"],
     githubPublish: githubPublish.success ? githubPublish.data : null,
+    metadata: serializePostMetadata(post),
   };
 }
 
@@ -828,6 +870,13 @@ export const contentRouter = {
               createdAt: posts.createdAt,
               sourceMetadata: posts.sourceMetadata,
               githubPublish: posts.githubPublish,
+              coverImage: posts.coverImage,
+              tags: posts.tags,
+              excerpt: posts.excerpt,
+              authorIds: posts.authorIds,
+              featured: posts.featured,
+              noindex: posts.noindex,
+              displayDate: posts.displayDate,
               status: posts.status,
               updatedAt: posts.updatedAt,
             });
@@ -898,6 +947,83 @@ export const contentRouter = {
         }
         throw error;
       }
+    }),
+  updateMetadata: baseProcedure
+    .input(updateContentMetadataInputSchema)
+    .handler(async ({ context, input }) => {
+      await assertOrganizationAccess({
+        headers: context.headers,
+        organizationId: input.organizationId,
+      });
+      await assertActiveSubscription(input.organizationId);
+
+      const existingPost = await db.query.posts.findFirst({
+        where: and(
+          eq(posts.id, input.contentId),
+          eq(posts.organizationId, input.organizationId)
+        ),
+        columns: { contentType: true },
+      });
+      if (!existingPost) {
+        throw notFound("Content not found");
+      }
+      const tErrors = await getTranslations("errors.content");
+      if (!supportsPostSlug(existingPost.contentType)) {
+        throw badRequest(tErrors("metadataNotSupported"));
+      }
+
+      const { metadata } = input;
+      if (metadata.authorIds && metadata.authorIds.length > 0) {
+        const known = await db
+          .select({ id: contentAuthors.id })
+          .from(contentAuthors)
+          .where(
+            contentAuthorsInOrganization(
+              input.organizationId,
+              metadata.authorIds
+            )
+          );
+        if (known.length !== metadata.authorIds.length) {
+          throw badRequest(tErrors("unknownAuthor"));
+        }
+      }
+
+      const [updated] = await db
+        .update(posts)
+        .set({
+          ...postMetadataUpdateData(metadata),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(posts.id, input.contentId),
+            eq(posts.organizationId, input.organizationId)
+          )
+        )
+        .returning();
+      if (!updated) {
+        throw notFound("Content not found");
+      }
+      return { content: serializeContent(updated) };
+    }),
+  authors: contentAuthorsRouter,
+  /** Tags already used in the organization, most used first. */
+  tagSuggestions: baseProcedure
+    .input(contentOrganizationIdInputSchema)
+    .handler(async ({ context, input }) => {
+      await assertOrganizationAccess({
+        headers: context.headers,
+        organizationId: input.organizationId,
+      });
+      const tag = sql<string>`unnest(${posts.tags})`;
+      const rows = await db
+        .select({ tag, uses: sql<number>`count(*)::int` })
+        .from(posts)
+        .where(eq(posts.organizationId, input.organizationId))
+        .groupBy(tag)
+        .orderBy(sql`count(*) desc`, tag)
+        .limit(TAG_SUGGESTIONS_LIMIT);
+      return { tags: rows.map((row) => row.tag) };
     }),
   publishChangelogToGitHub: baseProcedure
     .input(contentInputSchema.and(publishContentToGitHubSchema))

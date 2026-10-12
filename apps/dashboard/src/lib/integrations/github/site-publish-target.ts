@@ -12,7 +12,8 @@ import type {
   SiteGitHubPublishTarget,
   FindSiteGitHubPublishTargetParams,
   ReadSiteRepositoryTextFileParams,
-  ResolveSiteEntryAuthorParams,
+  ResolveSiteEntryContextParams,
+  SiteEntryContext,
 } from "@/types/integrations/site-github-publish";
 import {
   normalizeSiteRootDirectory,
@@ -104,34 +105,57 @@ async function readPublisherName(userId: string | undefined) {
   return user?.name ?? null;
 }
 
-export async function resolveSiteEntryAuthor(
-  params: ResolveSiteEntryAuthorParams
-): Promise<string | null> {
-  const [existingMarkdown, publisherName, siteConfig] = await Promise.all([
-    params.existingEntry
-      ? readRepositoryTextFile(params.token, {
-          owner: params.owner,
-          repo: params.repo,
-          path: params.existingEntry.path,
-          ref: params.existingEntry.branchName,
-        })
-      : null,
-    readPublisherName(params.publisherUserId),
-    readRepositoryTextFile(params.token, {
-      owner: params.owner,
-      repo: params.repo,
-      path: resolveSiteConfigPath(params.target.rootDirectory),
-      ref: params.target.productionBranch,
-    }),
-  ]);
+/**
+ * Reads what the repository already has for this entry: the open pull
+ * request's version if there is one, otherwise the live file. Also resolves
+ * the legacy author fallback (the publisher, matched against notra.json).
+ */
+export async function resolveSiteEntryContext(
+  params: ResolveSiteEntryContextParams
+): Promise<SiteEntryContext> {
+  const productionPath = params.existingEntry?.path ?? params.path;
+  const [branchMarkdown, liveMarkdown, publisherName, siteConfig] =
+    await Promise.all([
+      params.existingEntry
+        ? readRepositoryTextFile(params.token, {
+            owner: params.owner,
+            repo: params.repo,
+            path: params.existingEntry.path,
+            ref: params.existingEntry.branchName,
+          })
+        : null,
+      readRepositoryTextFile(params.token, {
+        owner: params.owner,
+        repo: params.repo,
+        path: productionPath,
+        ref: params.target.productionBranch,
+      }),
+      params.contentType === "blog_post"
+        ? readPublisherName(params.publisherUserId)
+        : null,
+      params.contentType === "blog_post"
+        ? readRepositoryTextFile(params.token, {
+            owner: params.owner,
+            repo: params.repo,
+            path: resolveSiteConfigPath(params.target.rootDirectory),
+            ref: params.target.productionBranch,
+          })
+        : null,
+    ]);
+  const existingMarkdown = branchMarkdown ?? liveMarkdown;
   const existingAuthor = existingMarkdown
     ? readSiteEntryAuthor(existingMarkdown)
     : null;
-  if (existingAuthor) {
-    return existingAuthor;
-  }
-  return resolveSiteAuthor(
-    siteConfig ? parseSiteConfigAuthors(siteConfig) : {},
-    publisherName
-  );
+  return {
+    existingMarkdown,
+    isLive: liveMarkdown !== null,
+    author:
+      params.contentType === "blog_post"
+        ? (existingAuthor ??
+          resolveSiteAuthor(
+            siteConfig ? parseSiteConfigAuthors(siteConfig) : {},
+            publisherName
+          ))
+        : null,
+  };
 }

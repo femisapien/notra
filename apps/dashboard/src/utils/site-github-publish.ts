@@ -1,12 +1,12 @@
 import { SITE_CONFIG_FILENAME } from "@notra/sites-core/constants/sites";
 import { slugify } from "@notra/utils/slugify";
 import { fromMarkdown } from "mdast-util-from-markdown";
+import { Document, isMap, parseDocument, Scalar } from "yaml";
 
 import {
   FRONTMATTER_BLOCK,
-  FRONTMATTER_TITLE_KEY,
-  FRONTMATTER_DATE_KEY,
   FRONTMATTER_AUTHOR_LINE,
+  SITE_ENTRY_AUTHOR_FIELDS,
   UNQUOTED_YAML_COMMENT,
   LEADING_BLANK_LINES,
   LEADING_ATX_HEADING,
@@ -27,6 +27,7 @@ import type {
   ResolveSiteEntrySlugParams,
   BuildSiteEntryMarkdownParams,
   SiteConfigAuthorNames,
+  SiteEntryAuthor,
   SiteMarkdownNode,
 } from "@/types/integrations/site-github-publish";
 
@@ -219,41 +220,134 @@ function formatSiteEntryDate(date: Date): string {
   return date.toISOString().slice(0, "YYYY-MM-DD".length);
 }
 
-function yamlString(value: string): string {
-  return JSON.stringify(value);
+function parseFrontmatter(markdown: string | null | undefined): {
+  document: Document | null;
+  body: string;
+} {
+  if (!markdown) {
+    return { document: null, body: "" };
+  }
+  const match = FRONTMATTER_BLOCK.exec(markdown);
+  if (!match) {
+    return { document: null, body: markdown };
+  }
+  const document = parseDocument(match[1] ?? "");
+  const isMapping =
+    document.errors.length === 0 &&
+    (document.contents === null || isMap(document.contents));
+  return {
+    document: isMapping ? document : null,
+    body: markdown.slice(match[0].length),
+  };
 }
 
+/** Dates stay unquoted so YAML-aware tools read them as dates. */
+function plainScalar(value: string): Scalar {
+  const scalar = new Scalar(value);
+  scalar.type = Scalar.PLAIN;
+  return scalar;
+}
+
+function authorNode(author: SiteEntryAuthor): Record<string, string> {
+  const node: Record<string, string> = { id: author.id, name: author.name };
+  for (const key of SITE_ENTRY_AUTHOR_FIELDS) {
+    const value = author[key]?.trim();
+    if (value) {
+      node[key] = value;
+    }
+  }
+  return node;
+}
+
+/**
+ * Builds the entry file for a hosted site. Keys Notra manages are written
+ * from Notra on every publish, and removed when cleared there. Every other
+ * key in the repository file (added by hand, by another tool) is kept, in
+ * its original order. Frontmatter written in the editor wins over both.
+ */
 export function buildSiteEntryMarkdown(
   params: BuildSiteEntryMarkdownParams
 ): string {
-  const date = formatSiteEntryDate(params.date);
-  const existing = FRONTMATTER_BLOCK.exec(params.markdown);
-  if (existing) {
-    const block = existing[1] ?? "";
-    const missing = [
-      FRONTMATTER_TITLE_KEY.test(block)
-        ? null
-        : `title: ${yamlString(params.title)}`,
-      FRONTMATTER_DATE_KEY.test(block) ? null : `date: ${date}`,
-    ].filter((line): line is string => line !== null);
-    if (missing.length === 0) {
-      return params.markdown;
+  const own = parseFrontmatter(params.markdown);
+  const existing = parseFrontmatter(params.existingMarkdown);
+  const document = existing.document ?? new Document({});
+  const ownKeys = new Set<string>();
+  if (own.document && isMap(own.document.contents)) {
+    for (const pair of own.document.contents.items) {
+      document.set(pair.key, pair.value);
+      ownKeys.add(String(pair.key));
     }
-    const rest = params.markdown.slice(existing[0].length);
-    return `---\n${[...missing, block].filter(Boolean).join("\n")}\n---\n${rest}`;
+  }
+  const body = own.document
+    ? own.body
+    : stripLeadingTitleHeading(params.markdown, params.title);
+  const metadata = params.metadata ?? {};
+  const isBlog = params.contentType === "blog_post";
+  // Hand-written editor frontmatter is taken as complete: nothing is
+  // derived from the body then.
+  const autoFill = !own.document;
+  const write = (key: string, value: unknown) => {
+    if (ownKeys.has(key)) {
+      return;
+    }
+    if (value === null || value === undefined) {
+      document.delete(key);
+    } else {
+      document.set(key, value);
+    }
+  };
+
+  document.set("title", params.title);
+
+  write(
+    "description",
+    metadata.description?.trim() ||
+      (autoFill ? extractMarkdownExcerpt(body) || null : null)
+  );
+
+  write("date", plainScalar(formatSiteEntryDate(metadata.date ?? params.date)));
+  const date = String(document.get("date") ?? "");
+  if (params.updated) {
+    const updated = formatSiteEntryDate(params.updated);
+    if (updated > date) {
+      write("updated", plainScalar(updated));
+    }
   }
 
-  const body = stripLeadingTitleHeading(params.markdown, params.title);
-  const description = extractMarkdownExcerpt(body);
-  const image = findSiteEntryImage(body);
-  const author =
-    params.contentType === "blog_post" ? params.author?.trim() : undefined;
-  const lines = [
-    `title: ${yamlString(params.title)}`,
-    description ? `description: ${yamlString(description)}` : null,
-    `date: ${date}`,
-    author ? `author: ${yamlString(author)}` : null,
-    image ? `image: ${yamlString(image)}` : null,
-  ].filter((line): line is string => line !== null);
-  return `---\n${lines.join("\n")}\n---\n\n${body}`;
+  const authors = isBlog ? (metadata.authors ?? []) : [];
+  if (authors.length === 1 && authors[0]) {
+    write("author", authorNode(authors[0]));
+  } else if (authors.length > 1) {
+    write("author", authors.map(authorNode));
+  } else {
+    // Nobody chosen in Notra: credit the publisher, as before authors existed.
+    write("author", isBlog ? params.author?.trim() || null : null);
+  }
+
+  const image =
+    metadata.image ??
+    (autoFill ? { src: findSiteEntryImage(body), alt: "" } : null);
+  write("image", image?.src || null);
+  write("imageAlt", (image?.src && image.alt.trim()) || null);
+
+  write(
+    "tags",
+    metadata.tags && metadata.tags.length > 0 ? metadata.tags : null
+  );
+
+  // Changelog entries have no featured slot and no per-entry noindex.
+  write("featured", isBlog && metadata.featured ? true : null);
+  write("noindex", isBlog && metadata.noindex ? true : null);
+
+  // Quoted strings: YAML 1.1 parsers would read a plain `No` or `on` as a boolean.
+  const yaml = document
+    .toString({
+      defaultKeyType: "PLAIN",
+      defaultStringType: "QUOTE_DOUBLE",
+      lineWidth: 0,
+    })
+    .trimEnd();
+  return own.document
+    ? `---\n${yaml}\n---\n${body}`
+    : `---\n${yaml}\n---\n\n${body.replace(LEADING_BLANK_LINES, "")}`;
 }
