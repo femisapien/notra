@@ -113,3 +113,7 @@ export type PostMetadataColumns = Pick<
   | "noindex"
   | "displayDate"
 >;
+
+export interface ContentStatusBadgeProps {
+  status: ContentResponse["status"];
+}

@@ -26,6 +26,7 @@ import {
   parseSourceMetadata,
 } from "@/components/content/content-detail-source-metadata";
 import { ContentAuthorsDialog } from "@/components/content/overview/content-authors-dialog";
+import { ContentStatusBadge } from "@/components/content/overview/content-status-badge";
 import { OverviewAuthorSelect } from "@/components/content/overview/overview-author-select";
 import { OverviewCoverField } from "@/components/content/overview/overview-cover-field";
 import {
@@ -148,7 +149,6 @@ export function ContentOverview(props: ContentOverviewProps) {
     () => extractMarkdownExcerpt(markdown),
     [markdown]
   );
-  const published = content.status === "published";
   const section = SITE_ENTRY_DIRECTORIES[isBlog ? "blog_post" : "changelog"];
   const slug = content.slug || slugify(content.title);
   const hasSource = parseSourceMetadata(content.sourceMetadata) !== null;
@@ -162,16 +162,7 @@ export function ContentOverview(props: ContentOverviewProps) {
           <span className="text-foreground text-[13px] font-medium">
             {t("status.label")}
           </span>
-          <span className="inline-flex items-center gap-1.5 text-sm">
-            <span
-              aria-hidden="true"
-              className={cn(
-                "size-1.5 rounded-full",
-                published ? "bg-emerald-500" : "bg-amber-500"
-              )}
-            />
-            {published ? t("status.published") : t("status.draft")}
-          </span>
+          <ContentStatusBadge status={content.status} />
         </div>
         <div className="flex min-h-8 items-center justify-between gap-3">
           <span className="text-foreground text-[13px] font-medium">

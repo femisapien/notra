@@ -1,3 +1,8 @@
+import { Tick02Icon } from "@hugeicons/core-free-icons";
+import type { ContentResponse } from "@notra/schemas/dashboard/content";
+
+import type { SiteStatusBadgeConfig } from "@/types/sites";
+
 export const CONTENT_METADATA_DEBOUNCE_MS = 600;
 
 /** Cover size hosted sites crop to (same as Open Graph images). */
@@ -25,3 +30,9 @@ export const CONTENT_AUTHOR_SLUG_FALLBACK = "author";
 export const CONTENT_AUTHOR_ENSURE_SELF_ATTEMPTS = 3;
 
 export const TRAILING_DASHES = /-+$/;
+
+/** Same badge language as site deployments: live is "ready", a draft is neutral. */
+export const CONTENT_STATUS_BADGES = {
+  published: { variant: "success", icon: Tick02Icon, square: true },
+  draft: { variant: "secondary" },
+} as const satisfies Record<ContentResponse["status"], SiteStatusBadgeConfig>;
