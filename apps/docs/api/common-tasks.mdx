@@ -34,6 +34,7 @@ Use `PATCH /v1/posts/{postId}` to update a post, and send at least one of these 
 - `slug`, up to 160 lowercase letters, numbers and hyphens, or `null` to clear it
 - `markdown`, up to 100,000 characters
 - `status`, `draft` or `published`
+- `metadata`, the cover image, tags, excerpt, authors and other site fields of a blog post or changelog (see [Set blog metadata](#set-blog-metadata))
 
 The response contains the updated post.
 
@@ -44,6 +45,15 @@ type UpdatePostRequest = {
   slug?: string | null;
   markdown?: string;
   status?: "draft" | "published";
+  metadata?: {
+    coverImage?: { url: string; alt?: string } | null;
+    tags?: string[];
+    excerpt?: string | null;
+    authorIds?: string[];
+    featured?: boolean;
+    noindex?: boolean;
+    displayDate?: string | null;
+  };
 };
 
 type Post = {
@@ -63,6 +73,22 @@ type Post = {
     | "investor_update"
     | "image";
   sourceMetadata: unknown;
+  /** Set for blog posts and changelogs, null for other content types. */
+  metadata: {
+    coverImage: { url: string; alt: string } | null;
+    tags: string[];
+    excerpt: string | null;
+    authors: Array<{
+      id: string;
+      slug: string;
+      name: string;
+      title: string | null;
+      avatarUrl: string | null;
+    }>;
+    featured: boolean;
+    noindex: boolean;
+    displayDate: string | null;
+  } | null;
   status: "draft" | "published";
   createdAt: string;
   updatedAt: string;
@@ -125,7 +151,96 @@ console.log(updated.post);
 ```
 </CodeGroup>
 
-The limit for `PATCH /v1/posts/{postId}` is 60 requests per minute per key, and sending a body with none of the four fields returns `400`.
+The limit for `PATCH /v1/posts/{postId}` is 60 requests per minute per key, and sending a body with none of the five fields returns `400`.
+
+### Set blog metadata
+
+Blog posts and changelogs carry site metadata that hosted sites and GitHub publishing write into the post's frontmatter. Every post response includes it as `metadata`; for other content types `metadata` is `null`, and sending it in an update returns `400`.
+
+Inside `metadata`, send only the fields you want to change:
+
+| Field | Value |
+| --- | --- |
+| `coverImage` | `{ "url": "https://…", "alt": "…" }`, or `null` to remove the cover. The URL must be https. |
+| `tags` | Replaces all tags. Up to 12 tags of 40 characters; duplicates are dropped case-insensitively. |
+| `excerpt` | Summary for post cards and meta descriptions, up to 300 characters. `null` or `""` derives it from the first paragraph. |
+| `authorIds` | Replaces the credited authors, in display order. Up to 5 IDs from `GET /v1/posts/authors`. |
+| `featured` | `true` pins the post to the top of the blog index. |
+| `noindex` | `true` asks search engines not to index the post and leaves it out of the sitemap. |
+| `displayDate` | Date shown on the post as `YYYY-MM-DD`, or `null` to use the publish date. |
+
+Authors are created in the dashboard. List them to find their IDs:
+
+```bash
+curl "https://api.usenotra.com/v1/posts/authors" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+```json
+{
+  "organization": { "id": "org_123", "slug": "acme", "name": "Acme", "logo": null },
+  "authors": [
+    {
+      "id": "auth_8f2kq1",
+      "slug": "jane-doe",
+      "name": "Jane Doe",
+      "title": "Head of Product",
+      "bio": null,
+      "avatarUrl": "https://cdn.example.com/avatars/jane.png",
+      "url": null,
+      "x": "https://x.com/janedoe",
+      "linkedin": null,
+      "github": null
+    }
+  ]
+}
+```
+
+Then set the metadata on a post:
+
+```bash
+curl -X PATCH "https://api.usenotra.com/v1/posts/post_abc" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "metadata": {
+      "coverImage": {
+        "url": "https://cdn.example.com/covers/ship-notes.png",
+        "alt": "Screenshot of the new editor"
+      },
+      "tags": ["editor", "performance"],
+      "authorIds": ["auth_8f2kq1"],
+      "displayDate": "2026-10-01"
+    }
+  }'
+```
+
+The response contains the post with the stored metadata, with each author ID resolved:
+
+```json
+"metadata": {
+  "coverImage": {
+    "url": "https://cdn.example.com/covers/ship-notes.png",
+    "alt": "Screenshot of the new editor"
+  },
+  "tags": ["editor", "performance"],
+  "excerpt": null,
+  "authors": [
+    {
+      "id": "auth_8f2kq1",
+      "slug": "jane-doe",
+      "name": "Jane Doe",
+      "title": "Head of Product",
+      "avatarUrl": "https://cdn.example.com/avatars/jane.png"
+    }
+  ],
+  "featured": false,
+  "noindex": false,
+  "displayDate": "2026-10-01"
+}
+```
+
+An author ID from another organization, or one that was deleted, returns `400`. When the post has a linked GitHub pull request, a metadata update syncs it like a title or markdown update.
 
 ## Create a new post
 

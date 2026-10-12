@@ -105,6 +105,28 @@ export type PostContentType =
 
 export type PostStatus = "draft" | "published";
 
+export type PostAuthor = {
+  id: string;
+  slug: string;
+  name: string;
+  title: string | null;
+  avatarUrl: string | null;
+};
+
+/** Site metadata of a blog post or changelog. */
+export type PostMetadata = {
+  coverImage: { url: string; alt: string } | null;
+  tags: string[];
+  /** Null means the excerpt is derived from the first paragraph. */
+  excerpt: string | null;
+  /** Credited authors in display order. */
+  authors: PostAuthor[];
+  featured: boolean;
+  noindex: boolean;
+  /** YYYY-MM-DD. Null means the publish date is shown. */
+  displayDate: string | null;
+};
+
 export type Post = {
   id: string;
   title: string;
@@ -120,6 +142,8 @@ export type Post = {
   recommendations: string | null;
   contentType: PostContentType;
   sourceMetadata: unknown;
+  /** Set for blog posts and changelogs, null for other content types. */
+  metadata: PostMetadata | null;
   status: PostStatus;
   createdAt: string;
   updatedAt: string;
@@ -145,11 +169,38 @@ export type NotraPostResponse = {
   post: Post | null;
 };
 
+export type NotraPostMetadataUpdate = {
+  coverImage?: { url: string; alt?: string } | null;
+  tags?: string[];
+  excerpt?: string | null;
+  /** IDs from GET /v1/posts/authors, in display order. */
+  authorIds?: string[];
+  featured?: boolean;
+  noindex?: boolean;
+  /** YYYY-MM-DD, or null to show the publish date. */
+  displayDate?: string | null;
+};
+
 export type NotraPostUpdateRequest = {
   title?: string;
   slug?: string | null;
   markdown?: string;
   status?: PostStatus;
+  /** Blog posts and changelogs only. */
+  metadata?: NotraPostMetadataUpdate;
+};
+
+export type ContentAuthor = PostAuthor & {
+  bio: string | null;
+  url: string | null;
+  x: string | null;
+  linkedin: string | null;
+  github: string | null;
+};
+
+export type NotraPostAuthorsResponse = {
+  organization: Organization;
+  authors: ContentAuthor[];
 };
 
 export type NotraPostUpdateResponse = {
@@ -185,7 +236,8 @@ Use these Zod schemas for runtime validation. Their request limits match the API
 - Titles up to 120 characters.
 - Slugs up to 160 characters of lowercase letters, numbers and hyphens.
 - Markdown up to 100,000 characters.
-- At least one field per update.
+- At least one field per update, and at least one field inside `metadata` when you send it.
+- Up to 12 tags of 40 characters, up to 5 authors, excerpts up to 300 characters and cover alt text up to 300 characters.
 
 ```typescript
 import * as z from "zod";
@@ -208,6 +260,24 @@ export const PostContentTypeSchema = z.enum([
 
 export const PostStatusSchema = z.enum(["draft", "published"]);
 
+export const PostAuthorSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  title: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+});
+
+export const PostMetadataSchema = z.object({
+  coverImage: z.object({ url: z.string(), alt: z.string() }).nullable(),
+  tags: z.array(z.string()),
+  excerpt: z.string().nullable(),
+  authors: z.array(PostAuthorSchema),
+  featured: z.boolean(),
+  noindex: z.boolean(),
+  displayDate: z.string().nullable(),
+});
+
 export const PostSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -219,6 +289,7 @@ export const PostSchema = z.object({
   recommendations: z.string().nullable(),
   contentType: PostContentTypeSchema,
   sourceMetadata: z.unknown().nullable(),
+  metadata: PostMetadataSchema.nullable(),
   status: PostStatusSchema,
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -246,19 +317,41 @@ export const PostResponseSchema = z.object({
 
 const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+export const PostMetadataUpdateSchema = z
+  .object({
+    coverImage: z
+      .object({
+        url: z.string().trim().min(1).max(2048).url(),
+        alt: z.string().trim().max(300).optional(),
+      })
+      .nullable()
+      .optional(),
+    tags: z.array(z.string().trim().min(1).max(40)).max(12).optional(),
+    excerpt: z.string().trim().max(300).nullable().optional(),
+    authorIds: z.array(z.string().min(1)).max(5).optional(),
+    featured: z.boolean().optional(),
+    noindex: z.boolean().optional(),
+    displayDate: z.iso.date().nullable().optional(),
+  })
+  .refine((data) => Object.values(data).some((value) => value !== undefined), {
+    message: "At least one metadata field must be provided",
+  });
+
 export const PostUpdateRequestSchema = z
   .object({
     title: z.string().trim().min(1).max(120).optional(),
     slug: z.string().trim().min(1).max(160).regex(SLUG_REGEX).nullable().optional(),
     markdown: z.string().min(1).max(100_000).optional(),
     status: PostStatusSchema.optional(),
+    metadata: PostMetadataUpdateSchema.optional(),
   })
   .refine(
     (data) =>
       data.title !== undefined ||
       data.slug !== undefined ||
       data.markdown !== undefined ||
-      data.status !== undefined,
+      data.status !== undefined ||
+      data.metadata !== undefined,
     { message: "At least one field must be provided" }
   );
 

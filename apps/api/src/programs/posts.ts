@@ -8,14 +8,18 @@ import {
   setContentGenerationJobStatus,
   updateContentGenerationJob,
 } from "@notra/content-generation/jobs";
-import { postCollections, posts } from "@notra/db/schema";
+import { contentAuthors, postCollections, posts } from "@notra/db/schema";
 import { buildPostCollectionName } from "@notra/db/utils/post-collections";
+import {
+  contentAuthorsInOrganization,
+  postMetadataUpdateData,
+} from "@notra/db/utils/post-metadata";
 import { publishedAtForStatusChange } from "@notra/db/utils/post-published-at";
 import {
   ALL_POST_CONTENT_TYPES,
   ALL_POST_STATUSES,
 } from "@notra/schemas/api/content";
-import { and, count, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 import { nanoid } from "nanoid";
 
@@ -24,9 +28,11 @@ import {
   PostGenerationJobNotFoundError,
   PostGenerationQueueFailedError,
   PostInvalidMarkdownError,
+  PostMetadataNotSupportedError,
   PostNotFoundError,
   PostSlugDuplicateError,
   PostSlugNotSupportedError,
+  PostUnknownAuthorError,
   PostDatabaseError,
 } from "../errors/posts";
 import type {
@@ -41,10 +47,15 @@ import type {
   GetPostGenerationProgramSuccess,
   GetPostProgramInput,
   GetPostProgramSuccess,
+  ListPostAuthorsProgramInput,
+  ListPostAuthorsProgramSuccess,
   ListPostsProgramInput,
   ListPostsProgramSuccess,
   PatchPostProgramInput,
   PatchPostProgramSuccess,
+  PostAuthorsById,
+  PostAuthorSummary,
+  PostRow,
   PreparePatchPostProgramSuccess,
 } from "../types/posts";
 import {
@@ -65,7 +76,12 @@ import {
   normalizePostUpdatedAt,
   postUpdatedAtMatches,
 } from "../utils/post-patch-concurrency";
-import { shouldApplyFilter, postQueryColumns } from "../utils/posts";
+import {
+  collectPostAuthorIds,
+  postQueryColumns,
+  postReturningColumns,
+  shouldApplyFilter,
+} from "../utils/posts";
 
 const database = <A>(operation: () => Promise<A>) =>
   Effect.tryPromise({
@@ -75,6 +91,40 @@ const database = <A>(operation: () => Promise<A>) =>
 
 function queueFailureMessage(error: unknown) {
   return error instanceof Error ? error.message : "Failed to trigger workflow";
+}
+
+/** One query for every author referenced by `rows`, regardless of page size. */
+function loadPostAuthors(
+  input: { db: ListPostsProgramInput["db"]; organizationId: string },
+  rows: readonly Pick<PostRow, "contentType" | "authorIds">[]
+) {
+  const authorIds = collectPostAuthorIds(rows);
+  if (authorIds.length === 0) {
+    return Effect.succeed<PostAuthorsById>(new Map());
+  }
+
+  return database(() =>
+    input.db
+      .select({
+        id: contentAuthors.id,
+        slug: contentAuthors.slug,
+        name: contentAuthors.name,
+        title: contentAuthors.title,
+        avatarUrl: contentAuthors.avatarUrl,
+      })
+      .from(contentAuthors)
+      .where(contentAuthorsInOrganization(input.organizationId, authorIds))
+  ).pipe(
+    Effect.map(
+      (authors): PostAuthorsById =>
+        new Map(
+          authors.map((author): [string, PostAuthorSummary] => [
+            author.id,
+            author,
+          ])
+        )
+    )
+  );
 }
 
 const patchPostLookupColumns = {
@@ -245,11 +295,13 @@ export const listPosts = Effect.fn("posts.list")(function* (
     ])
   );
 
+  const authors = yield* loadPostAuthors(input, results);
   const totalItems = countResult?.totalItems ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalItems / limit));
 
   return {
     posts: results,
+    authors,
     pagination: {
       limit,
       currentPage: page,
@@ -274,9 +326,37 @@ export const getPost = Effect.fn("posts.get")(function* (
     })
   );
 
+  const authors = yield* loadPostAuthors(input, post ? [post] : []);
+
   return {
     post: post ?? null,
+    authors,
   } satisfies GetPostProgramSuccess;
+});
+
+export const listPostAuthors = Effect.fn("posts.listAuthors")(function* (
+  input: ListPostAuthorsProgramInput
+) {
+  const authors = yield* database(() =>
+    input.db
+      .select({
+        id: contentAuthors.id,
+        slug: contentAuthors.slug,
+        name: contentAuthors.name,
+        title: contentAuthors.title,
+        bio: contentAuthors.bio,
+        avatarUrl: contentAuthors.avatarUrl,
+        url: contentAuthors.url,
+        x: contentAuthors.x,
+        linkedin: contentAuthors.linkedin,
+        github: contentAuthors.github,
+      })
+      .from(contentAuthors)
+      .where(eq(contentAuthors.organizationId, input.organizationId))
+      .orderBy(asc(contentAuthors.name), asc(contentAuthors.id))
+  );
+
+  return { authors } satisfies ListPostAuthorsProgramSuccess;
 });
 
 export const deletePost = Effect.fn("posts.delete")(function* (
@@ -359,20 +439,7 @@ export const createPost = Effect.fn("posts.create")(function* (
             createdAt: now,
             updatedAt: now,
           })
-          .returning({
-            id: posts.id,
-            title: posts.title,
-            slug: posts.slug,
-            content: posts.content,
-            htmlUrl: posts.htmlUrl,
-            markdown: posts.markdown,
-            recommendations: posts.recommendations,
-            contentType: posts.contentType,
-            sourceMetadata: posts.sourceMetadata,
-            status: posts.status,
-            createdAt: posts.createdAt,
-            updatedAt: posts.updatedAt,
-          });
+          .returning(postReturningColumns());
       }),
     catch: (cause) => {
       if (
@@ -445,6 +512,27 @@ export const preparePatchPost = Effect.fn("posts.preparePatch")(function* (
       updateData.title =
         extractTitleFromMarkdown(markdown) ?? existingPost.title;
     }
+  }
+
+  if (body.metadata !== undefined) {
+    if (!supportsPostSlug(existingPost.contentType)) {
+      return yield* new PostMetadataNotSupportedError();
+    }
+
+    const authorIds = body.metadata.authorIds ?? [];
+    if (authorIds.length > 0) {
+      const knownAuthors = yield* database(() =>
+        input.db
+          .select({ id: contentAuthors.id })
+          .from(contentAuthors)
+          .where(contentAuthorsInOrganization(input.organizationId, authorIds))
+      );
+      if (knownAuthors.length !== authorIds.length) {
+        return yield* new PostUnknownAuthorError();
+      }
+    }
+
+    Object.assign(updateData, postMetadataUpdateData(body.metadata));
   }
 
   if (body.status !== undefined) {
@@ -521,19 +609,8 @@ export const commitPatchPost = Effect.fn("posts.commitPatch")(function* (
             )
           )
           .returning({
-            id: posts.id,
-            title: posts.title,
-            slug: posts.slug,
-            content: posts.content,
-            htmlUrl: posts.htmlUrl,
-            markdown: posts.markdown,
-            recommendations: posts.recommendations,
-            contentType: posts.contentType,
-            sourceMetadata: posts.sourceMetadata,
-            status: posts.status,
+            ...postReturningColumns(),
             githubPublish: posts.githubPublish,
-            createdAt: posts.createdAt,
-            updatedAt: posts.updatedAt,
           });
         return rows;
       }),
@@ -555,8 +632,11 @@ export const commitPatchPost = Effect.fn("posts.commitPatch")(function* (
     return yield* new PostConcurrentModificationError();
   }
 
+  const authors = yield* loadPostAuthors(input, [updatedPost]);
+
   return {
     post: updatedPost,
+    authors,
     previousStatus: input.prepared.previousStatus,
   } satisfies PatchPostProgramSuccess;
 });
