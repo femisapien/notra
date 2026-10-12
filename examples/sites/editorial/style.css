@@ -1,0 +1,53 @@
+/* Instrument Serif ships in one weight (400). Keep headings at that weight
+   so the browser doesn't fake a bold, and loosen the tight sans tracking. */
+.font-heading,
+.mdx-content :is(h1, h2, h3, h4) {
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+
+.mdx-content h2 {
+  font-size: 1.875rem;
+  line-height: 1.2;
+}
+
+/* Blockquotes become pull quotes: large display type between two rules. */
+.mdx-content blockquote {
+  margin: 2.5rem 0;
+  padding: 1.25rem 0;
+  border-left: 0;
+  border-block: 1px solid var(--border);
+  font-family: var(--font-heading);
+  font-size: 1.875rem;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.mdx-content blockquote::before {
+  content: "“";
+  display: block;
+  height: 1.75rem;
+  color: var(--accent);
+  font-size: 3.5rem;
+  line-height: 1;
+}
+
+.mdx-content blockquote p {
+  margin: 0;
+}
+
+/* Captions under framed figures read like a magazine caption. */
+.frame figcaption {
+  font-style: italic;
+}
+
+/* Two posts sit under the two featured ones, so the index grid uses two
+   columns instead of three on wide screens. */
+@media (min-width: 64rem) {
+  #content ul.lg\:grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #content ul.lg\:grid-cols-3 > li.lg\:col-span-3 {
+    grid-column: 1 / -1;
+  }
+}

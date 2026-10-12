@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://www.quillstack.dev/blog/sitemap.xml
+Sitemap: https://www.quillstack.dev/changelog/sitemap.xml

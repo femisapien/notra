@@ -1,0 +1,40 @@
+/* Tidepool: soft, rounded shapes to match the main website. Uses only the documented styling hooks. */
+
+/* The theme draws buttons as squircles, so switch back to round corners for a pill. */
+#topbar-cta-button > a {
+  border-radius: 9999px;
+  corner-shape: round;
+}
+
+#page-title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.callout {
+  border-radius: 1.25rem;
+  border-color: color-mix(in oklab, var(--accent) 30%, var(--border));
+  background: color-mix(in oklab, var(--accent) 7%, transparent);
+  padding: 1rem 1.25rem;
+}
+
+.card {
+  border-radius: 1.5rem;
+  overflow: hidden;
+}
+
+.tabs,
+.code-block,
+.code-group,
+.frame {
+  border-radius: 1.25rem;
+}
+
+.step {
+  border-radius: 1rem;
+}
+
+.mdx-content table {
+  border-radius: 1rem;
+  overflow: hidden;
+}

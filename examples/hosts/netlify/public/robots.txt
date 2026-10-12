@@ -1,0 +1,6 @@
+# Replace www.tidepool.example with your own domain.
+User-agent: *
+Allow: /
+
+Sitemap: https://www.tidepool.example/blog/sitemap.xml
+Sitemap: https://www.tidepool.example/changelog/sitemap.xml

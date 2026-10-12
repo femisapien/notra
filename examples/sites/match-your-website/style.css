@@ -1,0 +1,124 @@
+/* Orbitly design tokens, copied from the marketing site. */
+:root {
+  --orbitly-navy-950: #060b1e;
+  --orbitly-navy-900: #0b1330;
+  --orbitly-navy-800: #131d44;
+  --orbitly-cyan-300: #67e8f9;
+  --orbitly-cyan-400: #22d3ee;
+  --orbitly-cyan-600: #0891b2;
+  --orbitly-cyan-700: #0e7490;
+
+  --background: #f4f7fb;
+  --foreground: #0b1330;
+  --muted-foreground: #4a5578;
+  --muted: #e6ecf5;
+  --border: #d6deeb;
+  --card: #ffffff;
+}
+
+html.dark {
+  --background: #060b1e;
+  --foreground: #e8eefc;
+  --muted-foreground: #8d98bd;
+  --muted: #131d44;
+  --border: #1b2654;
+  --card: #0b1330;
+}
+
+/* Header: frosted page color, so it sits on the page in both modes. */
+.orbitly-header {
+  background: color-mix(in oklab, var(--background) 82%, transparent);
+}
+
+.orbitly-eyebrow {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.orbitly-button {
+  display: inline-flex;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: var(--orbitly-cyan-600);
+  color: #ffffff;
+  transition: background-color 150ms ease;
+}
+.orbitly-button:hover {
+  background: var(--orbitly-cyan-700);
+}
+html.dark .orbitly-button {
+  background: var(--orbitly-cyan-400);
+  color: var(--orbitly-navy-950);
+}
+html.dark .orbitly-button:hover {
+  background: var(--orbitly-cyan-300);
+}
+
+/* Blog hero: an orbit ring and a few stars, like the landing page. */
+.orbitly-hero {
+  background:
+    radial-gradient(circle at 85% 20%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 45%),
+    linear-gradient(160deg, var(--card), var(--background));
+}
+.orbitly-hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -9rem;
+  right: -7rem;
+  width: 26rem;
+  height: 26rem;
+  border-radius: 9999px;
+  border: 1px dashed color-mix(in oklab, var(--accent) 45%, transparent);
+  box-shadow: inset 0 0 0 4.5rem color-mix(in oklab, var(--accent) 5%, transparent);
+}
+@media (max-width: 640px) {
+  .orbitly-hero::after {
+    display: none;
+  }
+}
+
+.orbitly-newsletter {
+  background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 10%, var(--card)), var(--card));
+}
+.orbitly-input {
+  background: var(--background);
+  color: var(--foreground);
+}
+.orbitly-input::placeholder {
+  color: var(--muted-foreground);
+}
+
+.orbitly-footer {
+  background: color-mix(in oklab, var(--card) 60%, var(--background));
+}
+.orbitly-footer-heading {
+  font-family: var(--font-heading);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.orbitly-status::before {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.5rem;
+  border-radius: 9999px;
+  background: #10b981;
+}
+
+/* Squarer cards and code blocks, like the rest of orbitly.com. */
+.callout,
+.card,
+.code-block {
+  border-radius: 0.625rem;
+}

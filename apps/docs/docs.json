@@ -224,7 +224,7 @@
           {
             "group": "Get started",
             "icon": "rocket",
-            "pages": ["sites/overview", "sites/quickstart"]
+            "pages": ["sites/overview", "sites/quickstart", "sites/examples"]
           },
           {
             "group": "Domains",
@@ -239,6 +239,7 @@
                   "sites/domains/vercel",
                   "sites/domains/nextjs",
                   "sites/domains/tanstack-start",
+                  "sites/domains/astro",
                   "sites/domains/netlify",
                   "sites/domains/cloudflare",
                   "sites/domains/nginx"

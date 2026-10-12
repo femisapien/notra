@@ -1,0 +1,8 @@
+{
+  "name": "tidepool-netlify-host",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun dev.ts"
+  }
+}
