@@ -44,7 +44,7 @@ export function ContentPanelTabs() {
       className="-ms-1.5 flex items-center gap-1"
       role="tablist"
     >
-      {CONTENT_PANEL_TABS.map(({ id, icon }) => {
+      {CONTENT_PANEL_TABS.map(({ id }) => {
         const isActive = tab === id;
         return (
           <button
@@ -54,7 +54,7 @@ export function ContentPanelTabs() {
                 variant: isActive ? "secondary" : "ghost",
                 size: "sm",
               }),
-              "gap-1.5 text-xs transition-[background-color,color,box-shadow] active:scale-100",
+              "text-xs transition-[background-color,color,box-shadow] active:scale-100",
               !isActive && "text-muted-foreground"
             )}
             id={`content-panel-tab-${id}`}
@@ -82,12 +82,6 @@ export function ContentPanelTabs() {
             tabIndex={isActive ? 0 : -1}
             type="button"
           >
-            <HugeiconsIcon
-              aria-hidden="true"
-              className="size-3.5 shrink-0"
-              icon={icon}
-              strokeWidth={1.8}
-            />
             {t(id)}
           </button>
         );
