@@ -57,14 +57,14 @@ export function OverviewCoverField({ api, markdown }: OverviewCoverFieldProps) {
       api.update({ coverImage: { url, alt: cover?.alt ?? "" } });
     } catch (error) {
       toast.error(toErrorMessage(error, t("uploadFailed")));
-    } finally {
-      setUploading(false);
     }
+    setUploading(false);
   };
 
   const fileInput = (
     <input
       accept="image/*"
+      aria-label={t("upload")}
       className="sr-only"
       onChange={(event) => {
         void upload(event.target.files?.[0]);

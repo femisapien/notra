@@ -98,3 +98,13 @@ export interface GitHubPublishDialogFooterProps {
   pullRequest: GitHubPublishPullRequestResult | undefined;
   selectedPublishingEnabled: boolean;
 }
+
+/** The generation inputs a post records, when they are complete. */
+export interface ParsedSourceMetadata {
+  brandVoiceId?: string | null;
+  brandVoiceName?: string | null;
+  lookbackRange: { end: string; start: string };
+  lookbackWindow: string;
+  repositories: Array<{ owner: string; repo: string }>;
+  triggerSourceType: string;
+}

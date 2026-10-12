@@ -1,3 +1,4 @@
+import type { IconSvgElement } from "@hugeicons/react";
 import type { ChatSessionSummary } from "@notra/ai/types/chat";
 import type { ChatStatus, UIMessage } from "ai";
 import type { ReactNode } from "react";
@@ -50,3 +51,12 @@ export type ContentChatHistoryItemsProps = Pick<
   ContentChatActivityPanelProps,
   "sessions" | "activeChatId" | "isHistoryLoading" | "status" | "onSelectChat"
 >;
+
+export interface ContentPanelHeaderButtonProps {
+  icon: IconSvgElement;
+  /** Screen reader name. */
+  label: string;
+  tooltip: string;
+  onClick: () => void;
+  pressed?: boolean;
+}

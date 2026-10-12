@@ -54,6 +54,7 @@ import { ChatImageAttachment } from "@/components/chat/chat-image-attachment";
 import { ChatInputContextRow } from "@/components/chat/chat-input-context-row";
 import { ChatQuoteMessage as Message } from "@/components/chat/chat-quote";
 import { ChatScrollOnSend } from "@/components/chat/chat-scroll-on-send";
+import { ContentPanelHeaderButton } from "@/components/content/content-panel-header-button";
 import { useRightPanel } from "@/components/dashboard/right-panel-context";
 import { useChatActivityTimer } from "@/lib/hooks/use-chat-activity-timer";
 import { isImageMimeType } from "@/lib/upload/mime";
@@ -501,61 +502,31 @@ function ContentChatActivityHeader({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  aria-pressed={opensInChat ? undefined : expanded}
-                  className="cursor-pointer"
-                  onClick={onOpenChat ?? toggleExpanded}
-                  size="icon-sm"
-                  variant="ghost"
-                />
-              }
-            >
-              <span className="sr-only">
-                {opensInChat
-                  ? t("openInChat")
-                  : expanded
-                    ? t("exitFullscreenTitle", { title })
-                    : t("openFullscreenTitle", { title })}
-              </span>
-              <HugeiconsIcon
-                className="size-4"
-                icon={
-                  opensInChat || !expanded ? FullScreenIcon : ArrowShrink01Icon
-                }
-                strokeWidth={1.8}
-              />
-            </TooltipTrigger>
-            <TooltipContent>
-              {opensInChat
+          <ContentPanelHeaderButton
+            icon={opensInChat || !expanded ? FullScreenIcon : ArrowShrink01Icon}
+            label={
+              opensInChat
+                ? t("openInChat")
+                : expanded
+                  ? t("exitFullscreenTitle", { title })
+                  : t("openFullscreenTitle", { title })
+            }
+            onClick={onOpenChat ?? toggleExpanded}
+            pressed={opensInChat ? undefined : expanded}
+            tooltip={
+              opensInChat
                 ? t("openInChat")
                 : expanded
                   ? t("exitFullscreen")
-                  : t("expandAgent")}
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  className="cursor-pointer"
-                  onClick={onClose}
-                  size="icon-sm"
-                  variant="ghost"
-                />
-              }
-            >
-              <span className="sr-only">{t("closeTitle", { title })}</span>
-              <HugeiconsIcon
-                className="size-4"
-                icon={Cancel01Icon}
-                strokeWidth={1.8}
-              />
-            </TooltipTrigger>
-            <TooltipContent>{t("closeTitle", { title })}</TooltipContent>
-          </Tooltip>
+                  : t("expandAgent")
+            }
+          />
+          <ContentPanelHeaderButton
+            icon={Cancel01Icon}
+            label={t("closeTitle", { title })}
+            onClick={onClose}
+            tooltip={t("closeTitle", { title })}
+          />
         </div>
       </TooltipProvider>
     </header>

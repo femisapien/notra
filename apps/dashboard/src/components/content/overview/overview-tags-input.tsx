@@ -112,6 +112,10 @@ export function OverviewTagsInput({
                 );
                 return;
               }
+              // Enter also confirms an IME candidate; that must not add a tag.
+              if (event.nativeEvent.isComposing) {
+                return;
+              }
               if (event.key === "Enter" || event.key === ",") {
                 event.preventDefault();
                 const exact = suggestions.find(

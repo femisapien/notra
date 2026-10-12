@@ -7,7 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@notra/ui/components/ui/popover";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
@@ -28,10 +28,15 @@ export function OverviewDateField({
   const t = useTranslations("content.overview.date");
   const locale = useLocale();
   const [open, setOpen] = useState(false);
-  const shown = displayDateToLocalDate(value ?? fallback);
-  const label = new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(
-    shown
+  const day = value ?? fallback;
+  const shown = displayDateToLocalDate(day);
+  // A calendar day, so format it in UTC: server and browser agree on it.
+  const formatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }),
+    [locale]
   );
+  const label = formatter.format(new Date(`${day}T00:00:00.000Z`));
 
   return (
     <Popover onOpenChange={setOpen} open={open}>

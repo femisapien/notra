@@ -5,16 +5,11 @@ import {
   Cancel01Icon,
   FullScreenIcon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@notra/ui/components/ui/tooltip";
+import { TooltipProvider } from "@notra/ui/components/ui/tooltip";
 import { useTranslations } from "use-intl";
 
-import { Button, buttonVariants } from "@/components/button";
+import { buttonVariants } from "@/components/button";
+import { ContentPanelHeaderButton } from "@/components/content/content-panel-header-button";
 import { useRightPanel } from "@/components/dashboard/right-panel-context";
 import { CONTENT_PANEL_TABS } from "@/constants/content-overview";
 import {
@@ -104,53 +99,23 @@ export function ContentPanelOverview({
         <ContentPanelTabs />
         <TooltipProvider>
           <div className="-mr-1.5 flex h-full items-center gap-0.5">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    aria-pressed={expanded}
-                    className="cursor-pointer"
-                    onClick={toggleExpanded}
-                    size="icon-sm"
-                    variant="ghost"
-                  />
-                }
-              >
-                <span className="sr-only">
-                  {expanded
-                    ? t("exitFullscreenTitle", { title })
-                    : t("openFullscreenTitle", { title })}
-                </span>
-                <HugeiconsIcon
-                  className="size-4"
-                  icon={expanded ? ArrowShrink01Icon : FullScreenIcon}
-                  strokeWidth={1.8}
-                />
-              </TooltipTrigger>
-              <TooltipContent>
-                {expanded ? t("exitFullscreen") : t("expandAgent")}
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    className="cursor-pointer"
-                    onClick={onClose}
-                    size="icon-sm"
-                    variant="ghost"
-                  />
-                }
-              >
-                <span className="sr-only">{t("closeTitle", { title })}</span>
-                <HugeiconsIcon
-                  className="size-4"
-                  icon={Cancel01Icon}
-                  strokeWidth={1.8}
-                />
-              </TooltipTrigger>
-              <TooltipContent>{t("closeTitle", { title })}</TooltipContent>
-            </Tooltip>
+            <ContentPanelHeaderButton
+              icon={expanded ? ArrowShrink01Icon : FullScreenIcon}
+              label={
+                expanded
+                  ? t("exitFullscreenTitle", { title })
+                  : t("openFullscreenTitle", { title })
+              }
+              onClick={toggleExpanded}
+              pressed={expanded}
+              tooltip={expanded ? t("exitFullscreen") : t("expandAgent")}
+            />
+            <ContentPanelHeaderButton
+              icon={Cancel01Icon}
+              label={t("closeTitle", { title })}
+              onClick={onClose}
+              tooltip={t("closeTitle", { title })}
+            />
           </div>
         </TooltipProvider>
       </header>

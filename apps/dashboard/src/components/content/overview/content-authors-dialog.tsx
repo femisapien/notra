@@ -65,7 +65,7 @@ function AuthorForm({
   const fileRef = useRef<HTMLInputElement>(null);
   const { create, update } = useContentAuthors(organizationId);
   const [draft, setDraft] = useState(() => toDraft(author));
-  const [slugEdited, setSlugEdited] = useState(Boolean(author));
+  const slugEdited = useRef(Boolean(author));
   const [uploading, setUploading] = useState(false);
   const set = (patch: Partial<ContentAuthorDraft>) =>
     setDraft((current) => ({ ...current, ...patch }));
@@ -104,9 +104,8 @@ function AuthorForm({
       set({ avatarUrl: url });
     } catch (error) {
       toast.error(toErrorMessage(error, t("saveFailed")));
-    } finally {
-      setUploading(false);
     }
+    setUploading(false);
   };
 
   return (
@@ -124,6 +123,7 @@ function AuthorForm({
         />
         <input
           accept="image/*"
+          aria-label={t("uploadAvatar")}
           className="sr-only"
           onChange={(event) => {
             void uploadAvatar(event.target.files?.[0]);
@@ -163,7 +163,7 @@ function AuthorForm({
             onChange={(event) => {
               const name = event.target.value;
               set(
-                slugEdited
+                slugEdited.current
                   ? { name }
                   : {
                       name,
@@ -195,7 +195,7 @@ function AuthorForm({
           id={`${id}-slug`}
           maxLength={CONTENT_AUTHOR_SLUG_MAX_LENGTH}
           onChange={(event) => {
-            setSlugEdited(true);
+            slugEdited.current = true;
             set({ slug: event.target.value.toLowerCase() });
           }}
           required

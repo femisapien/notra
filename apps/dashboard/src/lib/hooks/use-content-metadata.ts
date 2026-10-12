@@ -3,7 +3,7 @@
 import type { ContentResponse } from "@notra/schemas/dashboard/content";
 import type { PostMetadataPatch } from "@notra/schemas/shared/post-metadata";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "use-intl";
 
@@ -50,12 +50,10 @@ export function useContentMetadata(
 
   const pending = useRef<PostMetadataPatch | null>(null);
   const latestRequest = useRef(0);
-  const [inFlight, setInFlight] = useState(0);
 
   const send = useCallback(
     async (patch: PostMetadataPatch) => {
       const request = ++latestRequest.current;
-      setInFlight((count) => count + 1);
       try {
         const result = await dashboardOrpc.content.updateMetadata.call({
           organizationId,
@@ -70,8 +68,6 @@ export function useContentMetadata(
       } catch (error) {
         toast.error(toErrorMessage(error, t("saveFailed")));
         void queryClient.invalidateQueries({ queryKey });
-      } finally {
-        setInFlight((count) => count - 1);
       }
     },
     [contentId, organizationId, queryClient, queryKey, setMetadata, t]
@@ -111,14 +107,12 @@ export function useContentMetadata(
   );
 
   // Never drop a pending edit when the panel or page goes away.
-  const flushRef = useRef(flush);
-  flushRef.current = flush;
-  useEffect(() => () => flushRef.current(), []);
+  const flushOnUnmount = useEffectEvent(flush);
+  useEffect(() => () => flushOnUnmount(), []);
 
   return {
     metadata: params.content.metadata,
     update,
     updateDebounced,
-    isSaving: inFlight > 0 || pending.current !== null,
   };
 }

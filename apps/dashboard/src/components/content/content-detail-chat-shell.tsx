@@ -7,7 +7,12 @@ import type {
   TextSelection,
 } from "@notra/ai/types/chat";
 import type { ChatStatus, UIMessage } from "ai";
-import { type ReactNode, type RefObject, useEffect, useRef } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useEffectEvent,
+} from "react";
 
 import ChatInput from "@/components/chat-input";
 import type { QueuedMessage } from "@/components/chat/chat-queue";
@@ -115,15 +120,18 @@ export function ContentDetailChatPanel({
   const hasOverview = Boolean(overview);
   const showOverview = hasOverview && tab === "overview";
   const { openPanel } = useRightPanel();
-  const openPanelRef = useRef(openPanel);
-  openPanelRef.current = openPanel;
+  const openByDefault = useEffectEvent(() => {
+    if (!isContentPanelDismissed()) {
+      openPanel("content");
+    }
+  });
 
   // Blog posts and changelogs open with the panel showing, unless it was
   // closed on purpose; the header button then shows "Details".
   useEffect(() => {
     setContentPanelHasOverview(hasOverview);
-    if (hasOverview && !isContentPanelDismissed()) {
-      openPanelRef.current("content");
+    if (hasOverview) {
+      openByDefault();
     }
     return () => setContentPanelHasOverview(false);
   }, [hasOverview]);

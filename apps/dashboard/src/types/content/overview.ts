@@ -33,7 +33,6 @@ export interface ContentMetadataApi {
   update: (patch: PostMetadataPatch) => void;
   /** Same as `update`, but waits until typing pauses. */
   updateDebounced: (patch: PostMetadataPatch) => void;
-  isSaving: boolean;
 }
 
 export interface ContentPanelOverviewProps {

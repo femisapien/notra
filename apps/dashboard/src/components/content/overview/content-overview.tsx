@@ -18,10 +18,7 @@ import { toast } from "sonner";
 import { useTranslations } from "use-intl";
 
 import { Button } from "@/components/button";
-import {
-  ContentDetailSourceMetadata,
-  parseSourceMetadata,
-} from "@/components/content/content-detail-source-metadata";
+import { ContentDetailSourceMetadata } from "@/components/content/content-detail-source-metadata";
 import { ContentAuthorsDialog } from "@/components/content/overview/content-authors-dialog";
 import { ContentStatusBadge } from "@/components/content/overview/content-status-badge";
 import { OverviewAuthorSelect } from "@/components/content/overview/overview-author-select";
@@ -41,6 +38,7 @@ import type {
   OverviewDisclosureProps,
 } from "@/types/content/overview";
 import type { ContentApiResponse } from "@/types/hooks/content";
+import { parseSourceMetadata } from "@/utils/content-detail";
 import { toErrorMessage } from "@/utils/error-message";
 import { extractMarkdownExcerpt } from "@/utils/site-github-publish";
 
@@ -112,9 +110,8 @@ function UpdatePullRequestHint({
       toast.success(t("done"));
     } catch (error) {
       toast.error(toErrorMessage(error, t("failed")));
-    } finally {
-      setPending(false);
     }
+    setPending(false);
   };
   return (
     <div className="bg-muted/60 flex items-center justify-between gap-3 rounded-lg px-3 py-2">
