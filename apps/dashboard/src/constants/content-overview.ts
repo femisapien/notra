@@ -1,4 +1,8 @@
-import { Tick02Icon } from "@hugeicons/core-free-icons";
+import {
+  File02Icon,
+  Robot01Icon,
+  Tick02Icon,
+} from "@hugeicons/core-free-icons";
 import type { ContentResponse } from "@notra/schemas/dashboard/content";
 
 import type { SiteStatusBadgeConfig } from "@/types/sites";
@@ -36,3 +40,9 @@ export const CONTENT_STATUS_BADGES = {
   published: { variant: "success", icon: Tick02Icon, square: true },
   draft: { variant: "secondary" },
 } as const satisfies Record<ContentResponse["status"], SiteStatusBadgeConfig>;
+
+/** Tabs of the post panel, in order. */
+export const CONTENT_PANEL_TABS = [
+  { id: "overview", icon: File02Icon },
+  { id: "agent", icon: Robot01Icon },
+] as const;

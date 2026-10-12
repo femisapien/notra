@@ -6,8 +6,8 @@ import {
   ImageUploadIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { POST_COVER_ALT_MAX_LENGTH } from "@notra/schemas/constants/dashboard/post-metadata";
-import { postCoverImageSchema } from "@notra/schemas/shared/post-metadata";
+import { POST_COVER_ALT_MAX_LENGTH } from "@notra/ai/constants/post-metadata";
+import { postCoverImageSchema } from "@notra/ai/schemas/post-metadata";
 import { Input } from "@notra/ui/components/ui/input";
 import { Spinner } from "@notra/ui/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@notra/ui/components/ui/tabs";

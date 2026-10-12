@@ -2,25 +2,20 @@
 
 import { useSyncExternalStore } from "react";
 
+import { localStorageKeys } from "@/constants/storage";
 import type { ContentPanelTab } from "@/types/content/overview";
 
-// The header's agent button, the floating composer and the toolbar's details
-// button all live outside the panel, so the active tab is a tiny global store.
+// The header button and the floating composer live outside the panel, so the
+// panel's tab and whether the current post has an overview are a tiny
+// global store.
 let activeTab: ContentPanelTab = "overview";
+let hasOverview = false;
 const listeners = new Set<() => void>();
 
-export function setContentPanelTab(tab: ContentPanelTab) {
-  if (tab === activeTab) {
-    return;
-  }
-  activeTab = tab;
+function notify() {
   for (const listener of listeners) {
     listener();
   }
-}
-
-function getContentPanelTab(): ContentPanelTab {
-  return activeTab;
 }
 
 function subscribe(listener: () => void) {
@@ -30,6 +25,60 @@ function subscribe(listener: () => void) {
   };
 }
 
+export function setContentPanelTab(tab: ContentPanelTab) {
+  if (tab === activeTab) {
+    return;
+  }
+  activeTab = tab;
+  notify();
+}
+
+function getContentPanelTab(): ContentPanelTab {
+  return activeTab;
+}
+
 export function useContentPanelTab(): ContentPanelTab {
   return useSyncExternalStore(subscribe, getContentPanelTab, () => "overview");
+}
+
+/** Set by the post page while its panel offers the overview tab. */
+export function setContentPanelHasOverview(value: boolean) {
+  if (value === hasOverview) {
+    return;
+  }
+  hasOverview = value;
+  notify();
+}
+
+function getContentPanelHasOverview() {
+  return hasOverview;
+}
+
+export function useContentPanelHasOverview(): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    getContentPanelHasOverview,
+    () => false
+  );
+}
+
+/** The panel opens with each post until someone closes it on purpose. */
+export function isContentPanelDismissed(): boolean {
+  try {
+    return localStorage.getItem(localStorageKeys.contentPanelClosed) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setContentPanelDismissed(dismissed: boolean) {
+  try {
+    if (dismissed) {
+      localStorage.setItem(localStorageKeys.contentPanelClosed, "1");
+    } else {
+      localStorage.removeItem(localStorageKeys.contentPanelClosed);
+    }
+  } catch {
+    // Private mode or storage full: the panel just opens again next time.
+  }
 }

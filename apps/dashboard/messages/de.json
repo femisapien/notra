@@ -6602,7 +6602,9 @@
       },
       "date": {
         "label": "Veröffentlicht am",
-        "hint": "Datum, das auf der Site steht. Standard ist der Tag der ersten Veröffentlichung."
+        "hint": "Datum, das auf der Site steht. Standard ist der Tag der ersten Veröffentlichung.",
+        "auto": "Veröffentlichung",
+        "reset": "Veröffentlichungsdatum verwenden"
       },
       "source": {
         "label": "Entstehung"
@@ -6878,7 +6880,9 @@
         "readRepositoryFile": "{state, select, running {Lese Datei} done {Datei gelesen} approve {Genehmigen: Datei} other {Fehlgeschlagen: Datei}}",
         "repositoryHistory": "{state, select, running {Lese Historie} done {Historie gelesen} approve {Genehmigen: Historie} other {Fehlgeschlagen: Historie}}",
         "showRepositoryChange": "{state, select, running {Prüfe Änderung} done {Änderung geprüft} approve {Genehmigen: Änderung} other {Fehlgeschlagen: Änderung}}",
-        "createPost": "{state, select, running {Speichere Entwurf} done {Entwurf gespeichert} approve {Genehmigen: Entwurf} other {Fehlgeschlagen: Entwurf}}"
+        "createPost": "{state, select, running {Speichere Entwurf} done {Entwurf gespeichert} approve {Genehmigen: Entwurf} other {Fehlgeschlagen: Entwurf}}",
+        "getPostDetails": "{state, select, running {Liest Post-Details} done {Post-Details gelesen} approve {Post-Details freigeben} other {Post-Details konnten nicht gelesen werden}}",
+        "updatePostDetails": "{state, select, running {Aktualisiert Post-Details} done {Post-Details aktualisiert} approve {Post-Details freigeben} other {Post-Details konnten nicht aktualisiert werden}}"
       },
       "withSuffix": "{label} {suffix}",
       "memory": {

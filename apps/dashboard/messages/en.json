@@ -6602,7 +6602,9 @@
       },
       "date": {
         "label": "Publish date",
-        "hint": "Date shown on the site. Defaults to the day the post was first published."
+        "hint": "Date shown on the site. Defaults to the day the post was first published.",
+        "auto": "Publish date",
+        "reset": "Use publish date"
       },
       "source": {
         "label": "How it was made"
@@ -6878,7 +6880,9 @@
         "readRepositoryFile": "{state, select, running {Reading file} done {Read file} approve {Approve file} other {Failed file}}",
         "repositoryHistory": "{state, select, running {Reading history} done {Read history} approve {Approve history} other {Failed history}}",
         "showRepositoryChange": "{state, select, running {Inspecting change} done {Inspected change} approve {Approve change} other {Failed change}}",
-        "createPost": "{state, select, running {Saving draft} done {Saved draft} approve {Approve draft} other {Failed draft}}"
+        "createPost": "{state, select, running {Saving draft} done {Saved draft} approve {Approve draft} other {Failed draft}}",
+        "getPostDetails": "{state, select, running {Reading post details} done {Read post details} approve {Approve post details} other {Failed to read post details}}",
+        "updatePostDetails": "{state, select, running {Updating post details} done {Updated post details} approve {Approve post details} other {Failed to update post details}}"
       },
       "withSuffix": "{label} {suffix}",
       "memory": {

@@ -1,6 +1,6 @@
 "use client";
 
-import { POST_AUTHORS_MAX } from "@notra/schemas/constants/dashboard/post-metadata";
+import { POST_AUTHORS_MAX } from "@notra/ai/constants/post-metadata";
 import type { ContentAuthor } from "@notra/schemas/shared/post-metadata";
 import {
   Avatar,

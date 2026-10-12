@@ -6,7 +6,6 @@ import {
   FullScreenIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Tabs, TabsList, TabsTrigger } from "@notra/ui/components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
@@ -15,30 +14,85 @@ import {
 } from "@notra/ui/components/ui/tooltip";
 import { useTranslations } from "use-intl";
 
-import { Button } from "@/components/button";
+import { Button, buttonVariants } from "@/components/button";
 import { useRightPanel } from "@/components/dashboard/right-panel-context";
+import { CONTENT_PANEL_TABS } from "@/constants/content-overview";
 import {
   setContentPanelTab,
   useContentPanelTab,
 } from "@/lib/content-panel-tab";
+import { cn } from "@/lib/utils";
 import type {
   ContentPanelOverviewProps,
   ContentPanelTab,
 } from "@/types/content/overview";
 
+/**
+ * Overview and Agent, in the same tab style as the chat's content panel:
+ * the active tab is a secondary button, the others are quiet ghosts.
+ */
 export function ContentPanelTabs() {
   const t = useTranslations("content.overview.tabs");
   const tab = useContentPanelTab();
+  const focusTab = (next: ContentPanelTab) => {
+    setContentPanelTab(next);
+    document.getElementById(`content-panel-tab-${next}`)?.focus();
+  };
   return (
-    <Tabs
-      onValueChange={(value) => setContentPanelTab(value as ContentPanelTab)}
-      value={tab}
+    <div
+      aria-label={t("label")}
+      className="-ms-1.5 flex items-center gap-1"
+      role="tablist"
     >
-      <TabsList aria-label={t("label")} className="-ms-3">
-        <TabsTrigger value="overview">{t("overview")}</TabsTrigger>
-        <TabsTrigger value="agent">{t("agent")}</TabsTrigger>
-      </TabsList>
-    </Tabs>
+      {CONTENT_PANEL_TABS.map(({ id, icon }) => {
+        const isActive = tab === id;
+        return (
+          <button
+            aria-selected={isActive}
+            className={cn(
+              buttonVariants({
+                variant: isActive ? "secondary" : "ghost",
+                size: "sm",
+              }),
+              "gap-1.5 text-xs transition-[background-color,color,box-shadow] active:scale-100",
+              !isActive && "text-muted-foreground"
+            )}
+            id={`content-panel-tab-${id}`}
+            key={id}
+            onClick={() => setContentPanelTab(id)}
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+                return;
+              }
+              event.preventDefault();
+              const index = CONTENT_PANEL_TABS.findIndex(
+                (item) => item.id === id
+              );
+              const step = event.key === "ArrowRight" ? 1 : -1;
+              const next =
+                CONTENT_PANEL_TABS[
+                  (index + step + CONTENT_PANEL_TABS.length) %
+                    CONTENT_PANEL_TABS.length
+                ];
+              if (next) {
+                focusTab(next.id);
+              }
+            }}
+            role="tab"
+            tabIndex={isActive ? 0 : -1}
+            type="button"
+          >
+            <HugeiconsIcon
+              aria-hidden="true"
+              className="size-3.5 shrink-0"
+              icon={icon}
+              strokeWidth={1.8}
+            />
+            {t(id)}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

@@ -7,7 +7,7 @@ import type {
   TextSelection,
 } from "@notra/ai/types/chat";
 import type { ChatStatus, UIMessage } from "ai";
-import type { ReactNode, RefObject } from "react";
+import { type ReactNode, type RefObject, useEffect, useRef } from "react";
 
 import ChatInput from "@/components/chat-input";
 import type { QueuedMessage } from "@/components/chat/chat-queue";
@@ -17,7 +17,13 @@ import {
   ContentPanelTabs,
 } from "@/components/content/overview/content-panel-tabs";
 import { RightPanel } from "@/components/dashboard/right-panel";
-import { useContentPanelTab } from "@/lib/content-panel-tab";
+import { useRightPanel } from "@/components/dashboard/right-panel-context";
+import {
+  isContentPanelDismissed,
+  setContentPanelDismissed,
+  setContentPanelHasOverview,
+  useContentPanelTab,
+} from "@/lib/content-panel-tab";
 import type {
   ChatInputEditingTarget,
   ContentChatInputHandle,
@@ -106,16 +112,38 @@ export function ContentDetailChatPanel({
   ...panelProps
 }: ContentDetailChatPanelProps) {
   const tab = useContentPanelTab();
-  const showOverview = Boolean(overview) && tab === "overview";
+  const hasOverview = Boolean(overview);
+  const showOverview = hasOverview && tab === "overview";
+  const { openPanel } = useRightPanel();
+  const openPanelRef = useRef(openPanel);
+  openPanelRef.current = openPanel;
+
+  // Blog posts and changelogs open with the panel showing, unless it was
+  // closed on purpose; the header button then shows "Details".
+  useEffect(() => {
+    setContentPanelHasOverview(hasOverview);
+    if (hasOverview && !isContentPanelDismissed()) {
+      openPanelRef.current("content");
+    }
+    return () => setContentPanelHasOverview(false);
+  }, [hasOverview]);
+
+  const onClose = () => {
+    if (hasOverview) {
+      setContentPanelDismissed(true);
+    }
+    panelProps.onClose();
+  };
   return (
     <RightPanel id="content">
       {showOverview ? (
-        <ContentPanelOverview onClose={panelProps.onClose}>
+        <ContentPanelOverview onClose={onClose}>
           {overview}
         </ContentPanelOverview>
       ) : (
         <ContentChatActivityPanel
           {...panelProps}
+          onClose={onClose}
           organizationSlug={composer.organizationSlug}
           titleSlot={overview ? <ContentPanelTabs /> : undefined}
         >

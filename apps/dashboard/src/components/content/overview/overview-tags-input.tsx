@@ -5,7 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   POST_TAG_MAX_LENGTH,
   POST_TAGS_MAX,
-} from "@notra/schemas/constants/dashboard/post-metadata";
+} from "@notra/ai/constants/post-metadata";
 import { useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { useTranslations } from "use-intl";

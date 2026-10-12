@@ -2,16 +2,13 @@
 
 import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  POST_EXCERPT_MAX_LENGTH,
-  POST_EXCERPT_RECOMMENDED_LENGTH,
-} from "@notra/schemas/constants/dashboard/post-metadata";
+import { POST_EXCERPT_MAX_LENGTH } from "@notra/ai/constants/post-metadata";
+import { POST_EXCERPT_RECOMMENDED_LENGTH } from "@notra/schemas/constants/dashboard/post-metadata";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@notra/ui/components/ui/collapsible";
-import { Input } from "@notra/ui/components/ui/input";
 import { Textarea } from "@notra/ui/components/ui/textarea";
 import { cn } from "@notra/ui/lib/utils";
 import { slugify } from "@notra/utils/slugify";
@@ -29,6 +26,7 @@ import { ContentAuthorsDialog } from "@/components/content/overview/content-auth
 import { ContentStatusBadge } from "@/components/content/overview/content-status-badge";
 import { OverviewAuthorSelect } from "@/components/content/overview/overview-author-select";
 import { OverviewCoverField } from "@/components/content/overview/overview-cover-field";
+import { OverviewDateField } from "@/components/content/overview/overview-date-field";
 import {
   OverviewField,
   OverviewToggleRow,
@@ -268,13 +266,11 @@ export function ContentOverview(props: ContentOverviewProps) {
         htmlFor={ids.date}
         label={t("date.label")}
       >
-        <Input
+        <OverviewDateField
+          fallback={content.date.slice(0, 10)}
           id={ids.date}
-          onChange={(event) =>
-            api.update({ displayDate: event.target.value || null })
-          }
-          type="date"
-          value={metadata.displayDate ?? content.date.slice(0, 10)}
+          onChange={(displayDate) => api.update({ displayDate })}
+          value={metadata.displayDate}
         />
       </OverviewField>
 

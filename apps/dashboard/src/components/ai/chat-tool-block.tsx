@@ -602,6 +602,8 @@ const TOOL_COPY = {
   },
   getMarkdown: {},
   editMarkdown: {},
+  getPostDetails: {},
+  updatePostDetails: {},
   listAvailableSkills: {},
   getSkillByName: {
     suffix: (input) => quotedSuffix(input, ["name"]),

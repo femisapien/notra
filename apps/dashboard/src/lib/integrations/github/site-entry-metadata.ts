@@ -1,8 +1,8 @@
+import { postCoverImageSchema } from "@notra/ai/schemas/post-metadata";
 import { logError } from "@notra/ai/utils/server-log";
 import { db } from "@notra/db/drizzle";
 import { contentAuthors } from "@notra/db/schema";
 import { contentAuthorsInOrganization } from "@notra/db/utils/post-metadata";
-import { postCoverImageSchema } from "@notra/schemas/shared/post-metadata";
 
 import { MARKDOWN_IMAGE_DESTINATION } from "@/constants/site-github-publish";
 import { prepareR2GitHubContentAssets } from "@/lib/integrations/github/content-assets";

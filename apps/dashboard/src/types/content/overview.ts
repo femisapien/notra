@@ -6,9 +6,12 @@ import type {
 } from "@notra/schemas/shared/post-metadata";
 import type { ReactNode } from "react";
 
-import type { CONTENT_AUTHOR_LINK_FIELDS } from "@/constants/content-overview";
+import type {
+  CONTENT_AUTHOR_LINK_FIELDS,
+  CONTENT_PANEL_TABS,
+} from "@/constants/content-overview";
 
-export type ContentPanelTab = "overview" | "agent";
+export type ContentPanelTab = (typeof CONTENT_PANEL_TABS)[number]["id"];
 
 export type CoverSource = "upload" | "link" | "post";
 
@@ -116,4 +119,13 @@ export type PostMetadataColumns = Pick<
 
 export interface ContentStatusBadgeProps {
   status: ContentResponse["status"];
+}
+
+export interface OverviewDateFieldProps {
+  id: string;
+  /** Date chosen in Notra, YYYY-MM-DD, or null to use the publish date. */
+  value: string | null;
+  /** The publish date shown while no date is chosen, YYYY-MM-DD. */
+  fallback: string;
+  onChange: (value: string | null) => void;
 }

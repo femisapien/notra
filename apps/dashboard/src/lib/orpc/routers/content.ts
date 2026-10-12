@@ -6,6 +6,7 @@ import {
 } from "@notra/ai/integrations/linear";
 import { type ContentType, contentTypeSchema } from "@notra/ai/schemas/content";
 import { supportsPostSlug } from "@notra/ai/schemas/post";
+import { postCoverImageSchema } from "@notra/ai/schemas/post-metadata";
 import {
   createLinearClient,
   getLinearIssuePreviews,
@@ -60,10 +61,7 @@ import {
   updateExpectedPostCountInputSchema,
 } from "@notra/schemas/dashboard/content";
 import { clearCompletedGenerationSchema } from "@notra/schemas/dashboard/generations";
-import {
-  type PostMetadata,
-  postCoverImageSchema,
-} from "@notra/schemas/shared/post-metadata";
+import type { PostMetadata } from "@notra/schemas/shared/post-metadata";
 import { slugify } from "@notra/utils/slugify";
 import {
   and,
