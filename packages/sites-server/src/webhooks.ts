@@ -124,30 +124,6 @@ async function sitesForRepository(
     .then((rows) => rows.map(({ site }) => site));
 }
 
-async function hasDeploymentInProgress(
-  siteId: string,
-  branch: string,
-  previewKey: string | null
-): Promise<boolean> {
-  const [inProgress] = await db
-    .select({ id: siteDeployments.id })
-    .from(siteDeployments)
-    .where(
-      and(
-        eq(siteDeployments.siteId, siteId),
-        eq(siteDeployments.branch, branch),
-        previewKey === null
-          ? isNull(siteDeployments.previewKey)
-          : eq(siteDeployments.previewKey, previewKey),
-        inArray(siteDeployments.status, [
-          ...SITE_DEPLOYMENT_IN_PROGRESS_STATUSES,
-        ])
-      )
-    )
-    .limit(1);
-  return Boolean(inProgress);
-}
-
 async function handlePush(payload: PushPayload): Promise<string[]> {
   if (
     !payload.ref.startsWith(BRANCH_REF_PREFIX) ||
@@ -179,14 +155,7 @@ async function handlePush(payload: PushPayload): Promise<string[]> {
     ) {
       continue;
     }
-    // A queued build for an older commit is canceled once the branch moves
-    // on, so this push still has to deploy to ship that build's content.
-    if (
-      !(
-        pushTouchesRootDirectory(payload, site.rootDirectory) ||
-        (await hasDeploymentInProgress(site.id, branch, previewKey))
-      )
-    ) {
+    if (!pushTouchesRootDirectory(payload, site.rootDirectory)) {
       continue;
     }
     const jobId = await enqueueOrSkip({

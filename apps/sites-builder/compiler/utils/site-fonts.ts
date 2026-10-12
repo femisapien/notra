@@ -74,7 +74,12 @@ function requestedWeights(
       weights: [fonts?.body?.weight ?? fonts?.weight],
     },
     {
-      spec: fonts?.heading?.family ? fonts.heading : fonts,
+      // Headings fall back to the top-level font, then to the body font.
+      spec: fonts?.heading?.family
+        ? fonts.heading
+        : fonts?.family
+          ? fonts
+          : fonts?.body,
       // Without its own weight a heading renders at the theme default, so that
       // weight has to be downloaded even when the body pins another one.
       weights:

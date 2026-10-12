@@ -13,7 +13,7 @@ A blog and release notes for a fictional open-source project, DriftDB, an embedd
 2. In Notra, open **Sites → New site**, pick the repository and, if the folder isn't at the root, turn on **Site is in a subdirectory** and enter its path.
 3. On each release, change `version` and `install` under `variables` in `blog.json`, or in **Settings → Content variables**, and add a file to `changelog/`. The banner, descriptions and posts pick up the new values.
 
-Variables aren't replaced inside code or in `markdown.instructions`, so the posts show `{{ install }}` in bold text instead of inline code, and the agent instructions use fixed text.
+Variables aren't replaced inside code, so the posts show `{{ install }}` in bold text instead of inline code. They do work in `markdown.instructions`.
 
 ## Files
 

@@ -73,18 +73,21 @@ const whyNotBuild = Effect.fn("Sites.whyNotBuild")(function* (
   const head = yield* currentBranchHead(access, deployment.branch);
   const fromWebhook =
     deployment.trigger === "push" || deployment.trigger === "pull_request";
-  if (fromWebhook && head !== deployment.commitSha) {
-    return head
-      ? `${deployment.branch} moved on to ${head.slice(0, 7)}.`
-      : `${deployment.branch} no longer exists.`;
+  if (fromWebhook && !head) {
+    return `${deployment.branch} no longer exists.`;
   }
+  // A moved head alone isn't enough: pushes that don't touch the site's
+  // folder create no deployment, so this one may be the only build of the
+  // site's latest content.
   if (
     yield* Effect.tryPromise({
       try: () => hasNewerDeployment(deployment, head),
       catch: (error) => error,
     })
   ) {
-    return "A newer deployment replaces this one.";
+    return fromWebhook && head && head !== deployment.commitSha
+      ? `${deployment.branch} moved on to ${head.slice(0, 7)}.`
+      : "A newer deployment replaces this one.";
   }
   return null;
 });
