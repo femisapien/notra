@@ -17,10 +17,19 @@ export interface RepositoryPayload {
   full_name: string;
 }
 
+export interface PushCommit {
+  added?: string[];
+  modified?: string[];
+  removed?: string[];
+}
+
 export interface PushPayload {
   ref: string;
   after: string;
   deleted?: boolean;
+  created?: boolean;
+  forced?: boolean;
+  commits?: PushCommit[];
   repository: RepositoryPayload;
   installation?: { id: number };
   head_commit?: { message?: string; author?: { name?: string } } | null;

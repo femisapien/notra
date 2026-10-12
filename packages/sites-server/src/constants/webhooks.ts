@@ -14,3 +14,6 @@ export const WEBHOOK_CLAIM_LEASE_SECONDS = 10 * 60;
 
 export const BRANCH_REF_PREFIX = "refs/heads/";
 export const ZERO_SHA = /^0+$/;
+
+/** GitHub stops listing commits in a push payload past this many. */
+export const PUSH_PAYLOAD_COMMIT_LIMIT = 2048;
